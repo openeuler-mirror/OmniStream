@@ -58,7 +58,7 @@ void initialValueState(BssValueState<RowData*, VoidNamespace, RowData*>*& valueS
     config->SetEvictMinSize(IO_SIZE_1K);
     config->SetTaskSlotFlag(UUIDGenerator::generateUUID());
     nDB->Open(config);
-    valueState->CreateTable(nDB);
+    valueState->CreateTable(nDB, "valueStateTable");
 }
 
 void initialListState(BssListState<RowData*, int64_t, int64_t>*& listState)
@@ -70,7 +70,7 @@ void initialListState(BssListState<RowData*, int64_t, int64_t>*& listState)
     config->SetEvictMinSize(IO_SIZE_1K);
     config->SetTaskSlotFlag(UUIDGenerator::generateUUID());
     nDB->Open(config);
-    listState->CreateTable(nDB);
+    listState->CreateTable(nDB, "listStateTable");
 }
 
 void initialMapState(BssMapState<RowData*, int64_t, int64_t, int64_t>*& mapState)
@@ -82,13 +82,13 @@ void initialMapState(BssMapState<RowData*, int64_t, int64_t, int64_t>*& mapState
     config->SetEvictMinSize(IO_SIZE_1K);
     config->SetTaskSlotFlag(UUIDGenerator::generateUUID());
     nDB->Open(config);
-    mapState->CreateTable(nDB);
+    mapState->CreateTable(nDB, "mapStateTable");
 }
 
 TableRef CreateFromDB(StateType keyedStateType, std::string tableName, BoostStateDB* db)
 {
     auto tblDesc = std::make_shared<ock::bss::TableDescription>(
-        keyedStateType, "dbTable", -1, ock::bss::TableSerializer{}, db->GetConfig());
+        keyedStateType, tableName, -1, ock::bss::TableSerializer{}, db->GetConfig());
     return db->GetTableOrCreate(tblDesc);
 }
 

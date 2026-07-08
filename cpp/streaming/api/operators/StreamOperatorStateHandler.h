@@ -102,18 +102,20 @@ public:
 
     void notifyCheckpointComplete(long checkpointId)
     {
-        auto backend = dynamic_cast<RocksdbKeyedStateBackend<K>*>(keyedStateBackend);
-        if (backend) {
-            backend->notifyCheckpointComplete(checkpointId);
+        // AbstractKeyedStateBackend 继承 CheckpointListener，统一走虚函数分发
+        // （RocksDB/BSS backend 各自 override，未 override 的 backend 为 no-op）
+        auto listener = dynamic_cast<CheckpointListener*>(keyedStateBackend);
+        if (listener) {
+            listener->notifyCheckpointComplete(checkpointId);
         }
     }
 
     void notifyCheckpointAborted(long checkpointId)
     {
         INFO_RELEASE("notifyCheckpointAborted");
-        auto backend = dynamic_cast<RocksdbKeyedStateBackend<K>*>(keyedStateBackend);
-        if (backend) {
-            backend->notifyCheckpointAborted(checkpointId);
+        auto listener = dynamic_cast<CheckpointListener*>(keyedStateBackend);
+        if (listener) {
+            listener->notifyCheckpointAborted(checkpointId);
         }
     }
 
@@ -242,6 +244,12 @@ public:
                 if (heapBackend && bridge) {
                     heapBackend->setOmniTaskBridge(bridge);
                 }
+#ifdef WITH_OMNISTATESTORE
+                auto bssBackend = dynamic_cast<BssKeyedStateBackend<K>*>(keyedStateBackend);
+                if (bssBackend && bridge) {
+                    bssBackend->SetOmniTaskBridge(bridge);
+                }
+#endif
 
                 auto keySerializer = keyedStateBackend->getKeySerializer();
                 if (isCanonicalSavepoint(checkpointOptions->GetCheckpointType())) {
