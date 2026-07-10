@@ -245,10 +245,24 @@ public:
 
                 auto keySerializer = keyedStateBackend->getKeySerializer();
                 if (isCanonicalSavepoint(checkpointOptions->GetCheckpointType())) {
-                    // TTODO
-                    // Create a snapshot runner with prepareCanonicalSavepoint()
-                    // and set the snapshot as keyedStateManagedFuture
+                    INFO_RELEASE(
+                        "StreamOperatorStateHandler::snapshotState - entering flink savepoint canonical save flow, "
+                        "operator="
+                        << operatorName << ", checkpointId=" << checkpointId);
                     auto snapshotRunner = prepareCanonicalSavepoint(keyedStateBackend);
+                    snapshotInProgress->setKeyedStateManagedFuture(snapshotRunner->snapshot(
+                        checkpointId,
+                        timestamp,
+                        checkpointStreamFactory,
+                        checkpointOptions,
+                        bridge,
+                        keySerializer->toJson()));
+                } else if (isCompatibleSavepoint(checkpointOptions->GetCheckpointType())) {
+                    INFO_RELEASE(
+                        "StreamOperatorStateHandler::snapshotState - entering flink savepoint compatible save flow, "
+                        "operator="
+                        << operatorName << ", checkpointId=" << checkpointId);
+                    auto snapshotRunner = prepareCompatibleSavepoint(keyedStateBackend);
                     snapshotInProgress->setKeyedStateManagedFuture(snapshotRunner->snapshot(
                         checkpointId,
                         timestamp,
@@ -309,6 +323,12 @@ private:
                dynamic_cast<SavepointType*>(snapshotType)->getFormatType() == SavepointFormatType::CANONICAL;
     };
 
+    bool isCompatibleSavepoint(SnapshotType* snapshotType)
+    {
+        return snapshotType->IsSavepoint() &&
+               dynamic_cast<SavepointType*>(snapshotType)->getFormatType() == SavepointFormatType::COMPATIBLE;
+    };
+
     template <typename T>
     std::shared_ptr<SnapshotStrategyRunner<KeyedStateHandle, FullSnapshotResources>> prepareCanonicalSavepoint(
         CheckpointableKeyedStateBackend<T>* keyedStateBackend)
@@ -317,6 +337,18 @@ private:
         auto savepointSnapshotStrategy = new SavepointSnapshotStrategy(savepointResources->getSnapshotResources());
         return std::make_shared<SnapshotStrategyRunner<KeyedStateHandle, FullSnapshotResources>>(
             "Asynchronous full Savepoint",
+            savepointSnapshotStrategy,
+            savepointResources->getPreferredSnapshotExecutionType());
+    }
+
+    template <typename T>
+    std::shared_ptr<SnapshotStrategyRunner<KeyedStateHandle, FullSnapshotResources>> prepareCompatibleSavepoint(
+        CheckpointableKeyedStateBackend<T>* keyedStateBackend)
+    {
+        auto savepointResources = keyedStateBackend->savepoint();
+        auto savepointSnapshotStrategy = new SavepointSnapshotStrategy(savepointResources->getSnapshotResources());
+        return std::make_shared<SnapshotStrategyRunner<KeyedStateHandle, FullSnapshotResources>>(
+            "Asynchronous full Compatible Savepoint",
             savepointSnapshotStrategy,
             savepointResources->getPreferredSnapshotExecutionType());
     }

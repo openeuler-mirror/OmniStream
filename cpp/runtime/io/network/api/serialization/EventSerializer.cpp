@@ -323,6 +323,7 @@ void EventSerializer::EncodeSavepointType(SavepointType* savepointType, ByteBuff
     switch (savepointType->getFormatType()) {
         case SavepointFormatType::CANONICAL: byteBuffer.putByte(SAVEPOINT_FORMAT_CANONICAL); break;
         case SavepointFormatType::NATIVE: byteBuffer.putByte(SAVEPOINT_FORMAT_NATIVE); break;
+        case SavepointFormatType::COMPATIBLE: byteBuffer.putByte(SAVEPOINT_FORMAT_COMPATIBLE); break;
         default: throw std::runtime_error("Unknown savepoint format type");
     }
 }
@@ -381,6 +382,8 @@ SnapshotType* EventSerializer::DecodeSavepointType(uint8_t checkpointTypeCode, B
         formatType = SavepointFormatType::CANONICAL;
     } else if (formatTypeCode == EventSerializer::SAVEPOINT_FORMAT_NATIVE) {
         formatType = SavepointFormatType::NATIVE;
+    } else if (formatTypeCode == EventSerializer::SAVEPOINT_FORMAT_COMPATIBLE) {
+        formatType = SavepointFormatType::COMPATIBLE;
     } else {
         throw std::runtime_error("Unknown savepoint format type code: " + std::to_string(formatTypeCode));
     }
