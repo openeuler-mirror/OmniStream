@@ -39,6 +39,8 @@ public:
             serializer = new LongSerializer();
         } else if (typeName == TYPE_NAME_DOUBLE_SERIALIZER) {
             serializer = new DoubleSerializer();
+        } else if (typeName == TYPE_NAME_INT_SERIALIZER) {
+            serializer = new IntSerializer();
         } else if (typeName == TYPE_NAME_VOID_SERIALIZER) {
             serializer = new VoidSerializer();
         }

@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <mutex>
 
+#include "LogicTypeUtils.h"
 #include "LogicalType.h"
 #include "VarCharType.h"
 #include "TimestampWithoutTimeZoneType.h"
@@ -123,6 +124,61 @@ DataTypeId LogicalType::flinkTypeToOmniTypeId(const std::string& flinkType)
     return DataTypeId::OMNI_INVALID;
 }
 
+LogicalType* LogicalType::flinkTypeToOmniType(const std::string& flinkType)
+{
+    buildNameToIdMap();
+    std::string basicStrippedType = LogicTypeUtils::stripFlinkTypeExtras(flinkType);
+    nlohmann::json options = LogicTypeUtils::optionsFromFlinkType(basicStrippedType);
+
+    auto it = nameToIdMap.find(basicStrippedType);
+    if (it != nameToIdMap.end()) {
+        return BasicLogicalType::getTypeBy(it->second, options);
+    }
+
+    std::string typeStr;
+    if (LogicTypeUtils::startsWith(basicStrippedType, "TIMESTAMP_LTZ")) {
+        return BasicLogicalType::getTypeBy(DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE, options);
+    } else {
+        typeStr = basicStrippedType.substr(basicStrippedType.find(')') + 1);
+        it = nameToIdMap.find(typeStr);
+        if (it != nameToIdMap.end()) {
+            return BasicLogicalType::getTypeBy(it->second, options);
+        }
+        if (LogicTypeUtils::startsWith(basicStrippedType, "TIMESTAMP")) {
+            return BasicLogicalType::getTypeBy(DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE, options);
+        }
+    }
+
+    if (LogicTypeUtils::startsWith(basicStrippedType, "DECIMAL")) {
+        size_t closeParen = basicStrippedType.find(')', 8);
+        std::string numbers = basicStrippedType.substr(8, closeParen - 8);
+        size_t commaPos = numbers.find(',');
+        int precision = std::stoi(numbers.substr(0, commaPos));
+        return BasicLogicalType::getTypeBy(precision < 19 ? OMNI_DECIMAL64 : OMNI_DECIMAL128, options);
+    }
+
+    typeStr = basicStrippedType.substr(0, basicStrippedType.find('('));
+    it = nameToIdMap.find(typeStr);
+    if (it != nameToIdMap.end()) {
+        return BasicLogicalType::getTypeBy(it->second, options);
+    }
+
+    typeStr = basicStrippedType.substr(0, basicStrippedType.find('<'));
+    it = nameToIdMap.find(typeStr);
+    if (it != nameToIdMap.end()) {
+        return BasicLogicalType::getTypeBy(it->second, options);
+    }
+
+    if (LogicTypeUtils::startsWith(basicStrippedType, "INTERVAL YEAR") ||
+        LogicTypeUtils::startsWith(basicStrippedType, "INTERVAL MONTH")) {
+        return BasicLogicalType::getTypeBy(DataTypeId::OMNI_INTERVAL_MONTHS, options);
+    } else if (LogicTypeUtils::startsWith(basicStrippedType, "INTERVAL")) {
+        return BasicLogicalType::getTypeBy(DataTypeId::OMNI_INTERVAL_DAY_TIME, options);
+    }
+
+    return BasicLogicalType::getTypeBy(DataTypeId::OMNI_INVALID, options);
+}
+
 void LogicalType::buildNameToIdMap()
 {
     static std::once_flag flag;
@@ -198,8 +254,8 @@ BasicLogicalType* BasicLogicalType::getTypeBy(DataTypeId typeId, const nlohmann:
             break;
         }
         case DataTypeId::OMNI_VARCHAR: {
-            type = new VarCharType(true, std::numeric_limits<int>::max());
-            ;
+            int length = element.value("length", std::numeric_limits<int>::max());
+            type = new VarCharType(true, length);
             break;
         }
         case DataTypeId::OMNI_DOUBLE: {
@@ -215,6 +271,7 @@ BasicLogicalType* BasicLogicalType::getTypeBy(DataTypeId typeId, const nlohmann:
             type = new TimeWithoutTimeZoneType(true, precision);
             break;
         }
+        case DataTypeId::OMNI_TIMESTAMP:
         case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE: {
             int precision = element.value("precision", 0);
             type = new TimestampWithoutTimeZoneType(true, precision);
@@ -225,8 +282,7 @@ BasicLogicalType* BasicLogicalType::getTypeBy(DataTypeId typeId, const nlohmann:
             type = new TimestampWithTimeZoneType(true, precision);
             break;
         }
-        case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-        case DataTypeId::OMNI_TIMESTAMP: {
+        case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE: {
             int precision = element.value("precision", 0);
             type = new TimestampWithLocalTimeZoneType(true, precision);
             break;
