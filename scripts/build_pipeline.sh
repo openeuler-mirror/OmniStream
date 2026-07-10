@@ -249,17 +249,17 @@ function build_with_mode() {
       }
 
     cd $cpp_build_dir/
-    cmake .. -DCMAKE_BUILD_TYPE=$build_type -DCMAKE_INSTALL_PREFIX=$(pwd)/libbasictypes && cmake --build . --parallel 16 --target basictypes && cmake --install .|| {
+    cmake .. -DCMAKE_BUILD_TYPE=$build_type -DCMAKE_INSTALL_PREFIX=$(pwd)/libbasictypes -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache && cmake --build . --parallel 16 --target basictypes && cmake --install .|| {
 	    echo CMake Failed
             exit 1
     }
     cd $cpp_build_dir/
-    cmake .. -DCMAKE_BUILD_TYPE=$build_type -DCMAKE_INSTALL_PREFIX=$(pwd)/libbasictypes && cmake --build . --parallel 16 --target basicfunctions && cmake --install .|| {
+    cmake .. -DCMAKE_BUILD_TYPE=$build_type -DCMAKE_INSTALL_PREFIX=$(pwd)/libbasictypes -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache && cmake --build . --parallel 16 --target basicfunctions && cmake --install .|| {
       echo CMake Failed
             exit 1
     }
     cd $cpp_build_dir/
-    cmake .. -DCMAKE_BUILD_TYPE=$build_type -DCMAKE_INSTALL_PREFIX=$(pwd)/libbasictypes && cmake --build . --parallel 16 --target thirdlibrary && cmake --install .|| {
+    cmake .. -DCMAKE_BUILD_TYPE=$build_type -DCMAKE_INSTALL_PREFIX=$(pwd)/libbasictypes -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache  && cmake --build . --parallel 16 --target thirdlibrary && cmake --install .|| {
       echo CMake Failed
             exit 1
     }
@@ -314,12 +314,18 @@ function run_test_with_mode() {
     ./tneltest
     # coverage report
     cd $cpp_build_dir
-    lcov --directory . --capture --output-file coverage.info --rc lcov_branch_coverage=1
-    lcov --rc lcov_branch_coverage=1  --extract coverage.info '*/cpp/table/runtime/operators*' -o table.info
-    genhtml table.info --branch-coverage --output-directory out
-    cd ../../
-    mkdir test_coverage
-    cp $cpp_build_dir/out/index.html test_coverage/index.html
+        fastcov \
+            -d ${cpp_root}/ \
+            -o table.info \
+            --lcov \
+            --include "${cpp_root}/" \
+            --exclude "/usr/include/" \
+            --branch-coverage \
+            -j $num_cpus
+        genhtml table.info --branch-coverage --output-directory out
+        cd ../../
+        mkdir -p test_coverage
+        cp -r $cpp_build_dir/out/index.html test_coverage/index.html
     if [ $? -ne 0 ];then
       echo "Error: Failed to run unit test"
       exit 1
