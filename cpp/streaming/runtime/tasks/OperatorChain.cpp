@@ -26,6 +26,10 @@
 #include "streaming/api/operators/TwoInputStreamOperator.h"
 #include "basictypes/Object.h"
 #include "table/data/binary/BinaryRowData.h"
+#include "table/typeutils/RowDataSerializer.h"
+#include "table/typeutils/BinaryRowDataSerializer.h"
+#include "table/typeutils/InternalTypeInfo.h"
+#include "table/types/logical/RowType.h"
 #include "omni/OmniStreamTask.h"
 #include "runtime/io/network/api/writer/RecordWriterDelegate.h"
 #include "taskmanager/OmniRuntimeEnvironment.h"
@@ -450,6 +454,52 @@ StreamOperator* OperatorChainV2::createMainOperatorAndCollector(
     return op;
 }
 
+static TypeSerializer* tryCreateRowDataSerializerFromJson(const nlohmann::json& description)
+{
+    // Helper: try to build keyTypeNames from (keyFieldName, typeFieldName)
+    auto tryBuild = [&](const char* keyField, const char* typeField) -> TypeSerializer* {
+        if (!description.contains(keyField) || description[keyField].empty()) return nullptr;
+        if (!description.contains(typeField) || description[typeField].empty()) return nullptr;
+        auto keyIndices = description[keyField].get<std::vector<int32_t>>();
+        auto typeNames = description[typeField].get<std::vector<std::string>>();
+        std::vector<std::string> keyTypeNames;
+        keyTypeNames.reserve(keyIndices.size());
+        for (int32_t idx : keyIndices) {
+            if (idx >= 0 && static_cast<size_t>(idx) < typeNames.size()) {
+                keyTypeNames.push_back(typeNames[idx]);
+            }
+        }
+        if (!keyTypeNames.empty()) {
+            auto* rowType = new omnistream::RowType(true, keyTypeNames);
+            auto* serializer = new RowDataSerializer(rowType);
+            delete rowType;
+            return serializer;
+        }
+        return nullptr;
+    };
+
+    TypeSerializer* ser = nullptr;
+
+    // grouping + inputTypes (Agg/Dedup/Rank)
+    ser = tryBuild("grouping", "inputTypes");
+    if (ser) return ser;
+
+    // partitionKey + inputTypes (Rank/Dedup)
+    ser = tryBuild("partitionKey", "inputTypes");
+    if (ser) return ser;
+
+    // leftJoinKey + leftInputTypes (StreamingJoin / WindowJoin)
+    ser = tryBuild("leftJoinKey", "leftInputTypes");
+    if (ser) return ser;
+
+    // rightJoinKey + rightInputTypes (StreamingJoin / WindowJoin — fallback)
+    ser = tryBuild("rightJoinKey", "rightInputTypes");
+    if (ser) return ser;
+
+    INFO_RELEASE("OperatorChainV2: tryCreateRowDataSerializerFromJson — no matching keys found");
+    return nullptr;
+}
+
 void OperatorChainV2::initializeStateAndOpenOperators(
     StreamTaskStateInitializerImpl* initializer, const TaskInformationPOD& taskConfiguration_)
 {
@@ -481,15 +531,25 @@ void OperatorChainV2::initializeStateAndOpenOperators(
                 THROW_LOGIC_EXCEPTION("invalid operatorType");
                 break;
             case Type_o::SQL: // SQL
-                // key default use BinaryRowDataSerializer in sql scenarios
-                {
-                    int keyArity = 0;
-                    if (description.contains("grouping") && !description["grouping"].empty()) {
-                        keyArity = description["grouping"].get<std::vector<int32_t>>().size();
-                    }
-                    streamOperator->initializeState(initializer, new BinaryRowDataSerializer(keyArity));
+            {
+                int keyArity = 0;
+                TypeSerializer* keySer = tryCreateRowDataSerializerFromJson(description);
+                if (keySer != nullptr) {
+                    // Determine keyArity from whichever key field matched
+                    if (description.contains("grouping") && !description["grouping"].empty())
+                        keyArity = static_cast<int>(description["grouping"].get<std::vector<int32_t>>().size());
+                    else if (description.contains("leftJoinKey") && !description["leftJoinKey"].empty())
+                        keyArity = static_cast<int>(description["leftJoinKey"].get<std::vector<int32_t>>().size());
+                    else if (description.contains("partitionKey") && !description["partitionKey"].empty())
+                        keyArity = static_cast<int>(description["partitionKey"].get<std::vector<int32_t>>().size());
+                } else {
+                    INFO_RELEASE(
+                        "OperatorChainV2::initializeStateAndOpenOperators fallback BinaryRowDataSerializer keyArity="
+                        << keyArity);
+                    keySer = new BinaryRowDataSerializer(keyArity);
                 }
-                break;
+                streamOperator->initializeState(initializer, keySer);
+            } break;
             case Type_o::STREAM: // STREAM
                 if (!description.contains("stateKeyTypes") || description["stateKeyTypes"].empty()) {
                     // streamOperator is a stateless operator

@@ -48,11 +48,12 @@ public:
         }
         partitionKeyToTopNbufferMap.init(16);
     }
+
     ~AppendOnlyTopNFunction() = default;
 
     void open(const Configuration& context) override
     {
-        std::string topNStateName = "topNState";
+        std::string topNStateName = "data-state-with-append";
         TypeSerializer* topNSerializer = new SortedVectorLong();
         auto* topNStateDesc = new ValueStateDescriptor<std::vector<long>*>(topNStateName, topNSerializer);
         this->topNState = static_cast<StreamingRuntimeContext<K>*>(this->getRuntimeContext())
@@ -321,7 +322,8 @@ public:
                         omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(
                         outputVB->Get(col))
                         ->SetValue(rowIndex, casted); // issue here
-                } else {                              // DICTIONARY
+                } else {
+                    // DICTIONARY
                     auto casted = reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::DictionaryContainer<
                         std::string_view,
                         omniruntime::vec::LargeStringContainer>>*>(batch->Get(col))
@@ -342,6 +344,7 @@ public:
     {
         NOT_IMPL_EXCEPTION;
     }
+
     ValueState<K>* getValueState() override
     {
         // throw std::runtime_error("AppendOnlyTOpNFunction does not use value state!");

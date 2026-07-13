@@ -68,17 +68,17 @@ void StreamingJoinOperator<K>::open()
 {
     AbstractStreamingJoinOperator<K>::open();
     if (leftIsOuter) {
-        std::string stateName = "left-records_" + this->leftInputSpec;
+        std::string stateName = "left-records";
         leftRecordStateView = new OuterInputSideHasNoUniqueKey<K>(this->getRuntimeContext(), stateName, nullptr);
     } else {
-        std::string stateName = "left-records_" + this->leftInputSpec;
+        std::string stateName = "left-records";
         leftRecordStateView = JoinRecordStateViews::create(
             this->getRuntimeContext(), stateName, nullptr, nullptr, this->leftUniqueKeyIndex);
     }
     if (rightIsOuter) {
         NOT_IMPL_EXCEPTION;
     } else {
-        std::string stateName = "right-records_" + this->rightInputSpec;
+        std::string stateName = "right-records";
         rightRecordStateView = JoinRecordStateViews::create(
             this->getRuntimeContext(), stateName, nullptr, nullptr, this->rightUniqueKeyIndex);
     }
