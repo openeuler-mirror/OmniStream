@@ -11,12 +11,14 @@
 #ifndef OMNISTREAM_HEAPSINGLESTATEITERATOR_H
 #define OMNISTREAM_HEAPSINGLESTATEITERATOR_H
 
-#include <vector>
+#include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <type_traits>
+#include <vector>
 #include "runtime/state/rocksdb/iterator/SingleStateIterator.h"
 #include "runtime/state/CompositeKeySerializationUtils.h"
+#include "runtime/state/heap/HeapSnapshotStateData.h"
 #include "core/memory/DataOutputSerializer.h"
 #include "core/typeutils/TypeSerializer.h"
 #include "core/typeutils/MapSerializer.h"
@@ -53,16 +55,19 @@ struct IsVectorPtr<std::vector<V>*> : std::true_type {};
 template <typename K, typename N, typename S>
 class HeapSingleStateIterator : public SingleStateIterator {
 public:
+    using SerializedEntry = HeapSnapshotStateData::SerializedEntry;
+
     struct VbDataTag {};
 
     HeapSingleStateIterator(StateTable<K, N, S>* stateTable, int kvStateId, int keyGroupPrefixBytes)
         : stateTable_(stateTable),
           kvStateId_(kvStateId),
-          keyGroupPrefixBytes_(keyGroupPrefixBytes)
+          keyGroupPrefixBytes_(keyGroupPrefixBytes),
+          snapshotData_(std::make_shared<HeapSnapshotStateData>())
     {
         collectAndSerializeEntries();
         currentIndex_ = 0;
-        valid_ = !entries_.empty();
+        valid_ = !snapshotData_->entries().empty();
         refreshKeyGroup();
     }
 
@@ -73,11 +78,12 @@ public:
         VbDataTag)
         : stateTable_(reinterpret_cast<StateTable<K, N, S>*>(vbTable)),
           kvStateId_(kvStateId),
-          keyGroupPrefixBytes_(keyGroupPrefixBytes)
+          keyGroupPrefixBytes_(keyGroupPrefixBytes),
+          snapshotData_(std::make_shared<HeapSnapshotStateData>())
     {
         collectVbEntries();
         currentIndex_ = 0;
-        valid_ = !entries_.empty();
+        valid_ = !snapshotData_->entries().empty();
         refreshKeyGroup();
     }
 
@@ -85,7 +91,7 @@ public:
     {
         if (valid_) {
             currentIndex_++;
-            valid_ = (currentIndex_ < entries_.size());
+            valid_ = (currentIndex_ < snapshotData_->entries().size());
             refreshKeyGroup();
         }
     }
@@ -97,13 +103,13 @@ public:
 
     ByteView key() const override
     {
-        const auto& key = entries_[currentIndex_].serializedKey;
+        const auto& key = snapshotData_->entries()[currentIndex_].serializedKey;
         return ByteView::fromBuffer(key.data(), key.size());
     }
 
     ByteView value() const override
     {
-        const auto& value = entries_[currentIndex_].serializedValue;
+        const auto& value = snapshotData_->entries()[currentIndex_].serializedValue;
         return ByteView::fromBuffer(value.data(), value.size());
     }
 
@@ -119,25 +125,28 @@ public:
 
     size_t getEntryCount() const override
     {
-        return entries_.size();
+        return snapshotData_->entries().size();
     }
 
     void close() override
     {
-        entries_.clear();
+        // Heap snapshot frozen data 由 HeapSnapshotStateData 持有，iterator close 只标记迭代失效。
+        // 这样即使 iterator 被 move/close，资源层创建的 VectorBatch accessor 仍能读取 frozen bytes。
+        currentIndex_ = snapshotData_->entries().size();
+        currentKeyGroup_ = -1;
         valid_ = false;
     }
 
-private:
-    struct SerializedEntry {
-        std::vector<int8_t> serializedKey;
-        std::vector<int8_t> serializedValue;
-    };
+    std::shared_ptr<HeapSnapshotStateData> getSnapshotData() const
+    {
+        return snapshotData_;
+    }
 
+private:
     StateTable<K, N, S>* stateTable_;
     int kvStateId_;
     int keyGroupPrefixBytes_;
-    std::vector<SerializedEntry> entries_;
+    std::shared_ptr<HeapSnapshotStateData> snapshotData_;
     size_t currentIndex_ = 0;
     int currentKeyGroup_ = -1;
     bool valid_ = false;
@@ -146,10 +155,10 @@ private:
     void refreshKeyGroup()
     {
         currentKeyGroup_ = -1;
-        if (!valid_ || currentIndex_ >= entries_.size()) {
+        if (!valid_ || currentIndex_ >= snapshotData_->entries().size()) {
             return;
         }
-        const auto& key = entries_[currentIndex_].serializedKey;
+        const auto& key = snapshotData_->entries()[currentIndex_].serializedKey;
         if (key.size() < static_cast<size_t>(keyGroupPrefixBytes_)) {
             return;
         }
@@ -180,16 +189,7 @@ private:
         }
 
         // Sort by keyGroupPrefix bytes (ascending) to match MergeIterator expectation
-        std::sort(entries_.begin(), entries_.end(), [this](const SerializedEntry& a, const SerializedEntry& b) -> bool {
-            for (int i = 0; i < keyGroupPrefixBytes_ && i < static_cast<int>(a.serializedKey.size()) &&
-                            i < static_cast<int>(b.serializedKey.size());
-                 i++) {
-                if (static_cast<uint8_t>(a.serializedKey[i]) != static_cast<uint8_t>(b.serializedKey[i])) {
-                    return static_cast<uint8_t>(a.serializedKey[i]) < static_cast<uint8_t>(b.serializedKey[i]);
-                }
-            }
-            return false;
-        });
+        sortSnapshotEntries();
     }
 
     void collectVbEntries()
@@ -220,20 +220,28 @@ private:
                         << keyGroup << ", error=" << e.what());
                     throw;
                 }
-                entries_.push_back(std::move(entry));
+                snapshotData_->addVectorBatchEntry(std::move(entry), it->first);
             }
         }
 
-        std::sort(entries_.begin(), entries_.end(), [this](const SerializedEntry& a, const SerializedEntry& b) -> bool {
-            for (int i = 0; i < keyGroupPrefixBytes_ && i < static_cast<int>(a.serializedKey.size()) &&
-                            i < static_cast<int>(b.serializedKey.size());
-                 i++) {
-                if (static_cast<uint8_t>(a.serializedKey[i]) != static_cast<uint8_t>(b.serializedKey[i])) {
-                    return static_cast<uint8_t>(a.serializedKey[i]) < static_cast<uint8_t>(b.serializedKey[i]);
+        sortSnapshotEntries();
+    }
+
+    void sortSnapshotEntries()
+    {
+        auto& entries = snapshotData_->entries();
+        std::stable_sort(
+            entries.begin(), entries.end(), [this](const SerializedEntry& a, const SerializedEntry& b) -> bool {
+                for (int i = 0; i < keyGroupPrefixBytes_ && i < static_cast<int>(a.serializedKey.size()) &&
+                                i < static_cast<int>(b.serializedKey.size());
+                     i++) {
+                    if (static_cast<uint8_t>(a.serializedKey[i]) != static_cast<uint8_t>(b.serializedKey[i])) {
+                        return static_cast<uint8_t>(a.serializedKey[i]) < static_cast<uint8_t>(b.serializedKey[i]);
+                    }
                 }
-            }
-            return false;
-        });
+                return false;
+            });
+        snapshotData_->rebuildVectorBatchEntryIndices();
     }
 
     std::vector<int8_t> serializeVbKey(int keyGroup, const int64_t& batchId, const VoidNamespace&)
@@ -394,7 +402,7 @@ private:
                     << keyGroup << ", entryIndex=" << mapEntryCount << ", error=" << e.what());
                 throw;
             }
-            entries_.push_back(std::move(entry));
+            snapshotData_->addEntry(std::move(entry));
             mapEntryCount++;
         }
     }

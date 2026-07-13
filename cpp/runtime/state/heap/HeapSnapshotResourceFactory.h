@@ -81,13 +81,15 @@ public:
             std::move(preparedData.stateIterators),
             context_->getKeyGroupRange(),
             keySerializer_,
-            preparedData.keyGroupPrefixBytes);
+            preparedData.keyGroupPrefixBytes,
+            std::move(preparedData.snapshotStateDataByName));
     }
 
 private:
     struct PreparedHeapSnapshotData {
         std::vector<std::shared_ptr<StateMetaInfoSnapshot>> metaInfoSnapshots;
         std::vector<std::unique_ptr<SingleStateIterator>> stateIterators;
+        std::unordered_map<std::string, std::shared_ptr<HeapSnapshotStateData>> snapshotStateDataByName;
         int keyGroupPrefixBytes = 0;
     };
 
@@ -162,17 +164,19 @@ private:
             uintptr_t stateTablePtr = std::get<0>(pair.second);
             auto nsBackendId = std::get<2>(pair.second);
             // All vb state tables share the same type, handle uniformly before type dispatch
-            if (stateName.size() >= 2 && stateName.substr(stateName.size() - 2) == "vb") {
+            if (stateName.size() >= 2 && stateName.compare(stateName.size() - 2, 2, "vb") == 0) {
                 auto* vbTable = reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch*>*>(
                     stateTablePtr);
                 auto* vbMetaInfo = vbTable->getMetaInfo();
                 preparedData.metaInfoSnapshots.push_back(vbMetaInfo->snapshot());
-                preparedData.stateIterators.push_back(
-                    std::make_unique<HeapSingleStateIterator<int, VoidNamespace, omnistream::VectorBatch*>>(
-                        vbTable,
-                        kvStateId,
-                        preparedData.keyGroupPrefixBytes,
-                        HeapSingleStateIterator<int, VoidNamespace, omnistream::VectorBatch*>::VbDataTag{}));
+                auto iterator = std::make_unique<HeapSingleStateIterator<int, VoidNamespace, omnistream::VectorBatch*>>(
+                    vbTable,
+                    kvStateId,
+                    preparedData.keyGroupPrefixBytes,
+                    HeapSingleStateIterator<int, VoidNamespace, omnistream::VectorBatch*>::VbDataTag{});
+                iterator->getSnapshotData()->stateName = stateName;
+                preparedData.snapshotStateDataByName[stateName] = iterator->getSnapshotData();
+                preparedData.stateIterators.push_back(std::move(iterator));
                 kvStateId++;
                 continue;
             }
