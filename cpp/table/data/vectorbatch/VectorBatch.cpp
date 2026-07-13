@@ -17,37 +17,22 @@
 #include "data/binary/BinaryRowData.h"
 #include "table/data/rowdata_marshaller.h"
 #include "OmniOperatorJIT/core/src/codegen/time_util.h"
+#include "OmniOperatorJIT/core/src/codegen/functions/dtoa.h"
+#include "OmniOperatorJIT/core/src/type/TimestampConversion.h"
 
 namespace {
-// Format a double the way Flink/Java Double.toString does for the common value
-// range: fixed-point notation with the shortest number of fractional digits that
-// still round-trips, and always at least one fractional digit (e.g. 1000001.0,
-// 120.0, 3.14, 0.1). A plain "ostream << double" only keeps 6 significant digits
-// and may switch to scientific notation (1000001.0 -> "1e+06"), which both loses
-// precision and breaks the golden comparison against vanilla Flink.
+
 std::string FormatDoubleLikeJava(double value)
 {
-    if (std::isnan(value)) {
-        return "NaN";
-    }
-    if (std::isinf(value)) {
-        return value < 0 ? "-Infinity" : "Infinity";
-    }
-    char buf[64];
-    // Find the minimal number of decimal places (0..17) whose fixed-point
-    // rendering parses back to the exact same double (shortest round-trip).
-    for (int precision = 0; precision <= 17; ++precision) {
-        std::snprintf(buf, sizeof(buf), "%.*f", precision, value);
-        if (std::strtod(buf, nullptr) == value) {
-            break;
-        }
-    }
-    std::string result(buf);
-    // Java always prints at least one fractional digit.
-    if (result.find('.') == std::string::npos) {
-        result += ".0";
-    }
-    return result;
+    constexpr std::size_t kBufLen = omniruntime::codegen::function::MAX_DATA_LENGTH;
+    char buf[kBufLen];
+    std::size_t len = omniruntime::codegen::function::DoubleToString::DoubleToStringConverter(value, buf);
+    return std::string(buf, len);
+}
+
+std::string FormatDateLikeJava(int32_t daysSinceEpoch)
+{
+    return omniruntime::type::util::ToIso8601(daysSinceEpoch);
 }
 }  // namespace
 
@@ -350,6 +335,10 @@ void VectorBatch::WriteToFileInternal(
         case omniruntime::type::DataTypeId::OMNI_INT:
             file << reinterpret_cast<omniruntime::vec::Vector<int32_t>*>(vectors[vectorID])->GetValue(rowID);
             break;
+        case omniruntime::type::DataTypeId::OMNI_DATE32:
+            file << FormatDateLikeJava(
+                reinterpret_cast<omniruntime::vec::Vector<int32_t> *>(vectors[vectorID])->GetValue(rowID));
+            break;
         case omniruntime::type::DataTypeId::OMNI_BOOLEAN:
             file << reinterpret_cast<omniruntime::vec::Vector<bool>*>(vectors[vectorID])->GetValue(rowID);
             break;
@@ -455,6 +444,12 @@ void VectorBatch::convertToJson(
                 j[inputFields[colIndex]] = result;
                 break;
             }
+            case omniruntime::type::DataTypeId::OMNI_DATE32: {
+                auto days = reinterpret_cast<omniruntime::vec::Vector<int32_t> *>(vectors[colIndex])->GetValue(
+                        rowIndex);
+                j[inputFields[colIndex]] = FormatDateLikeJava(days);
+                break;
+            }
             case omniruntime::type::DataTypeId::OMNI_BOOLEAN: {
                 auto result = reinterpret_cast<omniruntime::vec::Vector<bool>*>(vectors[colIndex])->GetValue(rowIndex);
                 j[inputFields[colIndex]] = result;
@@ -555,7 +550,8 @@ omnistream::VectorBatch* VectorBatch::CreateVectorBatch(int rowCount, const std:
     auto* vectorBatch = new omnistream::VectorBatch(rowCount);
     for (size_t i = 0; i < dataTypes.size(); i++) {
         switch (dataTypes[i]) {
-            case (omniruntime::type::DataTypeId::OMNI_INT): {
+            case (omniruntime::type::DataTypeId::OMNI_INT):
+            case (omniruntime::type::DataTypeId::OMNI_DATE32): {
                 auto vec = new omniruntime::vec::Vector<int32_t>(rowCount);
                 vectorBatch->Append(vec);
                 break;

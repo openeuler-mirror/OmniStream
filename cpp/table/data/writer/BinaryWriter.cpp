@@ -25,6 +25,9 @@ void BinaryWriter::write(BinaryWriter* writer, int pos, void* object, LogicalTyp
         case DataTypeId::OMNI_DOUBLE:
             writer->writeDouble(pos, *(reinterpret_cast<double *>(object)));
             break;
+        case DataTypeId::OMNI_DATE32:
+            writer->writeInt(pos, *(reinterpret_cast<int *>(object)));
+            break;
         default: THROW_LOGIC_EXCEPTION("Unknown type" + std::to_string(type->getTypeId()));
     }
 }

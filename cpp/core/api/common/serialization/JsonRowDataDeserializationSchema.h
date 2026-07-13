@@ -64,7 +64,8 @@ public:
         }
 
         switch (type) {
-            case omniruntime::type::DataTypeId::OMNI_INT: {
+            case omniruntime::type::DataTypeId::OMNI_INT:
+            case omniruntime::type::DataTypeId::OMNI_DATE32: {
                 vectorBatch->SetValueAt(colIndex, rowIndex, fieldIt->get<int32_t>());
                 break;
             }
