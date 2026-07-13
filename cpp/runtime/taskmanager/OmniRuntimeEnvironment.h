@@ -102,6 +102,11 @@ public:
         return taskConfiguration_;
     }
 
+    const JobInformationPOD& jobConfiguration() const override
+    {
+        return jobConfiguration_;
+    }
+
     void setTaskConfiguration(TaskInformationPOD taskConfiguration)
     {
         taskConfiguration_ = taskConfiguration;
@@ -110,11 +115,6 @@ public:
     void SetTaskStateManager(std::shared_ptr<TaskStateManager> taskStateManager)
     {
         taskStateManager_ = std::move(taskStateManager);
-    }
-
-    [[nodiscard]] JobInformationPOD jobConfiguration() const
-    {
-        return jobConfiguration_;
     }
 
     [[nodiscard]] std::shared_ptr<TaskMetricGroup> taskMetricGroup() const

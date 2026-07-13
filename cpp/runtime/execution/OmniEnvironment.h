@@ -15,12 +15,14 @@
 #include <shuffle/ShuffleEnvironment.h>
 #include "runtime/state/TaskStateManager.h"
 #include <executiongraph/TaskInformationPOD.h>
+#include <executiongraph/JobInformationPOD.h>
 
 namespace omnistream {
 class EnvironmentV2 {
 public:
     virtual std::shared_ptr<TaskStateManager> getTaskStateManager() = 0;
     virtual const TaskInformationPOD& taskConfiguration() const = 0;
+    virtual const JobInformationPOD& jobConfiguration() const = 0;
 };
 } // namespace omnistream
 
