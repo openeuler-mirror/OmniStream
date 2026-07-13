@@ -35,6 +35,8 @@ public:
 
     static omniruntime::type::DataTypeId flinkTypeToOmniTypeId(const std::string& flinkType);
 
+    static LogicalType* flinkTypeToOmniType(const std::string& flinkType);
+
     static std::unordered_map<std::string, omniruntime::type::DataTypeId> nameToIdMap;
     static void buildNameToIdMap();
 
