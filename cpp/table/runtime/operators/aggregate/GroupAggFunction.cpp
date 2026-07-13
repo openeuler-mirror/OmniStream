@@ -242,7 +242,7 @@ void GroupAggFunction::InitAggFunctions(int& accStartingIndex, int& aggValueInde
                     "GroupAggFunction InitAggFunctions: distinct COUNT requires a valid aggIndex.");
             }
             if (sharedDistinctContainer == nullptr) {
-                sharedDistinctContainer = new SharedDistinctCountContainerFunction("distinct_acc_shared");
+                sharedDistinctContainer = new SharedDistinctCountContainerFunction("distinctAcc");
             }
             sharedDistinctContainer->addDistinctEntry(
                 meta.aggFuncIndex, meta.aggType, meta.aggIndex, meta.filterIndex, meta.aggDataType);

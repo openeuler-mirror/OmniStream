@@ -105,6 +105,7 @@ void AbstractWindowAggProcessor::open(
         THROW_LOGIC_EXCEPTION("The keyedStateBackend is not supported");
     }
     this->internalTimerService = internalTimerService;
+    omnistream::RowType accRowType(true, accTypes_);
     auto* binaryRowDataSerializer = new BinaryRowDataSerializer(accumulatorArity_);
     // init WindowValueState
     std::string aggName = "window-aggs";
@@ -381,6 +382,7 @@ std::unique_ptr<NamespaceAggsHandleFunction<int64_t>> AbstractWindowAggProcessor
             [](const std::string& type) { return type.find("RAW") != std::string::npos; }),
         accTypes.end());
     accumulatorArity_ = accTypes.size();
+    accTypes_ = accTypes;
     std::vector<int32_t> accTypeIds;
     for (const auto& typeStr : accTypes) {
         accTypeIds.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));

@@ -237,8 +237,8 @@ void WindowJoinOperator<KeyType>::open()
     collector->eraseTimestamp();
     internalTimerService =
         AbstractStreamOperator<KeyType>::getInternalTimerService("window-timers", new LongSerializer(), this);
-    std::string leftName = "leftWindowState";
-    std::string rightName = "rightWindowState";
+    std::string leftName = "left-records";
+    std::string rightName = "right-records";
     auto leftDescriptor = new ListStateDescriptor<VectorBatchId>(leftName, new LongSerializer());
     auto rightDescriptor = new ListStateDescriptor<VectorBatchId>(rightName, new LongSerializer());
 

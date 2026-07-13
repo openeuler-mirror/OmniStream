@@ -42,6 +42,7 @@
 #include "RocksDbOperationUtils.h"
 #include "../RocksDBConfigurableOptions.h"
 #include "runtime/state/RocksIteratorWrapper.h"
+#include "runtime/state/CompositeKeySerializationUtils.h"
 
 /* S is the value used in the State,
  * like RowData* for HeapValueState,
@@ -155,7 +156,8 @@ public:
     {
         auto currentKey = keyContext->getCurrentKey();
 
-        outputSerializer.writeByte(static_cast<uint32_t>(keyContext->getCurrentKeyGroupIndex()));
+        CompositeKeySerializationUtils::writeKeyGroup(
+            keyContext->getCurrentKeyGroupIndex(), keyGroupPrefixBytes_, outputSerializer);
         if constexpr (std::is_same_v<K, int64_t> || std::is_same_v<K, int32_t>) {
             LongSerializer::INSTANCE->serialize(&currentKey, outputSerializer);
         } else if constexpr (std::is_pointer_v<K>) {
@@ -635,6 +637,7 @@ protected:
     int size = 0;
     long vectorBatchId = 0;
     ROCKSDB_NAMESPACE::DB* rocksDb;
+    int keyGroupPrefixBytes_ = 1;
     byte DELIMITER = (byte)',';
     ROCKSDB_NAMESPACE::ReadOptions readOptions;
     ROCKSDB_NAMESPACE::WriteOptions writeOptions;
@@ -695,6 +698,8 @@ RocksdbStateTable<K, N, S>::RocksdbStateTable(
     this->keyContext = keyContext;
     this->metaInfo = std::move(metaInfo);
     this->keySerializer = keySerializer;
+    this->keyGroupPrefixBytes_ =
+        CompositeKeySerializationUtils::computeRequiredBytesInKeyGroupPrefix(keyContext->getNumberOfKeyGroups());
     writeOptions.disableWAL = true;
 }
 

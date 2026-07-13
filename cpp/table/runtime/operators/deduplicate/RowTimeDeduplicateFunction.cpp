@@ -70,7 +70,7 @@ bool RowTimeDeduplicateFunction::CompareRecord(
 void RowTimeDeduplicateFunction::open(const Configuration& config)
 {
     LOG("RowTimeDeduplicateFunction open");
-    std::string deduplicateStateName = "recordState";
+    std::string deduplicateStateName = "deduplicate-state";
     TypeSerializer* serializer = new LongSerializer();
     auto* recordStateDesc = new ValueStateDescriptor<int64_t>(deduplicateStateName, serializer);
 

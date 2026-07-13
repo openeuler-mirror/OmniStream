@@ -32,6 +32,7 @@
 #include "rocksdb/table.h"
 #include "rocksdb/filter_policy.h"
 #include "../RocksDBConfigurableOptions.h"
+#include "runtime/state/CompositeKeySerializationUtils.h"
 
 #include "basictypes/java_util_Iterator.h"
 #include "basictypes/java_util_Map_Entry.h"
@@ -298,7 +299,8 @@ public:
     ROCKSDB_NAMESPACE::Slice GetKeyNameSpaceSlice(DataOutputSerializer& outputSerializer, N& nameSpace)
     {
         auto currentKey = keyContext->getCurrentKey();
-        outputSerializer.writeByte(static_cast<uint32_t>(keyContext->getCurrentKeyGroupIndex()));
+        CompositeKeySerializationUtils::writeKeyGroup(
+            keyContext->getCurrentKeyGroupIndex(), keyGroupPrefixBytes_, outputSerializer);
 
         if constexpr (std::is_same_v<K, int64_t> || std::is_same_v<K, int32_t>) {
             LongSerializer::INSTANCE->serialize(&currentKey, outputSerializer);
@@ -621,7 +623,8 @@ public:
         DataOutputSerializer keyOutputSerializer;
         OutputBufferStatus outputBufferStatus;
         keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
-        keyOutputSerializer.writeByte(static_cast<uint32_t>(keyContext->getCurrentKeyGroupIndex()));
+        CompositeKeySerializationUtils::writeKeyGroup(
+            keyContext->getCurrentKeyGroupIndex(), keyGroupPrefixBytes_, keyOutputSerializer);
         if constexpr (std::is_pointer_v<K>) {
             getKeySerializer()->serialize(currentKey, keyOutputSerializer);
         } else if constexpr (is_shared_ptr_v<K>) {
@@ -1047,7 +1050,10 @@ public:
 
             // 序列化key
             keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
-            keyOutputSerializer.writeByte(static_cast<uint32_t>(stateTable->keyContext->getCurrentKeyGroupIndex()));
+            CompositeKeySerializationUtils::writeKeyGroup(
+                stateTable->keyContext->getCurrentKeyGroupIndex(),
+                stateTable->keyGroupPrefixBytes_,
+                keyOutputSerializer);
             if constexpr (std::is_pointer_v<K>) {
                 stateTable->getKeySerializer()->serialize(currentKey, keyOutputSerializer);
             } else if constexpr (is_shared_ptr_v<K>) {
@@ -1514,6 +1520,7 @@ private:
     int size = 0;
     long vectorBatchId = 0;
     ROCKSDB_NAMESPACE::DB* rocksDb;
+    int keyGroupPrefixBytes_ = 1;
     ROCKSDB_NAMESPACE::ReadOptions readOptions;
     ROCKSDB_NAMESPACE::WriteOptions writeOptions;
     DataOutputSerializer outputView_ = DataOutputSerializer(128);
@@ -1524,7 +1531,8 @@ private:
         auto currentKey = keyContext->getCurrentKey();
 
         // 序列化key, userKey
-        outputSerializer.writeByte(static_cast<uint32_t>(keyContext->getCurrentKeyGroupIndex()));
+        CompositeKeySerializationUtils::writeKeyGroup(
+            keyContext->getCurrentKeyGroupIndex(), keyGroupPrefixBytes_, outputSerializer);
         if constexpr (std::is_pointer_v<K>) {
             getKeySerializer()->serialize(currentKey, outputSerializer);
         } else if constexpr (is_shared_ptr_v<K>) {
@@ -1554,7 +1562,8 @@ private:
         auto currentKey = keyContext->getCurrentKey();
 
         // 序列化key, userKey
-        outputSerializer.writeByte(static_cast<uint32_t>(keyContext->getCurrentKeyGroupIndex()));
+        CompositeKeySerializationUtils::writeKeyGroup(
+            keyContext->getCurrentKeyGroupIndex(), keyGroupPrefixBytes_, outputSerializer);
         if constexpr (std::is_pointer_v<K>) {
             getKeySerializer()->serialize(currentKey, outputSerializer);
         } else if constexpr (is_shared_ptr_v<K>) {
@@ -1572,7 +1581,8 @@ private:
         auto currentKey = keyContext->getCurrentKey();
 
         // 序列化key, userKey
-        outputSerializer.writeByte(static_cast<uint32_t>(keyContext->getCurrentKeyGroupIndex()));
+        CompositeKeySerializationUtils::writeKeyGroup(
+            keyContext->getCurrentKeyGroupIndex(), keyGroupPrefixBytes_, outputSerializer);
         if constexpr (std::is_pointer_v<K>) {
             getKeySerializer()->serialize(currentKey, outputSerializer);
         } else if constexpr (is_shared_ptr_v<K>) {
@@ -1661,7 +1671,8 @@ private:
         // todo: This function differs from original Flink and may need to be modified
         auto currentKey = keyContext->getCurrentKey();
         outputView_.clear();
-        outputView_.writeByte(static_cast<uint32_t>(keyContext->getCurrentKeyGroupIndex()));
+        CompositeKeySerializationUtils::writeKeyGroup(
+            keyContext->getCurrentKeyGroupIndex(), keyGroupPrefixBytes_, outputView_);
         if constexpr (std::is_pointer_v<K>) {
             getKeySerializer()->serialize(currentKey, outputView_);
         } else if constexpr (is_shared_ptr_v<K>) {
@@ -1691,6 +1702,8 @@ RocksdbMapStateTable<K, N, UK, UV>::RocksdbMapStateTable(
       keySerializer(keySerializer),
       userKeySerializer(userKeySerializer)
 {
+    keyGroupPrefixBytes_ =
+        CompositeKeySerializationUtils::computeRequiredBytesInKeyGroupPrefix(keyContext->getNumberOfKeyGroups());
     writeOptions.disableWAL = true;
 }
 

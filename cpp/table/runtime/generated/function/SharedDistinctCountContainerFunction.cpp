@@ -58,7 +58,7 @@ void SharedDistinctCountContainerFunction::getOrCreateGroup(DistinctEntry* entry
         DistinctGroup group;
         group.aggIdx = aggIdx;
         group.typeId = entry->typeId;
-        group.stateName = groups_.empty() ? stateName_ : stateName_ + "_" + std::to_string(groups_.size());
+        group.stateName = stateName_ + "_" + std::to_string(groups_.size());
         // group.groupEntries.push_back(entry);
         groups_.push_back(std::move(group));
         groups_.back().groupEntries.push_back(entry);
