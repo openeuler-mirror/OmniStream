@@ -137,7 +137,8 @@ public:
                             reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(vecBatch->Get(col))->GetValue(row));
                     }
                     break;
-                case omniruntime::type::DataTypeId::OMNI_CHAR: {
+                case omniruntime::type::DataTypeId::OMNI_CHAR:
+                case omniruntime::type::DataTypeId::OMNI_VARCHAR: {
                     if (vecBatch->Get(col)->GetEncoding() == omniruntime::vec::OMNI_FLAT) {
                         auto casted = reinterpret_cast<
                             omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(

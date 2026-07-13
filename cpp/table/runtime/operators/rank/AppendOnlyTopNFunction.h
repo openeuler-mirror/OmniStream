@@ -283,7 +283,9 @@ public:
             } else if (dataType == omniruntime::type::DataTypeId::OMNI_BOOLEAN) {
                 auto newVec = new omniruntime::vec::Vector<bool>(rowCount);
                 out->Append(newVec);
-            } else if (dataType == omniruntime::type::DataTypeId::OMNI_CHAR) {
+            } else if (
+                dataType == omniruntime::type::DataTypeId::OMNI_CHAR ||
+                dataType == omniruntime::type::DataTypeId::OMNI_VARCHAR) {
                 auto newVec = std::make_unique<
                     omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>>(rowCount);
                 out->Append(newVec.release());
@@ -310,7 +312,9 @@ public:
             } else if (dataType == omniruntime::type::DataTypeId::OMNI_LONG) {
                 auto val = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(batch->Get(col))->GetValue(rowId);
                 reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(outputVB->Get(col))->SetValue(rowIndex, val);
-            } else if (dataType == omniruntime::type::DataTypeId::OMNI_CHAR) {
+            } else if (
+                dataType == omniruntime::type::DataTypeId::OMNI_CHAR ||
+                dataType == omniruntime::type::DataTypeId::OMNI_VARCHAR) {
                 if (batch->Get(col)->GetEncoding() == omniruntime::vec::OMNI_FLAT) {
                     auto casted =
                         reinterpret_cast<
