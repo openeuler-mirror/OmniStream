@@ -11,9 +11,15 @@
 #include <vector>
 
 #include "core/typeutils/TypeSerializer.h"
+#include "core/typeutils/LongSerializer.h"
+#include "runtime/state/InternalKeyContextImpl.h"
 #include "runtime/state/KeyGroupRange.h"
+#include "runtime/state/RegisteredKeyValueStateBackendMetaInfo.h"
 #include "runtime/state/VectorBatchStateAccessor.h"
+#include "runtime/state/VoidNamespaceSerializer.h"
+#include "runtime/state/heap/CopyOnWriteStateTable.h"
 #include "runtime/state/heap/HeapFullSnapshotResources.h"
+#include "runtime/state/heap/HeapSingleStateIterator.h"
 #include "runtime/state/heap/HeapSnapshotStateData.h"
 #include "runtime/state/metainfo/StateMetaInfoSnapshot.h"
 #include "runtime/state/rocksdb/iterator/SingleStateIterator.h"
@@ -74,6 +80,13 @@ std::shared_ptr<HeapSnapshotStateData> makeStateDataWithBatch(int64_t batchId, s
     return stateData;
 }
 
+std::shared_ptr<HeapSnapshotStateData> makeStateDataWithPlainEntry(std::vector<int8_t> serializedValue)
+{
+    auto stateData = std::make_shared<HeapSnapshotStateData>();
+    stateData->addEntry(makeEntry(std::move(serializedValue)));
+    return stateData;
+}
+
 VectorBatchAccessorOptions optionsWithCacheBytes(size_t maxDecodedBatchCacheBytes)
 {
     VectorBatchAccessorOptions options;
@@ -83,6 +96,16 @@ VectorBatchAccessorOptions optionsWithCacheBytes(size_t maxDecodedBatchCacheByte
 
 class HeapFullSnapshotResourcesVectorBatchAccessorTest : public ::testing::Test {
 protected:
+    static std::unique_ptr<omnistream::VectorBatch> makeVectorBatch(int32_t rowCount)
+    {
+        auto batch = std::make_unique<omnistream::VectorBatch>(rowCount);
+        for (int32_t row = 0; row < rowCount; ++row) {
+            batch->setTimestamp(row, 1000 + row);
+            batch->setRowKind(row, RowKind::INSERT);
+        }
+        return batch;
+    }
+
     HeapFullSnapshotResources makeResources(
         std::unordered_map<std::string, std::shared_ptr<HeapSnapshotStateData>> snapshotStateDataByName)
     {
@@ -114,7 +137,56 @@ private:
     KeyGroupRange keyGroupRange_{0, 0};
 };
 
-// logical state 名称应映射到同名 vb 侧表数据，并创建可读取 frozen VectorBatch 行的 accessor。
+// 默认 VB iterator 只构造普通 vector entries，不创建 HeapSnapshotStateData，也不会维护 batchId 索引。
+TEST_F(HeapFullSnapshotResourcesVectorBatchAccessorTest, DefaultVectorBatchIteratorDoesNotCaptureAccessorData)
+{
+    auto keyGroupRange = std::make_unique<KeyGroupRange>(0, 0);
+    auto context = std::make_unique<InternalKeyContextImpl<int>>(keyGroupRange.get(), 1);
+    {
+        auto* metaInfo = new RegisteredKeyValueStateBackendMetaInfo(
+            StateDescriptor::Type::VALUE, kVectorBatchStateName, new VoidNamespaceSerializer(), new LongSerializer());
+        CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch*> table(
+            context.get(), metaInfo, IntSerializer::INSTANCE);
+        std::unique_ptr<omnistream::VectorBatch> batch = makeVectorBatch(1);
+        table.put(kBatchId, 0, VoidNamespace(), batch.release());
+
+        HeapSingleStateIterator<int, VoidNamespace, omnistream::VectorBatch*> iterator(
+            &table, 0, 1, HeapSingleStateIterator<int, VoidNamespace, omnistream::VectorBatch*>::VbDataTag{}, false);
+
+        EXPECT_EQ(iterator.getSnapshotData(), nullptr);
+        EXPECT_TRUE(iterator.isValid());
+        EXPECT_EQ(iterator.getEntryCount(), 1);
+        iterator.close();
+        EXPECT_EQ(iterator.getEntryCount(), 0);
+    }
+}
+
+// 显式启用 VB accessor 数据捕获时，VB iterator 才创建 HeapSnapshotStateData 并建立 batchId 索引。
+TEST_F(HeapFullSnapshotResourcesVectorBatchAccessorTest, CapturedVectorBatchIteratorIndexesAccessorData)
+{
+    auto keyGroupRange = std::make_unique<KeyGroupRange>(0, 0);
+    auto context = std::make_unique<InternalKeyContextImpl<int>>(keyGroupRange.get(), 1);
+    {
+        auto* metaInfo = new RegisteredKeyValueStateBackendMetaInfo(
+            StateDescriptor::Type::VALUE, kVectorBatchStateName, new VoidNamespaceSerializer(), new LongSerializer());
+        CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch*> table(
+            context.get(), metaInfo, IntSerializer::INSTANCE);
+        std::unique_ptr<omnistream::VectorBatch> batch = makeVectorBatch(1);
+        table.put(kBatchId, 0, VoidNamespace(), batch.release());
+
+        HeapSingleStateIterator<int, VoidNamespace, omnistream::VectorBatch*> iterator(
+            &table, 0, 1, HeapSingleStateIterator<int, VoidNamespace, omnistream::VectorBatch*>::VbDataTag{}, true);
+
+        std::shared_ptr<HeapSnapshotStateData> snapshotData = iterator.getSnapshotData();
+        ASSERT_NE(snapshotData, nullptr);
+        EXPECT_TRUE(iterator.isValid());
+        ASSERT_NE(snapshotData->findVectorBatchEntry(kBatchId), nullptr);
+        iterator.close();
+        EXPECT_NE(snapshotData->findVectorBatchEntry(kBatchId), nullptr);
+    }
+}
+
+// logical state 名称应只映射到显式捕获的同名 vb 侧表数据，并创建可读取 frozen VectorBatch 行的 accessor。
 TEST_F(HeapFullSnapshotResourcesVectorBatchAccessorTest, CreateVectorBatchStateAccessorMapsLogicalStateToVbData)
 {
     std::unordered_map<std::string, std::shared_ptr<HeapSnapshotStateData>> snapshotStateDataByName;
@@ -125,6 +197,19 @@ TEST_F(HeapFullSnapshotResourcesVectorBatchAccessorTest, CreateVectorBatchStateA
         resources.createVectorBatchStateAccessor(kLogicalStateName, optionsWithCacheBytes(64 * 1024));
 
     expectReadableZeroArityRow(accessor);
+}
+
+// 普通 Heap snapshot 即使存在 logical state 的 frozen entry，也不能隐式构造带 batchId 索引的 VB accessor。
+TEST_F(HeapFullSnapshotResourcesVectorBatchAccessorTest, CreateVectorBatchStateAccessorReturnsNullForPlainSnapshotData)
+{
+    std::unordered_map<std::string, std::shared_ptr<HeapSnapshotStateData>> snapshotStateDataByName;
+    snapshotStateDataByName.emplace(kLogicalStateName, makeStateDataWithPlainEntry(bytes({0x11, 0x12})));
+    HeapFullSnapshotResources resources = makeResources(std::move(snapshotStateDataByName));
+
+    std::shared_ptr<VectorBatchStateAccessor> accessor =
+        resources.createVectorBatchStateAccessor(kLogicalStateName, optionsWithCacheBytes(64 * 1024));
+
+    EXPECT_EQ(accessor, nullptr);
 }
 
 // 调用方误传已经带 vb 后缀的名称时，factory 仍按 logical state 追加 vb，并因找不到 vbvb 侧表返回 nullptr。
@@ -153,8 +238,7 @@ TEST_F(HeapFullSnapshotResourcesVectorBatchAccessorTest, CreateVectorBatchStateA
     EXPECT_EQ(accessor, nullptr);
 }
 
-// createKVStateIterator move 出普通 state iterators 后，VB accessor 仍应依赖 snapshotStateDataByName 读取 frozen
-// bytes。
+// 显式启用 VB accessor 数据捕获时，即使 createKVStateIterator move 出普通 iterator，accessor 仍应读取 frozen bytes。
 TEST_F(
     HeapFullSnapshotResourcesVectorBatchAccessorTest, AccessorReadsFrozenBytesAfterCreateKVStateIteratorMovesIterators)
 {

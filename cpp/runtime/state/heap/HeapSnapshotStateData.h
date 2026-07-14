@@ -18,10 +18,13 @@
 #include <vector>
 
 /**
- * HeapSnapshotStateData 承载 Heap 快照同步阶段冻结出的序列化状态数据。
+ * HeapSnapshotStateData 承载 Heap compatible savepoint 转换阶段需要复用的
+ * VectorBatch 侧表 frozen bytes。
  *
- * 调用方通过 addEntry() 追加普通状态记录，通过 addVectorBatchEntry() 追加
- * VectorBatch 侧表记录并建立 batchId 到最新记录的索引。若调用方重排 entries，
+ * 普通 Heap snapshot 只使用 HeapSingleStateIterator 内部的 vector entries，不应为了
+ * 非 compatible 流程构造本对象。只有显式启用 VB accessor 数据捕获时，调用方才通过
+ * addVectorBatchEntry() 追加 VectorBatch 侧表记录并建立 batchId 到最新记录的索引。
+ * 若调用方重排 entries，
  * 需要保持相同 batchId 的相对写入顺序并调用 rebuildVectorBatchEntryIndices()，
  * 这样重复 batchId 才能继续指向最后写入的记录。该类只拥有拷贝后的
  * key/value 字节和索引，不持有 live Heap state、serializer 或 VectorBatch 指针，

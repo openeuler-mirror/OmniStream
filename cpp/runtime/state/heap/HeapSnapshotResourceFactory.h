@@ -73,9 +73,10 @@ public:
     {
     }
 
-    std::shared_ptr<HeapFullSnapshotResources> createSnapshotResources(long checkpointId)
+    std::shared_ptr<HeapFullSnapshotResources> createSnapshotResources(
+        long checkpointId, bool captureVectorBatchAccessorData = false)
     {
-        PreparedHeapSnapshotData preparedData = prepareSnapshotData(checkpointId);
+        PreparedHeapSnapshotData preparedData = prepareSnapshotData(checkpointId, captureVectorBatchAccessorData);
         return std::make_shared<HeapFullSnapshotResources>(
             std::move(preparedData.metaInfoSnapshots),
             std::move(preparedData.stateIterators),
@@ -93,13 +94,13 @@ private:
         int keyGroupPrefixBytes = 0;
     };
 
-    PreparedHeapSnapshotData prepareSnapshotData(long checkpointId)
+    PreparedHeapSnapshotData prepareSnapshotData(long checkpointId, bool captureVectorBatchAccessorData)
     {
         PreparedHeapSnapshotData preparedData;
         preparedData.keyGroupPrefixBytes =
             CompositeKeySerializationUtils::computeRequiredBytesInKeyGroupPrefix(context_->getNumberOfKeyGroups());
 
-        collectKeyValueStateSnapshots(preparedData, checkpointId);
+        collectKeyValueStateSnapshots(preparedData, checkpointId, captureVectorBatchAccessorData);
         collectPriorityQueueStateSnapshots(preparedData, checkpointId);
         return preparedData;
     }
@@ -155,7 +156,8 @@ private:
         }
     }
 
-    void collectKeyValueStateSnapshots(PreparedHeapSnapshotData& preparedData, long checkpointId)
+    void collectKeyValueStateSnapshots(
+        PreparedHeapSnapshotData& preparedData, long checkpointId, bool captureVectorBatchAccessorData)
     {
         int kvStateId = 0;
         for (const auto& pair : *registeredKvStates_) {
@@ -173,9 +175,12 @@ private:
                     vbTable,
                     kvStateId,
                     preparedData.keyGroupPrefixBytes,
-                    HeapSingleStateIterator<int, VoidNamespace, omnistream::VectorBatch*>::VbDataTag{});
-                iterator->getSnapshotData()->stateName = stateName;
-                preparedData.snapshotStateDataByName[stateName] = iterator->getSnapshotData();
+                    HeapSingleStateIterator<int, VoidNamespace, omnistream::VectorBatch*>::VbDataTag{},
+                    captureVectorBatchAccessorData);
+                if (captureVectorBatchAccessorData) {
+                    iterator->getSnapshotData()->stateName = stateName;
+                    preparedData.snapshotStateDataByName[stateName] = iterator->getSnapshotData();
+                }
                 preparedData.stateIterators.push_back(std::move(iterator));
                 kvStateId++;
                 continue;
