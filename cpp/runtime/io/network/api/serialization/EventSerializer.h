@@ -70,6 +70,7 @@ public:
     static constexpr uint8_t CHECKPOINT_TYPE_FULL_CHECKPOINT = 0x04;
     static constexpr uint8_t SAVEPOINT_FORMAT_CANONICAL = 0x00;
     static constexpr uint8_t SAVEPOINT_FORMAT_NATIVE = 0x01;
+    static constexpr uint8_t SAVEPOINT_FORMAT_COMPATIBLE = 0x02;
 };
 } // namespace omnistream
 

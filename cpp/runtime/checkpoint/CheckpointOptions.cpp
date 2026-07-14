@@ -142,6 +142,8 @@ CheckpointOptions* CheckpointOptions::FromJson(nlohmann::json& config)
             savepointFormatType = SavepointFormatType::CANONICAL;
         } else if (savepointFormatTypeStr == "NATIVE") {
             savepointFormatType = SavepointFormatType::NATIVE;
+        } else if (savepointFormatTypeStr == "COMPATIBLE") {
+            savepointFormatType = SavepointFormatType::COMPATIBLE;
         } else {
             INFO_RELEASE("Error: Unknown savepoint formatType:" << savepointFormatTypeStr);
             throw std::invalid_argument("Unknown savepoint formatType : " + savepointFormatTypeStr);
