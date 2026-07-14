@@ -1,5 +1,7 @@
 #ifndef PODHASCODETEST_H
 #define PODHASCODETEST_H
+#include <stdexcept>
+#include <utility>
 #include <gtest/gtest.h>
 #include "runtime/executiongraph/JobInformationPOD.h"
 #include "runtime/executiongraph/JobIDPOD.h"
@@ -73,6 +75,85 @@ TEST(PODhascodeTest, JobInformationPOD)
     maps[jobinformation2] = 11;
     EXPECT_EQ(maps[jobinformation1], 11);
     EXPECT_EQ(maps[jobinformation2], 11);
+}
+
+TEST(PODhascodeTest, JobInformationPODDefaultRecoverySavepointFormat)
+{
+    omnistream::JobIDPOD jobId(20000, 20000);
+    omnistream::JobInformationPOD jobInformation(jobId, "job1");
+    omnistream::JobInformationPOD jobInformationWithWatermark(jobId, "job2", 1000);
+
+    EXPECT_EQ(
+        jobInformation.getRecoverySavepointFormat(), omnistream::JobInformationPOD::RECOVERY_FORMAT_OMNI_INTERNAL);
+    EXPECT_EQ(
+        jobInformationWithWatermark.getRecoverySavepointFormat(),
+        omnistream::JobInformationPOD::RECOVERY_FORMAT_OMNI_INTERNAL);
+    EXPECT_FALSE(jobInformation.isCompatibleRecoverySavepointFormat());
+}
+
+TEST(PODhascodeTest, JobInformationPODRecoverySavepointFormat)
+{
+    omnistream::JobInformationPOD jobInformation(omnistream::JobIDPOD(20000, 20000), "job1");
+
+    jobInformation.setRecoverySavepointFormat(omnistream::JobInformationPOD::RECOVERY_FORMAT_FLINK_COMPATIBLE);
+
+    EXPECT_EQ(
+        jobInformation.getRecoverySavepointFormat(), omnistream::JobInformationPOD::RECOVERY_FORMAT_FLINK_COMPATIBLE);
+    EXPECT_TRUE(jobInformation.isCompatibleRecoverySavepointFormat());
+    EXPECT_NO_THROW(jobInformation.checkRecoverySavepointFormat());
+
+    jobInformation.setRecoverySavepointFormat(omnistream::JobInformationPOD::RECOVERY_FORMAT_OMNI_INTERNAL);
+    EXPECT_FALSE(jobInformation.isCompatibleRecoverySavepointFormat());
+    EXPECT_NO_THROW(jobInformation.checkRecoverySavepointFormat());
+
+    jobInformation.setRecoverySavepointFormat("UNKNOWN");
+    EXPECT_THROW(jobInformation.checkRecoverySavepointFormat(), std::runtime_error);
+}
+
+TEST(PODhascodeTest, JobInformationPODRecoverySavepointFormatCopyAndMove)
+{
+    omnistream::JobInformationPOD source(omnistream::JobIDPOD(20000, 20000), "job1", 1000);
+    source.setRecoverySavepointFormat(omnistream::JobInformationPOD::RECOVERY_FORMAT_FLINK_COMPATIBLE);
+
+    omnistream::JobInformationPOD copyConstructed(source);
+    EXPECT_EQ(copyConstructed.getRecoverySavepointFormat(), source.getRecoverySavepointFormat());
+
+    omnistream::JobInformationPOD copyAssigned;
+    copyAssigned = source;
+    EXPECT_EQ(copyAssigned.getRecoverySavepointFormat(), source.getRecoverySavepointFormat());
+
+    omnistream::JobInformationPOD moveConstructed(std::move(copyConstructed));
+    EXPECT_EQ(
+        moveConstructed.getRecoverySavepointFormat(), omnistream::JobInformationPOD::RECOVERY_FORMAT_FLINK_COMPATIBLE);
+
+    omnistream::JobInformationPOD moveAssigned;
+    moveAssigned = std::move(copyAssigned);
+    EXPECT_EQ(
+        moveAssigned.getRecoverySavepointFormat(), omnistream::JobInformationPOD::RECOVERY_FORMAT_FLINK_COMPATIBLE);
+}
+
+TEST(PODhascodeTest, JobInformationPODRecoverySavepointFormatJsonSerialization)
+{
+    omnistream::JobInformationPOD jobInformation(omnistream::JobIDPOD(20000, 20000), "job1", 1000);
+    jobInformation.setRecoverySavepointFormat(omnistream::JobInformationPOD::RECOVERY_FORMAT_FLINK_COMPATIBLE);
+
+    nlohmann::json serialized = jobInformation;
+    auto deserialized = serialized.get<omnistream::JobInformationPOD>();
+
+    EXPECT_EQ(
+        serialized["recoverySavepointFormat"].get<std::string>(),
+        omnistream::JobInformationPOD::RECOVERY_FORMAT_FLINK_COMPATIBLE);
+    EXPECT_EQ(deserialized.getJobId(), jobInformation.getJobId());
+    EXPECT_EQ(deserialized.getJobName(), jobInformation.getJobName());
+    EXPECT_EQ(deserialized.getAutoWatermarkInterval(), jobInformation.getAutoWatermarkInterval());
+    EXPECT_EQ(deserialized.getRecoverySavepointFormat(), jobInformation.getRecoverySavepointFormat());
+}
+
+TEST(PODhascodeTest, JobInformationPODRecoverySavepointFormatToString)
+{
+    omnistream::JobInformationPOD jobInformation(omnistream::JobIDPOD(20000, 20000), "job1", 1000);
+
+    EXPECT_NE(jobInformation.toString().find("recoverySavepointFormat='OMNI_INTERNAL'"), std::string::npos);
 }
 
 // for JobIDPOD
