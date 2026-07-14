@@ -1,10 +1,18 @@
 #include "RocksDBFullSnapshotResources.h"
+#include "state/RocksDBVectorBatchStateAccessor.h"
 #include "state/rocksdb/iterator/SingleStateIterator.h"
 #include "state/rocksdb/iterator/RocksStatesPerKeyGroupMergeIterator.h"
 #include "state/rocksdb/iterator/RocksTransformingIteratorWrapper.h"
 #include <algorithm>
 #include "RocksDBConfigurableOptions.h"
 #include "../../include/functions/Configuration.h"
+
+namespace {
+std::string resolveVectorBatchStateName(const std::string& logicalStateName)
+{
+    return logicalStateName + "vb";
+}
+} // namespace
 
 const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& RocksDBFullSnapshotResources::getMetaInfoSnapshots()
 {
@@ -49,6 +57,34 @@ std::shared_ptr<KeyValueStateIterator> RocksDBFullSnapshotResources::createKVSta
 bool RocksDBFullSnapshotResources::isHeapPriorityQueueStateId(int kvStateId) const
 {
     return heapPriorityQueueStateIds_.find(kvStateId) != heapPriorityQueueStateIds_.end();
+}
+
+std::shared_ptr<VectorBatchStateAccessor> RocksDBFullSnapshotResources::createVectorBatchStateAccessor(
+    const std::string& logicalStateName, const VectorBatchAccessorOptions& options)
+{
+    if (db_ == nullptr || snapshot_ == nullptr || keyGroupRange_ == nullptr || keyGroupPrefixBytes_ <= 0 ||
+        keyGroupRange_->getNumberOfKeyGroups() <= 0) {
+        return nullptr;
+    }
+
+    const std::string stateName = resolveVectorBatchStateName(logicalStateName);
+    auto iter = metaDataByStateName_.find(stateName);
+    if (iter == metaDataByStateName_.end() || iter->second == nullptr) {
+        return nullptr;
+    }
+
+    const std::shared_ptr<RocksDbKvStateInfo>& kvStateInfo = iter->second->rocksDbKvStateInfo;
+    if (kvStateInfo == nullptr || kvStateInfo->columnFamilyHandle_ == nullptr) {
+        return nullptr;
+    }
+
+    return std::make_shared<RocksDBVectorBatchStateAccessor>(
+        db_,
+        kvStateInfo->columnFamilyHandle_,
+        snapshot_,
+        keyGroupPrefixBytes_,
+        keyGroupRange_->getStartKeyGroup(),
+        options);
 }
 
 std::vector<std::pair<std::unique_ptr<RocksIteratorWrapper>, int>> RocksDBFullSnapshotResources::createKVStateIterators(
@@ -106,7 +142,11 @@ RocksDBFullSnapshotResources::RocksDBFullSnapshotResources(
       heapPriorityQueueStateIds_(std::move(heapPriorityQueueStateIds))
 {
     for (auto& info : metaDataCopy) {
-        metaData_.push_back(std::make_shared<MetaData>(info, nullptr));
+        auto metaData = std::make_shared<MetaData>(info, nullptr);
+        metaData_.push_back(metaData);
+        if (info != nullptr && info->metaInfo_ != nullptr) {
+            metaDataByStateName_[info->metaInfo_->getName()] = metaData;
+        }
     }
 }
 
@@ -159,8 +199,12 @@ std::shared_ptr<RocksDBFullSnapshotResources> RocksDBFullSnapshotResources::crea
         }
     }
 
-    auto lease = rocksDBResourceGuard->acquireResource();
-    auto snapshot = db->GetSnapshot();
+    ResourceGuard::Lease* lease = nullptr;
+    const rocksdb::Snapshot* snapshot = nullptr;
+    if (db != nullptr && rocksDBResourceGuard != nullptr) {
+        lease = rocksDBResourceGuard->acquireResource();
+        snapshot = db->GetSnapshot();
+    }
     return std::make_shared<RocksDBFullSnapshotResources>(
         lease,
         snapshot,
