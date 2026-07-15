@@ -27,11 +27,11 @@
 #include "runtime/checkpoint/CheckpointOptions.h"
 
 class SavepointRestoreResultIterator;
-class RestoreBackendDelegate;
 
 namespace omnistream {
 class VectorBatch;
 class OmniTaskBridge;
+class RestoreBackendDelegate;
 
 class OperatorSavepointAdaptor {
 public:
