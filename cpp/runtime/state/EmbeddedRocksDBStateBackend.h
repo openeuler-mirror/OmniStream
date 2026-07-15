@@ -50,7 +50,10 @@ public:
         KeyGroupRange* keyGroupRange,
         TypeSerializer* keySerializer,
         int numberOfKeyGroups,
-        int alternativeIdx)
+        int alternativeIdx,
+        const FlinkSavepointAdaptorInfo& adaptorInfo = FlinkSavepointAdaptorInfo{},
+        RestoreSavepointMode restoreMode = RestoreSavepointMode::OMNI_INTERNAL,
+        const nlohmann::json& operatorDescription = nlohmann::json{})
     {
         std::string tempDir = env->taskConfiguration().getTmpWorkingDirectory().string();
 
@@ -108,7 +111,10 @@ public:
         bool incrementalCheckpointing = enableIncrementalCheckpointing == TernaryBoolean::TRUE ? true : false;
         builder.setEnableIncrementalCheckpointing(incrementalCheckpointing)
             .setNumberOfTransferringThreads(numberOfTransferThreads)
-            .setWriteBatchSize(writeBatchSize);
+            .setWriteBatchSize(writeBatchSize)
+            .setFlinkSavepointAdaptorInfo(adaptorInfo)
+            .setRestoreSavepointMode(restoreMode)
+            .setOperatorDescription(operatorDescription);
 
         return builder.build();
     }
@@ -232,6 +238,7 @@ private:
 
             fs::path pathObj(processedPath);
             if (!pathObj.is_absolute()) {
+                INFO_RELEASE("Error: Relative paths are not supported: " << processedPath);
                 throw std::invalid_argument("Relative paths are not supported: " + processedPath);
             }
             pp.emplace_back(std::move(pathObj));
@@ -248,6 +255,7 @@ private:
     {
         numberOfTransferThreads = taskConfiguration.getNumberOfTransferThreads();
         if (numberOfTransferThreads <= 0) {
+            INFO_RELEASE("Error: Invalid number of transfer threads");
             THROW_LOGIC_EXCEPTION("Invalid number of transfer threads");
         }
         writeBatchSize = 2 * 1024 * 1024;

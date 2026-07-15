@@ -10,6 +10,7 @@
  */
 
 #pragma once
+#include <nlohmann/json.hpp>
 #include "StreamOperatorStateContext.h"
 #include "runtime/state/KeyGroupRange.h"
 #include "runtime/state/InternalKeyContextImpl.h"
@@ -29,6 +30,8 @@
 #include "runtime/state/UUID.h"
 #include "runtime/checkpoint/StateObjectCollection.h"
 #include "runtime/state/KeyGroupsStateHandle.h"
+#include "runtime/checkpoint/FlinkSavepointAdaptorInfo.h"
+
 // We want to ultimately return this
 template <typename K>
 class StreamOperatorStateContextImpl {
@@ -114,7 +117,9 @@ public:
         TypeSerializer* keySerializer,
         KeyContext<K>* keyContext,
         ProcessingTimeService* processingTimeService,
-        OperatorID* operatorID = nullptr)
+        OperatorID* operatorID = nullptr,
+        const FlinkSavepointAdaptorInfo& adaptorInfo = FlinkSavepointAdaptorInfo{},
+        const nlohmann::json& operatorDescription = nlohmann::json{})
     {
         CheckpointableKeyedStateBackend<K>* keyedStatedBackend = nullptr;
         OperatorStateBackend* osBackend = nullptr;
@@ -127,6 +132,7 @@ public:
         auto taskInfo = env->taskConfiguration();
 
         // This KeyedStateBackend is a function name, not the base class. See function below.
+        RestoreSavepointMode restoreMode = getRestoreSavepointMode();
         keyedStatedBackend = this->keyedStatedBackend<K>(
             keySerializer,
             taskInfo.getMaxNumberOfSubtasks(),
@@ -134,7 +140,10 @@ public:
             taskInfo.getIndexOfSubtask(),
             taskInfo.getStateBackend(),
             operatorIdentifierText,
-            operatorID);
+            operatorID,
+            adaptorInfo,
+            restoreMode,
+            operatorDescription);
         osBackend = operatorStateBackend(operatorIdentifierText, operatorID);
 
         InternalTimeServiceManager<K>* timeServiceManager = nullptr;
@@ -170,7 +179,10 @@ protected:
         int operatorIndex,
         std::string backendType,
         std::string operatorIdentifierText,
-        OperatorID* operatorID);
+        OperatorID* operatorID,
+        const FlinkSavepointAdaptorInfo& adaptorInfo = FlinkSavepointAdaptorInfo{},
+        RestoreSavepointMode restoreMode = RestoreSavepointMode::OMNI_INTERNAL,
+        const nlohmann::json& operatorDescription = nlohmann::json{});
 
     // This is the one for restore
     template <typename K>
@@ -178,9 +190,28 @@ protected:
         TypeSerializer* keySerializer,
         std::string operatorIdentifierText,
         MetricGroup* metricGroup,
-        OperatorID* operatorID);
+        OperatorID* operatorID,
+        const FlinkSavepointAdaptorInfo& adaptorInfo = FlinkSavepointAdaptorInfo{},
+        RestoreSavepointMode restoreMode = RestoreSavepointMode::OMNI_INTERNAL,
+        const nlohmann::json& operatorDescription = nlohmann::json{});
 
     OperatorStateBackend* operatorStateBackend(std::string operatorIdentifierText, OperatorID* operatorID);
+
+    RestoreSavepointMode getRestoreSavepointMode() const
+    {
+        if (env == nullptr) {
+            return RestoreSavepointMode::OMNI_INTERNAL;
+        }
+        // SP-INTEROP: 恢复模式单一来源为 JobInformationPOD（经 JobInformationPOJO 传递），
+        // 不从 TaskInformationPOD 读取，避免第二来源。
+        // jobConfiguration() 返回临时对象，须按值拷贝，避免悬垂引用。
+        const std::string modeStr = env->jobConfiguration().getRecoverySavepointFormat();
+        auto mode = RestoreSavepointMode::OMNI_INTERNAL;
+        if (modeStr == "FLINK_COMPATIBLE" || modeStr == "compatible") {
+            mode = RestoreSavepointMode::FLINK_COMPATIBLE;
+        }
+        return mode;
+    }
 
     std::string getOperatorSubtaskDescriptionText()
     {
@@ -270,7 +301,10 @@ AbstractKeyedStateBackend<K>* StreamTaskStateInitializerImpl::keyedStatedBackend
     int operatorIndex,
     std::string backendType,
     std::string operatorIdentifierText,
-    OperatorID* operatorID)
+    OperatorID* operatorID,
+    const FlinkSavepointAdaptorInfo& adaptorInfo,
+    RestoreSavepointMode restoreMode,
+    const nlohmann::json& operatorDescription)
 {
     if (keySerializer == nullptr) {
         return nullptr;
@@ -292,6 +326,9 @@ AbstractKeyedStateBackend<K>* StreamTaskStateInitializerImpl::keyedStatedBackend
         delete keyContext; // builder creates its own InternalKeyContext
 
         HeapKeyedStateBackendBuilder<K> builder(keySerializer, maxParallelism, keyGroupRange);
+        builder.setFlinkSavepointAdaptorInfo(adaptorInfo)
+            .setRestoreSavepointMode(restoreMode)
+            .setOperatorDescription(operatorDescription);
         auto taskStateManager = env == nullptr ? nullptr : env->getTaskStateManager();
         if (taskStateManager == nullptr) {
             INFO_RELEASE("HashMapStateBackend: no TaskStateManager, starting with empty heap state");
@@ -337,8 +374,8 @@ AbstractKeyedStateBackend<K>* StreamTaskStateInitializerImpl::keyedStatedBackend
 
         return builder.build();
     } else if (backendType == "EmbeddedRocksDBStateBackend") {
-        return static_cast<AbstractKeyedStateBackend<K>*>(
-            keyedStatedBackend<K>(keySerializer, operatorIdentifierText, nullptr, operatorID));
+        return static_cast<AbstractKeyedStateBackend<K>*>(keyedStatedBackend<K>(
+            keySerializer, operatorIdentifierText, nullptr, operatorID, adaptorInfo, restoreMode, operatorDescription));
     }
 #ifdef WITH_OMNISTATESTORE
     if (backendType == "EmbeddedOckStateBackend") {
@@ -351,7 +388,13 @@ AbstractKeyedStateBackend<K>* StreamTaskStateInitializerImpl::keyedStatedBackend
 
 template <typename K>
 inline CheckpointableKeyedStateBackend<K>* StreamTaskStateInitializerImpl::keyedStatedBackend(
-    TypeSerializer* keySerializer, std::string operatorIdentifierText, MetricGroup* metricGroup, OperatorID* operatorID)
+    TypeSerializer* keySerializer,
+    std::string operatorIdentifierText,
+    MetricGroup* metricGroup,
+    OperatorID* operatorID,
+    const FlinkSavepointAdaptorInfo& adaptorInfo,
+    RestoreSavepointMode restoreMode,
+    const nlohmann::json& operatorDescription)
 {
     if (keySerializer == nullptr) {
         return nullptr;
@@ -373,10 +416,17 @@ inline CheckpointableKeyedStateBackend<K>* StreamTaskStateInitializerImpl::keyed
 
     auto backendRestorer =
         BackendRestorerProcedure<CheckpointableKeyedStateBackend<K>*, std::shared_ptr<KeyedStateHandle>>(
-            [this, operatorIdentifierText, keyGroupRange, keySerializer, taskInfo](
-                std::set<std::shared_ptr<KeyedStateHandle>> stateHandles, int alternativeIdx) {
+            [this,
+             operatorIdentifierText,
+             keyGroupRange,
+             keySerializer,
+             taskInfo,
+             adaptorInfo,
+             restoreMode,
+             operatorDescription](std::set<std::shared_ptr<KeyedStateHandle>> stateHandles, int alternativeIdx) {
                 auto rocksdbStateBackend = dynamic_cast<EmbeddedRocksDBStateBackend*>(this->stateBackend);
                 if (rocksdbStateBackend == nullptr) {
+                    INFO_RELEASE("Error: stateBackend is not EmbeddedRocksDBStateBackend.");
                     THROW_RUNTIME_ERROR("stateBackend is not EmbeddedRocksDBStateBackend.");
                 }
                 return reinterpret_cast<CheckpointableKeyedStateBackend<K>*>(
@@ -387,22 +437,23 @@ inline CheckpointableKeyedStateBackend<K>* StreamTaskStateInitializerImpl::keyed
                         keyGroupRange,
                         keySerializer,
                         taskInfo.getMaxNumberOfSubtasks(),
-                        alternativeIdx));
+                        alternativeIdx,
+                        adaptorInfo,
+                        restoreMode,
+                        operatorDescription));
             },
             logDescription);
 
     try {
-        // this->stateObjects = std::vector<std::shared_ptr<T>>();
         std::vector<StateObjectCollection<KeyedStateHandle>> handleVector =
             prioritizedOperatorSubtaskStates.getPrioritizedManagedKeyedState();
         std::vector<std::set<std::shared_ptr<KeyedStateHandle>>> handleSet;
         handleSet.reserve(handleVector.size());
-        for (const auto& collection : handleVector) {
+        for (size_t i = 0; i < handleVector.size(); i++) {
             std::set<std::shared_ptr<KeyedStateHandle>> set;
-            for (const auto& handle : collection) {
+            for (const auto& handle : handleVector[i]) {
                 set.insert(handle);
             }
-
             handleSet.push_back(std::move(set));
         }
         return backendRestorer.createAndRestore(handleSet);

@@ -57,6 +57,7 @@
 #include "connector/kafka/utils/ConfigLoader.h"
 #include "co/KeyedCoProcessOperator.h"
 #include "StreamOperatorFactory.h"
+#include "runtime/checkpoint/FlinkSavepointAdaptorInfo.h"
 
 namespace omnistream {
 
@@ -238,6 +239,7 @@ StreamOperator* StreamOperatorFactory::CreateStreamCalcOp(
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
     auto* execCalc = new StreamCalcBatch(opDescriptionJSON, chainOutput);
     execCalc->setup(std::move(task));
+    execCalc->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
 
     LOG("Operator StreamCalc address  " + std::to_string(reinterpret_cast<long>(execCalc)));
     return static_cast<OneInputStreamOperator*>(execCalc);
@@ -251,6 +253,9 @@ StreamOperator* StreamOperatorFactory::CreateStreamJoinOp(
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
     auto* op = new StreamingJoinOperator<RowData*>(opDescriptionJSON, chainOutput);
     op->setup(std::move(task));
+    // SP-INTEROP: StreamingJoin 的 compatible Adaptor 尚未实现（工厂对该类型返回 nullptr），
+    // 设 None + reason 以在 compatible 保存/恢复时 fail fast，避免静默产出空/错误 SP。
+    op->setFlinkSavepointUnsupported("StreamingJoin compatible savepoint adaptor not yet implemented");
     return static_cast<TwoInputStreamOperator*>(op);
 }
 
@@ -307,6 +312,8 @@ StreamOperator* StreamOperatorFactory::CreateWatermarkAssignerOp(
     bool splitWaterMark = task->env()->taskConfiguration().GetSplitWatermark();
     watermarkAssignerOperator->setSplitWaterMark(splitWaterMark);
     INFO_RELEASE("should do splitWaterMark : " << splitWaterMark);
+    // SP-INTEROP: WatermarkAssigner 为无 managed state 的辅助节点，设 OmniIsCompatible。
+    watermarkAssignerOperator->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
     return static_cast<OneInputStreamOperator*>(watermarkAssignerOperator);
 }
 
@@ -324,6 +331,8 @@ StreamOperator* StreamOperatorFactory::CreateKeyedProcessOp(
         auto* op = new KeyedProcessOperator(func, chainOutput, opDescriptionJSON);
         LOG("Deduplicate3");
         op->setup(std::move(task));
+        op->setDescription(opDescriptionJSON);
+        op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::DeduplicateAdaptor);
         LOG("Operator KeyedProcessOperator address  " + std::to_string(reinterpret_cast<long>(op)));
 
         return static_cast<OneInputStreamOperator*>(op);
@@ -334,6 +343,8 @@ StreamOperator* StreamOperatorFactory::CreateKeyedProcessOp(
         AbstractTopNFunction<RowData*>* func = new AppendOnlyTopNFunction<RowData*>(opDescriptionJSON);
         auto* op = new KeyedProcessOperator(func, chainOutput, opDescriptionJSON);
         op->setup(std::move(task));
+        // 当前先设置为NONE,待sp流程支持格式转换后设置为对应的Adapter
+        op->setFlinkSavepointUnsupported("AppendOnlyTopN Adaptor not yet implemented");
         op->setDescription(opDescriptionJSON);
         LOG("Operator KeyedProcessOperator address  " + std::to_string(reinterpret_cast<long>(op)));
         return static_cast<OneInputStreamOperator*>(op);
@@ -342,6 +353,7 @@ StreamOperator* StreamOperatorFactory::CreateKeyedProcessOp(
         AbstractTopNFunction<RowData*>* func = new FastTop1Function<RowData*>(opDescriptionJSON);
         auto* op = new KeyedProcessOperator(func, chainOutput, opDescriptionJSON);
         op->setup(std::move(task));
+        op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
         op->setDescription(opDescriptionJSON);
         LOG("Operator KeyedProcessOperator address  " + std::to_string(reinterpret_cast<long>(op)));
         return static_cast<OneInputStreamOperator*>(op);
@@ -349,6 +361,8 @@ StreamOperator* StreamOperatorFactory::CreateKeyedProcessOp(
         GroupAggFunction* func = new GroupAggFunction(0l, opDescriptionJSON);
         auto* op = new KeyedProcessOperator(func, chainOutput, opDescriptionJSON);
         op->setup(std::move(task));
+        // 当前先设置为NONE,待sp流程支持格式转换后设置为对应的Adapter
+        op->setFlinkSavepointUnsupported("GroupAgg Adaptor not yet implemented");
         op->setDescription(opDescriptionJSON);
         LOG("Operator KeyedProcessOperator address  " + std::to_string(reinterpret_cast<long>(op)));
 
@@ -451,6 +465,8 @@ StreamOperator* StreamOperatorFactory::CreateSourceOp(
             ProcessingTimeService* timeService = task->createProcessingTimeService();
             auto* op = new SourceOperator(chainOutput, opDescriptionJSON, source, timeService);
             op->setup(std::move(task));
+            // SP-INTEROP: SourceOperator 无 managed keyed state，Omni 原生格式即为 Flink 兼容。
+            op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
             LOG("Operator SourceOperator address " + std::to_string(reinterpret_cast<long>(op)));
             return op;
         } else {
@@ -468,6 +484,8 @@ StreamOperator* StreamOperatorFactory::CreateStreamExpandOp(
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
     auto* execExpand = new StreamExpand(opDescriptionJSON, chainOutput);
     execExpand->setup(std::move(task));
+    // SP-INTEROP: StreamExpand 为无 managed state 的投影算子，与 StreamCalc 同类，设 OmniIsCompatible。
+    execExpand->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
     LOG("Operator StreamExpand address  " + std::to_string(reinterpret_cast<long>(execExpand)));
     return static_cast<OneInputStreamOperator*>(execExpand);
 }
@@ -522,6 +540,9 @@ StreamOperator* StreamOperatorFactory::CreateWindowInnerJoinOp(
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
     auto op = new InnerJoinOperator<std::shared_ptr<RowData>>(opDescriptionJSON, chainOutput, nullptr, nullptr);
     op->setup(std::move(task));
+    // SP-INTEROP: WindowJoin 的 compatible Adaptor 尚未实现（工厂对该类型返回 nullptr），
+    // 设 None + reason 以在 compatible 保存/恢复时 fail fast。
+    op->setFlinkSavepointUnsupported("WindowJoin compatible savepoint adaptor not yet implemented");
     LOG("Operator WindowJoinOperator address " + std::to_string(reinterpret_cast<long>(op)));
     return static_cast<TwoInputStreamOperator*>(op);
 }
@@ -613,6 +634,8 @@ StreamOperator* StreamOperatorFactory::CreateStreamingFileWriterOp(
     auto* op = new StreamingFileWriter<omnistream::VectorBatch*>(bucketCheckInterval, bucketsBuilder);
     op->setOutput(chainOutput);
     op->setup();
+    // SP-INTEROP: StreamingFileWriter 无 managed keyed state，Omni 原生格式即为 Flink 兼容。
+    op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
 
     LOG("Operator StreamingFileWriter address " + std::to_string(reinterpret_cast<long>(op)));
     return static_cast<OneInputStreamOperator*>(op);
@@ -622,6 +645,8 @@ StreamOperator* StreamOperatorFactory::CreatePartitionCommitterOp(
     OperatorPOD& opConfig, WatermarkGaugeExposingOutput* chainOutput, std::shared_ptr<omnistream::OmniStreamTask> task)
 {
     auto* op = new PartitionCommitter();
+    // SP-INTEROP: PartitionCommitter 无 managed state，Omni 原生格式即为 Flink 兼容。
+    op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
 
     LOG("Operator PartitionCommitter address " + std::to_string(reinterpret_cast<long>(op)));
     return static_cast<OneInputStreamOperator*>(op);
@@ -743,6 +768,9 @@ StreamOperator* StreamOperatorFactory::CreateSinkWriterOp(
 
     auto* op = new SinkWriterOperator(kafkaSink, opDescriptionJSON);
     op->setProcessingTimeService(processingTimeService);
+    // SP-INTEROP: SinkWriter 使用 operator state（transactional IDs），无需 keyed state 格式转换，Omni 原生格式即为
+    // Flink 兼容。
+    op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
     // todo 确认模板参数问题
     return static_cast<OneInputStreamOperator*>(op);
 }
@@ -760,6 +788,9 @@ StreamOperator* StreamOperatorFactory::CreateCommitOp(
 
     auto* op = new CommitterOperator(processingTimeService, isBatch, true);
     op->setup(std::move(task));
+    // SP-INTEROP: Committer 使用 operator state（committable list），无需 keyed state 格式转换，Omni 原生格式即为Flink
+    // 兼容。
+    op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
 
     return static_cast<OneInputStreamOperator*>(op);
 }

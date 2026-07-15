@@ -33,6 +33,7 @@
 #include "runtime/state/restore/RocksDBIncrementalRestoreOperation.h"
 #include "runtime/state/restore/RocksDBFullRestoreOperation.h"
 #include "runtime/state/restore/RocksDBHeapTimersFullRestoreOperation.h"
+#include "runtime/checkpoint/FlinkSavepointAdaptorInfo.h"
 #include "runtime/snapshot/RocksDBSnapshotStrategyBase.h"
 #include "runtime/snapshot/RocksNativeFullSnapshotStrategy.h"
 #include "runtime/snapshot/RocksIncrementalSnapshotStrategy.h"
@@ -105,6 +106,24 @@ public:
         return *this;
     }
 
+    RocksDBKeyedStateBackendBuilder<K>& setFlinkSavepointAdaptorInfo(const FlinkSavepointAdaptorInfo& adaptorInfo)
+    {
+        this->adaptorInfo_ = adaptorInfo;
+        return *this;
+    }
+
+    RocksDBKeyedStateBackendBuilder<K>& setRestoreSavepointMode(RestoreSavepointMode restoreMode)
+    {
+        this->restoreMode_ = restoreMode;
+        return *this;
+    }
+
+    RocksDBKeyedStateBackendBuilder<K>& setOperatorDescription(const nlohmann::json& operatorDescription)
+    {
+        this->operatorDescription_ = operatorDescription;
+        return *this;
+    }
+
 private:
     const std::shared_ptr<CloseableRegistry> cancelStreamRegistry;
     static constexpr const char* DB_INSTANCE_DIR_STRING = "db";
@@ -126,6 +145,9 @@ private:
     std::shared_ptr<OmniTaskBridge> omniTaskBridge;
     std::shared_ptr<OperatorID> operatorId_;
     int alternativeIdx_;
+    FlinkSavepointAdaptorInfo adaptorInfo_;
+    RestoreSavepointMode restoreMode_ = RestoreSavepointMode::OMNI_INTERNAL;
+    nlohmann::json operatorDescription_;
 
     static void checkAndCreateDirectory(const fs::path& directory)
     {
