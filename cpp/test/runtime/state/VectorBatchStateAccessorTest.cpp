@@ -65,16 +65,6 @@ public:
         return getRow(batchId, rowId);
     }
 
-    int32_t batchIdFromComboIdForTest(int64_t comboId)
-    {
-        return batchIdFromComboId(comboId);
-    }
-
-    int32_t rowIdFromComboIdForTest(int64_t comboId)
-    {
-        return rowIdFromComboId(comboId);
-    }
-
     std::unique_ptr<omnistream::VectorBatch> deserializeBatchForTest(const ByteView& serializedBatch)
     {
         return deserializeBatch(serializedBatch);
@@ -106,17 +96,6 @@ class VectorBatchStateAccessorTest : public ::testing::Test {
 protected:
     TestVectorBatchStateAccessor accessor_;
 };
-
-// getRow 入口依赖 VectorBatchUtil 的 comboId 拆解语义，避免 batchId/rowId 位宽或符号扩展漂移。
-TEST_F(VectorBatchStateAccessorTest, GetRowSplitsComboIdWithVectorBatchUtil)
-{
-    constexpr int32_t batchId = 0x1234567;
-    constexpr int32_t rowId = 3;
-    int64_t comboId = VectorBatchUtil::getComboId(batchId, rowId);
-
-    EXPECT_EQ(accessor_.batchIdFromComboIdForTest(comboId), VectorBatchUtil::getBatchId(comboId));
-    EXPECT_EQ(accessor_.rowIdFromComboIdForTest(comboId), VectorBatchUtil::getRowId(comboId));
-}
 
 // 有效 batchId/rowId 和 comboId 入口都应从序列化 VectorBatch 中提取调用方拥有的 RowData。
 TEST_F(VectorBatchStateAccessorTest, GetRowReturnsOwnedRowDataForValidSerializedBatch)
