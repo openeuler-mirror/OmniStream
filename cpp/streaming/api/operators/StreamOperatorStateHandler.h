@@ -125,6 +125,16 @@ public:
         virtual void initializeState(StateInitializationContextImpl* context)
         {
         }
+
+        virtual FlinkSavepointAdaptorInfo getSavepointAdaptorInfo() const
+        {
+            return {};
+        }
+
+        virtual nlohmann::json getOperatorDescription() const
+        {
+            return {};
+        }
     };
 
     void initializeOperatorState(CheckpointedStreamOperator* streamOperator)
@@ -245,10 +255,6 @@ public:
 
                 auto keySerializer = keyedStateBackend->getKeySerializer();
                 if (isCanonicalSavepoint(checkpointOptions->GetCheckpointType())) {
-                    INFO_RELEASE(
-                        "StreamOperatorStateHandler::snapshotState - entering flink savepoint canonical save flow, "
-                        "operator="
-                        << operatorName << ", checkpointId=" << checkpointId);
                     auto snapshotRunner = prepareCanonicalSavepoint(keyedStateBackend);
                     snapshotInProgress->setKeyedStateManagedFuture(snapshotRunner->snapshot(
                         checkpointId,
@@ -258,10 +264,11 @@ public:
                         bridge,
                         keySerializer->toJson()));
                 } else if (isCompatibleSavepoint(checkpointOptions->GetCheckpointType())) {
+                    const auto& adaptorInfo = streamOperator->getSavepointAdaptorInfo();
                     INFO_RELEASE(
-                        "StreamOperatorStateHandler::snapshotState - entering flink savepoint compatible save flow, "
-                        "operator="
-                        << operatorName << ", checkpointId=" << checkpointId);
+                        "StreamOperatorStateHandler::snapshotState entering flink savepoint compatible save flow - "
+                        "adaptorInfo type="
+                        << static_cast<int>(adaptorInfo.type) << ", reason=" << adaptorInfo.reason);
                     auto snapshotRunner = prepareCompatibleSavepoint(keyedStateBackend);
                     snapshotInProgress->setKeyedStateManagedFuture(snapshotRunner->snapshot(
                         checkpointId,

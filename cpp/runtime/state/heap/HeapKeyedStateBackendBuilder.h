@@ -19,6 +19,7 @@
 #include "runtime/state/restore/FullSnapshotRestoreOperation.h"
 #include "runtime/state/bridge/OmniTaskBridge.h"
 #include "runtime/state/CompositeKeySerializationUtils.h"
+#include "runtime/checkpoint/FlinkSavepointAdaptorInfo.h"
 #include "core/typeutils/TypeSerializer.h"
 #include "core/typeutils/MapSerializer.h"
 #include "core/typeutils/ListSerializer.h"
@@ -54,6 +55,24 @@ public:
         return *this;
     }
 
+    HeapKeyedStateBackendBuilder& setFlinkSavepointAdaptorInfo(const FlinkSavepointAdaptorInfo& info)
+    {
+        adaptorInfo_ = info;
+        return *this;
+    }
+
+    HeapKeyedStateBackendBuilder& setRestoreSavepointMode(RestoreSavepointMode mode)
+    {
+        restoreMode_ = mode;
+        return *this;
+    }
+
+    HeapKeyedStateBackendBuilder& setOperatorDescription(const nlohmann::json& operatorDescription)
+    {
+        operatorDescription_ = operatorDescription;
+        return *this;
+    }
+
     HeapKeyedStateBackend<K>* build();
 
 protected:
@@ -62,6 +81,9 @@ protected:
     KeyGroupRange* keyGroupRange;
     std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge;
     std::set<std::shared_ptr<KeyedStateHandle>> restoreStateHandles;
+    FlinkSavepointAdaptorInfo adaptorInfo_;
+    RestoreSavepointMode restoreMode_ = RestoreSavepointMode::OMNI_INTERNAL;
+    nlohmann::json operatorDescription_;
 
 private:
     /** Info collected per state during restore Phase 1, used in Phase 2 for deserialization. */
