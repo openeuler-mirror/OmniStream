@@ -20,7 +20,6 @@
 #include "runtime/state/ByteBoundedVectorBatchCache.h"
 #include "streaming/runtime/streamrecord/StreamElement.h"
 #include "table/data/RowData.h"
-#include "table/data/util/VectorBatchUtil.h"
 #include "table/data/vectorbatch/VectorBatch.h"
 #include "table/utils/VectorBatchDeserializationUtils.h"
 
@@ -50,10 +49,7 @@ public:
 
     virtual bool getSerializedBatch(int64_t batchId, ByteView* value) = 0;
 
-    std::unique_ptr<RowData> getRow(int64_t comboId)
-    {
-        return getRow(batchIdFromComboId(comboId), rowIdFromComboId(comboId));
-    }
+    std::unique_ptr<RowData> getRow(int64_t comboId);
 
     virtual std::unique_ptr<RowData> getRow(int64_t batchId, int32_t rowId)
     {
@@ -91,16 +87,6 @@ protected:
     void clearDecodedBatchCache()
     {
         decodedBatchCache_.clear();
-    }
-
-    static int64_t batchIdFromComboId(int64_t comboId)
-    {
-        return VectorBatchUtil::getBatchId(comboId);
-    }
-
-    static int32_t rowIdFromComboId(int64_t comboId)
-    {
-        return VectorBatchUtil::getRowId(comboId);
     }
 
     static std::unique_ptr<omnistream::VectorBatch> deserializeBatch(ByteView serializedValue)
