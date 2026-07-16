@@ -67,14 +67,20 @@ std::shared_ptr<SnapshotResult<KeyedStateHandle>> CompatibleFullSnapshotAsyncWri
     auto keyGroupRangeOffsets = std::make_shared<KeyGroupRangeOffsets>(*keyGroupRange);
     CheckpointStateOutputStreamProxy stream(bridge, checkpointId_, checkpointOptions_);
 
-    adaptor_->save(stream, *keyGroupRangeOffsets, *sourceResources, keySerializer_);
+    std::shared_ptr<SnapshotResult<StreamStateHandle>> streamResult;
+    try {
+        adaptor_->save(stream, *keyGroupRangeOffsets, *sourceResources, keySerializer_);
 
-    auto streamResult = stream.close();
-    if (streamResult == nullptr || streamResult->GetJobManagerOwnedSnapshot() == nullptr) {
-        INFO_RELEASE(
-            "Error:CompatibleFullSnapshotAsyncWriter::get cp=" << checkpointId_
-                                                               << " close returned empty stream state handle");
-        throw std::runtime_error("Compatible snapshot close returned empty stream state handle");
+        streamResult = stream.close();
+        if (streamResult == nullptr || streamResult->GetJobManagerOwnedSnapshot() == nullptr) {
+            INFO_RELEASE(
+                "Error:CompatibleFullSnapshotAsyncWriter::get cp=" << checkpointId_
+                                                                   << " close returned empty stream state handle");
+            throw std::runtime_error("Compatible snapshot close returned empty stream state handle");
+        }
+    } catch (...) {
+        stream.abortNoThrow();
+        throw;
     }
 
     std::shared_ptr<KeyedStateHandle> keyedStateHandle = std::make_shared<KeyGroupsSavepointStateHandle>(

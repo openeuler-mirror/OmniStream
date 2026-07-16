@@ -31,6 +31,7 @@
 using ::testing::_;
 using ::testing::NiceMock;
 using ::testing::Return;
+using ::testing::Throw;
 
 namespace {
 
@@ -137,7 +138,12 @@ TEST_F(CompatibleFullSnapshotAsyncWriterTest, GetCallsValidateBeforeOpeningStrea
     auto writer = makeWriter(resources, std::move(adaptor));
 
     EXPECT_CALL(*bridge_, AcquireSavepointOutputStream(_, _)).Times(0);
-    EXPECT_THROW(writer->get(bridge_), std::runtime_error);
+    try {
+        writer->get(bridge_);
+        FAIL() << "expected adaptor validation error";
+    } catch (const std::runtime_error& error) {
+        EXPECT_STREQ(error.what(), "validate failed");
+    }
 
     ASSERT_EQ(events_.size(), 1U);
     EXPECT_EQ(events_[0], "validate");
@@ -170,6 +176,50 @@ TEST_F(CompatibleFullSnapshotAsyncWriterTest, GetCallsSaveWithOpenedStreamAndOff
     EXPECT_EQ(source->cleanupCount(), 0);
 }
 
+// 看护 save 失败时 abort 未 finalization 的 provider，并保留 adaptor 的原始异常。
+TEST_F(CompatibleFullSnapshotAsyncWriterTest, SaveThrowsAbortsUnfinalizedProviderAndRethrows)
+{
+    auto source = std::make_shared<compatible_savepoint_test::CompatibleSavepointTestFullSnapshotResources>(true, 0, 1);
+    auto adaptor = std::make_unique<RecordingAdaptor>(&events_);
+    adaptor->throwOnSave_ = true;
+    auto resources = makeResources(source, std::make_unique<RecordingAdaptor>(&events_));
+    auto writer = makeWriter(resources, std::move(adaptor));
+
+    EXPECT_CALL(*bridge_, AbortSavepointOutputStream(kMockProvider)).Times(1);
+    EXPECT_CALL(*bridge_, CloseSavepointOutputStream(_)).Times(0);
+    try {
+        writer->get(bridge_);
+        FAIL() << "expected adaptor save error";
+    } catch (const std::runtime_error& error) {
+        EXPECT_STREQ(error.what(), "save failed");
+    }
+
+    ASSERT_EQ(events_.size(), 2U);
+    EXPECT_EQ(events_[0], "validate");
+    EXPECT_EQ(events_[1], "save");
+}
+
+// 看护 abort cleanup 自身失败时，writer 仍向调用方保留 adaptor save 的原始错误。
+TEST_F(CompatibleFullSnapshotAsyncWriterTest, SaveErrorSurvivesAbortFailure)
+{
+    auto source = std::make_shared<compatible_savepoint_test::CompatibleSavepointTestFullSnapshotResources>(true, 0, 1);
+    auto adaptor = std::make_unique<RecordingAdaptor>(&events_);
+    adaptor->throwOnSave_ = true;
+    auto resources = makeResources(source, std::make_unique<RecordingAdaptor>(&events_));
+    auto writer = makeWriter(resources, std::move(adaptor));
+
+    EXPECT_CALL(*bridge_, AbortSavepointOutputStream(kMockProvider))
+        .WillOnce(Throw(std::runtime_error("abort failed")));
+    EXPECT_CALL(*bridge_, CloseSavepointOutputStream(_)).Times(0);
+
+    try {
+        writer->get(bridge_);
+        FAIL() << "expected adaptor save error";
+    } catch (const std::runtime_error& error) {
+        EXPECT_STREQ(error.what(), "save failed");
+    }
+}
+
 // 看护 close 返回空结果时 fail-fast，不能把 compatible savepoint 伪装成 empty snapshot。
 TEST_F(CompatibleFullSnapshotAsyncWriterTest, CloseReturningNullFailsFast)
 {
@@ -178,6 +228,7 @@ TEST_F(CompatibleFullSnapshotAsyncWriterTest, CloseReturningNullFailsFast)
     auto writer = makeWriter(resources, std::make_unique<RecordingAdaptor>(&events_));
 
     EXPECT_CALL(*bridge_, CloseSavepointOutputStream(kMockProvider)).WillOnce(Return(nullptr));
+    EXPECT_CALL(*bridge_, AbortSavepointOutputStream(_)).Times(0);
     EXPECT_THROW(writer->get(bridge_), std::runtime_error);
 }
 
