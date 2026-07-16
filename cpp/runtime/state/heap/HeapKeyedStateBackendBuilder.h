@@ -13,6 +13,8 @@
 #include <emhash7.hpp>
 #include <set>
 #include <memory>
+#include <stdexcept>
+#include <utility>
 #include "runtime/state/KeyGroupRange.h"
 #include "runtime/state/HeapKeyedStateBackend.h"
 #include "runtime/state/KeyedStateHandle.h"
@@ -20,6 +22,8 @@
 #include "runtime/state/bridge/OmniTaskBridge.h"
 #include "runtime/state/CompositeKeySerializationUtils.h"
 #include "runtime/checkpoint/FlinkSavepointAdaptorInfo.h"
+#include "runtime/checkpoint/OperatorSavepointAdaptorFactory.h"
+#include "runtime/state/heap/HeapCompatibleFullRestoreOperation.h"
 #include "core/typeutils/TypeSerializer.h"
 #include "core/typeutils/MapSerializer.h"
 #include "core/typeutils/ListSerializer.h"
@@ -277,11 +281,54 @@ private:
 template <typename K>
 HeapKeyedStateBackend<K>* HeapKeyedStateBackendBuilder<K>::build()
 {
-    auto* keyContext = new InternalKeyContextImpl<K>(keyGroupRange, numberOfKeyGroups);
-    auto* backend = new HeapKeyedStateBackend<K>(keySerializer, keyContext);
+    std::unique_ptr<omnistream::OperatorSavepointAdaptor> compatiblePreparedAdaptor;
+    if (!restoreStateHandles.empty() && restoreMode_ == RestoreSavepointMode::FLINK_COMPATIBLE) {
+        if (adaptorInfo_.type == FlinkSavepointAdaptorType::None) {
+            INFO_RELEASE("Error:Heap compatible restore is unsupported: " << adaptorInfo_.reason);
+            throw std::runtime_error("Heap compatible restore is not supported: " + adaptorInfo_.reason);
+        }
+        if (adaptorInfo_.type != FlinkSavepointAdaptorType::OmniIsCompatible) {
+            if (omniTaskBridge == nullptr) {
+                INFO_RELEASE(
+                    "Error:Heap compatible restore missing OmniTaskBridge, adaptorType="
+                    << static_cast<int>(adaptorInfo_.type) << ", reason=" << adaptorInfo_.reason
+                    << ", stateHandleCount=" << restoreStateHandles.size());
+                throw std::invalid_argument("Heap compatible restore requires OmniTaskBridge when state handles exist");
+            }
+            compatiblePreparedAdaptor =
+                omnistream::OperatorSavepointAdaptorFactory::createAdaptor(adaptorInfo_.type, operatorDescription_);
+            if (compatiblePreparedAdaptor == nullptr) {
+                INFO_RELEASE("Error:Heap compatible restore adaptor factory returned null: " << adaptorInfo_.reason);
+                throw std::runtime_error("Heap compatible restore adaptor factory returned null");
+            }
+            compatiblePreparedAdaptor->prepareForRestore(operatorDescription_);
+        }
+    }
+
+    auto keyContext = std::make_unique<InternalKeyContextImpl<K>>(keyGroupRange, numberOfKeyGroups);
+    auto backend = std::make_unique<HeapKeyedStateBackend<K>>(keySerializer, keyContext.get());
 
     if (omniTaskBridge) {
         backend->setOmniTaskBridge(omniTaskBridge);
+    }
+
+    if (compatiblePreparedAdaptor != nullptr) {
+        std::vector<std::shared_ptr<KeyedStateHandle>> handleVec(
+            restoreStateHandles.begin(), restoreStateHandles.end());
+        auto keySerializerPtr = std::shared_ptr<TypeSerializer>(keySerializer, [](TypeSerializer*) {});
+        HeapCompatibleFullRestoreOperation<K> restoreOp(
+            backend.get(),
+            keyGroupRange,
+            handleVec,
+            keySerializerPtr,
+            numberOfKeyGroups,
+            omniTaskBridge,
+            adaptorInfo_,
+            std::move(compatiblePreparedAdaptor));
+        restoreOp.restore();
+        auto* builtBackend = backend.release();
+        keyContext.release();
+        return builtBackend;
     }
 
     // Restore from state handles if available
@@ -391,17 +438,19 @@ HeapKeyedStateBackend<K>* HeapKeyedStateBackendBuilder<K>::build()
                         continue; // State was skipped in Phase 1
                     }
                     if (info.stateName.size() >= 2 && info.stateName.substr(info.stateName.size() - 2) == "vb") {
-                        restoreVbEntryToHeap(backend, info, entry.getKey(), entry.getValue());
+                        restoreVbEntryToHeap(backend.get(), info, entry.getKey(), entry.getValue());
                     } else {
                         restoreEntryToHeap(
-                            backend, info, keyGroupId, keyGroupPrefixBytes, entry.getKey(), entry.getValue());
+                            backend.get(), info, keyGroupId, keyGroupPrefixBytes, entry.getKey(), entry.getValue());
                     }
                 }
             }
         }
     }
 
-    return backend;
+    auto* builtBackend = backend.release();
+    keyContext.release();
+    return builtBackend;
 }
 
 template <typename K>

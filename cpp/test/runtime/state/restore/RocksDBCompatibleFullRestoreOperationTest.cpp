@@ -1,0 +1,246 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
+#include <atomic>
+#include <filesystem>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+#include "runtime/state/IncrementalRemoteKeyedStateHandle.h"
+#include "runtime/state/KeyGroupRange.h"
+#include "runtime/state/KeyGroupRangeOffsets.h"
+#include "runtime/state/KeyGroupsStateHandle.h"
+#include "runtime/state/memory/ByteStreamStateHandle.h"
+#include "runtime/state/metainfo/StateMetaInfoSnapshot.h"
+#include "runtime/state/restore/RocksDBCompatibleFullRestoreOperation.h"
+#include "test/runtime/state/MockSavepointBridge.h"
+
+using ::testing::_;
+using ::testing::NiceMock;
+using ::testing::Return;
+
+namespace {
+
+StateMetaInfoSnapshot makeMetaInfo()
+{
+    return StateMetaInfoSnapshot(
+        "state",
+        StateMetaInfoSnapshot::BackendStateType::KEY_VALUE,
+        std::unordered_map<std::string, std::string>{},
+        std::unordered_map<std::string, std::shared_ptr<TypeSerializerSnapshot>>{});
+}
+
+std::shared_ptr<KeyedStateHandle> makeKeyedStateHandle()
+{
+    KeyGroupRange keyGroupRange(0, 0);
+    KeyGroupRangeOffsets offsets(keyGroupRange);
+    auto streamHandle = std::make_shared<ByteStreamStateHandle>("rocks-compatible-restore", std::vector<uint8_t>{1});
+    return std::make_shared<KeyGroupsStateHandle>(offsets, streamHandle);
+}
+
+FlinkSavepointAdaptorInfo makeAdaptorInfo()
+{
+    return {FlinkSavepointAdaptorType::DeduplicateAdaptor, "deduplicate compatible adaptor"};
+}
+
+class RecordingRestoreAdaptor : public omnistream::OperatorSavepointAdaptor {
+public:
+    explicit RecordingRestoreAdaptor(std::vector<std::string>* events) : events_(events)
+    {
+    }
+
+    void prepareForRestore(const nlohmann::json& operatorDescription) override
+    {
+        events_->push_back("prepare");
+        operatorName_ = operatorDescription.value("operator", "");
+    }
+
+    void validateForRestore(const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& metaInfos) override
+    {
+        events_->push_back("validate");
+        validatedMetaCount_ = metaInfos.size();
+        if (throwOnValidate_) {
+            throw std::runtime_error("validate failed");
+        }
+    }
+
+    void save(CheckpointStateOutputStreamProxy&, KeyGroupRangeOffsets&, FullSnapshotResources&, std::string) override
+    {
+    }
+
+    void restore(SavepointRestoreResultIterator& restoreIterator, omnistream::RestoreBackendDelegate&) override
+    {
+        events_->push_back("restore");
+        actualIteratorHadNext_ = restoreIterator.hasNext();
+        if (throwOnRestore_) {
+            throw std::runtime_error("restore failed");
+        }
+    }
+
+    std::vector<std::string>* events_;
+    bool throwOnValidate_ = false;
+    bool throwOnRestore_ = false;
+    bool actualIteratorHadNext_ = false;
+    size_t validatedMetaCount_ = 0;
+    std::string operatorName_;
+};
+
+class RocksDBCompatibleFullRestoreOperationTest : public ::testing::Test {
+protected:
+    void SetUp() override
+    {
+        bridge_ = std::make_shared<NiceMock<MockSavepointBridge>>();
+        ON_CALL(*bridge_, readMetaData(_)).WillByDefault(Return(std::vector<StateMetaInfoSnapshot>{makeMetaInfo()}));
+        ON_CALL(*bridge_, getSavepointInputStream(_)).WillByDefault(Return(kMockProvider));
+        ON_CALL(*bridge_, isUsingKeyGroupCompression(_)).WillByDefault(Return(false));
+        ON_CALL(*bridge_, closeSavepointInputStream(_)).WillByDefault(Return());
+
+        const auto* testInfo = ::testing::UnitTest::GetInstance()->current_test_info();
+        dbPath_ = std::filesystem::temp_directory_path() /
+                  ("rocks-compatible-restore-" + std::string(testInfo->test_suite_name()) + "-" +
+                   std::string(testInfo->name()) + "-" + std::to_string(nextDbPathId_++));
+        std::filesystem::remove_all(dbPath_);
+        dbOptions_ = std::make_shared<rocksdb::DBOptions>();
+        dbOptions_->create_if_missing = true;
+    }
+
+    void TearDown() override
+    {
+        std::filesystem::remove_all(dbPath_);
+    }
+
+    std::unique_ptr<RocksDBCompatibleFullRestoreOperation<int>> makeOperation(
+        std::vector<std::shared_ptr<KeyedStateHandle>> handles,
+        std::unique_ptr<RecordingRestoreAdaptor> adaptor,
+        std::shared_ptr<omnistream::OmniTaskBridge> bridge = nullptr)
+    {
+        return std::make_unique<RocksDBCompatibleFullRestoreOperation<int>>(
+            &keyGroupRange_,
+            nullptr,
+            &kvStateInformation_,
+            dbPath_,
+            dbOptions_,
+            [](const std::string&) { return rocksdb::ColumnFamilyOptions(); },
+            std::move(handles),
+            bridge == nullptr ? bridge_ : bridge,
+            makeAdaptorInfo(),
+            std::move(adaptor));
+    }
+
+    KeyGroupRange keyGroupRange_{0, 0};
+    std::filesystem::path dbPath_;
+    std::shared_ptr<rocksdb::DBOptions> dbOptions_;
+    std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> kvStateInformation_;
+    std::shared_ptr<NiceMock<MockSavepointBridge>> bridge_;
+    std::vector<std::string> events_;
+    inline static std::atomic<unsigned long> nextDbPathId_{0};
+};
+
+} // namespace
+
+// 看护 RocksDB compatible restore 先打开 DB，再进入 adaptor restore 生命周期并返回非空 DB。
+TEST_F(RocksDBCompatibleFullRestoreOperationTest, RestoreOpensDbBeforeDelegatedRestore)
+{
+    auto operation = makeOperation({makeKeyedStateHandle()}, std::make_unique<RecordingRestoreAdaptor>(&events_));
+
+    auto result = operation->restore();
+
+    ASSERT_NE(result, nullptr);
+    EXPECT_NE(result->getDb(), nullptr);
+    EXPECT_EQ(events_, std::vector<std::string>({"validate", "restore"}));
+}
+
+// 看护 prepared adaptor 缺失时 fail-fast，不能回退到 RocksDB full restore raw direct put。
+TEST_F(RocksDBCompatibleFullRestoreOperationTest, RestoreFailsFastWhenPreparedAdaptorMissing)
+{
+    auto operation = makeOperation({makeKeyedStateHandle()}, nullptr);
+
+    EXPECT_THROW(operation->restore(), std::runtime_error);
+}
+
+// 看护 metadata validate 发生在 restore 写入前，validate 失败时不进入 restore。
+TEST_F(RocksDBCompatibleFullRestoreOperationTest, RestorePrevalidatesMetadataBeforeWriting)
+{
+    auto adaptor = std::make_unique<RecordingRestoreAdaptor>(&events_);
+    adaptor->throwOnValidate_ = true;
+    auto operation = makeOperation({makeKeyedStateHandle()}, std::move(adaptor));
+
+    EXPECT_THROW(operation->restore(), std::runtime_error);
+    EXPECT_EQ(events_, std::vector<std::string>({"validate"}));
+}
+
+// 看护 compatible operation 不调用普通 full restore 的 key-group raw direct put 读取路径。
+TEST_F(RocksDBCompatibleFullRestoreOperationTest, RestoreDoesNotCallRawDirectPutPath)
+{
+    auto operation = makeOperation({makeKeyedStateHandle()}, std::make_unique<RecordingRestoreAdaptor>(&events_));
+
+    EXPECT_CALL(*bridge_, setSavepointInputStreamOffset(_, _)).Times(0);
+    EXPECT_CALL(*bridge_, ReadSavepointInputStream(_, _, _, _)).Times(0);
+    operation->restore();
+}
+
+// 看护成功路径返回 RocksDBRestoreResult，包含 DB 与 default column family。
+TEST_F(RocksDBCompatibleFullRestoreOperationTest, RestoreReturnsRocksDBRestoreResultOnSuccess)
+{
+    auto operation = makeOperation({makeKeyedStateHandle()}, std::make_unique<RecordingRestoreAdaptor>(&events_));
+
+    auto result = operation->restore();
+
+    ASSERT_NE(result, nullptr);
+    EXPECT_NE(result->getDb(), nullptr);
+    EXPECT_NE(result->getDefaultColumnFamilyHandle(), nullptr);
+    EXPECT_EQ(result->getLastCompletedCheckpointId(), -1L);
+}
+
+// 看护 adaptor restore 失败时异常透传，不吞掉 RocksDB compatible restore 错误。
+TEST_F(RocksDBCompatibleFullRestoreOperationTest, RestoreRethrowsAdaptorFailure)
+{
+    auto adaptor = std::make_unique<RecordingRestoreAdaptor>(&events_);
+    adaptor->throwOnRestore_ = true;
+    auto operation = makeOperation({makeKeyedStateHandle()}, std::move(adaptor));
+
+    EXPECT_THROW(operation->restore(), std::runtime_error);
+}
+
+// 看护 compatible full operation 不接受 incremental handle，类型不匹配时 fail-fast。
+TEST_F(RocksDBCompatibleFullRestoreOperationTest, CompatibleModeRejectsIncrementalHandle)
+{
+    KeyGroupRange keyGroupRange(0, 0);
+    auto metaHandle = std::make_shared<ByteStreamStateHandle>("rocks-incremental-meta", std::vector<uint8_t>{1});
+    auto incrementalHandle = std::make_shared<IncrementalRemoteKeyedStateHandle>(
+        UUID(),
+        keyGroupRange,
+        1L,
+        std::vector<IncrementalKeyedStateHandle::HandleAndLocalPath>{},
+        std::vector<IncrementalKeyedStateHandle::HandleAndLocalPath>{},
+        metaHandle);
+    auto operation = makeOperation({incrementalHandle}, std::make_unique<RecordingRestoreAdaptor>(&events_));
+
+    EXPECT_THROW(operation->restore(), std::runtime_error);
+}
+
+// 看护空 handles 只打开 DB 并返回结果，保持与 existing none/full 分支分离。
+TEST_F(RocksDBCompatibleFullRestoreOperationTest, OperationKeepsExistingFullRestorePathSeparate)
+{
+    auto operation = makeOperation({}, nullptr);
+
+    auto result = operation->restore();
+
+    ASSERT_NE(result, nullptr);
+    EXPECT_NE(result->getDb(), nullptr);
+    EXPECT_TRUE(events_.empty());
+}
