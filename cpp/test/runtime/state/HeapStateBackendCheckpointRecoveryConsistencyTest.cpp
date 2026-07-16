@@ -126,8 +126,9 @@ public:
         return SnapshotResult<StreamStateHandle>::Of(handle);
     }
 
-    void AbortSavepointOutputStream(jobject) override
+    void AbortSavepointOutputStream(jobject provider) override
     {
+        delete outputStream(provider);
     }
 
     void WriteSavepointOutputStream(jobject provider, const int8_t* chunk, size_t offset, size_t len) override
