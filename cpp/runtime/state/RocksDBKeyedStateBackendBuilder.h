@@ -31,9 +31,11 @@
 #include "runtime/state/restore/RocksDBRestoreOperation.h"
 #include "runtime/state/restore/RocksDBNoneRestoreOperation.h"
 #include "runtime/state/restore/RocksDBIncrementalRestoreOperation.h"
+#include "runtime/state/restore/RocksDBCompatibleFullRestoreOperation.h"
 #include "runtime/state/restore/RocksDBFullRestoreOperation.h"
 #include "runtime/state/restore/RocksDBHeapTimersFullRestoreOperation.h"
 #include "runtime/checkpoint/FlinkSavepointAdaptorInfo.h"
+#include "runtime/checkpoint/OperatorSavepointAdaptorFactory.h"
 #include "runtime/snapshot/RocksDBSnapshotStrategyBase.h"
 #include "runtime/snapshot/RocksNativeFullSnapshotStrategy.h"
 #include "runtime/snapshot/RocksIncrementalSnapshotStrategy.h"
@@ -187,6 +189,38 @@ private:
                 kvStateInformation, instanceRocksDBPath, dbOptions, columnFamilyOptionsFactory);
         }
         std::shared_ptr<KeyedStateHandle> firstStateHandle = restoreStateHandles[0];
+        if (restoreMode_ == RestoreSavepointMode::FLINK_COMPATIBLE) {
+            if (adaptorInfo_.type == FlinkSavepointAdaptorType::None) {
+                INFO_RELEASE("Error:RocksDB compatible restore is unsupported: " << adaptorInfo_.reason);
+                throw std::runtime_error("RocksDB compatible restore is not supported: " + adaptorInfo_.reason);
+            }
+            if (adaptorInfo_.type != FlinkSavepointAdaptorType::OmniIsCompatible) {
+                if (std::dynamic_pointer_cast<IncrementalKeyedStateHandle>(firstStateHandle)) {
+                    INFO_RELEASE("Error:RocksDB compatible restore does not support incremental/native state handles");
+                    throw std::runtime_error(
+                        "RocksDB compatible full restore does not support incremental/native state handles");
+                }
+                auto adaptor =
+                    omnistream::OperatorSavepointAdaptorFactory::createAdaptor(adaptorInfo_.type, operatorDescription_);
+                if (adaptor == nullptr) {
+                    INFO_RELEASE(
+                        "Error:RocksDB compatible restore adaptor factory returned null: " << adaptorInfo_.reason);
+                    throw std::runtime_error("RocksDB compatible restore adaptor factory returned null");
+                }
+                adaptor->prepareForRestore(operatorDescription_);
+                return std::make_shared<RocksDBCompatibleFullRestoreOperation<K>>(
+                    keyGroupRange,
+                    keySerializer,
+                    kvStateInformation,
+                    instanceRocksDBPath,
+                    dbOptions,
+                    columnFamilyOptionsFactory,
+                    restoreStateHandles,
+                    omniTaskBridge,
+                    adaptorInfo_,
+                    std::move(adaptor));
+            }
+        }
         if (auto incrementalHandle = std::dynamic_pointer_cast<IncrementalKeyedStateHandle>(firstStateHandle)) {
             return std::make_shared<RocksDBIncrementalRestoreOperation<K>>(
                 operatorIdentifier,
