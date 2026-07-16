@@ -14,6 +14,7 @@
 #include <atomic>
 #include <filesystem>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -157,4 +158,35 @@ TEST_F(RocksDbHandleTest, CloseOpenDbNoThrowReleasesMultipleStateColumnFamilies)
     EXPECT_EQ(handle->getDefaultColumnFamilyHandle(), nullptr);
     EXPECT_TRUE(handle->getColumnFamilyHandles().empty());
     expectPathCanBeOpenedAgain({"state-a", "state-b"});
+}
+
+TEST_F(RocksDbHandleTest, OpenDbRejectsDescriptorSnapshotCountMismatchBeforeRestoringFiles)
+{
+    auto handle = makeHandle();
+    std::vector<rocksdb::ColumnFamilyDescriptor> descriptors;
+    descriptors.emplace_back("state", rocksdb::ColumnFamilyOptions());
+    std::vector<StateMetaInfoSnapshot> snapshots;
+    const auto missingRestoreSource = dbPath_ / "missing-restore-source";
+
+    ASSERT_FALSE(std::filesystem::exists(missingRestoreSource));
+    bool sawExpectedException = false;
+    try {
+        handle->openDB(descriptors, snapshots, missingRestoreSource);
+    } catch (const std::invalid_argument& exception) {
+        sawExpectedException = true;
+        const std::string message = exception.what();
+        EXPECT_NE(message.find("descriptor count 1"), std::string::npos);
+        EXPECT_NE(message.find("snapshot count 0"), std::string::npos);
+    } catch (const std::exception& exception) {
+        ADD_FAILURE() << "Unexpected exception type with message: " << exception.what();
+    } catch (...) {
+        ADD_FAILURE() << "Unexpected non-standard exception";
+    }
+
+    EXPECT_TRUE(sawExpectedException);
+    EXPECT_FALSE(std::filesystem::exists(dbPath_));
+    EXPECT_EQ(handle->getDb(), nullptr);
+    EXPECT_EQ(handle->getDefaultColumnFamilyHandle(), nullptr);
+    EXPECT_TRUE(handle->getColumnFamilyHandles().empty());
+    EXPECT_TRUE(kvStateInformation_.empty());
 }

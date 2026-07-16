@@ -57,6 +57,11 @@ public:
         const std::vector<StateMetaInfoSnapshot>& stateMetaInfoSnapshots,
         const fs::path& restoreSourcePath)
     {
+        if (columnFamilyDescriptors.size() != stateMetaInfoSnapshots.size()) {
+            throw std::invalid_argument(
+                "RocksDbHandle::openDB descriptor count " + std::to_string(columnFamilyDescriptors.size()) +
+                " does not match snapshot count " + std::to_string(stateMetaInfoSnapshots.size()));
+        }
         this->columnFamilyDescriptors = columnFamilyDescriptors;
         restoreInstanceDirectoryFromPath(restoreSourcePath);
         loadDb();
