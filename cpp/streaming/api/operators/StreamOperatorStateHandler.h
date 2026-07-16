@@ -13,7 +13,11 @@
 
 #include <string>
 #include <iostream>
+#include <future>
 #include <memory>
+#include <stdexcept>
+#include <utility>
+#include <nlohmann/json.hpp>
 #include "runtime/state/AbstractKeyedStateBackend.h"
 #include "StreamOperatorStateContext.h"
 #include "runtime/state/DefaultKeyedStateStore.h"
@@ -24,8 +28,12 @@
 #include "state/bridge/OmniTaskBridge.h"
 #include "streaming/api/operators/OperatorSnapshotFutures.h"
 #include "runtime/checkpoint/CheckpointOptions.h"
+#include "runtime/checkpoint/FlinkSavepointAdaptorInfo.h"
+#include "runtime/checkpoint/OperatorSavepointAdaptorFactory.h"
 #include "runtime/state/CheckpointStreamFactory.h"
 #include "runtime/checkpoint/SavepointType.h"
+#include "runtime/state/CompatibleSavepointSnapshotResources.h"
+#include "runtime/state/CompatibleSavepointSnapshotStrategy.h"
 #include "runtime/state/StateSnapshotContextSynchronousImpl.h"
 #include "runtime/state/OperatorStateBackend.h"
 #include "runtime/state/KeyedStateHandle.h"
@@ -125,7 +133,6 @@ public:
         virtual void initializeState(StateInitializationContextImpl* context)
         {
         }
-
         virtual FlinkSavepointAdaptorInfo getSavepointAdaptorInfo() const
         {
             return {};
@@ -267,10 +274,12 @@ public:
                     const auto& adaptorInfo = streamOperator->getSavepointAdaptorInfo();
                     INFO_RELEASE(
                         "StreamOperatorStateHandler::snapshotState entering flink savepoint compatible save flow - "
-                        "adaptorInfo type="
+                        "operator="
+                        << operatorName << ", checkpointId=" << checkpointId << ", adaptorInfo type="
                         << static_cast<int>(adaptorInfo.type) << ", reason=" << adaptorInfo.reason);
-                    auto snapshotRunner = prepareCompatibleSavepoint(keyedStateBackend);
-                    snapshotInProgress->setKeyedStateManagedFuture(snapshotRunner->snapshot(
+                    snapshotInProgress->setKeyedStateManagedFuture(prepareCompatibleSavepoint(
+                        streamOperator,
+                        keyedStateBackend,
                         checkpointId,
                         timestamp,
                         checkpointStreamFactory,
@@ -324,20 +333,20 @@ public:
 private:
     // own backend
     StreamOperatorStateContextImpl<K>* context = nullptr;
-    bool isCanonicalSavepoint(SnapshotType* snapshotType)
+    static bool isCanonicalSavepoint(SnapshotType* snapshotType)
     {
         return snapshotType->IsSavepoint() &&
                dynamic_cast<SavepointType*>(snapshotType)->getFormatType() == SavepointFormatType::CANONICAL;
     };
 
-    bool isCompatibleSavepoint(SnapshotType* snapshotType)
+    static bool isCompatibleSavepoint(SnapshotType* snapshotType)
     {
         return snapshotType->IsSavepoint() &&
                dynamic_cast<SavepointType*>(snapshotType)->getFormatType() == SavepointFormatType::COMPATIBLE;
     };
 
     template <typename T>
-    std::shared_ptr<SnapshotStrategyRunner<KeyedStateHandle, FullSnapshotResources>> prepareCanonicalSavepoint(
+    static std::shared_ptr<SnapshotStrategyRunner<KeyedStateHandle, FullSnapshotResources>> prepareCanonicalSavepoint(
         CheckpointableKeyedStateBackend<T>* keyedStateBackend)
     {
         auto savepointResources = keyedStateBackend->savepoint();
@@ -349,15 +358,49 @@ private:
     }
 
     template <typename T>
-    std::shared_ptr<SnapshotStrategyRunner<KeyedStateHandle, FullSnapshotResources>> prepareCompatibleSavepoint(
-        CheckpointableKeyedStateBackend<T>* keyedStateBackend)
+    static std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>>
+    prepareCompatibleSavepoint(
+        CheckpointedStreamOperator* streamOperator,
+        CheckpointableKeyedStateBackend<T>* keyedStateBackend,
+        long checkpointId,
+        long timestamp,
+        CheckpointStreamFactory* checkpointStreamFactory,
+        CheckpointOptions* checkpointOptions,
+        const std::shared_ptr<OmniTaskBridge>& bridge,
+        const std::string& keySerializer)
     {
-        auto savepointResources = keyedStateBackend->savepoint();
-        auto savepointSnapshotStrategy = new SavepointSnapshotStrategy(savepointResources->getSnapshotResources());
-        return std::make_shared<SnapshotStrategyRunner<KeyedStateHandle, FullSnapshotResources>>(
-            "Asynchronous full Compatible Savepoint",
-            savepointSnapshotStrategy,
-            savepointResources->getPreferredSnapshotExecutionType());
+        auto adaptorInfo = streamOperator->getSavepointAdaptorInfo();
+        if (adaptorInfo.type == FlinkSavepointAdaptorType::None) {
+            INFO_RELEASE(
+                "Error:StreamOperatorStateHandler::prepareCompatibleSavepoint cp="
+                << checkpointId << " unsupported operator reason=" << adaptorInfo.reason);
+            throw std::runtime_error("Compatible savepoint is not supported for this operator: " + adaptorInfo.reason);
+        }
+        if (adaptorInfo.type == FlinkSavepointAdaptorType::OmniIsCompatible) {
+            return prepareCanonicalSavepoint(keyedStateBackend)
+                ->snapshot(checkpointId, timestamp, checkpointStreamFactory, checkpointOptions, bridge, keySerializer);
+        }
+
+        auto adaptor = omnistream::OperatorSavepointAdaptorFactory::createAdaptor(
+            adaptorInfo.type, streamOperator->getOperatorDescription());
+        if (adaptor == nullptr) {
+            INFO_RELEASE(
+                "Error:StreamOperatorStateHandler::prepareCompatibleSavepoint cp="
+                << checkpointId << " adaptor factory returned null type=" << static_cast<int>(adaptorInfo.type));
+            throw std::runtime_error("Compatible savepoint adaptor factory returned null");
+        }
+        adaptor->prepareForSave(streamOperator->getOperatorDescription());
+        auto savepointResources = keyedStateBackend->compatibleSavepoint();
+        auto compatibleResources = std::make_shared<CompatibleSavepointSnapshotResources>(
+            savepointResources->getSnapshotResources(), std::move(adaptor), adaptorInfo);
+        auto compatibleSnapshotStrategy = new CompatibleSavepointSnapshotStrategy(compatibleResources);
+        auto snapshotRunner =
+            std::make_shared<SnapshotStrategyRunner<KeyedStateHandle, CompatibleSavepointSnapshotResources>>(
+                "Asynchronous compatible Savepoint",
+                compatibleSnapshotStrategy,
+                savepointResources->getPreferredSnapshotExecutionType());
+        return snapshotRunner->snapshot(
+            checkpointId, timestamp, checkpointStreamFactory, checkpointOptions, bridge, keySerializer);
     }
 
     // own backend
