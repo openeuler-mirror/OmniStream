@@ -50,14 +50,16 @@ CompatibleFullSnapshotAsyncWriter::CompatibleFullSnapshotAsyncWriter(
 std::shared_ptr<SnapshotResult<KeyedStateHandle>> CompatibleFullSnapshotAsyncWriter::get(
     std::shared_ptr<omnistream::OmniTaskBridge> bridge)
 {
+    auto sourceResources = snapshotResources_->sourceResources();
+    const auto& metaInfoSnapshots = sourceResources->getMetaInfoSnapshots();
+    adaptor_->validateForSave(metaInfoSnapshots);
+    if (metaInfoSnapshots.empty()) {
+        return SnapshotResult<KeyedStateHandle>::Empty();
+    }
     if (bridge == nullptr) {
         INFO_RELEASE("Error:CompatibleFullSnapshotAsyncWriter::get cp=" << checkpointId_ << " bridge is null");
         throw std::invalid_argument("Compatible snapshot bridge must not be null");
     }
-
-    auto sourceResources = snapshotResources_->sourceResources();
-    const auto& metaInfoSnapshots = sourceResources->getMetaInfoSnapshots();
-    adaptor_->validateForSave(metaInfoSnapshots);
 
     auto* keyGroupRange = sourceResources->getKeyGroupRange();
     if (keyGroupRange == nullptr) {

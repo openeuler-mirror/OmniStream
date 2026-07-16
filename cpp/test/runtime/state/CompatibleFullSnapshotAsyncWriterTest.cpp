@@ -44,6 +44,9 @@ public:
     {
         events_->push_back("validate");
         validatedMetaCount_ = metaInfos.size();
+        if (rejectEmptyMeta_ && metaInfos.empty()) {
+            throw std::runtime_error("required source state missing");
+        }
         if (throwOnValidate_) {
             throw std::runtime_error("validate failed");
         }
@@ -71,6 +74,7 @@ public:
     }
 
     std::vector<std::string>* events_;
+    bool rejectEmptyMeta_ = false;
     bool throwOnValidate_ = false;
     bool throwOnSave_ = false;
     bool sawSave_ = false;
@@ -125,6 +129,66 @@ protected:
 };
 
 } // namespace
+
+// 看护 required-state adaptor 会拒绝空 metadata，并保留原始异常且不打开输出流。
+TEST_F(CompatibleFullSnapshotAsyncWriterTest, EmptyMetaRejectedByAdaptorBeforeOpeningStream)
+{
+    auto source = std::make_shared<compatible_savepoint_test::CompatibleSavepointTestFullSnapshotResources>(false);
+    auto adaptor = std::make_unique<RecordingAdaptor>(&events_);
+    adaptor->rejectEmptyMeta_ = true;
+    auto* adaptorPtr = adaptor.get();
+    auto resources = makeResources(source, std::make_unique<RecordingAdaptor>(&events_));
+    auto writer = makeWriter(resources, std::move(adaptor));
+
+    EXPECT_CALL(*bridge_, AcquireSavepointOutputStream(_, _)).Times(0);
+    try {
+        writer->get(bridge_);
+        FAIL() << "Expected empty metadata validation to fail";
+    } catch (const std::runtime_error& error) {
+        EXPECT_STREQ(error.what(), "required source state missing");
+    }
+
+    EXPECT_EQ(events_, std::vector<std::string>({"validate"}));
+    EXPECT_EQ(adaptorPtr->validatedMetaCount_, 0U);
+    EXPECT_FALSE(adaptorPtr->sawSave_);
+}
+
+// 看护 permissive adaptor 可接受空 metadata，validation 恰好一次且不打开 stream、不调用 save。
+TEST_F(CompatibleFullSnapshotAsyncWriterTest, EmptyMetaAllowedReturnsEmptyWithoutOpeningStreamOrSaving)
+{
+    auto source = std::make_shared<compatible_savepoint_test::CompatibleSavepointTestFullSnapshotResources>(false);
+    auto adaptor = std::make_unique<RecordingAdaptor>(&events_);
+    auto* adaptorPtr = adaptor.get();
+    auto resources = makeResources(source, std::make_unique<RecordingAdaptor>(&events_));
+    auto writer = makeWriter(resources, std::move(adaptor));
+
+    EXPECT_CALL(*bridge_, AcquireSavepointOutputStream(_, _)).Times(0);
+    auto result = writer->get(bridge_);
+
+    EXPECT_EQ(result->GetJobManagerOwnedSnapshot(), nullptr);
+    EXPECT_EQ(result->GetTaskLocalSnapshot(), nullptr);
+    EXPECT_EQ(events_, std::vector<std::string>({"validate"}));
+    EXPECT_EQ(adaptorPtr->validatedMetaCount_, 0U);
+    EXPECT_FALSE(adaptorPtr->sawSave_);
+}
+
+// 看护空 metadata 的成功路径无需 bridge，仍执行一次 validation 且不调用 save。
+TEST_F(CompatibleFullSnapshotAsyncWriterTest, EmptyMetaAllowedDoesNotRequireBridge)
+{
+    auto source = std::make_shared<compatible_savepoint_test::CompatibleSavepointTestFullSnapshotResources>(false);
+    auto adaptor = std::make_unique<RecordingAdaptor>(&events_);
+    auto* adaptorPtr = adaptor.get();
+    auto resources = makeResources(source, std::make_unique<RecordingAdaptor>(&events_));
+    auto writer = makeWriter(resources, std::move(adaptor));
+
+    auto result = writer->get(nullptr);
+
+    EXPECT_EQ(result->GetJobManagerOwnedSnapshot(), nullptr);
+    EXPECT_EQ(result->GetTaskLocalSnapshot(), nullptr);
+    EXPECT_EQ(events_, std::vector<std::string>({"validate"}));
+    EXPECT_EQ(adaptorPtr->validatedMetaCount_, 0U);
+    EXPECT_FALSE(adaptorPtr->sawSave_);
+}
 
 // 看护 writer 在 validate 失败时不会打开 savepoint 输出流，避免产生半成品 stream。
 TEST_F(CompatibleFullSnapshotAsyncWriterTest, GetCallsValidateBeforeOpeningStream)
@@ -181,13 +245,17 @@ TEST_F(CompatibleFullSnapshotAsyncWriterTest, CloseReturningNullFailsFast)
     EXPECT_THROW(writer->get(bridge_), std::runtime_error);
 }
 
-// 看护 bridge 缺失时 get 入口 fail-fast，且不触发 validate/save。
-TEST_F(CompatibleFullSnapshotAsyncWriterTest, NullBridgeFailsFast)
+// 看护非空 metadata 先完成一次 validation，再在打开 stream 前拒绝缺失 bridge。
+TEST_F(CompatibleFullSnapshotAsyncWriterTest, NullBridgeFailsAfterValidationWithoutOpeningStream)
 {
     auto source = std::make_shared<compatible_savepoint_test::CompatibleSavepointTestFullSnapshotResources>(true, 0, 1);
+    auto adaptor = std::make_unique<RecordingAdaptor>(&events_);
+    auto* adaptorPtr = adaptor.get();
     auto resources = makeResources(source, std::make_unique<RecordingAdaptor>(&events_));
-    auto writer = makeWriter(resources, std::make_unique<RecordingAdaptor>(&events_));
+    auto writer = makeWriter(resources, std::move(adaptor));
 
     EXPECT_THROW(writer->get(nullptr), std::invalid_argument);
-    EXPECT_TRUE(events_.empty());
+    EXPECT_EQ(events_, std::vector<std::string>({"validate"}));
+    EXPECT_EQ(adaptorPtr->validatedMetaCount_, 1U);
+    EXPECT_FALSE(adaptorPtr->sawSave_);
 }
