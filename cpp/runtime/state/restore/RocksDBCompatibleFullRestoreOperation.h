@@ -65,6 +65,7 @@ public:
                   instanceRocksDBPath,
                   std::move(dbOptions),
                   std::move(columnFamilyOptionsFactory))),
+          kvStateInformation_(kvStateInformation),
           omniTaskBridge_(std::move(omniTaskBridge)),
           adaptorInfo_(std::move(adaptorInfo)),
           preparedAdaptor_(std::move(preparedAdaptor))
@@ -73,37 +74,82 @@ public:
 
     std::shared_ptr<RocksDBRestoreResult> restore() override
     {
+        if (!restoreStateHandles_.empty()) {
+            if (omniTaskBridge_ == nullptr) {
+                INFO_RELEASE(
+                    "Error:RocksDBCompatibleFullRestoreOperation::restore missing OmniTaskBridge, adaptorType="
+                    << static_cast<int>(adaptorInfo_.type) << ", reason=" << adaptorInfo_.reason
+                    << ", stateHandleCount=" << restoreStateHandles_.size());
+                throw std::invalid_argument(
+                    "RocksDB compatible restore requires OmniTaskBridge when state handles exist");
+            }
+            if (preparedAdaptor_ == nullptr) {
+                INFO_RELEASE(
+                    "Error:RocksDBCompatibleFullRestoreOperation::restore missing prepared adaptor, adaptorType="
+                    << static_cast<int>(adaptorInfo_.type) << ", reason=" << adaptorInfo_.reason
+                    << ", stateHandleCount=" << restoreStateHandles_.size());
+                throw std::runtime_error(
+                    "RocksDB compatible restore requires prepared adaptor, type=" +
+                    std::to_string(static_cast<int>(adaptorInfo_.type)) +
+                    ", builder/factory did not provide a prepared adaptor");
+            }
+
+            auto metaInfoSnapshots = loadMetaInfoSnapshots();
+            preparedAdaptor_->validateForRestore(metaInfoSnapshots);
+        }
+
         rocksDbHandle_->openDB();
-        if (restoreStateHandles_.empty()) {
-            return createRestoreResult();
-        }
-        if (omniTaskBridge_ == nullptr) {
-            INFO_RELEASE(
-                "Error:RocksDBCompatibleFullRestoreOperation::restore missing OmniTaskBridge, adaptorType="
-                << static_cast<int>(adaptorInfo_.type) << ", reason=" << adaptorInfo_.reason
-                << ", stateHandleCount=" << restoreStateHandles_.size());
-            throw std::invalid_argument("RocksDB compatible restore requires OmniTaskBridge when state handles exist");
-        }
-        if (preparedAdaptor_ == nullptr) {
-            INFO_RELEASE(
-                "Error:RocksDBCompatibleFullRestoreOperation::restore missing prepared adaptor, adaptorType="
-                << static_cast<int>(adaptorInfo_.type) << ", reason=" << adaptorInfo_.reason
-                << ", stateHandleCount=" << restoreStateHandles_.size());
-            throw std::runtime_error(
-                "RocksDB compatible restore requires prepared adaptor, type=" +
-                std::to_string(static_cast<int>(adaptorInfo_.type)) +
-                ", builder/factory did not provide a prepared adaptor");
+        CompatibleRestoreAbortGuard abortGuard(rocksDbHandle_.get(), kvStateInformation_);
+
+        if (!restoreStateHandles_.empty()) {
+            auto restoreIterator = savepointRestoreOperation_->restore();
+            RocksDBRestoreBackendDelegate backendDelegate(rocksDbHandle_.get());
+            preparedAdaptor_->restore(*restoreIterator, backendDelegate);
         }
 
-        preparedAdaptor_->validateForRestore(loadMetaInfoSnapshots());
-
-        auto restoreIterator = savepointRestoreOperation_->restore();
-        RocksDBRestoreBackendDelegate backendDelegate(rocksDbHandle_.get());
-        preparedAdaptor_->restore(*restoreIterator, backendDelegate);
-        return createRestoreResult();
+        auto result = createRestoreResult();
+        abortGuard.release();
+        return result;
     }
 
 private:
+    class CompatibleRestoreAbortGuard {
+    public:
+        CompatibleRestoreAbortGuard(
+            RocksDbHandle* rocksDbHandle,
+            std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation)
+            : rocksDbHandle_(rocksDbHandle),
+              kvStateInformation_(kvStateInformation)
+        {
+        }
+
+        ~CompatibleRestoreAbortGuard() noexcept
+        {
+            if (!active_) {
+                return;
+            }
+            if (kvStateInformation_ != nullptr) {
+                kvStateInformation_->clear();
+            }
+            if (rocksDbHandle_ != nullptr) {
+                rocksDbHandle_->closeOpenDbNoThrow();
+            }
+        }
+
+        CompatibleRestoreAbortGuard(const CompatibleRestoreAbortGuard&) = delete;
+        CompatibleRestoreAbortGuard& operator=(const CompatibleRestoreAbortGuard&) = delete;
+
+        void release() noexcept
+        {
+            active_ = false;
+        }
+
+    private:
+        RocksDbHandle* rocksDbHandle_;
+        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation_;
+        bool active_ = true;
+    };
+
     std::vector<std::shared_ptr<StateMetaInfoSnapshot>> loadMetaInfoSnapshots()
     {
         std::vector<std::shared_ptr<StateMetaInfoSnapshot>> metaInfoSnapshots;
@@ -132,6 +178,7 @@ private:
     std::vector<std::shared_ptr<KeyedStateHandle>> restoreStateHandles_;
     std::unique_ptr<FullSnapshotRestoreOperation<K>> savepointRestoreOperation_;
     std::unique_ptr<RocksDbHandle> rocksDbHandle_;
+    std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation_;
     std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge_;
     FlinkSavepointAdaptorInfo adaptorInfo_;
     std::unique_ptr<omnistream::OperatorSavepointAdaptor> preparedAdaptor_;
