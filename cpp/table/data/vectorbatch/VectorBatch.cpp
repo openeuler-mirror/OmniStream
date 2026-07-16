@@ -156,9 +156,18 @@ std::string VectorBatch::TransformTimeWithTimeZone(
     char buffer[80];
     strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
     std::ostringstream oss;
-    oss << buffer << "." << milliseconds;
+    oss << buffer << ".";
 
-    return removeTrailingZeros(oss.str());
+    if (precision <= 3) {
+        oss << std::setw(3) << std::setfill('0') << milliseconds; // 强制3位宽度，不足补零
+    } else if (precision <= 9) {
+        oss << std::setw(3) << std::setfill('0') << milliseconds << std::string(precision - 3, '0');
+    } else {
+        oss << std::setw(3) << std::setfill('0') << milliseconds << std::string(6, '0');
+    }
+
+    std::string result = oss.str();
+    return result;
 }
 
 std::string VectorBatch::TransformTime(int vectorID, int rowID, int precision) const
@@ -174,13 +183,29 @@ std::string VectorBatch::TransformTime(int vectorID, int rowID, int precision) c
     struct tm timeinfo;
     gmtime_r(&adjusted_seconds, &timeinfo);
 
+    // 格式化为字符串
     char buffer[80];
     strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
 
     std::ostringstream oss;
-    oss << buffer << "." << milliseconds;
+    oss << buffer << ".";
 
-    return removeTrailingZeros(oss.str());
+    if (precision <= 3) {
+        // precision <= 3时，补齐到3位（毫秒精度）
+        oss << std::setw(3) << std::setfill('0') // 强制3位宽度，不足补零
+            << milliseconds;
+    } else if (precision <= 9) {
+        // 3 < precision <= 9时，输出毫秒部分并补0到precision位数
+        oss << std::setw(3) << std::setfill('0') // 强制3位宽度，不足补零
+            << milliseconds << std::string(precision - 3, '0');
+    } else {
+        // precision > 9时，截断到9位
+        oss << std::setw(3) << std::setfill('0')    // 强制3位宽度，不足补零
+            << milliseconds << std::string(6, '0'); // 补0到9位
+    }
+
+    std::string result = oss.str();
+    return result;
 }
 
 std::string VectorBatch::transformDecimal128(
