@@ -83,7 +83,7 @@ public:
         TypeSerializer* keySerializer,
         InternalKeyContext<K>* context,
         rocksdb::DB* rocksdb,
-        RocksDBSnapshotStrategyBase* rocksdbStrategy,
+        std::shared_ptr<RocksDBSnapshotStrategyBase> rocksdbStrategy,
         KeyGroupRange* keyGroupRange,
         std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
         std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>>
@@ -96,23 +96,23 @@ public:
         std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge)
         : AbstractKeyedStateBackend<K>(keySerializer, context),
           db(rocksdb),
-          strategy(rocksdbStrategy),
+          strategy(std::move(rocksdbStrategy)),
           kvStateInformation_(kvStateInformation),
-          rocksDBResourceGuard_(rocksDBResourceGuard),
+          rocksDBResourceGuard_(std::move(rocksDBResourceGuard)),
           keyGroupRange_(keyGroupRange),
           keySerializer_(keySerializer),
           keyGroupPrefixBytes_(keyGroupPrefixBytes),
-          writeBatchWrapper_(writeBatchWrapper),
-          priorityQueueSetFactory_(priorityQueueSetFactory),
-          bridge_(bridge),
-          omniTaskBridge_(omniTaskBridge)
+          writeBatchWrapper_(std::move(writeBatchWrapper)),
+          priorityQueueSetFactory_(std::move(priorityQueueSetFactory)),
+          bridge_(std::move(bridge)),
+          omniTaskBridge_(std::move(omniTaskBridge))
     {
         startGroup_ = keyGroupRange->getStartKeyGroup();
         endGroup_ = keyGroupRange->getEndKeyGroup();
         maxParallelism_ = keyGroupRange->getNumberOfKeyGroups();
-        if (auto factory = std::dynamic_pointer_cast<HeapPriorityQueueSetFactory>(priorityQueueSetFactory)) {
+        if (auto factory = std::dynamic_pointer_cast<HeapPriorityQueueSetFactory>(priorityQueueSetFactory_)) {
             heapPriorityQueuesManager_ = std::make_shared<HeapPriorityQueuesManager>(
-                registeredPQStates, factory, context->getKeyGroupRange(), context->getNumberOfKeyGroups());
+                std::move(registeredPQStates), factory, context->getKeyGroupRange(), context->getNumberOfKeyGroups());
         }
     }
 
@@ -336,7 +336,7 @@ private:
     bool disposed_ = false; // mark whether the backend is already disposed and prevent duplicate disposing
     std::shared_ptr<RocksDBWriteBatchWrapper> writeBatchWrapper_;
     std::string kDBPath;
-    RocksDBSnapshotStrategyBase* strategy;
+    std::shared_ptr<RocksDBSnapshotStrategyBase> strategy;
     std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation_;
     std::shared_ptr<ResourceGuard> rocksDBResourceGuard_;
     KeyGroupRange* keyGroupRange_ = nullptr;

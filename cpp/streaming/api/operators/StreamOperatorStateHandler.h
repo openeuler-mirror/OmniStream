@@ -350,10 +350,11 @@ private:
         CheckpointableKeyedStateBackend<T>* keyedStateBackend)
     {
         auto savepointResources = keyedStateBackend->savepoint();
-        auto savepointSnapshotStrategy = new SavepointSnapshotStrategy(savepointResources->getSnapshotResources());
+        auto savepointSnapshotStrategy =
+            std::make_shared<SavepointSnapshotStrategy>(savepointResources->getSnapshotResources());
         return std::make_shared<SnapshotStrategyRunner<KeyedStateHandle, FullSnapshotResources>>(
             "Asynchronous full Savepoint",
-            savepointSnapshotStrategy,
+            std::move(savepointSnapshotStrategy),
             savepointResources->getPreferredSnapshotExecutionType());
     }
 
@@ -393,11 +394,11 @@ private:
         auto savepointResources = keyedStateBackend->compatibleSavepoint();
         auto compatibleResources = std::make_shared<CompatibleSavepointSnapshotResources>(
             savepointResources->getSnapshotResources(), std::move(adaptor), adaptorInfo);
-        auto compatibleSnapshotStrategy = new CompatibleSavepointSnapshotStrategy(compatibleResources);
+        auto compatibleSnapshotStrategy = std::make_shared<CompatibleSavepointSnapshotStrategy>(compatibleResources);
         auto snapshotRunner =
             std::make_shared<SnapshotStrategyRunner<KeyedStateHandle, CompatibleSavepointSnapshotResources>>(
                 "Asynchronous compatible Savepoint",
-                compatibleSnapshotStrategy,
+                std::move(compatibleSnapshotStrategy),
                 savepointResources->getPreferredSnapshotExecutionType());
         return snapshotRunner->snapshot(
             checkpointId, timestamp, checkpointStreamFactory, checkpointOptions, bridge, keySerializer);
