@@ -239,29 +239,26 @@ function build_with_mode() {
 
     mkdir -p $cpp_build_dir
     cd $cpp_build_dir
-    cmake  -DCMAKE_BUILD_TYPE=$mode -DLLVM_DIR=/opt/buildtools/llvm-15.0.4/lib/cmake/llvm -DENABLE_TESTS=$enable_tests ..    || {
-	    echo CMake Failed
-            exit 1
+    cmake -G Ninja \
+      -DCMAKE_BUILD_TYPE=$mode \
+      -DLLVM_DIR=/opt/buildtools/llvm-15.0.4/lib/cmake/llvm \
+      -DENABLE_TESTS=$enable_tests \
+      -DCMAKE_INSTALL_PREFIX="$cpp_build_dir/libbasictypes" \
+      -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+      -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+      .. || {
+        echo CMake Failed
+        exit 1
     }
-    make  -j$num_cpus  || {
-              echo Make Failed
-              exit 1
-      }
 
-    cd $cpp_build_dir/
-    cmake .. -DCMAKE_BUILD_TYPE=$build_type -DCMAKE_INSTALL_PREFIX=$(pwd)/libbasictypes -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache && cmake --build . --parallel 16 --target basictypes && cmake --install .|| {
-	    echo CMake Failed
-            exit 1
+    cmake --build . --parallel "$num_cpus" || {
+      echo Cmake Build Failed
+      exit 1
     }
-    cd $cpp_build_dir/
-    cmake .. -DCMAKE_BUILD_TYPE=$build_type -DCMAKE_INSTALL_PREFIX=$(pwd)/libbasictypes -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache && cmake --build . --parallel 16 --target basicfunctions && cmake --install .|| {
-      echo CMake Failed
-            exit 1
-    }
-    cd $cpp_build_dir/
-    cmake .. -DCMAKE_BUILD_TYPE=$build_type -DCMAKE_INSTALL_PREFIX=$(pwd)/libbasictypes -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache  && cmake --build . --parallel 16 --target thirdlibrary && cmake --install .|| {
-      echo CMake Failed
-            exit 1
+
+    cmake --install . || {
+      echo CMake Install Failed
+      exit 1
     }
 
 }
