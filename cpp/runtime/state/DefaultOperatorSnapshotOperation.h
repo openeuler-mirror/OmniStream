@@ -53,7 +53,6 @@ public:
                 return SnapshotResult<OperatorStateHandle>::Empty();
             }
 
-
             int initialMapCapacity =
                 registeredOperatorStatesDeepCopies->size() + registeredBroadcastStatesDeepCopies->size();
             auto writtenStatesMetaData =

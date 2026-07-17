@@ -54,9 +54,7 @@ public:
     {
         uint8_t header[4];
         (void)memset_s(header, 4, 0, 4);
-        if (offset.load() != 0) {
-            offset.store(0);
-        }
+        offset.store(0);
         int64_t oldOffset = offset.fetch_add(sizeof(header));
         memcpy_s(dataStream + oldOffset, memSize - oldOffset, reinterpret_cast<const char*>(header), sizeof(header));
     }
@@ -78,10 +76,15 @@ public:
         }
         oldOffset = offset.fetch_add(sizeof(lenBytes));
         int64_t newOffset = oldOffset;
-        memcpy_s(dataStream + newOffset, memSize - newOffset, reinterpret_cast<const char*>(lenBytes), sizeof(lenBytes));
+        memcpy_s(
+            dataStream + newOffset, memSize - newOffset, reinterpret_cast<const char*>(lenBytes), sizeof(lenBytes));
         newOffset = offset.fetch_add(size);
         auto memsegoff = buffers->GetOffset();
-        memcpy_s(dataStream + newOffset, memSize - newOffset, reinterpret_cast<const char*>(memorySegment->getData()) + memsegoff, size);
+        memcpy_s(
+            dataStream + newOffset,
+            memSize - newOffset,
+            reinterpret_cast<const char*>(memorySegment->getData()) + memsegoff,
+            size);
     }
 
     int getSize(Buffer* buffers)

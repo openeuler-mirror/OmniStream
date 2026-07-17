@@ -32,7 +32,8 @@ public:
     BarrierHandlerState* AlignedCheckpointTimeout(Controller* controller, CheckpointBarrier* barrier) override = 0;
 
     BarrierHandlerState* FinishCheckpoint() override;
-    BarrierHandlerState* FinishSavepoint();
+    BarrierHandlerState* FinishSavepoint(long id);
+
 protected:
     virtual BarrierHandlerState* TransitionAfterBarrierReceived(ChannelState state) = 0;
     ChannelState state;

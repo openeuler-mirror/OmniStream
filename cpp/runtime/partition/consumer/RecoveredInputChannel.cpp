@@ -87,12 +87,11 @@ void RecoveredInputChannel::finishReadRecoveredState()
 void RecoveredInputChannel::finishInnerRecoveredState()
 {
     INFO_RELEASE("Recovered input channel finishInnerRecoveredState!");
-    NetworkBuffer* networkBuffer = omnistream::EventSerializer::toBuffer(
-        InnerRecoverEvent::getInstance(), false);
+    NetworkBuffer* networkBuffer = omnistream::EventSerializer::toBuffer(InnerRecoverEvent::getInstance(), false);
     if (networkBuffer != nullptr) {
         onRecoveredStateBuffer(networkBuffer);
         bufferManager->releaseFloatingBuffers();
-        LOG(inputGate->getOwningTaskName()<<"/"<< channelInfo.toString()<< " finished recovering input!");
+        LOG(inputGate->getOwningTaskName() << "/" << channelInfo.toString() << " finished recovering input!");
     }
 }
 
@@ -130,7 +129,7 @@ std::optional<omnistream::BufferAndAvailability> RecoveredInputChannel::getNextR
     } else if (isEndOfChannelStateEvent(next)) {
         LOG("Recovered input channel end of event!");
         return std::nullopt;
-    }else if(isInnerRecoverEvent(next)){
+    } else if (isInnerRecoverEvent(next)) {
         INFO_RELEASE("recovered input channel received InnerRecoverEvent!");
         stateConsumedFuture->Complete();
         stateConsumedFuture1.store(true);
@@ -165,9 +164,9 @@ bool RecoveredInputChannel::isEndOfChannelStateEvent(Buffer* buffer)
     return false;
 }
 
-bool RecoveredInputChannel::isInnerRecoverEvent(Buffer *buffer)
+bool RecoveredInputChannel::isInnerRecoverEvent(Buffer* buffer)
 {
-    if(buffer->isBuffer()){
+    if (buffer->isBuffer()) {
         return false;
     }
 

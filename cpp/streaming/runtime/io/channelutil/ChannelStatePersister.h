@@ -83,15 +83,12 @@ public:
         }
     }
 
-    void AddInputData(std::vector<omnistream::Buffer*> knownBuffers, long checkpointId, const omnistream::InputChannelInfo& info)
+    void AddInputData(
+        std::vector<omnistream::Buffer*> knownBuffers, long checkpointId, const omnistream::InputChannelInfo& info)
     {
         if (!knownBuffers.empty()) {
             channelStateWriter_->AddInputData(
-                checkpointId,
-                info,
-                ChannelStateWriter::sequenceNumberUnknown,
-                knownBuffers
-            );
+                checkpointId, info, ChannelStateWriter::sequenceNumberUnknown, knownBuffers);
         }
     }
 

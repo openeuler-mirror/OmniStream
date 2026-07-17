@@ -132,9 +132,6 @@ void MailboxProcessor::runMailboxLoop()
             mailboxDefaultAction->runDefaultAction(mailboxController);
         }
     }
-    if (isCancell) {
-        isCancell = false;
-    }
     delete mailboxController;
     INFO_RELEASE(">>>after isNextLoopPossible");
 }

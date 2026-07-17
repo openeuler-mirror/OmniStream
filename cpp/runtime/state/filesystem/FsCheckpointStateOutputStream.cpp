@@ -86,7 +86,7 @@ void FsCheckpointStateOutputStream::Close()
     closed_ = true;
 }
 
-std::shared_ptr<StreamStateHandle> FsCheckpointStateOutputStream::CloseAndGetHandle(char *dataStream)
+std::shared_ptr<StreamStateHandle> FsCheckpointStateOutputStream::CloseAndGetHandle(char* dataStream)
 {
     if (handle == nullptr) {
         handle = std::make_shared<FileStateHandle>(tempPath_, fileSize);

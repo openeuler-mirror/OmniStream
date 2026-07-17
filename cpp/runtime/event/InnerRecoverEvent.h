@@ -14,26 +14,26 @@
 #include "RuntimeEvent.h"
 
 namespace omnistream {
-    class InnerRecoverEvent : public RuntimeEvent {
-    public:
-        static std::shared_ptr<InnerRecoverEvent> getInstance()
-         {
-            return std::make_shared<InnerRecoverEvent>();
-         }
+class InnerRecoverEvent : public RuntimeEvent {
+public:
+    static std::shared_ptr<InnerRecoverEvent> getInstance()
+    {
+        return std::make_shared<InnerRecoverEvent>();
+    }
 
-        static int hashCode()
-        {
-            return 1965146689;
-        }
+    static int hashCode()
+    {
+        return 1965146689;
+    }
 
-        static bool equals(RuntimeEvent &other)
-        {
-            return typeid(other) == typeid(InnerRecoverEvent);
-        }
+    static bool equals(RuntimeEvent& other)
+    {
+        return typeid(other) == typeid(InnerRecoverEvent);
+    }
 
-        std::string GetEventClassName() override
-        {
-            return "InnerRecoverEvent";
-        }
-    };
+    std::string GetEventClassName() override
+    {
+        return "InnerRecoverEvent";
+    }
+};
 } // namespace omnistream

@@ -31,10 +31,9 @@ BarrierHandlerState* AlternatingCollectingBarriersUnaligned::BarrierReceived(
     if (alternating_) {
         state_.BlockChannel(channelInfo);
         state_.TimeOutUnblockAllChannels();
-
     }
     for (auto* input : state_.getInputs()) {
-        omnistream::IndexedInputGate *inputGate = dynamic_cast<omnistream::IndexedInputGate *>(input);
+        omnistream::IndexedInputGate* inputGate = dynamic_cast<omnistream::IndexedInputGate*>(input);
         if (inputGate) {
             inputGate->AddInputData(barrier->GetId(), channelInfo);
         }
