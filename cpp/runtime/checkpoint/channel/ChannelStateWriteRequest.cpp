@@ -225,7 +225,7 @@ std::shared_ptr<CheckpointStorageLocationReference> CheckpointStartRequest::getL
 
 void CheckpointStartRequest::cancel(const std::exception_ptr& cause)
 {
-    // targetResult_->Fail(cause);
+    targetResult_->Fail(cause);
 }
 
 void CheckpointStartRequest::execute(std::shared_ptr<ChannelStateCheckpointWriter> writer)

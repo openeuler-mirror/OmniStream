@@ -73,7 +73,8 @@ LocalObjectBufferPool::LocalObjectBufferPool(
             availabilityHelper_->resetAvailable();
         }
         checkConsistentAvailability();*/
-        checkAndUpdateAvailability();
+        auto toNotify = checkAndUpdateAvailability();
+        mayNotifyAvailable(toNotify);
     }
     LOG("LocalObjectBufferPool constructor end");
 }
@@ -338,7 +339,8 @@ ObjectSegment* LocalObjectBufferPool::requestObjectSegment(int targetChannel)
         //            }
         //
         //            checkConsistentAvailability();
-        checkAndUpdateAvailability();
+        auto toNotify = checkAndUpdateAvailability();
+        mayNotifyAvailable(toNotify);
         LOG("unlock std::this_thread::get_id()" << std::this_thread::get_id());
     }
     return segment;

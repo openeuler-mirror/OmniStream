@@ -14,6 +14,10 @@ public:
     {
         resumed = true;
     }
+    void TimeOutResumeConsumption(const InputChannelInfo&) override
+    {
+        resumed = true;
+    }
     void ConvertToPriorityEvent(int, int) override
     {
     }
@@ -32,6 +36,9 @@ public:
     void CheckpointStopped(long) override
     {
         stopped = true;
+    }
+    void notifyDataAvailable() override
+    {
     }
     int GetInputGateIndex() override
     {

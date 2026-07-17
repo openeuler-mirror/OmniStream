@@ -121,9 +121,11 @@ std::shared_ptr<CheckpointedResultSubpartition> PipelinedResultPartition::getChe
 
 void PipelinedResultPartition::finishReadRecoveredState(bool notifyAndBlockOnCompletion)
 {
+    INFO_RELEASE("PipelinedResultPartition::finishReadRecoveredState")
     for (const auto& subpartition : subpartitions_) {
         auto pipelinedSubpartition = std::dynamic_pointer_cast<PipelinedSubpartition>(subpartition);
         if (!pipelinedSubpartition) {
+            INFO_RELEASE("subpartition is not a PipelinedSubpartition")
             throw std::runtime_error("subpartition is not a PipelinedSubpartition");
         }
         pipelinedSubpartition->finishReadRecoveredState(notifyAndBlockOnCompletion);

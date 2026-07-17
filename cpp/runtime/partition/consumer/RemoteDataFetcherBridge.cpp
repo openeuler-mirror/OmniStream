@@ -13,7 +13,6 @@ void RemoteDataFetcherBridge::InitCppRemoteInputChannel(std::vector<std::shared_
             const auto& channel = pair.second;
             if (auto remoteChannel = std::dynamic_pointer_cast<RemoteInputChannel>(channel)) {
                 remoteChannel->SetRemoteDataFetcherBridge(shared_from_this());
-                remoteChannel->SetForwardResumeToJava(inputGate->GetForwardResumeToJava());
                 LOG("In RemoteDataFetcher Init, set RemoteDataFetcherBridge to RemoteInputChannel");
             } else {
                 LOG("In RemoteDataFetcher Init, this Channel is not a RemoteInputChannel");

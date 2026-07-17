@@ -59,12 +59,14 @@ public:
         std::shared_ptr<Counter> numBuffersIn,
         std::shared_ptr<ChannelStateWriter> stateWriter);
 
-    void CheckpointStarted(const CheckpointBarrier& barrier) override;
+    void CheckpointStarted(
+        const CheckpointBarrier& barrier, std::shared_ptr<ChannelStateWriter> channelStateWriter) override;
     void CheckpointStopped(long checkpointId) override;
     void ConvertToPriorityEvent(int sequenceNumber) override;
     void notifyDataAvailable() override;
     void notifyPriorityEvent(int prioritySequenceNumber) override;
     void resumeConsumption() override;
+    void TimeOutResumeConsumption() override;
     void acknowledgeAllRecordsProcessed() override;
     bool isReleased() override;
     void releaseAllResources() override;
@@ -75,6 +77,9 @@ public:
     std::shared_ptr<ResultSubpartitionView> getSubpartitionView();
     void notifyBufferAvailable(int subpartitionId) override;
     void SetChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter) override;
+    void SetPersistenceFlag(bool flag) override;
+    bool IsNeedPersistence() override;
+    void AddInputData(long checkpointId, const omnistream::InputChannelInfo& info) override;
 
 public:
     void retriggerSubpartitionRequest(
@@ -92,6 +97,11 @@ protected:
     //  std::shared_ptr<TaskEventPublisher> taskEventPublisher;
     std::shared_ptr<ChannelStatePersister> channelStatePersister;
     std::shared_ptr<ResultSubpartitionView> subpartitionView;
+    std::vector<Buffer*> inflightBuffers_;
+    bool isNeedPersistence_ = false;
+    size_t insize = 0;
+    size_t outsize = 0;
+    size_t startSize_ = 0;
     std::atomic<bool> isReleased_{false};
 };
 

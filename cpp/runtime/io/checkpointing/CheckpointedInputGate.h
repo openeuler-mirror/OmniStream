@@ -57,6 +57,7 @@ public:
     std::shared_ptr<InputChannel> GetChannel(int channelIndex);
     std::vector<InputChannelInfo> GetChannelInfos() const;
     bool AllChannelsRecovered() const;
+    bool AllInnerChannelsRecovered() const;
     long GetLatestCheckpointId() const;
     long GetAlignmentDurationNanos() const;
     long GetCheckpointStartDelayNanos() const;

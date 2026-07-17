@@ -127,7 +127,6 @@ std::shared_ptr<InputChannel> SingleInputGateFactory::createInputChannel(
 std::shared_ptr<OmniLocalInputChannel> SingleInputGateFactory::createOriginalInputChannel(
     std::shared_ptr<SingleInputGate> inputGate, int index, ResultPartitionIDPOD& partitionId)
 {
-    std::shared_ptr<ChannelStateWriter> stateWriter = std::make_shared<ChannelStateWriterImpl>();
     return std::make_shared<OmniLocalInputChannel>(
         inputGate,
         index,
@@ -138,7 +137,7 @@ std::shared_ptr<OmniLocalInputChannel> SingleInputGateFactory::createOriginalInp
         networkBuffersPerChannel,
         std::shared_ptr<SimpleCounter>(),
         std::shared_ptr<SimpleCounter>(),
-        stateWriter);
+        nullptr);
 }
 
 } // namespace omnistream

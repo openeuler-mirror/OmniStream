@@ -43,21 +43,42 @@ public:
 
     void resumeConsumption() override;
 
+    void TimeOutResumeConsumption() override;
+
     void SetOmniLocalInputChannelBridge(std::shared_ptr<OmniLocalInputChannelBridge> omniLocalInputChannelBridge);
 
-    void SetForwardResumeToJava(bool forwardResumeToJava)
+    void CheckpointStarted(const CheckpointBarrier& barrier, std::shared_ptr<ChannelStateWriter> channelStateWriter);
+
+    void CheckpointStopped(long checkpointId);
+
+    std::vector<Buffer*> GetInflightBuffersUnsafe(long checkpointId);
+
+    void SetPersistenceFlag(bool flag)
     {
-        forwardResumeToJava_ = forwardResumeToJava;
+        isNeedPersistence_ = flag;
     }
+    bool IsNeedPersistence()
+    {
+        if (startSize_ != 0) {
+            return outsize < startSize_;
+        }
+        return true;
+    }
+    void AddInputData(long checkpointId, const omnistream::InputChannelInfo& info);
 
 private:
+    size_t insize = 0;
+    size_t outsize = 0;
+    size_t startSize_ = 0;
+    bool isNeedPersistence_ = false;
+    bool isUnlock = false;
     int expectSequenceNumber = 0;
     int initialCredit;
     std::recursive_mutex queueMutex;
     std::shared_ptr<OriginalNetworkBufferRecycler> originalNetworkBufferRecycler_;
     std::queue<std::shared_ptr<BufferAndAvailability>> dataQueue;
     std::shared_ptr<OmniLocalInputChannelBridge> omniLocalInputChannelBridge;
-    bool forwardResumeToJava_ = true;
+    std::vector<Buffer*> inflightBuffers_;
 };
 } // namespace omnistream
 #endif // OMNILOCALINPUTCHANNEL_H

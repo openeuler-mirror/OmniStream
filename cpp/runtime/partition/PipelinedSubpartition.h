@@ -105,10 +105,14 @@ private:
     int add(std::shared_ptr<BufferConsumer> bufferConsumer, int partialRecordLength, bool finish);
     bool addBuffer(std::shared_ptr<BufferConsumer> bufferConsumer, int partialRecordLength);
     std::shared_ptr<CheckpointBarrier> ParseCheckpointBarrier(const std::shared_ptr<BufferConsumer>& bufferConsumer);
-    bool ProcessPriorityBuffer(std::shared_ptr<BufferConsumer> bufferConsumer, int partialRecordLength);
-    void ProcessTimeoutableCheckpointBarrier(std::shared_ptr<BufferConsumer> bufferConsumer);
+    bool ProcessPriorityBuffer(
+        std::shared_ptr<BufferConsumer> bufferConsumer,
+        int partialRecordLength,
+        std::shared_ptr<CheckpointBarrier> barrier);
+    void ProcessTimeoutableCheckpointBarrier(
+        std::shared_ptr<BufferConsumer> bufferConsumer, std::shared_ptr<CheckpointBarrier> barrier);
     std::shared_ptr<CheckpointBarrier> ParseAndCheckTimeoutableCheckpointBarrier(
-        const std::shared_ptr<BufferConsumer>& bufferConsumer);
+        const std::shared_ptr<BufferConsumer>& bufferConsumer, std::shared_ptr<CheckpointBarrier> barrier);
     std::shared_ptr<CompletableFutureV2<std::vector<Buffer*>>> CreateChannelStateFuture(long checkpointId);
     void CompleteChannelStateFuture(std::vector<Buffer*>& channelResult, std::exception_ptr e);
 
