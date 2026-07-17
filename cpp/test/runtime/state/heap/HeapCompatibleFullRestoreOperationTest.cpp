@@ -71,7 +71,10 @@ public:
     void validateForRestore(const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& metaInfos) override
     {
         events_->push_back("validate");
-        validatedMetaCount_ = metaInfos.size();
+        validatedMetaCounts_.push_back(metaInfos.size());
+        if (failOnEmptyMetadata_ && metaInfos.empty()) {
+            throw std::runtime_error("empty metadata rejected");
+        }
         if (throwOnValidate_) {
             throw std::runtime_error("validate failed");
         }
@@ -91,10 +94,11 @@ public:
     }
 
     std::vector<std::string>* events_;
+    bool failOnEmptyMetadata_ = false;
     bool throwOnValidate_ = false;
     bool throwOnRestore_ = false;
     bool actualIteratorHadNext_ = false;
-    size_t validatedMetaCount_ = 0;
+    std::vector<size_t> validatedMetaCounts_;
     std::string operatorName_;
 };
 
@@ -175,7 +179,38 @@ TEST_F(HeapCompatibleFullRestoreOperationTest, RestoreCallsValidateAndRestoreInO
 
     EXPECT_EQ(events_, std::vector<std::string>({"validate", "restore"}));
     EXPECT_TRUE(adaptorPtr->operatorName_.empty());
-    EXPECT_EQ(adaptorPtr->validatedMetaCount_, 1U);
+    EXPECT_EQ(adaptorPtr->validatedMetaCounts_, std::vector<size_t>{1U});
+}
+
+// 两个 handle 必须分别交给 adaptor 校验，不能扁平为一次调用。
+TEST_F(HeapCompatibleFullRestoreOperationTest, MultipleHandlesWithSameStateAreValidatedIndependently)
+{
+    auto adaptor = std::make_unique<RecordingRestoreAdaptor>(&events_);
+    auto* adaptorPtr = adaptor.get();
+    auto operation = makeOperation({makeKeyedStateHandle(), makeKeyedStateHandle()}, std::move(adaptor));
+
+    operation->restore();
+
+    EXPECT_EQ(adaptorPtr->validatedMetaCounts_, std::vector<size_t>({1U, 1U}));
+    EXPECT_EQ(events_, std::vector<std::string>({"validate", "validate", "restore"}));
+    EXPECT_TRUE(adaptorPtr->actualIteratorHadNext_);
+}
+
+// 空 metadata handle 必须仍交给 adaptor，并在 restore 前停止。
+TEST_F(HeapCompatibleFullRestoreOperationTest, SecondHandleValidationFailurePreventsRestore)
+{
+    EXPECT_CALL(*bridge_, readMetaData(_))
+        .WillOnce(Return(std::vector<StateMetaInfoSnapshot>{makeMetaInfo()}))
+        .WillOnce(Return(std::vector<StateMetaInfoSnapshot>{}));
+
+    auto adaptor = std::make_unique<RecordingRestoreAdaptor>(&events_);
+    adaptor->failOnEmptyMetadata_ = true;
+    auto* adaptorPtr = adaptor.get();
+    auto operation = makeOperation({makeKeyedStateHandle(), makeKeyedStateHandle()}, std::move(adaptor));
+
+    EXPECT_THROW(operation->restore(), std::runtime_error);
+    EXPECT_EQ(adaptorPtr->validatedMetaCounts_, std::vector<size_t>({1U, 0U}));
+    EXPECT_EQ(events_, std::vector<std::string>({"validate", "validate"}));
 }
 
 // 看护 metadata probe 使用独立 iterator，不会消费传给 adaptor restore 的实际 restore iterator。

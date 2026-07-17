@@ -51,9 +51,11 @@ public:
     {
     }
 
-    // 恢复方向 source state metadata-only 校验（由 compatible restore operation 在 restore() 之前调用）。
-    // 确保输入 SP 中只包含当前 Adaptor 声明的 Flink logical source state。payload 级校验仍在
-    // restore() 的逐条转换阶段完成。默认 no-op；具体 Adaptor 覆写并调用 StateMetaInfoValidator。
+    // 恢复方向 source state metadata-only 校验。一次 compatible restore 会按 KeyGroupsStateHandle
+    // 调用零到多次；每次 metaInfos 只属于当前 handle，且必须独立满足 concrete adaptor 的完整
+    // source-state contract。所有调用都发生在 restore() 和任何 backend 写入之前。
+    // 实现不得缓存 handle-local kvStateId、metadata 顺序或 KeyGroupRange；如缓存公共 schema，
+    // 后续调用必须先校验一致性。默认 no-op。
     virtual void validateForRestore(const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& metaInfos)
     {
     }

@@ -91,7 +91,10 @@ public:
     void validateForRestore(const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& metaInfos) override
     {
         events_->push_back("validate");
-        validatedMetaCount_ = metaInfos.size();
+        validatedMetaCounts_.push_back(metaInfos.size());
+        if (failOnEmptyMetadata_ && metaInfos.empty()) {
+            throw std::runtime_error("empty metadata rejected");
+        }
         if (throwOnValidate_) {
             throw std::runtime_error("validate failed");
         }
@@ -114,10 +117,11 @@ public:
     }
 
     std::vector<std::string>* events_;
+    bool failOnEmptyMetadata_ = false;
     bool throwOnValidate_ = false;
     bool throwOnRestore_ = false;
     bool actualIteratorHadNext_ = false;
-    size_t validatedMetaCount_ = 0;
+    std::vector<size_t> validatedMetaCounts_;
     std::string operatorName_;
     std::function<void()> onRestore_;
 };
@@ -233,14 +237,51 @@ protected:
 // 看护 RocksDB compatible restore 先打开 DB，再进入 adaptor restore 生命周期并返回非空 DB。
 TEST_F(RocksDBCompatibleFullRestoreOperationTest, RestoreOpensDbBeforeDelegatedRestore)
 {
-    auto operation = makeOperation({makeKeyedStateHandle()}, std::make_unique<RecordingRestoreAdaptor>(&events_));
+    auto adaptor = std::make_unique<RecordingRestoreAdaptor>(&events_);
+    auto* adaptorPtr = adaptor.get();
+    auto operation = makeOperation({makeKeyedStateHandle()}, std::move(adaptor));
 
     auto result = operation->restore();
 
     ASSERT_NE(result, nullptr);
     EXPECT_NE(result->getDb(), nullptr);
     EXPECT_EQ(events_, std::vector<std::string>({"validate", "restore"}));
+    EXPECT_EQ(adaptorPtr->validatedMetaCounts_, std::vector<size_t>{1U});
     closeRestoreResult(result);
+}
+
+// 两个 handle 必须分别交给 adaptor 校验，不能扁平为一次调用。
+TEST_F(RocksDBCompatibleFullRestoreOperationTest, MultipleHandlesWithSameStateAreValidatedIndependently)
+{
+    auto adaptor = std::make_unique<RecordingRestoreAdaptor>(&events_);
+    auto* adaptorPtr = adaptor.get();
+    auto operation = makeOperation({makeKeyedStateHandle(), makeKeyedStateHandle()}, std::move(adaptor));
+
+    auto result = operation->restore();
+
+    EXPECT_EQ(adaptorPtr->validatedMetaCounts_, std::vector<size_t>({1U, 1U}));
+    EXPECT_EQ(events_, std::vector<std::string>({"validate", "validate", "restore"}));
+    EXPECT_TRUE(adaptorPtr->actualIteratorHadNext_);
+    closeRestoreResult(result);
+}
+
+// 后续 handle 校验失败必须发生在 openDB 和 restore 前，不能留下 RocksDB path 锁。
+TEST_F(RocksDBCompatibleFullRestoreOperationTest, SecondHandleValidationFailurePreventsRestore)
+{
+    EXPECT_CALL(*bridge_, readMetaData(_))
+        .WillOnce(Return(std::vector<StateMetaInfoSnapshot>{makeMetaInfo()}))
+        .WillOnce(Return(std::vector<StateMetaInfoSnapshot>{}));
+
+    auto adaptor = std::make_unique<RecordingRestoreAdaptor>(&events_);
+    adaptor->failOnEmptyMetadata_ = true;
+    auto* adaptorPtr = adaptor.get();
+    auto operation = makeOperation({makeKeyedStateHandle(), makeKeyedStateHandle()}, std::move(adaptor));
+
+    EXPECT_THROW(operation->restore(), std::runtime_error);
+    EXPECT_EQ(adaptorPtr->validatedMetaCounts_, std::vector<size_t>({1U, 0U}));
+    EXPECT_EQ(events_, std::vector<std::string>({"validate", "validate"}));
+    EXPECT_TRUE(kvStateInformation_.empty());
+    expectPathCanBeOpenedAgain();
 }
 
 // 看护 bridge 缺失时在打开 RocksDB 前 fail-fast，原始异常和 construction registry 均保持明确终态。
