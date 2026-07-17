@@ -109,7 +109,6 @@ public:
             std::shared_ptr<RegisteredStateMetaInfoBase> stateMetaInfo =
                 RegisteredStateMetaInfoBase::fromMetaInfoSnapshot(stateMetaInfoSnapshot);
             if (columnFamilyHandle == nullptr) {
-                columnFamilyHandles.reserve(columnFamilyHandles.size() + 1);
                 auto columnFamilyDescriptor =
                     RocksDbOperationUtils::createColumnFamilyDescriptor(stateMetaInfo, columnFamilyOptionsFactory);
                 columnFamilyHandle = RocksDbOperationUtils::createColumnFamily(columnFamilyDescriptor, db);
