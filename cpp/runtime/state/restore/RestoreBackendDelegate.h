@@ -16,28 +16,44 @@
 
 #include "OmniOperatorJIT/core/src/type/data_type.h"
 #include "runtime/state/metainfo/StateMetaInfoSnapshot.h"
+#include "runtime/state/restore/RestoreKVState.h"
+#include "runtime/state/restore/RestoreKVStateVB.h"
+#include "runtime/state/restore/RestorePQState.h"
+#include "runtime/state/restore/RestorePlan.h"
 
 namespace omnistream {
 
-class RestoreKVState;
-class RestoreKVStateVB;
+// ============================================================================
+// RestoreBackendDelegate — 兼容恢复流程的 state writer 工厂
+// ============================================================================
+//
+// 语义收窄说明：
+// 1. 它是 compatible restore 期间的 state writer 工厂，不负责 Adaptor 匹配、
+//    source state 白名单、payload 语义解析。
+// 2. 通过 createKVState / createKVStateVB / createPQState
+//    区分不同 state writer：
+//    - createKVState：普通 KV（无 VB side table）
+//    - createKVStateVB：KV + VB side table（单 comboId，如 Deduplicate）
+//    - createPQState：PriorityQueue 状态
+// 3. columnTypes 和 batchSize 固化在 createKVStateVB 阶段，不进入热路径参数。
+// 4. 未来 Map、多 owner state 通过新增专用 writer 创建函数扩展。
 
-// RestoreBackendDelegate 是 compatible restore 期间 construction backend 的 writer factory。adaptor 只能通过
-// 它创建固定 kvStateId/keyGroupId 的普通或 VectorBatch KV writer，不能直接访问 Heap StateTable、RocksDB
-// column family 或 write batch。writer 的具体协议与实现由后续 adaptor/backend 写入模块提供。
 class RestoreBackendDelegate {
 public:
     virtual ~RestoreBackendDelegate() = default;
 
-    virtual std::unique_ptr<RestoreKVState> createKVState(
-        int kvStateId, int keyGroupId, const StateMetaInfoSnapshot& mainMetaInfo) = 0;
+    // 创建普通 KV state writer（无 VB side table）
+    virtual std::unique_ptr<RestoreKVState> createKVState(int kvStateId, const StateMetaInfoSnapshot& mainMetaInfo) = 0;
 
+    // 创建带 VectorBatch side table 的 KV state writer（单 comboId）
     virtual std::unique_ptr<RestoreKVStateVB> createKVStateVB(
         int kvStateId,
-        int keyGroupId,
         const StateMetaInfoSnapshot& mainMetaInfo,
         const std::vector<omniruntime::type::DataTypeId>& columnTypes,
         int vectorBatchSize) = 0;
+
+    // 创建 PriorityQueue state
+    virtual std::unique_ptr<RestorePQState> createPQState(int kvStateId, const StateMetaInfoSnapshot& metaInfo) = 0;
 };
 
 } // namespace omnistream

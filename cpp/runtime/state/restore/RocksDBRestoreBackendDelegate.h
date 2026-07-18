@@ -28,15 +28,20 @@ public:
     {
     }
 
-    std::unique_ptr<omnistream::RestoreKVState> createKVState(int, int, const StateMetaInfoSnapshot&) override
+    std::unique_ptr<omnistream::RestoreKVState> createKVState(int, const StateMetaInfoSnapshot&) override
     {
         throw std::logic_error("RocksDB compatible restore KV writer is not implemented");
     }
 
     std::unique_ptr<omnistream::RestoreKVStateVB> createKVStateVB(
-        int, int, const StateMetaInfoSnapshot&, const std::vector<omniruntime::type::DataTypeId>&, int) override
+        int, const StateMetaInfoSnapshot&, const std::vector<omniruntime::type::DataTypeId>&, int) override
     {
         throw std::logic_error("RocksDB compatible restore VectorBatch KV writer is not implemented");
+    }
+
+    std::unique_ptr<omnistream::RestorePQState> createPQState(int, const StateMetaInfoSnapshot&) override
+    {
+        throw std::logic_error("RocksDB compatible restore PriorityQueue writer is not implemented");
     }
 
 private:
