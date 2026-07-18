@@ -201,7 +201,7 @@ public:
         long checkpointId, long timestamp, CheckpointStreamFactory* streamFactory, CheckpointOptions* checkpointOptions)
     {
         auto snapshotRunner = std::make_unique<SnapshotStrategyRunner<KeyedStateHandle, FullSnapshotResources>>(
-            "Heap full snapshot", checkpointStrategy_.get(), SnapshotExecutionType::ASYNCHRONOUS);
+            "Heap full snapshot", checkpointStrategy_, SnapshotExecutionType::ASYNCHRONOUS);
         return snapshotRunner->snapshot(
             checkpointId, timestamp, streamFactory, checkpointOptions, omniTaskBridge_, this->keySerializer->toJson());
     }

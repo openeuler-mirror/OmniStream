@@ -63,11 +63,11 @@ std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>> RocksNativeFullSnapsho
         std::make_shared<RocksDBNativeFullSnapshotOperation>(
             checkpointId,
             checkpointStreamFactory,
-            snapshotDirectory,
-            stateMetaInfoSnapshots,
+            std::move(snapshotDirectory),
+            std::move(stateMetaInfoSnapshots),
             backendUID_,
             keyGroupRange_,
-            this,
+            std::static_pointer_cast<RocksNativeFullSnapshotStrategy>(retainForAsyncSnapshot()),
             checkpointOptions,
             keySerializer_));
 }
@@ -102,14 +102,18 @@ RocksNativeFullSnapshotStrategy::RocksDBNativeFullSnapshotOperation::RocksDBNati
     std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots,
     UUID backendUID,
     KeyGroupRange keyGroupRange,
-    RocksNativeFullSnapshotStrategy* outerStrategy,
+    std::shared_ptr<RocksNativeFullSnapshotStrategy> outerStrategy,
     CheckpointOptions* checkpointOptions,
     std::shared_ptr<TypeSerializer> keySerializer)
     : RocksDBSnapshotOperation(
-          checkpointId, checkpointStreamFactory, localBackupDirectory, stateMetaInfoSnapshots, keySerializer),
+          checkpointId,
+          checkpointStreamFactory,
+          std::move(localBackupDirectory),
+          std::move(stateMetaInfoSnapshots),
+          std::move(keySerializer)),
       backendUID_(backendUID),
       keyGroupRange_(keyGroupRange),
-      outerStrategy_(outerStrategy),
+      outerStrategy_(std::move(outerStrategy)),
       checkpointOptions_(checkpointOptions)
 {
 }
@@ -153,11 +157,11 @@ RocksNativeFullSnapshotStrategy::RocksDBNativeFullSnapshotOperation::get(
 
         completed = true;
         return result;
-    } catch (const std::exception& e) {
+    } catch (...) {
         if (!completed) {
             outerStrategy_->cleanupIncompleteSnapshot(localBackupDirectory);
         }
-        throw e;
+        throw;
     }
 }
 

@@ -25,19 +25,25 @@
 #include <future>
 #include <chrono>
 #include <memory>
+#include <stdexcept>
+#include <utility>
 
 template <typename T, typename SR>
 class SnapshotStrategyRunner {
 public:
-    SnapshotStrategyRunner() {};
     SnapshotStrategyRunner(
-        std::string description, SnapshotStrategy<T, SR>* snapshotStrategy, SnapshotExecutionType executionType)
-        : description_(description),
-          snapshotStrategy_(snapshotStrategy),
+        std::string description,
+        std::shared_ptr<SnapshotStrategy<T, SR>> snapshotStrategy,
+        SnapshotExecutionType executionType)
+        : description_(std::move(description)),
+          snapshotStrategy_(std::move(snapshotStrategy)),
           executionType_(executionType)
     {
+        if (snapshotStrategy_ == nullptr) {
+            INFO_RELEASE("Error:SnapshotStrategyRunner[" << description_ << "]: snapshot strategy is null");
+            throw std::invalid_argument("Snapshot strategy must not be null");
+        }
     }
-    ~SnapshotStrategyRunner() {};
 
     std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<T>>()>> snapshot(
         long checkpointId,
@@ -51,16 +57,17 @@ public:
             auto snapshotResources = snapshotStrategy_->syncPrepareResources(checkpointId);
             auto asyncSnapshot = snapshotStrategy_->asyncSnapshot(
                 snapshotResources, checkpointId, timestamp, streamFactory, checkpointOptions, keySerializer);
-            auto task = std::make_shared<std::packaged_task<std::shared_ptr<SnapshotResult<T>>()>>([=]() {
-                try {
-                    auto res = asyncSnapshot->get(bridge);
-                    snapshotResources->cleanup();
-                    return res;
-                } catch (const std::exception& e) {
-                    snapshotResources->cleanup();
-                    throw e;
-                }
-            });
+            auto task = std::make_shared<std::packaged_task<std::shared_ptr<SnapshotResult<T>>()>>(
+                [asyncSnapshot, snapshotResources, bridge]() {
+                    try {
+                        auto res = asyncSnapshot->get(bridge);
+                        snapshotResources->cleanup();
+                        return res;
+                    } catch (...) {
+                        snapshotResources->cleanup();
+                        throw;
+                    }
+                });
 
             if (executionType_ == SnapshotExecutionType::SYNCHRONOUS) {
                 try {
@@ -69,9 +76,9 @@ public:
                     if (res) {
                         LOG("native rocksdb checkpoint has been finished.");
                     }
-                } catch (const std::exception& e) {
+                } catch (...) {
                     snapshotResources->cleanup();
-                    throw e;
+                    throw;
                 }
             }
             return task;
@@ -92,7 +99,7 @@ public:
 
 private:
     std::string description_;
-    SnapshotStrategy<T, SR>* snapshotStrategy_;
+    std::shared_ptr<SnapshotStrategy<T, SR>> snapshotStrategy_;
     SnapshotExecutionType executionType_;
 };
 

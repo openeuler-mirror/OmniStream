@@ -267,7 +267,7 @@ private:
         }
     }
 
-    RocksDBSnapshotStrategyBase* initializeSavepointAndCheckpointStrategies(
+    std::shared_ptr<RocksDBSnapshotStrategyBase> initializeSavepointAndCheckpointStrategies(
         std::shared_ptr<ResourceGuard> rocksDBResourceGuard,
         std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
         int keyGroupPrefixBytes,
@@ -276,12 +276,12 @@ private:
         std::map<long, std::vector<HandleAndLocalPath>> materializedSstFiles,
         long lastCompletedCheckpointId)
     {
-        RocksDBSnapshotStrategyBase* checkpointSnapshotStrategy;
+        std::shared_ptr<RocksDBSnapshotStrategyBase> checkpointSnapshotStrategy;
 
         auto stateUploader = std::make_shared<RocksDBStateUploader>(numberOfTransferingThreads);
 
         if (enableIncrementalCheckpointing) {
-            checkpointSnapshotStrategy = new RocksIncrementalSnapshotStrategy(
+            checkpointSnapshotStrategy = std::make_shared<RocksIncrementalSnapshotStrategy>(
                 db,
                 rocksDBResourceGuard,
                 keySerializer,
@@ -295,7 +295,7 @@ private:
                 stateUploader,
                 lastCompletedCheckpointId);
         } else {
-            checkpointSnapshotStrategy = new RocksNativeFullSnapshotStrategy(
+            checkpointSnapshotStrategy = std::make_shared<RocksNativeFullSnapshotStrategy>(
                 db,
                 rocksDBResourceGuard,
                 keySerializer,
@@ -374,14 +374,14 @@ RocksdbKeyedStateBackend<K>* RocksDBKeyedStateBackendBuilder<K>::build()
             keySerializer.get(),
             keyContext,
             db,
-            strategy,
+            std::move(strategy),
             keyGroupRange,
             kvStateInformation,
-            registeredPQStates,
-            rocksDBResourceGuard,
+            std::move(registeredPQStates),
+            std::move(rocksDBResourceGuard),
             keyGroupPrefixBytes,
-            writeBatchWrapper,
-            priorityQueueSetFactory,
+            std::move(writeBatchWrapper),
+            std::move(priorityQueueSetFactory),
             bridge,
             omniTaskBridge);
     } catch (const std::exception& e) {

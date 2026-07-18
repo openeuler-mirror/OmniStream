@@ -17,6 +17,7 @@
 #include <unordered_map>
 #include <vector>
 #include <functional>
+#include <utility>
 
 #include "BackendWritableBroadcastState.h"
 #include "DefaultOperatorStateBackend.h"
@@ -49,8 +50,8 @@ public:
         auto accessedBroadcastStatesByName =
             std::make_shared<std::unordered_map<std::string, std::shared_ptr<State>>>();
 
-        auto snapshotStrategy =
-            new DefaultOperatorStateBackendSnapshotStrategy(registeredOperatorStates, registeredBroadcastStates);
+        auto snapshotStrategy = std::make_shared<DefaultOperatorStateBackendSnapshotStrategy>(
+            registeredOperatorStates, registeredBroadcastStates);
 
         auto restoreOperation = std::make_shared<OperatorStateRestoreOperation>(
             registeredOperatorStates, registeredBroadcastStates, restoreStateHandles_, omniTaskBridge_);
@@ -65,11 +66,11 @@ public:
             asynchronousSnapshots_,
             bridge_,
             omniTaskBridge_,
-            snapshotStrategy,
-            registeredOperatorStates,
-            registeredBroadcastStates,
-            accessedStatesByName,
-            accessedBroadcastStatesByName);
+            std::move(snapshotStrategy),
+            std::move(registeredOperatorStates),
+            std::move(registeredBroadcastStates),
+            std::move(accessedStatesByName),
+            std::move(accessedBroadcastStatesByName));
     }
 
 protected:

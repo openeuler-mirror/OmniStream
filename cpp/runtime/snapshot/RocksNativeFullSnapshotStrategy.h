@@ -69,7 +69,7 @@ private:
             std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots,
             UUID backendUID,
             KeyGroupRange keyGroupRange,
-            RocksNativeFullSnapshotStrategy* outerStrategy,
+            std::shared_ptr<RocksNativeFullSnapshotStrategy> outerStrategy,
             CheckpointOptions* checkpointOptions,
             std::shared_ptr<TypeSerializer> keySerializer);
 
@@ -82,7 +82,7 @@ private:
 
         UUID backendUID_;
         KeyGroupRange keyGroupRange_;
-        RocksNativeFullSnapshotStrategy* outerStrategy_;
+        std::shared_ptr<RocksNativeFullSnapshotStrategy> outerStrategy_;
         CheckpointOptions* checkpointOptions_;
     };
 };

@@ -49,7 +49,8 @@ class PreviousSnapshot;
 class NativeRocksDBSnapshotResources;
 
 class RocksDBSnapshotStrategyBase : public CheckpointListener,
-                                    public SnapshotStrategy<KeyedStateHandle, SnapshotResources> {
+                                    public SnapshotStrategy<KeyedStateHandle, SnapshotResources>,
+                                    public std::enable_shared_from_this<RocksDBSnapshotStrategyBase> {
 public:
     RocksDBSnapshotStrategyBase(
         std::string description,
@@ -76,6 +77,11 @@ public:
         std::string keySerializer = "") = 0;
 
 protected:
+    std::shared_ptr<RocksDBSnapshotStrategyBase> retainForAsyncSnapshot()
+    {
+        return shared_from_this();
+    }
+
     virtual std::shared_ptr<PreviousSnapshot> snapshotMetaData(
         long checkpointId, std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots) = 0;
 
@@ -122,7 +128,7 @@ protected:
 
     protected:
         std::shared_ptr<KeyedStateHandle> getLocalSnapshot(
-            RocksDBSnapshotStrategyBase* parent,
+            const std::shared_ptr<RocksDBSnapshotStrategyBase>& strategy,
             std::shared_ptr<StreamStateHandle> localStreamStateHandle,
             std::vector<HandleAndLocalPath> sharedState);
 
