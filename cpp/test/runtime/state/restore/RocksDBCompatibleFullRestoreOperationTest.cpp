@@ -14,10 +14,13 @@
 
 #include <atomic>
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <typeinfo>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "runtime/state/IncrementalRemoteKeyedStateHandle.h"
@@ -57,6 +60,22 @@ FlinkSavepointAdaptorInfo makeAdaptorInfo()
     return {FlinkSavepointAdaptorType::DeduplicateAdaptor, "deduplicate compatible adaptor"};
 }
 
+template <typename ExpectedException, typename Action>
+void expectThrowsWithMessage(Action&& action, const std::string& expectedMessage)
+{
+    try {
+        std::forward<Action>(action)();
+        FAIL() << "Expected exception was not thrown";
+    } catch (const ExpectedException& exception) {
+        EXPECT_EQ(typeid(exception), typeid(ExpectedException));
+        EXPECT_EQ(exception.what(), expectedMessage);
+    } catch (const std::exception& exception) {
+        FAIL() << "Unexpected std::exception type with message: " << exception.what();
+    } catch (...) {
+        FAIL() << "Unexpected non-standard exception";
+    }
+}
+
 class RecordingRestoreAdaptor : public omnistream::OperatorSavepointAdaptor {
 public:
     explicit RecordingRestoreAdaptor(std::vector<std::string>* events) : events_(events)
@@ -86,6 +105,9 @@ public:
     {
         events_->push_back("restore");
         actualIteratorHadNext_ = restoreIterator.hasNext();
+        if (onRestore_) {
+            onRestore_();
+        }
         if (throwOnRestore_) {
             throw std::runtime_error("restore failed");
         }
@@ -97,6 +119,7 @@ public:
     bool actualIteratorHadNext_ = false;
     size_t validatedMetaCount_ = 0;
     std::string operatorName_;
+    std::function<void()> onRestore_;
 };
 
 class RocksDBCompatibleFullRestoreOperationTest : public ::testing::Test {
@@ -124,9 +147,15 @@ protected:
     }
 
     std::unique_ptr<RocksDBCompatibleFullRestoreOperation<int>> makeOperation(
+        std::vector<std::shared_ptr<KeyedStateHandle>> handles, std::unique_ptr<RecordingRestoreAdaptor> adaptor)
+    {
+        return makeOperation(std::move(handles), std::move(adaptor), bridge_);
+    }
+
+    std::unique_ptr<RocksDBCompatibleFullRestoreOperation<int>> makeOperation(
         std::vector<std::shared_ptr<KeyedStateHandle>> handles,
         std::unique_ptr<RecordingRestoreAdaptor> adaptor,
-        std::shared_ptr<omnistream::OmniTaskBridge> bridge = nullptr)
+        std::shared_ptr<omnistream::OmniTaskBridge> bridge)
     {
         return std::make_unique<RocksDBCompatibleFullRestoreOperation<int>>(
             &keyGroupRange_,
@@ -136,9 +165,58 @@ protected:
             dbOptions_,
             [](const std::string&) { return rocksdb::ColumnFamilyOptions(); },
             std::move(handles),
-            bridge == nullptr ? bridge_ : bridge,
+            std::move(bridge),
             makeAdaptorInfo(),
             std::move(adaptor));
+    }
+
+    void expectPathCanBeOpenedAgain()
+    {
+        std::vector<rocksdb::ColumnFamilyDescriptor> descriptors;
+        descriptors.emplace_back(rocksdb::kDefaultColumnFamilyName, rocksdb::ColumnFamilyOptions());
+
+        rocksdb::DBOptions reopenOptions;
+        reopenOptions.create_if_missing = true;
+        rocksdb::DB* reopenedDb = nullptr;
+        std::vector<rocksdb::ColumnFamilyHandle*> reopenedHandles;
+        auto status = rocksdb::DB::Open(reopenOptions, dbPath_.string(), descriptors, &reopenedHandles, &reopenedDb);
+
+        ASSERT_TRUE(status.ok()) << "Failed to reopen RocksDB path: " << status.ToString();
+        ASSERT_NE(reopenedDb, nullptr);
+        ASSERT_EQ(reopenedHandles.size(), 1U);
+
+        status = reopenedDb->DestroyColumnFamilyHandle(reopenedHandles[0]);
+        EXPECT_TRUE(status.ok()) << "Failed to destroy reopened default column family: " << status.ToString();
+        status = reopenedDb->Close();
+        EXPECT_TRUE(status.ok()) << "Failed to close reopened RocksDB: " << status.ToString();
+        delete reopenedDb;
+    }
+
+    void closeRestoreResult(const std::shared_ptr<RocksDBRestoreResult>& result)
+    {
+        ASSERT_NE(result, nullptr);
+        auto* db = result->getDb();
+        ASSERT_NE(db, nullptr);
+
+        std::vector<rocksdb::ColumnFamilyHandle*> stateHandles;
+        for (const auto& [stateName, stateInfo] : kvStateInformation_) {
+            static_cast<void>(stateName);
+            if (stateInfo != nullptr && stateInfo->columnFamilyHandle_ != nullptr) {
+                stateHandles.push_back(stateInfo->columnFamilyHandle_);
+            }
+        }
+        kvStateInformation_.clear();
+
+        for (auto* stateHandle : stateHandles) {
+            auto status = db->DestroyColumnFamilyHandle(stateHandle);
+            EXPECT_TRUE(status.ok()) << "Failed to destroy state column family: " << status.ToString();
+        }
+
+        auto status = db->DestroyColumnFamilyHandle(result->getDefaultColumnFamilyHandle());
+        EXPECT_TRUE(status.ok()) << "Failed to destroy default column family: " << status.ToString();
+        status = db->Close();
+        EXPECT_TRUE(status.ok()) << "Failed to close restored RocksDB: " << status.ToString();
+        delete db;
     }
 
     KeyGroupRange keyGroupRange_{0, 0};
@@ -162,25 +240,46 @@ TEST_F(RocksDBCompatibleFullRestoreOperationTest, RestoreOpensDbBeforeDelegatedR
     ASSERT_NE(result, nullptr);
     EXPECT_NE(result->getDb(), nullptr);
     EXPECT_EQ(events_, std::vector<std::string>({"validate", "restore"}));
+    closeRestoreResult(result);
 }
 
-// 看护 prepared adaptor 缺失时 fail-fast，不能回退到 RocksDB full restore raw direct put。
-TEST_F(RocksDBCompatibleFullRestoreOperationTest, RestoreFailsFastWhenPreparedAdaptorMissing)
+// 看护 bridge 缺失时在打开 RocksDB 前 fail-fast，原始异常和 construction registry 均保持明确终态。
+TEST_F(RocksDBCompatibleFullRestoreOperationTest, MissingBridgeDoesNotLockDbPath)
+{
+    auto operation =
+        makeOperation({makeKeyedStateHandle()}, std::make_unique<RecordingRestoreAdaptor>(&events_), nullptr);
+
+    expectThrowsWithMessage<std::invalid_argument>(
+        [&] { operation->restore(); }, "RocksDB compatible restore requires OmniTaskBridge when state handles exist");
+    EXPECT_TRUE(kvStateInformation_.empty());
+    expectPathCanBeOpenedAgain();
+}
+
+// 看护 prepared adaptor 缺失时在打开 RocksDB 前 fail-fast，不能回退到 raw direct put。
+TEST_F(RocksDBCompatibleFullRestoreOperationTest, MissingPreparedAdaptorDoesNotLockDbPath)
 {
     auto operation = makeOperation({makeKeyedStateHandle()}, nullptr);
+    const auto adaptorInfo = makeAdaptorInfo();
+    const auto expectedMessage = "RocksDB compatible restore requires prepared adaptor, type=" +
+                                 std::to_string(static_cast<int>(adaptorInfo.type)) +
+                                 ", builder/factory did not provide a prepared adaptor";
 
-    EXPECT_THROW(operation->restore(), std::runtime_error);
+    expectThrowsWithMessage<std::runtime_error>([&] { operation->restore(); }, expectedMessage);
+    EXPECT_TRUE(kvStateInformation_.empty());
+    expectPathCanBeOpenedAgain();
 }
 
-// 看护 metadata validate 发生在 restore 写入前，validate 失败时不进入 restore。
-TEST_F(RocksDBCompatibleFullRestoreOperationTest, RestorePrevalidatesMetadataBeforeWriting)
+// 看护 metadata validate 发生在 DB 打开和 restore 写入前，validate 失败不持有 lock。
+TEST_F(RocksDBCompatibleFullRestoreOperationTest, ValidateFailureDoesNotLockDbPath)
 {
     auto adaptor = std::make_unique<RecordingRestoreAdaptor>(&events_);
     adaptor->throwOnValidate_ = true;
     auto operation = makeOperation({makeKeyedStateHandle()}, std::move(adaptor));
 
-    EXPECT_THROW(operation->restore(), std::runtime_error);
+    expectThrowsWithMessage<std::runtime_error>([&] { operation->restore(); }, "validate failed");
     EXPECT_EQ(events_, std::vector<std::string>({"validate"}));
+    EXPECT_TRUE(kvStateInformation_.empty());
+    expectPathCanBeOpenedAgain();
 }
 
 // 看护 compatible operation 不调用普通 full restore 的 key-group raw direct put 读取路径。
@@ -190,7 +289,8 @@ TEST_F(RocksDBCompatibleFullRestoreOperationTest, RestoreDoesNotCallRawDirectPut
 
     EXPECT_CALL(*bridge_, setSavepointInputStreamOffset(_, _)).Times(0);
     EXPECT_CALL(*bridge_, ReadSavepointInputStream(_, _, _, _)).Times(0);
-    operation->restore();
+    auto result = operation->restore();
+    closeRestoreResult(result);
 }
 
 // 看护成功路径返回 RocksDBRestoreResult，包含 DB 与 default column family。
@@ -204,16 +304,23 @@ TEST_F(RocksDBCompatibleFullRestoreOperationTest, RestoreReturnsRocksDBRestoreRe
     EXPECT_NE(result->getDb(), nullptr);
     EXPECT_NE(result->getDefaultColumnFamilyHandle(), nullptr);
     EXPECT_EQ(result->getLastCompletedCheckpointId(), -1L);
+    closeRestoreResult(result);
 }
 
-// 看护 adaptor restore 失败时异常透传，不吞掉 RocksDB compatible restore 错误。
-TEST_F(RocksDBCompatibleFullRestoreOperationTest, RestoreRethrowsAdaptorFailure)
+// 看护 adaptor restore 打开 DB 后失败时废弃 construction registry，并释放 native lock。
+TEST_F(RocksDBCompatibleFullRestoreOperationTest, RestoreFailureAbortsConstructionAndAllowsReopen)
 {
     auto adaptor = std::make_unique<RecordingRestoreAdaptor>(&events_);
     adaptor->throwOnRestore_ = true;
+    adaptor->onRestore_ = [&] {
+        kvStateInformation_.emplace("partially-restored-state", std::make_shared<RocksDbKvStateInfo>());
+    };
     auto operation = makeOperation({makeKeyedStateHandle()}, std::move(adaptor));
 
-    EXPECT_THROW(operation->restore(), std::runtime_error);
+    expectThrowsWithMessage<std::runtime_error>([&] { operation->restore(); }, "restore failed");
+    EXPECT_EQ(events_, std::vector<std::string>({"validate", "restore"}));
+    EXPECT_TRUE(kvStateInformation_.empty());
+    expectPathCanBeOpenedAgain();
 }
 
 // 看护 compatible full operation 不接受 incremental handle，类型不匹配时 fail-fast。
@@ -243,4 +350,5 @@ TEST_F(RocksDBCompatibleFullRestoreOperationTest, OperationKeepsExistingFullRest
     ASSERT_NE(result, nullptr);
     EXPECT_NE(result->getDb(), nullptr);
     EXPECT_TRUE(events_.empty());
+    closeRestoreResult(result);
 }
