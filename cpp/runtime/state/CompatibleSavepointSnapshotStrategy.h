@@ -23,8 +23,8 @@
 #include "common.h"
 
 // Compatible savepoint 的 snapshot strategy，与 SavepointSnapshotStrategy 对位。该类只负责把同步准备好的
-// resources 交给 async 阶段，并在空 state 时返回 empty supplier；真正的写入生命周期由后续
-// CompatibleFullSnapshotAsyncWriter 负责，strategy 不创建 stream、不执行 validate/save。
+// resources 和 adaptor ownership 交给 async 阶段；metadata validation、empty result 和真正的写入生命周期
+// 均由后续 CompatibleFullSnapshotAsyncWriter 负责，strategy 不创建 stream、不执行 validate/save。
 class CompatibleSavepointSnapshotStrategy
     : public SnapshotStrategy<KeyedStateHandle, CompatibleSavepointSnapshotResources> {
 public:
@@ -55,17 +55,6 @@ public:
                 "Error:CompatibleSavepointSnapshotStrategy async snapshot resources are null, cp=" << checkpointId);
             throw std::invalid_argument("Compatible savepoint snapshot resources must not be null");
         }
-        if (snapshotResources->sourceResources()->getMetaInfoSnapshots().empty()) {
-            struct EmptySnapshotResourceSupplier : public SnapshotResultSupplier<KeyedStateHandle> {
-                std::shared_ptr<SnapshotResult<KeyedStateHandle>> get(
-                    std::shared_ptr<omnistream::OmniTaskBridge>) override
-                {
-                    return SnapshotResult<KeyedStateHandle>::Empty();
-                }
-            };
-            return std::make_shared<EmptySnapshotResourceSupplier>();
-        }
-
         return std::make_shared<CompatibleFullSnapshotAsyncWriter>(
             checkpointId, checkpointOptions, snapshotResources, keySerializer, snapshotResources->takeAdaptor());
     }
