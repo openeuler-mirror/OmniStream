@@ -28,6 +28,7 @@ using ::testing::_;
 using ::testing::Return;
 using ::testing::NiceMock;
 using ::testing::Invoke;
+using ::testing::Throw;
 
 namespace {
 
@@ -304,6 +305,64 @@ TEST_F(CheckpointStateOutputStreamProxyTest, TryWritePatchableFailsWhenKeyEmpty)
 
 // ---- close ----
 
+/** 未完成的 stream 离开作用域时，析构必须 abort provider 并释放 DirectByteBuffer。 */
+TEST_F(CheckpointStateOutputStreamProxyTest, DestructorAbortsUnclosedProvider)
+{
+    ExpectProxyConstruction();
+    EXPECT_CALL(*mockBridge_, CreateSavepointOutputDirectBuffer(_, _)).WillOnce(Return(kMockDirectBuffer));
+    EXPECT_CALL(*mockBridge_, AbortSavepointOutputStream(kMockProvider)).Times(1);
+    EXPECT_CALL(*mockBridge_, CloseSavepointOutputStream(_)).Times(0);
+    EXPECT_CALL(*mockBridge_, ReleaseSavepointOutputDirectBuffer(kMockDirectBuffer)).Times(1);
+
+    {
+        CheckpointStateOutputStreamProxy proxy(mockBridge_, 1L, checkpointOptions_);
+    }
+}
+
+/** abortNoThrow 只 abort 一次并只释放一次 DirectByteBuffer。 */
+TEST_F(CheckpointStateOutputStreamProxyTest, AbortNoThrowIsIdempotent)
+{
+    ExpectProxyConstruction();
+    EXPECT_CALL(*mockBridge_, CreateSavepointOutputDirectBuffer(_, _)).WillOnce(Return(kMockDirectBuffer));
+    EXPECT_CALL(*mockBridge_, AbortSavepointOutputStream(kMockProvider)).Times(1);
+    EXPECT_CALL(*mockBridge_, CloseSavepointOutputStream(_)).Times(0);
+    EXPECT_CALL(*mockBridge_, ReleaseSavepointOutputDirectBuffer(kMockDirectBuffer)).Times(1);
+
+    CheckpointStateOutputStreamProxy proxy(mockBridge_, 1L, checkpointOptions_);
+    proxy.abortNoThrow();
+    proxy.abortNoThrow();
+}
+
+/** abort bridge 抛异常时仍只尝试一次终态化并释放一次 DirectByteBuffer。 */
+TEST_F(CheckpointStateOutputStreamProxyTest, AbortFailureStillReleasesDirectBufferOnce)
+{
+    ExpectProxyConstruction();
+    EXPECT_CALL(*mockBridge_, CreateSavepointOutputDirectBuffer(_, _)).WillOnce(Return(kMockDirectBuffer));
+    EXPECT_CALL(*mockBridge_, AbortSavepointOutputStream(kMockProvider))
+        .WillOnce(Throw(std::runtime_error("abort failed")));
+    EXPECT_CALL(*mockBridge_, CloseSavepointOutputStream(_)).Times(0);
+    EXPECT_CALL(*mockBridge_, ReleaseSavepointOutputDirectBuffer(kMockDirectBuffer)).Times(1);
+
+    CheckpointStateOutputStreamProxy proxy(mockBridge_, 1L, checkpointOptions_);
+    proxy.abortNoThrow();
+    proxy.abortNoThrow();
+}
+
+/** finalizer 抛异常后 provider 已转移，不能由 abortNoThrow 再次终态化。 */
+TEST_F(CheckpointStateOutputStreamProxyTest, CloseExceptionDoesNotAbortSameProvider)
+{
+    ExpectProxyConstruction();
+    EXPECT_CALL(*mockBridge_, CreateSavepointOutputDirectBuffer(_, _)).WillOnce(Return(kMockDirectBuffer));
+    EXPECT_CALL(*mockBridge_, CloseSavepointOutputStream(kMockProvider))
+        .WillOnce(Throw(std::runtime_error("finalize failed")));
+    EXPECT_CALL(*mockBridge_, AbortSavepointOutputStream(_)).Times(0);
+    EXPECT_CALL(*mockBridge_, ReleaseSavepointOutputDirectBuffer(kMockDirectBuffer)).Times(1);
+
+    CheckpointStateOutputStreamProxy proxy(mockBridge_, 1L, checkpointOptions_);
+    EXPECT_THROW(proxy.close(), std::runtime_error);
+    proxy.abortNoThrow();
+}
+
 /**
  * close 会先 flush 再调用 CloseSavepointOutputStream 并返回非空 handle。
  */
@@ -338,6 +397,27 @@ TEST_F(CheckpointStateOutputStreamProxyTest, WriteMetadataUpdatesPos)
     std::vector<std::shared_ptr<StateMetaInfoSnapshot>> snapshots;
     proxy.writeMetadata(snapshots, "testSerializer");
     EXPECT_EQ(proxy.getPos(), 1024);
+}
+
+/**
+ * metadata position 查询失败不是终态操作；离开作用域时必须由析构触发唯一的 abort cleanup。
+ */
+TEST_F(CheckpointStateOutputStreamProxyTest, MetadataPositionFailureAbortsAtScopeExit)
+{
+    ExpectProxyConstruction();
+    EXPECT_CALL(*mockBridge_, CreateSavepointOutputDirectBuffer(_, _)).WillOnce(Return(kMockDirectBuffer));
+    EXPECT_CALL(*mockBridge_, WriteSavepointMetadata(kMockProvider, _, _)).Times(1);
+    EXPECT_CALL(*mockBridge_, GetSavepointOutputStreamPos(kMockProvider))
+        .WillOnce(Throw(std::runtime_error("position query failed")));
+    EXPECT_CALL(*mockBridge_, AbortSavepointOutputStream(kMockProvider)).Times(1);
+    EXPECT_CALL(*mockBridge_, CloseSavepointOutputStream(_)).Times(0);
+    EXPECT_CALL(*mockBridge_, ReleaseSavepointOutputDirectBuffer(kMockDirectBuffer)).Times(1);
+
+    {
+        CheckpointStateOutputStreamProxy proxy(mockBridge_, 1L, checkpointOptions_);
+        std::vector<std::shared_ptr<StateMetaInfoSnapshot>> snapshots;
+        EXPECT_THROW(proxy.writeMetadata(snapshots, "testSerializer"), std::runtime_error);
+    }
 }
 
 /**

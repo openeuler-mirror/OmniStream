@@ -50,6 +50,9 @@ public:
 
     virtual std::shared_ptr<SnapshotResult<StreamStateHandle>> CloseSavepointOutputStream(jobject provider) = 0;
 
+    // Consumes provider's JNI global reference; never finalizes a state handle.
+    virtual void AbortSavepointOutputStream(jobject provider) = 0;
+
     virtual void WriteSavepointOutputStream(jobject provider, const int8_t* chunk, size_t offset, size_t len) = 0;
 
     virtual jobject CreateSavepointOutputDirectBuffer(void* data, size_t capacity) = 0;
