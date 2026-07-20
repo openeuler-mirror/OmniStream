@@ -12,6 +12,7 @@
 #include "runtime/state/restore/vb/VectorBatchRestoreUtil.h"
 
 #include <cstring>
+#include <memory>
 #include <string_view>
 
 #include "common.h"
@@ -22,7 +23,6 @@
 #include "table/data/binary/BinaryRowData.h"
 #include "table/data/util/VectorBatchUtil.h"
 #include "table/data/vectorbatch/VectorBatch.h"
-#include "table/typeutils/BinaryRowDataSerializer.h"
 #include "table/utils/VectorBatchSerializationUtils.h"
 
 namespace omnistream {
@@ -41,9 +41,7 @@ void VectorBatchRestoreUtil::populateVectorBatchFromRow(
         }
 
         switch (columnTypes[col]) {
-            case omniruntime::type::DataTypeId::OMNI_INT:
-            case omniruntime::type::DataTypeId::OMNI_DATE32:
-            case omniruntime::type::DataTypeId::OMNI_SHORT: {
+            case omniruntime::type::DataTypeId::OMNI_INT: {
                 int32_t val = *(row->getInt(col));
                 batch->template SetValueAt<int32_t>(col, rowPos, val);
                 break;
@@ -59,18 +57,6 @@ void VectorBatchRestoreUtil::populateVectorBatchFromRow(
                 batch->template SetValueAt<int64_t>(col, rowPos, val);
                 break;
             }
-            case omniruntime::type::DataTypeId::OMNI_DOUBLE: {
-                int64_t bits = *(row->getLong(col));
-                double val;
-                std::memcpy(&val, &bits, sizeof(double));
-                batch->template SetValueAt<double>(col, rowPos, val);
-                break;
-            }
-            case omniruntime::type::DataTypeId::OMNI_BOOLEAN: {
-                bool val = *(row->getBool(col));
-                batch->template SetValueAt<bool>(col, rowPos, val);
-                break;
-            }
             case omniruntime::type::DataTypeId::OMNI_CHAR:
             case omniruntime::type::DataTypeId::OMNI_VARCHAR: {
                 std::string_view sv = row->getStringView(col);
@@ -82,8 +68,32 @@ void VectorBatchRestoreUtil::populateVectorBatchFromRow(
                 }
                 break;
             }
-            default: break;
+            default:
+                INFO_RELEASE(
+                    "VectorBatchRestoreUtil: unsupported DataTypeId " << static_cast<int>(columnTypes[col])
+                                                                      << " at column " << col);
+                throw std::runtime_error(
+                    "VectorBatchRestoreUtil: unsupported DataTypeId " +
+                    std::to_string(static_cast<int>(columnTypes[col])) + " at column " + std::to_string(col));
         }
+    }
+}
+
+// 检查 DataTypeId 是否在当前 restore 路径中被支持
+static bool isRestoreSupportedType(omniruntime::type::DataTypeId typeId)
+{
+    switch (typeId) {
+        case omniruntime::type::DataTypeId::OMNI_INT:
+        case omniruntime::type::DataTypeId::OMNI_LONG:
+        case omniruntime::type::DataTypeId::OMNI_TIMESTAMP:
+        case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+        case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+        case omniruntime::type::DataTypeId::OMNI_DATE64:
+        case omniruntime::type::DataTypeId::OMNI_TIME64:
+        case omniruntime::type::DataTypeId::OMNI_DECIMAL64:
+        case omniruntime::type::DataTypeId::OMNI_CHAR:
+        case omniruntime::type::DataTypeId::OMNI_VARCHAR: return true;
+        default: return false;
     }
 }
 
@@ -104,17 +114,28 @@ int64_t VectorBatchRestoreUtil::appendRowToVectorBatch(
         return -1;
     }
 
+    // 前置校验：不支持的类型必须在写入任何状态前显式拒绝
+    for (int col = 0; col < numFields; col++) {
+        if (!isRestoreSupportedType(columnTypes[col])) {
+            INFO_RELEASE(
+                "VectorBatchRestoreUtil: unsupported column type " << static_cast<int>(columnTypes[col])
+                                                                   << " at column index " << col);
+            return -1;
+        }
+    }
+
     DataInputDeserializer valInput(
         reinterpret_cast<const uint8_t*>(valueBytes.data()), static_cast<int>(valueBytes.size()), 0);
 
-    BinaryRowDataSerializer rowDataSer(numFields);
-    void* rawRow = rowDataSer.deserialize(valInput);
-    BinaryRowData* row = static_cast<BinaryRowData*>(rawRow);
-
-    if (row == nullptr) {
-        INFO_RELEASE("VectorBatchRestoreUtil: deserialized null row");
+    // 按输入长度动态构造 BinaryRowData，替代固定 SEG_SIZE 的 BinaryRowDataSerializer::deserialize
+    int rowLen = valInput.readInt();
+    if (rowLen <= 0 || rowLen > static_cast<int>(valueBytes.size())) {
+        INFO_RELEASE("VectorBatchRestoreUtil: invalid serialized row length " << rowLen);
         return -1;
     }
+
+    std::unique_ptr<BinaryRowData> row(new BinaryRowData(numFields, rowLen));
+    valInput.readFully(row->getSegment(), rowLen, 0, rowLen);
 
     if (vbState.currentBatch == nullptr) {
         INFO_RELEASE(
@@ -129,7 +150,7 @@ int64_t VectorBatchRestoreUtil::appendRowToVectorBatch(
         }
     }
 
-    populateVectorBatchFromRow(vbState.currentBatch, columnTypes, row, vbState.currentRowId);
+    populateVectorBatchFromRow(vbState.currentBatch, columnTypes, row.get(), vbState.currentRowId);
 
     int64_t comboId = VectorBatchUtil::getComboId(vbState.currentBatchId, vbState.currentRowId);
     vbState.currentRowId++;

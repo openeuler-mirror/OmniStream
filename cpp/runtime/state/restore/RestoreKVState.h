@@ -47,10 +47,7 @@ public:
     virtual void discard() = 0;
 
     // 切换当前 keyGroup（跨 keyGroup 复用 writer 时调用）
-    virtual void setKeyGroupId(int keyGroupId)
-    {
-        (void)keyGroupId;
-    }
+    virtual void setKeyGroupId(int keyGroupId) = 0;
 
 protected:
     virtual void writeLongEntry(const std::vector<int8_t>& keyBytes, int64_t value) = 0;

@@ -25,6 +25,7 @@
 #include "runtime/state/bridge/OmniTaskBridge.h"
 #include "runtime/state/heap/HeapRestoreBackendDelegate.h"
 #include "runtime/state/restore/FullSnapshotRestoreOperation.h"
+#include "runtime/state/CompositeKeySerializationUtils.h"
 #include "runtime/state/restore/SavepointRestoreResultIterator.h"
 #include "typeutils/TypeSerializer.h"
 
@@ -82,7 +83,10 @@ public:
         FullSnapshotRestoreOperation<K> restoreOperation(
             keyGroupRange_, restoreStateHandles_, keySerializerProvider_, omniTaskBridge_);
         auto restoreIterator = restoreOperation.restore();
-        HeapRestoreBackendDelegate<K> backendDelegate(constructionBackend_);
+        omnistream::HeapRestoreBackendDelegate<K> backendDelegate(
+            constructionBackend_,
+            keySerializerProvider_,
+            CompositeKeySerializationUtils::computeRequiredBytesInKeyGroupPrefix(numberOfKeyGroups_));
         preparedAdaptor_->restore(*restoreIterator, backendDelegate);
     }
 
