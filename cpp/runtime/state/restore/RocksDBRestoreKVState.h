@@ -54,6 +54,11 @@ public:
         INFO_RELEASE("RocksDBRestoreKVState: flush kvStateId=" << kvStateId_ << ", totalEntries=" << entryCount_);
     }
 
+    void setKeyGroupId(int /*keyGroupId*/) override
+    {
+        // RocksDB writers encode keyGroup in the key bytes; this is a no-op.
+    }
+
     void discard() override
     {
         mainWriter_.reset();

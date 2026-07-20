@@ -41,7 +41,7 @@ struct RowDataView {
 // RestoreKVStateVB — 带 VectorBatch side table 的 KV 状态 writer
 // ============================================================================
 
-class RestoreKVStateVB : public RestoreKVState {
+class RestoreKVStateVB : public virtual RestoreKVState {
 public:
     // 写入一条 row data：内部负责 append VB、生成 comboId、写 main entry。
     // 满批时自动写 VB side table 并重置当前 batch。

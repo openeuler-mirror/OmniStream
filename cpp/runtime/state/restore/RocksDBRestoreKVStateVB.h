@@ -34,6 +34,11 @@ public:
         const std::vector<omniruntime::type::DataTypeId>& columnTypes,
         int vectorBatchSize);
 
+    void setKeyGroupId(int /*keyGroupId*/) override
+    {
+        // RocksDB writers encode keyGroup in the key bytes; this is a no-op.
+    }
+
 protected:
     int64_t appendRowToVectorBatch(const RowDataView& row) override;
     void flushVectorBatchIfNotEmpty() override;
