@@ -105,8 +105,7 @@ public:
                     ", builder/factory did not provide a prepared adaptor");
             }
 
-            auto metaInfoSnapshots = loadMetaInfoSnapshots();
-            preparedAdaptor_->validateForRestore(metaInfoSnapshots);
+            validateRestoreStateHandles();
         }
 
         rocksDbHandle_->openDB();
@@ -166,17 +165,21 @@ private:
         bool active_ = true;
     };
 
-    std::vector<std::shared_ptr<StateMetaInfoSnapshot>> loadMetaInfoSnapshots()
+    void validateRestoreStateHandles()
     {
-        std::vector<std::shared_ptr<StateMetaInfoSnapshot>> metaInfoSnapshots;
+        // State metadata and kvStateId are local to each KeyGroupsStateHandle.
+        // Validate one handle at a time. Keep this probe independent from the iterator consumed by restore().
         SavepointRestoreResultIterator metaProbe(restoreStateHandles_, omniTaskBridge_);
         while (metaProbe.hasNext()) {
             auto restoreResult = metaProbe.next();
-            for (const auto& metaInfo : restoreResult->getStateMetaInfoSnapshots()) {
-                metaInfoSnapshots.push_back(std::make_shared<StateMetaInfoSnapshot>(metaInfo));
+            const auto& handleMetaInfos = restoreResult->getStateMetaInfoSnapshots();
+            std::vector<std::shared_ptr<StateMetaInfoSnapshot>> metaInfos;
+            metaInfos.reserve(handleMetaInfos.size());
+            for (const auto& metaInfo : handleMetaInfos) {
+                metaInfos.push_back(std::make_shared<StateMetaInfoSnapshot>(metaInfo));
             }
+            preparedAdaptor_->validateForRestore(metaInfos);
         }
-        return metaInfoSnapshots;
     }
 
     std::shared_ptr<RocksDBRestoreResult> createRestoreResult()

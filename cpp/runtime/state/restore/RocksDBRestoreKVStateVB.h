@@ -110,6 +110,9 @@ int64_t RocksDBRestoreKVStateVB<K>::appendRowToVectorBatch(const RowDataView& ro
     if (comboId < 0) {
         throw std::runtime_error("RocksDBRestoreKVStateVB: appendRowToVectorBatch failed");
     }
+    if (vbState_.currentRowId >= vectorBatchSize_) {
+        flushVectorBatchIfNotEmpty();
+    }
     INFO_RELEASE(
         "RocksDBRestoreKVStateVB: appendRowToVB kvStateId=" << kvStateId_ << ", batchId=" << vbState_.currentBatchId
                                                             << ", rowId=" << vbState_.currentRowId << ", comboId="

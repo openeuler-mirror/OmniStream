@@ -124,41 +124,8 @@ int64_t VectorBatchRestoreUtil::appendRowToVectorBatch(
         try {
             vbState.currentBatch = VectorBatch::CreateVectorBatch(batchSize, columnTypes);
         } catch (const std::runtime_error& e) {
-            INFO_RELEASE(
-                "VectorBatchRestoreUtil: CreateVectorBatch failed (" << e.what() << "), building batch manually");
-
-            vbState.currentBatch = new VectorBatch(batchSize);
-            for (size_t i = 0; i < columnTypes.size(); i++) {
-                switch (columnTypes[i]) {
-                    case omniruntime::type::DataTypeId::OMNI_INT:
-                    case omniruntime::type::DataTypeId::OMNI_DATE32:
-                    case omniruntime::type::DataTypeId::OMNI_SHORT:
-                        vbState.currentBatch->Append(new omniruntime::vec::Vector<int32_t>(batchSize));
-                        break;
-                    case omniruntime::type::DataTypeId::OMNI_LONG:
-                    case omniruntime::type::DataTypeId::OMNI_TIMESTAMP:
-                    case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
-                    case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-                    case omniruntime::type::DataTypeId::OMNI_DATE64:
-                    case omniruntime::type::DataTypeId::OMNI_TIME64:
-                    case omniruntime::type::DataTypeId::OMNI_DECIMAL64:
-                        vbState.currentBatch->Append(new omniruntime::vec::Vector<int64_t>(batchSize));
-                        break;
-                    case omniruntime::type::DataTypeId::OMNI_DOUBLE:
-                        vbState.currentBatch->Append(new omniruntime::vec::Vector<double>(batchSize));
-                        break;
-                    case omniruntime::type::DataTypeId::OMNI_BOOLEAN:
-                        vbState.currentBatch->Append(new omniruntime::vec::Vector<bool>(batchSize));
-                        break;
-                    case omniruntime::type::DataTypeId::OMNI_CHAR:
-                    case omniruntime::type::DataTypeId::OMNI_VARCHAR:
-                        vbState.currentBatch->Append(
-                            new omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>(
-                                batchSize));
-                        break;
-                    default: vbState.currentBatch->Append(new omniruntime::vec::Vector<int64_t>(batchSize)); break;
-                }
-            }
+            INFO_RELEASE("VectorBatchRestoreUtil: CreateVectorBatch failed (" << e.what() << ").");
+            throw;
         }
     }
 

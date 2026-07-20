@@ -21,6 +21,8 @@
 #include "runtime/state/RocksDBWriteBatchWrapper.h"
 #include "runtime/state/restore/RestoreKVState.h"
 #include "runtime/state/restore/RestoreBackendDelegate.h"
+#include "core/memory/DataOutputSerializer.h"
+#include "core/typeutils/LongSerializer.h"
 
 namespace omnistream {
 
@@ -68,14 +70,20 @@ protected:
     int64_t entryCount_ = 0;
 };
 
-} // namespace omnistream
-
 template <typename K>
 void RocksDBRestoreKVState<K>::writeLongEntry(const std::vector<int8_t>& keyBytes, int64_t value)
 {
     rocksdb::Slice keySlice(reinterpret_cast<const char*>(keyBytes.data()), keyBytes.size());
-    const int8_t* valPtr = reinterpret_cast<const int8_t*>(&value);
-    rocksdb::Slice valueSlice(reinterpret_cast<const char*>(valPtr), sizeof(int64_t));
+
+    DataOutputSerializer valOutputSerializer;
+    OutputBufferStatus outputBufferStatus;
+    valOutputSerializer.setBackendBuffer(&outputBufferStatus);
+
+    LongSerializer longSerializer;
+    longSerializer.serialize(&value, valOutputSerializer);
+
+    rocksdb::Slice valueSlice(
+        reinterpret_cast<const char*>(valOutputSerializer.getData()), (int32_t)(valOutputSerializer.getPosition()));
 
     if (mainWriter_ == nullptr) {
         mainWriter_ = std::make_unique<RocksDBWriteBatchWrapper>(ctx_.db, ctx_.writeBatchSize);
@@ -104,3 +112,4 @@ void RocksDBRestoreKVState<K>::writeBytesEntry(const std::vector<int8_t>& keyByt
         "RocksDBRestoreKVState: writeBytesEntry kvStateId=" << kvStateId_ << ", entry#" << entryCount_ << ", keySize="
                                                             << keyBytes.size() << ", valueSize=" << value.size());
 }
+} // namespace omnistream
