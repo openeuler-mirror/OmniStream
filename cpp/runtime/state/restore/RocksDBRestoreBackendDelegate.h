@@ -12,38 +12,230 @@
 #pragma once
 
 #include <memory>
-#include <stdexcept>
+#include <unordered_map>
 #include <vector>
 
+#include <rocksdb/slice.h>
+
+#include "runtime/state/RocksDBWriteBatchWrapper.h"
+#include "runtime/state/heap/HeapPriorityQueueSnapshotRestoreWrapperBase.h"
+#include "runtime/state/heap/RestoredHeapPriorityQueueSnapshotRestoreWrapper.h"
+#include "runtime/state/RegisteredPriorityQueueStateBackendMetaInfo.h"
+#include "runtime/state/metainfo/StateMetaInfoSnapshot.h"
 #include "runtime/state/restore/RestoreBackendDelegate.h"
+#include "runtime/state/restore/RocksDBRestoreKVState.h"
+#include "runtime/state/restore/RocksDBRestoreKVStateVB.h"
+#include "runtime/state/restore/RocksDBRestorePQState.h"
+#include "runtime/state/restore/RocksDBHeapRestorePQState.h"
+#include "runtime/state/rocksdb/RocksDbHandle.h"
 
-class RocksDbHandle;
+namespace omnistream {
 
-// RocksDBRestoreBackendDelegate 为 compatible restore 的 construction RocksDB handle 创建目标 state writer。
-// 当前只固定 column family/write batch writer 的接口和 handle 生命周期边界；真实 writer 未落地时，factory
-// 直接 fail-fast，不能返回空 writer 或将 Flink logical bytes 写入现有 raw direct put 路径。
-class RocksDBRestoreBackendDelegate final : public omnistream::RestoreBackendDelegate {
+// ============================================================================
+// RocksDBRestoreBackendDelegate — compatible restore 的 RocksDB writer 工厂
+// ============================================================================
+
+template <typename K>
+class RocksDBRestoreBackendDelegate : public RestoreBackendDelegate {
 public:
-    explicit RocksDBRestoreBackendDelegate(RocksDbHandle* constructionHandle) : constructionHandle_(constructionHandle)
-    {
-    }
+    using RegisteredPQStatesMap =
+        std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>;
 
-    std::unique_ptr<omnistream::RestoreKVState> createKVState(int, const StateMetaInfoSnapshot&) override
-    {
-        throw std::logic_error("RocksDB compatible restore KV writer is not implemented");
-    }
+    RocksDBRestoreBackendDelegate(
+        RocksDbHandle* rocksDbHandle,
+        int startKeyGroup,
+        int keyGroupPrefixBytes,
+        long writeBatchSize,
+        std::shared_ptr<RegisteredPQStatesMap> registeredPQStates = nullptr);
 
-    std::unique_ptr<omnistream::RestoreKVStateVB> createKVStateVB(
-        int, const StateMetaInfoSnapshot&, const std::vector<omniruntime::type::DataTypeId>&, int) override
-    {
-        throw std::logic_error("RocksDB compatible restore VectorBatch KV writer is not implemented");
-    }
+    std::unique_ptr<RestoreKVState> createKVState(int kvStateId, const StateMetaInfoSnapshot& mainMetaInfo) override;
 
-    std::unique_ptr<omnistream::RestorePQState> createPQState(int, const StateMetaInfoSnapshot&) override
-    {
-        throw std::logic_error("RocksDB compatible restore PriorityQueue writer is not implemented");
-    }
+    std::unique_ptr<RestoreKVStateVB> createKVStateVB(
+        int kvStateId,
+        const StateMetaInfoSnapshot& mainMetaInfo,
+        const std::vector<omniruntime::type::DataTypeId>& columnTypes,
+        int vectorBatchSize) override;
+
+    std::unique_ptr<RestorePQState> createPQState(int kvStateId, const StateMetaInfoSnapshot& metaInfo) override;
+
+    void logStatistics() const;
 
 private:
-    RocksDbHandle* constructionHandle_;
+    struct KvStateInfo {
+        std::string stateName;
+        std::vector<omniruntime::type::DataTypeId> columnTypes;
+        rocksdb::ColumnFamilyHandle* mainCF = nullptr;
+        rocksdb::ColumnFamilyHandle* vbCF = nullptr;
+        std::shared_ptr<StateMetaInfoSnapshot> mainMetaInfo;
+    };
+
+    KvStateInfo& ensureStateRegistered(
+        int kvStateId,
+        const StateMetaInfoSnapshot& mainMetaInfo,
+        const std::vector<omniruntime::type::DataTypeId>& columnTypes);
+
+    void ensureVbStateRegistered(int kvStateId, const StateMetaInfoSnapshot& vbMetaInfo);
+
+    RocksDBWriterContext& makeWriterContext()
+    {
+        return writerCtx_;
+    }
+
+    std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase> getOrCreatePendingPQ(
+        const StateMetaInfoSnapshot& metaInfo);
+
+    RocksDbHandle* rocksDbHandle_;
+    int startKeyGroup_;
+    int keyGroupPrefixBytes_;
+    long writeBatchSize_;
+    RocksDBWriterContext writerCtx_;
+    std::shared_ptr<RegisteredPQStatesMap> registeredPQStates_;
+    std::unordered_map<int, KvStateInfo> kvStateInfo_;
+    int64_t mainEntryCount_ = 0;
+    int64_t vbBatchCount_ = 0;
 };
+
+// ============================================================================
+// 实现
+// ============================================================================
+
+template <typename K>
+RocksDBRestoreBackendDelegate<K>::RocksDBRestoreBackendDelegate(
+    RocksDbHandle* rocksDbHandle,
+    int startKeyGroup,
+    int keyGroupPrefixBytes,
+    long writeBatchSize,
+    std::shared_ptr<RegisteredPQStatesMap> registeredPQStates)
+    : rocksDbHandle_(rocksDbHandle),
+      startKeyGroup_(startKeyGroup),
+      keyGroupPrefixBytes_(keyGroupPrefixBytes),
+      writeBatchSize_(writeBatchSize),
+      writerCtx_{
+          rocksDbHandle->getDb(), writeBatchSize, keyGroupPrefixBytes, startKeyGroup, &mainEntryCount_, &vbBatchCount_},
+      registeredPQStates_(std::move(registeredPQStates))
+{
+}
+
+template <typename K>
+typename RocksDBRestoreBackendDelegate<K>::KvStateInfo& RocksDBRestoreBackendDelegate<K>::ensureStateRegistered(
+    int kvStateId,
+    const StateMetaInfoSnapshot& mainMetaInfo,
+    const std::vector<omniruntime::type::DataTypeId>& columnTypes)
+{
+    auto it = kvStateInfo_.find(kvStateId);
+    if (it != kvStateInfo_.end()) {
+        return it->second;
+    }
+
+    KvStateInfo info;
+    info.stateName = mainMetaInfo.getName();
+    info.columnTypes = columnTypes;
+    info.mainMetaInfo = std::make_shared<StateMetaInfoSnapshot>(mainMetaInfo);
+
+    auto mainStateInfo = rocksDbHandle_->getOrRegisterStateColumnFamilyHandle(nullptr, mainMetaInfo);
+    info.mainCF = mainStateInfo->columnFamilyHandle_;
+    INFO_RELEASE(
+        "RocksDBRestoreBackendDelegate: state '" << mainMetaInfo.getName() << "' main CF registered"
+                                                 << ", columns=" << columnTypes.size());
+
+    auto [insertedIt, _] = kvStateInfo_.emplace(kvStateId, std::move(info));
+    return insertedIt->second;
+}
+
+template <typename K>
+void RocksDBRestoreBackendDelegate<K>::ensureVbStateRegistered(int kvStateId, const StateMetaInfoSnapshot& vbMetaInfo)
+{
+    auto it = kvStateInfo_.find(kvStateId);
+    if (it == kvStateInfo_.end()) {
+        INFO_RELEASE("RocksDBRestoreBackendDelegate: ERROR - VB register before main for kvStateId=" << kvStateId);
+        return;
+    }
+    if (it->second.vbCF != nullptr) {
+        return;
+    }
+    auto vbStateInfo = rocksDbHandle_->getOrRegisterStateColumnFamilyHandle(nullptr, vbMetaInfo);
+    it->second.vbCF = vbStateInfo->columnFamilyHandle_;
+    INFO_RELEASE("RocksDBRestoreBackendDelegate: state '" << it->second.stateName << "' vb CF registered");
+}
+
+template <typename K>
+std::unique_ptr<RestoreKVState> RocksDBRestoreBackendDelegate<K>::createKVState(
+    int kvStateId, const StateMetaInfoSnapshot& mainMetaInfo)
+{
+    auto& info = ensureStateRegistered(kvStateId, mainMetaInfo, {});
+    return std::make_unique<RocksDBRestoreKVState<K>>(makeWriterContext(), info.mainCF, kvStateId);
+}
+
+template <typename K>
+std::unique_ptr<RestoreKVStateVB> RocksDBRestoreBackendDelegate<K>::createKVStateVB(
+    int kvStateId,
+    const StateMetaInfoSnapshot& mainMetaInfo,
+    const std::vector<omniruntime::type::DataTypeId>& columnTypes,
+    int vectorBatchSize)
+{
+    auto& info = ensureStateRegistered(kvStateId, mainMetaInfo, columnTypes);
+    if (info.vbCF == nullptr) {
+        StateMetaInfoSnapshot vbMetaInfo(
+            mainMetaInfo.getName() + "vb",
+            mainMetaInfo.getBackendStateType(),
+            mainMetaInfo.getOptionsImmutable(),
+            mainMetaInfo.getSerializerSnapshotsImmutable());
+        auto vbStateInfo = rocksDbHandle_->getOrRegisterStateColumnFamilyHandle(nullptr, vbMetaInfo);
+        info.vbCF = vbStateInfo->columnFamilyHandle_;
+        INFO_RELEASE(
+            "RocksDBRestoreBackendDelegate: auto-registered VB CF for state '" << mainMetaInfo.getName() << "'");
+    }
+    return std::make_unique<RocksDBRestoreKVStateVB<K>>(
+        makeWriterContext(), info.mainCF, info.vbCF, kvStateId, columnTypes, vectorBatchSize);
+}
+
+// --- PQ State ---
+
+template <typename K>
+std::unique_ptr<RestorePQState> RocksDBRestoreBackendDelegate<K>::createPQState(
+    int kvStateId, const StateMetaInfoSnapshot& metaInfo)
+{
+    if (registeredPQStates_ != nullptr) {
+        auto pqWrapper = getOrCreatePendingPQ(metaInfo);
+        if (pqWrapper != nullptr) {
+            INFO_RELEASE(
+                "RocksDBRestoreBackendDelegate: createPQState kvStateId="
+                << kvStateId << ", name=" << metaInfo.getName() << " -> RocksDBHeapRestorePQState");
+            return std::make_unique<RocksDBHeapRestorePQState>(pqWrapper, keyGroupPrefixBytes_);
+        }
+    }
+    // 回退：纯 RocksDB PQ
+    auto stateInfo = rocksDbHandle_->getOrRegisterStateColumnFamilyHandle(nullptr, metaInfo);
+    INFO_RELEASE(
+        "RocksDBRestoreBackendDelegate: createPQState kvStateId=" << kvStateId << ", name=" << metaInfo.getName());
+    return std::make_unique<RocksDBRestorePQState>(rocksDbHandle_, stateInfo->columnFamilyHandle_, writeBatchSize_);
+}
+
+template <typename K>
+std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase> RocksDBRestoreBackendDelegate<K>::getOrCreatePendingPQ(
+    const StateMetaInfoSnapshot& metaInfo)
+{
+    const std::string& stateName = metaInfo.getName();
+    auto existing = registeredPQStates_->find(stateName);
+    if (existing != registeredPQStates_->end()) {
+        return existing->second;
+    }
+
+    auto pqMetaInfo = std::make_shared<RegisteredPriorityQueueStateBackendMetaInfo>(metaInfo);
+    auto pendingWrapper = std::make_shared<RestoredHeapPriorityQueueSnapshotRestoreWrapper>(pqMetaInfo);
+    registeredPQStates_->emplace(stateName, pendingWrapper);
+    INFO_RELEASE("RocksDBRestoreBackendDelegate: registered pending heap PQ state '" << stateName << "'");
+    return pendingWrapper;
+}
+
+template <typename K>
+void RocksDBRestoreBackendDelegate<K>::logStatistics() const
+{
+    INFO_RELEASE("RocksDBRestoreBackendDelegate: ======== restore statistics begin ========");
+    INFO_RELEASE(
+        "RocksDBRestoreBackendDelegate: [stat] TOTAL: mainEntries=" << mainEntryCount_
+                                                                    << ", vbBatches=" << vbBatchCount_);
+    INFO_RELEASE("RocksDBRestoreBackendDelegate: ======== restore statistics end ========");
+}
+
+} // namespace omnistream

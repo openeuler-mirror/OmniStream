@@ -163,12 +163,14 @@ protected:
     {
         return std::make_unique<RocksDBCompatibleFullRestoreOperation<int>>(
             &keyGroupRange_,
+            2, // keyGroupPrefixBytes
             nullptr,
             &kvStateInformation_,
             dbPath_,
             dbOptions_,
             [](const std::string&) { return rocksdb::ColumnFamilyOptions(); },
             std::move(handles),
+            2097152L, // writeBatchSize
             std::move(bridge),
             makeAdaptorInfo(),
             std::move(adaptor));

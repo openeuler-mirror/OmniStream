@@ -29,6 +29,7 @@
 #include "runtime/state/RocksDbKvStateInfo.h"
 #include "runtime/state/UUID.h"
 #include "runtime/state/bridge/OmniTaskBridge.h"
+#include "runtime/state/heap/HeapPriorityQueueSnapshotRestoreWrapperBase.h"
 #include "runtime/state/restore/FullSnapshotRestoreOperation.h"
 #include "runtime/state/restore/RocksDBRestoreBackendDelegate.h"
 #include "runtime/state/restore/RocksDBRestoreOperation.h"
@@ -44,18 +45,26 @@
 template <typename K>
 class RocksDBCompatibleFullRestoreOperation : public RocksDBRestoreOperation {
 public:
+    using RegisteredPQStatesMap =
+        std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>;
+
     RocksDBCompatibleFullRestoreOperation(
         KeyGroupRange* keyGroupRange,
+        int keyGroupPrefixBytes,
         std::shared_ptr<TypeSerializer> keySerializer,
         std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
         std::filesystem::path& instanceRocksDBPath,
         std::shared_ptr<rocksdb::DBOptions> dbOptions,
         std::function<rocksdb::ColumnFamilyOptions(const std::string&)> columnFamilyOptionsFactory,
         std::vector<std::shared_ptr<KeyedStateHandle>> restoreStateHandles,
+        long writeBatchSize,
         std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge,
         FlinkSavepointAdaptorInfo adaptorInfo,
-        std::unique_ptr<omnistream::OperatorSavepointAdaptor> preparedAdaptor)
-        : restoreStateHandles_(std::move(restoreStateHandles)),
+        std::unique_ptr<omnistream::OperatorSavepointAdaptor> preparedAdaptor,
+        std::shared_ptr<RegisteredPQStatesMap> registeredPQStates = nullptr)
+        : keyGroupRange_(keyGroupRange),
+          keyGroupPrefixBytes_(keyGroupPrefixBytes),
+          restoreStateHandles_(std::move(restoreStateHandles)),
           savepointRestoreOperation_(
               std::make_unique<FullSnapshotRestoreOperation<K>>(
                   keyGroupRange, restoreStateHandles_, std::move(keySerializer), omniTaskBridge)),
@@ -65,10 +74,12 @@ public:
                   instanceRocksDBPath,
                   std::move(dbOptions),
                   std::move(columnFamilyOptionsFactory))),
+          writeBatchSize_(writeBatchSize),
           kvStateInformation_(kvStateInformation),
           omniTaskBridge_(std::move(omniTaskBridge)),
           adaptorInfo_(std::move(adaptorInfo)),
-          preparedAdaptor_(std::move(preparedAdaptor))
+          preparedAdaptor_(std::move(preparedAdaptor)),
+          registeredPQStates_(std::move(registeredPQStates))
     {
     }
 
@@ -94,7 +105,8 @@ public:
                     ", builder/factory did not provide a prepared adaptor");
             }
 
-            validateRestoreStateHandles();
+            auto metaInfoSnapshots = loadMetaInfoSnapshots();
+            preparedAdaptor_->validateForRestore(metaInfoSnapshots);
         }
 
         rocksDbHandle_->openDB();
@@ -102,7 +114,12 @@ public:
 
         if (!restoreStateHandles_.empty()) {
             auto restoreIterator = savepointRestoreOperation_->restore();
-            RocksDBRestoreBackendDelegate backendDelegate(rocksDbHandle_.get());
+            RocksDBRestoreBackendDelegate<K> backendDelegate(
+                rocksDbHandle_.get(),
+                keyGroupRange_->getStartKeyGroup(),
+                keyGroupPrefixBytes_,
+                writeBatchSize_,
+                registeredPQStates_);
             preparedAdaptor_->restore(*restoreIterator, backendDelegate);
         }
 
@@ -149,21 +166,17 @@ private:
         bool active_ = true;
     };
 
-    void validateRestoreStateHandles()
+    std::vector<std::shared_ptr<StateMetaInfoSnapshot>> loadMetaInfoSnapshots()
     {
-        // State metadata and kvStateId are local to each KeyGroupsStateHandle.
-        // Validate one handle at a time. Keep this probe independent from the iterator consumed by restore().
+        std::vector<std::shared_ptr<StateMetaInfoSnapshot>> metaInfoSnapshots;
         SavepointRestoreResultIterator metaProbe(restoreStateHandles_, omniTaskBridge_);
         while (metaProbe.hasNext()) {
             auto restoreResult = metaProbe.next();
-            const auto& handleMetaInfos = restoreResult->getStateMetaInfoSnapshots();
-            std::vector<std::shared_ptr<StateMetaInfoSnapshot>> metaInfos;
-            metaInfos.reserve(handleMetaInfos.size());
-            for (const auto& metaInfo : handleMetaInfos) {
-                metaInfos.push_back(std::make_shared<StateMetaInfoSnapshot>(metaInfo));
+            for (const auto& metaInfo : restoreResult->getStateMetaInfoSnapshots()) {
+                metaInfoSnapshots.push_back(std::make_shared<StateMetaInfoSnapshot>(metaInfo));
             }
-            preparedAdaptor_->validateForRestore(metaInfos);
         }
+        return metaInfoSnapshots;
     }
 
     std::shared_ptr<RocksDBRestoreResult> createRestoreResult()
@@ -178,6 +191,10 @@ private:
             emptyRestoredSstFiles);
     }
 
+    KeyGroupRange* keyGroupRange_;
+    int keyGroupPrefixBytes_;
+    long writeBatchSize_;
+
     std::vector<std::shared_ptr<KeyedStateHandle>> restoreStateHandles_;
     std::unique_ptr<FullSnapshotRestoreOperation<K>> savepointRestoreOperation_;
     std::unique_ptr<RocksDbHandle> rocksDbHandle_;
@@ -185,4 +202,5 @@ private:
     std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge_;
     FlinkSavepointAdaptorInfo adaptorInfo_;
     std::unique_ptr<omnistream::OperatorSavepointAdaptor> preparedAdaptor_;
+    std::shared_ptr<RegisteredPQStatesMap> registeredPQStates_;
 };
