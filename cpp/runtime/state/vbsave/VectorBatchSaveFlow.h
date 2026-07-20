@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cstring>
 #include <memory>
 #include <sstream>
@@ -132,6 +133,11 @@ public:
                 const auto& entry = iterator->current();
                 pendingNewKeyGroup = pendingNewKeyGroup || entry.newKeyGroup;
                 pendingNewKeyValueState = pendingNewKeyValueState || entry.newKeyValueState;
+                if (std::find(plan.mainStateIds.begin(), plan.mainStateIds.end(), entry.kvStateId) ==
+                    plan.mainStateIds.end()) {
+                    iterator->next();
+                    continue;
+                }
                 bool sourceHasOutput = false;
                 convertEntry(entry, [&](ConvertedEntry converted) { emitEntry(converted, entry, sourceHasOutput); });
                 iterator->next();
