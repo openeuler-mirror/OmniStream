@@ -91,7 +91,7 @@ struct VectorBatchSaveStateContext {
 
     bool isValid() const
     {
-        if (!writable || valueSerializer == nullptr) {
+        if (!writable || mappedKvStateId < 0 || valueSerializer == nullptr) {
             return false;
         }
         if (stateType != VectorBatchStateType::KV && stateType != VectorBatchStateType::PQ && vbAccessor == nullptr) {

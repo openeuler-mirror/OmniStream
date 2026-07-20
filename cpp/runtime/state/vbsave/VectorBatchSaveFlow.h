@@ -86,6 +86,10 @@ public:
                 if (converted.context == nullptr) {
                     throw std::runtime_error("VectorBatchSaveFlow: converted entry has null context");
                 }
+                if (converted.context->mappedKvStateId < 0 ||
+                    static_cast<size_t>(converted.context->mappedKvStateId) >= plan.targetMetaInfos.size()) {
+                    throw std::runtime_error("VectorBatchSaveFlow: mapped kvStateId out of target metadata range");
+                }
                 ByteView key(reinterpret_cast<const int8_t*>(converted.keyBytes.data()), converted.keyBytes.size());
                 ByteView value(
                     reinterpret_cast<const int8_t*>(converted.valueBytes.data()), converted.valueBytes.size());

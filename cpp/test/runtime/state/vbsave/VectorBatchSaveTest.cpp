@@ -235,6 +235,9 @@ TEST(VectorBatchSaveTest, SaveStateContextRequiresAccessorOnlyForVectorBatchStat
     EXPECT_FALSE(context.isValid());
 
     context.valueSerializer = &serializer;
+    EXPECT_FALSE(context.isValid());
+
+    context.mappedKvStateId = 0;
     EXPECT_TRUE(context.isValid());
 
     context.stateType = omnistream::VectorBatchStateType::PQ;
