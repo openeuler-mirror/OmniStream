@@ -167,7 +167,7 @@ void GroupAggFunction::open(const Configuration& parameters)
     aggregateCallsCount = static_cast<int>(aggValueTypes.size());
     resultRow = new JoinedRowData();
     reUsePrevAggValue = BinaryRowData::createBinaryRowDataWithMem(aggregateCallsCount);
-    LOG("init reUsePrevAggValue getArity : " << reUsePrevAggValue->getArity())
+    LOG("init reUsePrevAggValue getArity : " << reUsePrevAggValue->getArity());
     reUseNewAggValue = BinaryRowData::createBinaryRowDataWithMem(aggregateCallsCount);
     sharedAccmulators = BinaryRowData::createBinaryRowDataWithMem(accTypes.size());
 }
@@ -452,7 +452,7 @@ void GroupAggFunction::processBatch(
 
     GroupedRowsByKey keyToRowIndices;
     keyToRowIndices.reserve(keyToRowIndices.size());
-    LOG("getEntireRow rowCount :" << rowCount)
+    LOG("getEntireRow rowCount :" << rowCount);
     FillRowIndices(input, keyToRowIndices, rowCount);
 
     std::vector<RowData*> resultKeys;
@@ -484,7 +484,7 @@ void GroupAggFunction::processBatch(
                 continue;
             }
         }
-        LOG("functions loop aggregateCallsCount end")
+        LOG("functions loop aggregateCallsCount end");
         AssembleResultForBatch(accumulators, isEqual, firstRow, currentKey, resultKeys, resultValues, resultRowKinds);
     }
 
@@ -515,7 +515,7 @@ void GroupAggFunction::processBatch(
     // delete the result RowData copied from reUseNewAggValue and reUsePreAggValue
     deleteRowData(resultValues);
     resultRowKinds.clear();
-    LOG("GroupAggFunction processBatch end")
+    LOG("GroupAggFunction processBatch end");
 }
 
 void GroupAggFunction::finish(
