@@ -108,20 +108,40 @@ public:
         stateTable->clear(currentNamespace);
     };
 
-    void addVectorBatch(omnistream::VectorBatch* vectorBatch) override
+    void addVectorBatch(int32_t keyGroup, omnistream::VectorBatch* vectorBatch) override
     {
-        stateTable->addVectorBatch(vectorBatch);
+        stateTable->addVectorBatch(keyGroup, vectorBatch);
     };
 
-    omnistream::VectorBatch* getVectorBatch(int batchId) override
+    void addVectorBatches(const std::unordered_map<int32_t, omnistream::VectorBatch*>& vectorBatchByKeyGroup) override
     {
-        return stateTable->getVectorBatch(batchId);
+        stateTable->addVectorBatches(vectorBatchByKeyGroup);
     };
 
-    long getVectorBatchesSize() override
+    omnistream::VectorBatch* getVectorBatch(int32_t keyGroup, uint32_t sequenceNumber) override
     {
-        return stateTable->getVectorBatchesSize();
+        return stateTable->getVectorBatch(keyGroup, sequenceNumber);
     };
+
+    std::vector<omnistream::VectorBatch*> getVectorBatches(int32_t keyGroup) override
+    {
+        return stateTable->getVectorBatches(keyGroup);
+    };
+
+    uint32_t getNextSequenceNumber(int32_t keyGroup) override
+    {
+        return stateTable->getNextSequenceNumber(keyGroup);
+    };
+
+    void clearVectorBatches(int64_t currentTimestamp) override
+    {
+        stateTable->clearVectorBatches(currentTimestamp);
+    }
+
+    void clearVectorBatches(int32_t keyGroup, std::vector<uint32_t>& sequenceNumbersToDelete) override
+    {
+        stateTable->clearVectorBatches(keyGroup, sequenceNumbersToDelete);
+    }
 
 private:
     BssStateTable<K, N, V>* stateTable;

@@ -61,7 +61,8 @@ HeapSnapshotStateData::SerializedEntry makeEntry(std::vector<int8_t> serializedV
     return entry;
 }
 
-std::shared_ptr<HeapSnapshotStateData> makeStateDataWithBatch(int64_t batchId, std::vector<int8_t> serializedValue)
+std::shared_ptr<HeapSnapshotStateData> makeStateDataWithBatch(
+    omnistream::VectorBatchId batchId, std::vector<int8_t> serializedValue)
 {
     auto stateData = std::make_shared<HeapSnapshotStateData>();
     stateData->addVectorBatchEntry(makeEntry(std::move(serializedValue)), batchId);

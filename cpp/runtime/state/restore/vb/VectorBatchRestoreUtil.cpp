@@ -94,7 +94,7 @@ static bool isRestoreSupportedType(omniruntime::type::DataTypeId typeId)
     }
 }
 
-int64_t VectorBatchRestoreUtil::appendRowToVectorBatch(
+omnistream::ComboId VectorBatchRestoreUtil::appendRowToVectorBatch(
     VbBatchState& vbState,
     const std::vector<int8_t>& valueBytes,
     const std::vector<omniruntime::type::DataTypeId>& columnTypes,
@@ -102,13 +102,13 @@ int64_t VectorBatchRestoreUtil::appendRowToVectorBatch(
 {
     if (valueBytes.empty()) {
         INFO_RELEASE("VectorBatchRestoreUtil: empty value bytes, cannot parse RowData");
-        return -1;
+        return omnistream::INVALID_COMBO_ID;
     }
 
     int numFields = static_cast<int>(columnTypes.size());
     if (numFields == 0) {
         INFO_RELEASE("VectorBatchRestoreUtil: no column types, value has " << valueBytes.size() << " bytes");
-        return -1;
+        return omnistream::INVALID_COMBO_ID;
     }
 
     // 前置校验：不支持的类型必须在写入任何状态前显式拒绝
@@ -128,7 +128,7 @@ int64_t VectorBatchRestoreUtil::appendRowToVectorBatch(
     int rowLen = valInput.readInt();
     if (rowLen <= 0 || rowLen > static_cast<int>(valueBytes.size())) {
         INFO_RELEASE("VectorBatchRestoreUtil: invalid serialized row length " << rowLen);
-        return -1;
+        return omnistream::INVALID_COMBO_ID;
     }
 
     std::unique_ptr<BinaryRowData> row(new BinaryRowData(numFields, rowLen));
@@ -149,7 +149,7 @@ int64_t VectorBatchRestoreUtil::appendRowToVectorBatch(
 
     populateVectorBatchFromRow(vbState.currentBatch, columnTypes, row.get(), vbState.currentRowId);
 
-    int64_t comboId = VectorBatchUtil::getComboId(vbState.currentBatchId, vbState.currentRowId);
+    auto comboId = VectorBatchUtil::getComboId(vbState.currentBatchId, vbState.currentRowId);
     vbState.currentRowId++;
     return comboId;
 }

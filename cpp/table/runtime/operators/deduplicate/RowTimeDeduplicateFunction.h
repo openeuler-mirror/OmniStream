@@ -15,6 +15,7 @@
 #include <fstream>
 #include <unordered_map>
 #include <set>
+#include <limits>
 
 #include <nlohmann/json.hpp>
 #include "table/data/RowData.h"
@@ -24,6 +25,7 @@
 #include "streaming/api/operators/StreamingRuntimeContext.h"
 #include "streaming/api/operators/TimestampedCollector.h"
 #include "table/runtime/keyselector/KeySelector.h"
+#include "table/data/util/VectorBatchUtil.h"
 
 class RowTimeDeduplicateFunction
     : public KeyedProcessFunction<RowData*, omnistream::VectorBatch*, omnistream::VectorBatch*> {
@@ -60,17 +62,12 @@ public:
 
     omnistream::VectorBatch* ProcessUpdateRecord(omnistream::VectorBatch* inputVB, Context& ctx);
 
-    omnistream::VectorBatch* GetVectorBatchById(int32_t batchId);
+    omnistream::VectorBatch* GetVectorBatchByComboId(ComboId comboId);
 
-    void CopyTargetVectorBatchToOut(omnistream::VectorBatch* outputVB, long comboID, int rowIndex);
-    void UpdateStateBackend(std::vector<std::tuple<long, long, RowData*>>& updateRecords, Context& ctx);
+    void CopyTargetVectorBatchToOut(omnistream::VectorBatch* outputVB, ComboId comboId, int rowIndex);
+    void UpdateStateBackend(std::vector<std::tuple<ComboId, ComboId, RowData*>>& updateRecords, Context& ctx);
 
     void freeDelBatch();
-
-    int getCurrentBatchId()
-    {
-        return recordStateVB->getVectorBatchesSize();
-    }
 
     void processElement(omnistream::VectorBatch* input, Context* ctx, TimestampedCollector* out) override
     {
@@ -98,13 +95,18 @@ private:
 
     std::vector<int32_t> keyIndex; // key index
 
-    ValueState<int64_t>* recordStateVB = nullptr; // 中间这个是什么
+    ValueState<ComboId>* recordStateVB = nullptr; // stores the selected row comboId for each key
 
     KeySelector<RowData*>* groupByKeySelector;
     std::vector<int32_t> keyedTypes;
 
     // omnistream::VectorBatch *res = nullptr;
     std::set<omnistream::VectorBatch*> delVb;
-    std::unordered_map<int32_t, omnistream::VectorBatch*> vectorBatchCacheMap;
+    std::unordered_map<VectorBatchId, omnistream::VectorBatch*> vectorBatchCacheMap;
     omnistream::StateType backendType_ = omnistream::StateType::HEAP;
+    int32_t maxParallelism_ = 0;
+    std::unordered_map<int32_t, omnistream::VectorBatch*> reuseVectorBatchByKeyGroup_{};
+    std::unordered_map<int32_t, std::vector<int32_t>> reuseOldRowIdsByKeyGroup_{};
+    std::vector<RowData*> reuseKeys_{};
+    std::vector<ComboId> reuseComboIds_{};
 };

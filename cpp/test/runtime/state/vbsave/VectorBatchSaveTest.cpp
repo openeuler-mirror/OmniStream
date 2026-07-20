@@ -87,7 +87,7 @@ class MockSerializer : public TypeSerializer {};
 
 class MockVectorBatchStateAccessor : public VectorBatchStateAccessor {
 public:
-    bool getSerializedBatch(int64_t /*batchId*/, ByteView* /*value*/) override
+    bool getSerializedBatch(omnistream::VectorBatchId /*batchId*/, ByteView* /*value*/) override
     {
         return false;
     }
@@ -105,7 +105,7 @@ public:
         return {};
     }
 
-    int64_t parseVectorBatchReference(
+    omnistream::ComboId parseVectorBatchReference(
         ByteView value,
         const omnistream::VectorBatchSaveStateContext& /*context*/,
         const omnistream::VectorBatchSavePlan& /*plan*/) override

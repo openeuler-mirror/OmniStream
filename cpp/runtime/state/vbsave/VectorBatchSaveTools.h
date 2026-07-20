@@ -23,7 +23,7 @@
 #include "core/typeutils/TypeSerializer.h"
 #include "core/utils/ByteView.h"
 #include "table/data/RowData.h"
-#include "table/data/util/VectorBatchUtil.h"
+#include "table/data/vectorbatch/VectorBatchStorageInfo.h"
 
 namespace omnistream {
 
@@ -39,9 +39,9 @@ public:
         return stateName.size() >= 2 && stateName.substr(stateName.size() - 2) == "vb";
     }
 
-    // 从 ByteView 中解析 big-endian int64_t comboId，调用方需保证 value 至少包含 8 字节。
+    // 从 ByteView 中解析 big-endian uint64_t comboId，调用方需保证 value 至少包含 8 字节。
     // 适用于主状态 value 直接保存 comboId 的 parseVectorBatchReference() 实现。
-    static int64_t parseComboId(ByteView value)
+    static omnistream::ComboId parseComboId(ByteView value)
     {
         if (value.data() == nullptr || value.size() < sizeof(int64_t)) {
             INFO_RELEASE("Error:VectorBatchSaveTools::parseComboId invalid comboId bytes, size=" << value.size());

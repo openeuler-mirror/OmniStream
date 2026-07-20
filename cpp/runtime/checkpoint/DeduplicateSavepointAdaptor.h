@@ -69,7 +69,7 @@ public:
     std::vector<VectorBatchSaveStateContext> buildSaveStateContexts(
         FullSnapshotResources& snapshotResources, const VectorBatchSavePlan& plan) override;
 
-    int64_t parseVectorBatchReference(
+    ComboId parseVectorBatchReference(
         ByteView value, const VectorBatchSaveStateContext& context, const VectorBatchSavePlan& plan) override;
 
     std::vector<int8_t> encodeFlinkLogicalValue(

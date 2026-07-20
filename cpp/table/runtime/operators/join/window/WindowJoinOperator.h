@@ -11,7 +11,10 @@
 
 #pragma once
 #include <set>
+#include <unordered_map>
 #include <vector>
+#include <arm_sve.h>
+
 #include "table/runtime/operators/join/AbstractStreamingJoinOperator.h"
 #include "table/data/JoinedRowData.h"
 #include "table/data/GenericRowData.h"
@@ -30,11 +33,6 @@
 #include "OmniOperatorJIT/core/src/operator/execution_context.h"
 #include "table/runtime/keyselector/KeySelector.h"
 #include "table/utils/TimeWindowUtil.h"
-
-#include <arm_sve.h>
-
-using VectorBatchId = uint64_t;
-
 using namespace omnistream;
 using FilterFunc = bool (*)(int64_t*, bool*, int32_t*, bool*, int32_t*, int64_t);
 
@@ -82,7 +80,7 @@ public:
     void onEventTime(TimerHeapInternalTimer<KeyType, int64_t>* timer) override;
     void onProcessingTime(TimerHeapInternalTimer<KeyType, int64_t>* timer) override;
     void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override;
-    virtual void join(std::vector<VectorBatchId>* leftRecords, std::vector<VectorBatchId>* rightRecords) = 0;
+    virtual void join(std::vector<ComboId>* leftRecords, std::vector<ComboId>* rightRecords) = 0;
     std::string getTypeName() override
     {
         return "WindowJoinOperator";
@@ -104,27 +102,22 @@ protected:
     std::vector<omniruntime::type::DataTypeId> leftTypes;
     std::vector<omniruntime::type::DataTypeId> rightTypes;
     std::vector<omniruntime::type::DataTypeId> outputTypes;
-    WindowListState<KeyType, int64_t, VectorBatchId>* leftWindowState;
-    WindowListState<KeyType, int64_t, VectorBatchId>* rightWindowState;
+    WindowListState<KeyType, int64_t, ComboId>* leftWindowState;
+    WindowListState<KeyType, int64_t, ComboId>* rightWindowState;
     ::FilterFunc generatedFilter; // Use global scope resolution to avoid ambiguity
     std::vector<int32_t> leftKeyIndex;
     std::vector<int32_t> rightKeyIndex;
     void buildInner(
-        std::vector<VectorBatchId>* leftElements,
-        std::vector<VectorBatchId>* rightElements,
-        omnistream::VectorBatch* outputBatch);
-    void buildRightNull(std::vector<VectorBatchId>* leftElements, omnistream::VectorBatch* outputBatch);
-    void buildLeftNull(std::vector<VectorBatchId>* rightElements, omnistream::VectorBatch* outputBatch);
+        std::vector<ComboId>* leftElements, std::vector<ComboId>* rightElements, omnistream::VectorBatch* outputBatch);
+    void buildRightNull(std::vector<ComboId>* leftElements, omnistream::VectorBatch* outputBatch);
+    void buildLeftNull(std::vector<ComboId>* rightElements, omnistream::VectorBatch* outputBatch);
     void buildSemiAnti(
-        std::vector<VectorBatchId>* elements,
-        omnistream::VectorBatch* outputBatch,
-        bool isSemi,
-        std::set<int>* matchedSet);
-    bool filter(VectorBatchId leftElement, VectorBatchId rightElement);
+        std::vector<ComboId>* elements, omnistream::VectorBatch* outputBatch, bool isSemi, std::set<int>* matchedSet);
+    bool filter(ComboId leftElement, ComboId rightElement);
     InternalTimerServiceImpl<KeyType, int64_t>* internalTimerService;
     bool isNonEquiCondition;
-    KeySelector<KeyType>* keySelectorLeft = nullptr;
-    KeySelector<KeyType>* keySelectorRight = nullptr;
+    std::unique_ptr<KeySelector<KeyType>> keySelectorLeft{};
+    std::unique_ptr<KeySelector<KeyType>> keySelectorRight{};
 
 private:
     TypeSerializer* leftSerializer;
@@ -134,56 +127,63 @@ private:
     nlohmann::json description;
     std::set<int> colRefsForNonEquiCondition;
     int totalNumOfCols;
+    struct BatchCleanupInfo {
+        int32_t keyGroup;
+        uint32_t sequenceNumber;
+        int64_t maxTimestamp;
+    };
     // Vector, rowId, colId, valAddressPtr, isNullPtr
     std::vector<void (*)(omniruntime::vec::BaseVector*, int32_t, int32_t, int64_t*, bool*)> filterFuncPtrs;
     std::vector<bool> filterNullKeys;
-    std::vector<int64_t> leftMaxTimestamps;
-    std::vector<int64_t> rightMaxTimestamps;
+    std::vector<BatchCleanupInfo> leftBatchCleanupInfos;
+    std::vector<BatchCleanupInfo> rightBatchCleanupInfos;
     std::string shiftTimeZone = "UTC";
     omnistream::StateType backendType_ = omnistream::StateType::HEAP;
+    int32_t maxParallelism_ = 0;
+    std::unordered_map<int32_t, omnistream::VectorBatch*> reuseVectorBatchByKeyGroup_{};
+    std::unordered_map<int32_t, std::vector<int32_t>> reuseOldRowIdsByKeyGroup_{};
+    std::vector<KeyType> reuseKeys_{};
+    std::vector<ComboId> reuseComboIds_{};
+    std::vector<int64_t> reuseWindowEndTimes_{};
 
     template <typename TYPE>
     void insertLeft(
         int colIdx,
-        std::vector<VectorBatchId>* leftElements,
-        std::vector<VectorBatchId>* rightElements,
+        std::vector<ComboId>* leftElements,
+        std::vector<ComboId>* rightElements,
         omnistream::VectorBatch* outputBatch,
         bool isInner);
     template <typename TYPE>
     void insertRight(
         int colIdx,
-        std::vector<VectorBatchId>* leftElements,
-        std::vector<VectorBatchId>* rightElements,
+        std::vector<ComboId>* leftElements,
+        std::vector<ComboId>* rightElements,
         omnistream::VectorBatch* outputBatch,
         bool isInner);
     void insertLeftVarchar(
         int colIdx,
-        std::vector<VectorBatchId>* leftElements,
-        std::vector<VectorBatchId>* rightElements,
+        std::vector<ComboId>* leftElements,
+        std::vector<ComboId>* rightElements,
         omnistream::VectorBatch* outputBatch,
         bool isInner);
     void insertRightVarchar(
         int colIdx,
-        std::vector<VectorBatchId>* leftElements,
-        std::vector<VectorBatchId>* rightElements,
+        std::vector<ComboId>* leftElements,
+        std::vector<ComboId>* rightElements,
         omnistream::VectorBatch* outputBatch,
         bool isInner);
 
     void processBatch(
         omnistream::VectorBatch* batch,
         int windowEndIndex,
-        WindowListState<KeyType, int64_t, VectorBatchId>* recordState,
+        WindowListState<KeyType, int64_t, ComboId>* recordState,
         bool isLeftSide);
     ::FilterFunc generateJoinCondition();
     void getAllColRefs(nlohmann::json& config);
     void BuildInnerLeft(
-        std::vector<VectorBatchId>* leftElements,
-        std::vector<VectorBatchId>* rightElements,
-        omnistream::VectorBatch* outputBatch);
+        std::vector<ComboId>* leftElements, std::vector<ComboId>* rightElements, omnistream::VectorBatch* outputBatch);
     void BuildInnerRight(
-        std::vector<VectorBatchId>* leftElements,
-        std::vector<VectorBatchId>* rightElements,
-        omnistream::VectorBatch* outputBatch);
+        std::vector<ComboId>* leftElements, std::vector<ComboId>* rightElements, omnistream::VectorBatch* outputBatch);
 };
 
 template <typename KeyType>
@@ -222,10 +222,6 @@ template <typename KeyType>
 WindowJoinOperator<KeyType>::~WindowJoinOperator()
 {
     delete collector;
-    delete keySelectorLeft;
-    keySelectorLeft = nullptr;
-    delete keySelectorRight;
-    keySelectorRight = nullptr;
 }
 
 template <typename KeyType>
@@ -239,10 +235,10 @@ void WindowJoinOperator<KeyType>::open()
         AbstractStreamOperator<KeyType>::getInternalTimerService("window-timers", new LongSerializer(), this);
     std::string leftName = "left-records";
     std::string rightName = "right-records";
-    auto leftDescriptor = new ListStateDescriptor<VectorBatchId>(leftName, new LongSerializer());
-    auto rightDescriptor = new ListStateDescriptor<VectorBatchId>(rightName, new LongSerializer());
+    auto leftDescriptor = new ListStateDescriptor<ComboId>(leftName, new LongSerializer());
+    auto rightDescriptor = new ListStateDescriptor<ComboId>(rightName, new LongSerializer());
 
-    using S = InternalListState<KeyType, int64_t, VectorBatchId>;
+    using S = InternalListState<KeyType, int64_t, ComboId>;
     auto keyedStateBackend = this->stateHandler->getKeyedStateBackend();
     if (dynamic_cast<HeapKeyedStateBackend<KeyType>*>(keyedStateBackend)) {
         backendType_ = omnistream::StateType::HEAP;
@@ -251,11 +247,11 @@ void WindowJoinOperator<KeyType>::open()
     } else {
         THROW_LOGIC_EXCEPTION("Unsupported keyed state backend");
     }
-    leftWindowState = new WindowListState<KeyType, int64_t, VectorBatchId>(
-        keyedStateBackend->template getOrCreateKeyedState<int64_t, S, std::vector<VectorBatchId>*>(
+    leftWindowState = new WindowListState<KeyType, int64_t, ComboId>(
+        keyedStateBackend->template getOrCreateKeyedState<int64_t, S, std::vector<ComboId>*>(
             new LongSerializer(), leftDescriptor));
-    rightWindowState = new WindowListState<KeyType, int64_t, VectorBatchId>(
-        keyedStateBackend->template getOrCreateKeyedState<int64_t, S, std::vector<VectorBatchId>*>(
+    rightWindowState = new WindowListState<KeyType, int64_t, ComboId>(
+        keyedStateBackend->template getOrCreateKeyedState<int64_t, S, std::vector<ComboId>*>(
             new LongSerializer(), rightDescriptor));
 
     std::vector<int> leftKeyTypes;
@@ -270,8 +266,10 @@ void WindowJoinOperator<KeyType>::open()
     if (leftKeyTypes != rightKeyTypes) {
         throw std::runtime_error("Left key types do not match right key types");
     }
-    this->keySelectorLeft = new KeySelector<KeyType>(leftKeyTypes, this->leftKeyIndex);
-    this->keySelectorRight = new KeySelector<KeyType>(rightKeyTypes, this->rightKeyIndex);
+    this->keySelectorLeft = std::make_unique<KeySelector<KeyType>>(leftKeyTypes, this->leftKeyIndex);
+    this->keySelectorRight = std::make_unique<KeySelector<KeyType>>(rightKeyTypes, this->rightKeyIndex);
+    maxParallelism_ =
+        static_cast<StreamingRuntimeContext<KeyType>*>(this->getRuntimeContext())->getMaxNumberOfSubtasks();
 
     generatedFilter = generateJoinCondition();
     getAllColRefs(description["nonEquiCondition"]);
@@ -311,9 +309,6 @@ void WindowJoinOperator<KeyType>::processBatch1(StreamRecord* input)
     auto record = std::unique_ptr<StreamRecord>(input);
     auto batch = reinterpret_cast<omnistream::VectorBatch*>(record->getValue());
     processBatch(batch, leftWindowEndIndex, leftWindowState, true);
-    if (backendType_ != omnistream::StateType::HEAP) {
-        delete batch;
-    }
 }
 
 template <typename KeyType>
@@ -322,9 +317,6 @@ void WindowJoinOperator<KeyType>::processBatch2(StreamRecord* input)
     auto record = std::unique_ptr<StreamRecord>(input);
     auto batch = reinterpret_cast<omnistream::VectorBatch*>(record->getValue());
     processBatch(batch, rightWindowEndIndex, rightWindowState, false);
-    if (backendType_ != omnistream::StateType::HEAP) {
-        delete batch;
-    }
 }
 
 template <typename KeyType>
@@ -347,8 +339,8 @@ void WindowJoinOperator<KeyType>::onEventTime(TimerHeapInternalTimer<KeyType, in
     this->setCurrentKey(timer->getKey());
 
     // 内存状态后端情况下，不需要手动做删除
-    std::vector<VectorBatchId>* leftRecords = leftWindowState->get(window);
-    std::vector<VectorBatchId>* rightRecords = rightWindowState->get(window);
+    std::vector<ComboId>* leftRecords = leftWindowState->get(window);
+    std::vector<ComboId>* rightRecords = rightWindowState->get(window);
     if (leftRecords != nullptr) {
         LOG_PRINTF("onEventTime from left %d", leftRecords->size());
     } else {
@@ -373,25 +365,25 @@ void WindowJoinOperator<KeyType>::onEventTime(TimerHeapInternalTimer<KeyType, in
         }
     }
 
-    std::vector<size_t> leftIndicesToDelete;
-    std::vector<size_t> rightIndicesToDelete;
-    for (size_t i = 0; i < leftMaxTimestamps.size(); ++i) {
-        if (window > leftMaxTimestamps[i] && leftMaxTimestamps[i] != INT64_MIN) {
-            leftIndicesToDelete.push_back(i);
-            leftMaxTimestamps[i] = INT64_MAX;
+    std::unordered_map<int32_t, std::vector<uint32_t>> leftSequenceNumbersToDelete;
+    for (auto& info : leftBatchCleanupInfos) {
+        if (window > info.maxTimestamp && info.maxTimestamp != INT64_MIN) {
+            leftSequenceNumbersToDelete[info.keyGroup].push_back(info.sequenceNumber);
+            info.maxTimestamp = INT64_MAX;
         }
     }
-    if (!leftIndicesToDelete.empty()) {
-        leftWindowState->clearVectors(leftIndicesToDelete);
+    for (auto& [keyGroup, sequenceNumbers] : leftSequenceNumbersToDelete) {
+        leftWindowState->clearVectorBatches(keyGroup, sequenceNumbers);
     }
-    for (size_t i = 0; i < rightMaxTimestamps.size(); ++i) {
-        if (window > rightMaxTimestamps[i] && rightMaxTimestamps[i] != INT64_MIN) {
-            rightIndicesToDelete.push_back(i);
-            rightMaxTimestamps[i] = INT64_MAX;
+    std::unordered_map<int32_t, std::vector<uint32_t>> rightSequenceNumbersToDelete;
+    for (auto& info : rightBatchCleanupInfos) {
+        if (window > info.maxTimestamp && info.maxTimestamp != INT64_MIN) {
+            rightSequenceNumbersToDelete[info.keyGroup].push_back(info.sequenceNumber);
+            info.maxTimestamp = INT64_MAX;
         }
     }
-    if (!rightIndicesToDelete.empty()) {
-        rightWindowState->clearVectors(rightIndicesToDelete);
+    for (auto& [keyGroup, sequenceNumbers] : rightSequenceNumbersToDelete) {
+        rightWindowState->clearVectorBatches(keyGroup, sequenceNumbers);
     }
 }
 
@@ -424,9 +416,7 @@ result:
 */
 template <typename KeyType>
 void WindowJoinOperator<KeyType>::BuildInnerLeft(
-    std::vector<VectorBatchId>* leftElements,
-    std::vector<VectorBatchId>* rightElements,
-    omnistream::VectorBatch* outputBatch)
+    std::vector<ComboId>* leftElements, std::vector<ComboId>* rightElements, omnistream::VectorBatch* outputBatch)
 {
     int colIdx = 0;
     // Left side
@@ -465,9 +455,7 @@ void WindowJoinOperator<KeyType>::BuildInnerLeft(
 
 template <typename KeyType>
 void WindowJoinOperator<KeyType>::BuildInnerRight(
-    std::vector<VectorBatchId>* leftElements,
-    std::vector<VectorBatchId>* rightElements,
-    omnistream::VectorBatch* outputBatch)
+    std::vector<ComboId>* leftElements, std::vector<ComboId>* rightElements, omnistream::VectorBatch* outputBatch)
 {
     // Right side
     int colIdx = leftTypes.size();
@@ -506,9 +494,7 @@ void WindowJoinOperator<KeyType>::BuildInnerRight(
 
 template <typename KeyType>
 void WindowJoinOperator<KeyType>::buildInner(
-    std::vector<VectorBatchId>* leftElements,
-    std::vector<VectorBatchId>* rightElements,
-    omnistream::VectorBatch* outputBatch)
+    std::vector<ComboId>* leftElements, std::vector<ComboId>* rightElements, omnistream::VectorBatch* outputBatch)
 {
     BuildInnerLeft(leftElements, rightElements, outputBatch);
     BuildInnerRight(leftElements, rightElements, outputBatch);
@@ -516,7 +502,7 @@ void WindowJoinOperator<KeyType>::buildInner(
 
 template <typename KeyType>
 void WindowJoinOperator<KeyType>::buildRightNull(
-    std::vector<VectorBatchId>* leftElements, omnistream::VectorBatch* outputBatch)
+    std::vector<ComboId>* leftElements, omnistream::VectorBatch* outputBatch)
 {
     int colIdx = 0;
     for (auto dataType : leftTypes) {
@@ -556,7 +542,7 @@ void WindowJoinOperator<KeyType>::buildRightNull(
 
 template <typename KeyType>
 void WindowJoinOperator<KeyType>::buildLeftNull(
-    std::vector<VectorBatchId>* rightElements, omnistream::VectorBatch* outputBatch)
+    std::vector<ComboId>* rightElements, omnistream::VectorBatch* outputBatch)
 {
     int colIdx = 0 + leftTypes.size();
     for (auto dataType : rightTypes) {
@@ -596,7 +582,7 @@ void WindowJoinOperator<KeyType>::buildLeftNull(
 
 template <typename KeyType>
 inline void WindowJoinOperator<KeyType>::buildSemiAnti(
-    std::vector<VectorBatchId>* elements, omnistream::VectorBatch* outputBatch, bool isSemi, std::set<int>* matchedSet)
+    std::vector<ComboId>* elements, omnistream::VectorBatch* outputBatch, bool isSemi, std::set<int>* matchedSet)
 {
 }
 
@@ -604,67 +590,115 @@ template <typename KeyType>
 void WindowJoinOperator<KeyType>::processBatch(
     omnistream::VectorBatch* batch,
     int windowEndIndex,
-    WindowListState<KeyType, int64_t, VectorBatchId>* recordState,
+    WindowListState<KeyType, int64_t, ComboId>* recordState,
     bool isLeftSide)
 {
-    auto maxTimeStamp = batch->setMaxTimestamp(isLeftSide ? leftWindowEndIndex : rightWindowEndIndex);
-    if (isLeftSide) {
-        leftMaxTimestamps.push_back(maxTimeStamp);
-    } else {
-        rightMaxTimestamps.push_back(maxTimeStamp);
-    }
-    int batchID = recordState->getCurrentBatchId();
-    recordState->addVectorBatch(batch);
+    auto batchGuard = std::unique_ptr<omnistream::VectorBatch>(batch);
     KeySelector<KeyType>* keySelector = nullptr;
-    keySelector = isLeftSide ? this->keySelectorLeft : this->keySelectorRight;
+    keySelector = isLeftSide ? this->keySelectorLeft.get() : this->keySelectorRight.get();
 
-    for (int i = 0; i < batch->GetRowCount(); i++) {
-        auto key = keySelector->getKey(batch, i);
-        this->setCurrentKey(key);
-
+    auto rowCount = batchGuard->GetRowCount();
+    reuseKeys_.resize(rowCount);
+    reuseComboIds_.resize(rowCount, INVALID_COMBO_ID);
+    reuseWindowEndTimes_.resize(rowCount);
+    for (int i = 0; i < rowCount; i++) {
         int64_t windowEndTime =
-            reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(batch->Get(windowEndIndex))->GetValue(i);
+            reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(batchGuard->Get(windowEndIndex))->GetValue(i);
         if (TimeWindowUtil::isWindowFired(windowEndTime, internalTimerService->currentWatermark(), shiftTimeZone)) {
             continue;
         }
-        recordState->add(windowEndTime, VectorBatchUtil::getComboId(batchID, i));
+        reuseWindowEndTimes_[i] = windowEndTime;
+        auto key = keySelector->getKey(batchGuard.get(), i);
+        reuseKeys_[i] = key;
+
+        auto keyGroup = KeyGroupRangeAssignment<KeyType>::assignToKeyGroup(key, maxParallelism_);
+        auto& oldRowIds = reuseOldRowIdsByKeyGroup_[keyGroup];
+        auto newRowId = static_cast<int32_t>(oldRowIds.size());
+        auto comboId = VectorBatchUtil::getComboId(keyGroup, recordState->getNextSequenceNumber(keyGroup), newRowId);
+        reuseComboIds_[i] = comboId;
+
+        oldRowIds.push_back(i);
+    }
+
+    for (int i = 0; i < rowCount; i++) {
+        auto comboId = reuseComboIds_[i];
+        if (comboId == INVALID_COMBO_ID) {
+            continue;
+        }
+        auto key = reuseKeys_[i];
+        this->setCurrentKey(key);
+        auto windowEndTime = reuseWindowEndTimes_[i];
+
+        // TODO: use addAll
+        recordState->add(windowEndTime, comboId);
         internalTimerService->registerEventTimeTimer(
             windowEndTime, TimeWindowUtil::toEpochMillsForTimer(windowEndTime - 1, shiftTimeZone));
     }
+
+    bool shouldSplitVectorBatch =
+        reuseOldRowIdsByKeyGroup_.size() > 1 ||
+        (reuseOldRowIdsByKeyGroup_.size() == 1 && reuseOldRowIdsByKeyGroup_.begin()->second.size() != rowCount);
+
+    for (auto& [keyGroup, oldRowIds] : reuseOldRowIdsByKeyGroup_) {
+        auto sequenceNumber = recordState->getNextSequenceNumber(keyGroup);
+        omnistream::VectorBatch* splitBatch;
+        if (shouldSplitVectorBatch) {
+            splitBatch = VectorBatchUtil::buildNewVectorBatchByRowIds(batch, oldRowIds);
+        } else {
+            splitBatch = batchGuard.release();
+        }
+        auto maxTimestamp = splitBatch->setMaxTimestamp(windowEndIndex);
+        reuseVectorBatchByKeyGroup_[keyGroup] = splitBatch;
+        if (isLeftSide) {
+            leftBatchCleanupInfos.push_back({keyGroup, sequenceNumber, maxTimestamp});
+        } else {
+            rightBatchCleanupInfos.push_back({keyGroup, sequenceNumber, maxTimestamp});
+        }
+    }
+
+    recordState->addVectorBatches(reuseVectorBatchByKeyGroup_);
+
+    // clean up
+    if (backendType_ != omnistream::StateType::HEAP) {
+        for (auto& [keyGroup, vectorBatch] : reuseVectorBatchByKeyGroup_) {
+            delete vectorBatch;
+        }
+    }
+
+    if constexpr (std::is_pointer_v<KeyType>) {
+        for (auto& key : reuseKeys_) {
+            delete key;
+        }
+    }
+    reuseVectorBatchByKeyGroup_.clear();
+    reuseOldRowIdsByKeyGroup_.clear();
+    reuseKeys_.clear();
+    reuseComboIds_.clear();
+    reuseWindowEndTimes_.clear();
 }
 
 template <typename KeyType>
 template <typename TYPE>
 inline void WindowJoinOperator<KeyType>::insertLeft(
     int colIdx,
-    std::vector<VectorBatchId>* leftElements,
-    std::vector<VectorBatchId>* rightElements,
+    std::vector<ComboId>* leftElements,
+    std::vector<ComboId>* rightElements,
     omnistream::VectorBatch* outputBatch,
     bool isInner)
 {
-    int num = (*leftElements).size();
-    uint32_t* batchIDdst = new uint32_t[num];
-    uint32_t* rowIDdst = new uint32_t[num];
-    int processNum = svcntw();
-    int half = svcntd();
-    for (int i = 0; i < num; i += processNum) {
-        svbool_t pg = svwhilelt_b64(i, num);
-        svbool_t pg2 = svwhilelt_b64(i + half, num);
-        svbool_t pg3 = svwhilelt_b32(i, num);
-        svuint64_t comboID = svld1(pg, (*leftElements).data() + i);
-        svuint64_t comboID2 = svld1(pg2, (*leftElements).data() + i + half);
-        svuint32_t rowID = svuzp1(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
-        svuint32_t batchID = svuzp2(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
-        svst1_u32(pg3, rowIDdst + i, rowID);
-        svst1_u32(pg3, batchIDdst + i, batchID);
-    }
+    auto num = leftElements->size();
+    auto keyGroups = std::vector<int32_t>(num);
+    auto sequenceNumbers = std::vector<uint32_t>(num);
+    auto rowIds = std::vector<int32_t>(num);
+    VectorBatchUtil::decodeComboIds(*leftElements, keyGroups, sequenceNumbers, rowIds);
     auto col = reinterpret_cast<omniruntime::vec::Vector<TYPE>*>(outputBatch->Get(colIdx));
     if (isNonEquiCondition || !isInner) {
         int rowIdx = 0;
         for (int j = 0; j < num; j++) {
-            int batchId = batchIDdst[j];
-            int rowId = rowIDdst[j];
-            auto batch = leftWindowState->getVectorBatch(batchId);
+            auto keyGroup = keyGroups[j];
+            auto sequenceNumber = sequenceNumbers[j];
+            auto rowId = rowIds[j];
+            auto batch = leftWindowState->getVectorBatch(keyGroup, sequenceNumber);
             auto value = batch->template GetValueAt<TYPE>(colIdx, rowId);
             col->SetValue(rowIdx, value);
             rowIdx++;
@@ -675,9 +709,10 @@ inline void WindowJoinOperator<KeyType>::insertLeft(
     } else {
         int rowIdx = 0;
         for (int j = 0; j < num; j++) {
-            int batchId = batchIDdst[j];
-            int rowId = rowIDdst[j];
-            auto batch = leftWindowState->getVectorBatch(batchId);
+            auto keyGroup = keyGroups[j];
+            auto sequenceNumber = sequenceNumbers[j];
+            auto rowId = rowIds[j];
+            auto batch = leftWindowState->getVectorBatch(keyGroup, sequenceNumber);
             auto value = batch->template GetValueAt<TYPE>(colIdx, rowId);
             for (size_t i = 0; i < rightElements->size(); i++) {
                 col->SetValue(i + rowIdx, value);
@@ -688,15 +723,13 @@ inline void WindowJoinOperator<KeyType>::insertLeft(
             }
         }
     }
-    delete[] batchIDdst;
-    delete[] rowIDdst;
 }
 
 template <typename KeyType>
 void WindowJoinOperator<KeyType>::insertLeftVarchar(
     int colIdx,
-    std::vector<VectorBatchId>* leftElements,
-    std::vector<VectorBatchId>* rightElements,
+    std::vector<ComboId>* leftElements,
+    std::vector<ComboId>* rightElements,
     omnistream::VectorBatch* outputBatch,
     bool isInner)
 {
@@ -705,9 +738,10 @@ void WindowJoinOperator<KeyType>::insertLeftVarchar(
     if (isNonEquiCondition || !isInner) {
         int rowIdx = 0;
         for (auto element : *leftElements) {
-            int batchId = VectorBatchUtil::getBatchId(element);
-            int rowId = VectorBatchUtil::getRowId(element);
-            auto batch = leftWindowState->getVectorBatch(batchId);
+            auto keyGroup = VectorBatchUtil::getKeyGroup(element);
+            auto sequenceNumber = VectorBatchUtil::getSequenceNumber(element);
+            auto rowId = VectorBatchUtil::getRowId(element);
+            auto batch = leftWindowState->getVectorBatch(keyGroup, sequenceNumber);
             auto value = reinterpret_cast<varcharVecType*>(batch->Get(colIdx))->GetValue(rowId);
             col->SetValue(rowIdx, value);
             rowIdx++;
@@ -717,29 +751,16 @@ void WindowJoinOperator<KeyType>::insertLeftVarchar(
         }
     } else {
         int rowIdx = 0;
-        int num = (*leftElements).size();
-        uint32_t* batchIDdst = new uint32_t[num];
-        uint32_t* rowIDdst = new uint32_t[num];
-
-        int processNum = svcntw();
-        int half = svcntd();
-        for (int i = 0; i < num; i += processNum) {
-            svbool_t pg = svwhilelt_b64(i, num);
-            svbool_t pg2 = svwhilelt_b64(i + half, num);
-            svbool_t pg3 = svwhilelt_b32(i, num);
-            svuint64_t comboID = svld1(pg, (*leftElements).data() + i);
-            svuint64_t comboID2 = svld1(pg2, (*leftElements).data() + i + half);
-
-            svuint32_t rowID = svuzp1(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
-            svuint32_t batchID = svuzp2(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
-
-            svst1_u32(pg3, rowIDdst + i, rowID);
-            svst1_u32(pg3, batchIDdst + i, batchID);
-        }
+        auto num = leftElements->size();
+        auto keyGroups = std::vector<int32_t>(num);
+        auto sequenceNumbers = std::vector<uint32_t>(num);
+        auto rowIds = std::vector<int32_t>(num);
+        VectorBatchUtil::decodeComboIds(*leftElements, keyGroups, sequenceNumbers, rowIds);
         for (int j = 0; j < num; j++) {
-            int batchId = batchIDdst[j];
-            int rowId = rowIDdst[j];
-            auto batch = leftWindowState->getVectorBatch(batchId);
+            auto keyGroup = keyGroups[j];
+            auto sequenceNumber = sequenceNumbers[j];
+            auto rowId = rowIds[j];
+            auto batch = leftWindowState->getVectorBatch(keyGroup, sequenceNumber);
             auto value = reinterpret_cast<varcharVecType*>(batch->Get(colIdx))->GetValue(rowId);
             for (size_t i = 0; i < rightElements->size(); i++) {
                 col->SetValue(i + rowIdx, value);
@@ -749,8 +770,6 @@ void WindowJoinOperator<KeyType>::insertLeftVarchar(
                 delete batch;
             }
         }
-        delete[] batchIDdst;
-        delete[] rowIDdst;
     }
 }
 
@@ -758,34 +777,24 @@ template <typename KeyType>
 template <typename TYPE>
 inline void WindowJoinOperator<KeyType>::insertRight(
     int colIdx,
-    std::vector<VectorBatchId>* leftElements,
-    std::vector<VectorBatchId>* rightElements,
+    std::vector<ComboId>* leftElements,
+    std::vector<ComboId>* rightElements,
     omnistream::VectorBatch* outputBatch,
     bool isInner)
 {
-    int num = (*rightElements).size();
-    uint32_t* batchIDdst = new uint32_t[num];
-    uint32_t* rowIDdst = new uint32_t[num];
-    int processNum = svcntw();
-    int half = svcntd();
-    for (int i = 0; i < num; i += processNum) {
-        svbool_t pg = svwhilelt_b64(i, num);
-        svbool_t pg2 = svwhilelt_b64(i + half, num);
-        svbool_t pg3 = svwhilelt_b32(i, num);
-        svuint64_t comboID = svld1(pg, (*rightElements).data() + i);
-        svuint64_t comboID2 = svld1(pg2, (*rightElements).data() + i + half);
-        svuint32_t rowID = svuzp1(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
-        svuint32_t batchID = svuzp2(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
-        svst1_u32(pg3, rowIDdst + i, rowID);
-        svst1_u32(pg3, batchIDdst + i, batchID);
-    }
+    auto num = rightElements->size();
+    auto keyGroups = std::vector<int32_t>(num);
+    auto sequenceNumbers = std::vector<uint32_t>(num);
+    auto rowIds = std::vector<int32_t>(num);
+    VectorBatchUtil::decodeComboIds(*rightElements, keyGroups, sequenceNumbers, rowIds);
     auto col = reinterpret_cast<omniruntime::vec::Vector<TYPE>*>(outputBatch->Get(colIdx));
     if (isNonEquiCondition || !isInner) {
         int rowIdx = 0;
         for (int i = 0; i < num; i++) {
-            int batchId = batchIDdst[i];
-            int rowId = rowIDdst[i];
-            auto batch = rightWindowState->getVectorBatch(batchId);
+            auto keyGroup = keyGroups[i];
+            auto sequenceNumber = sequenceNumbers[i];
+            auto rowId = rowIds[i];
+            auto batch = rightWindowState->getVectorBatch(keyGroup, sequenceNumber);
             auto value = batch->template GetValueAt<TYPE>(colIdx - leftTypes.size(), rowId);
             col->SetValue(rowIdx, value);
             rowIdx++;
@@ -795,10 +804,10 @@ inline void WindowJoinOperator<KeyType>::insertRight(
         }
     } else {
         for (size_t i = 0; i < rightElements->size(); i++) {
-            auto element = rightElements->at(i);
-            int batchId = batchIDdst[i];
-            int rowId = rowIDdst[i];
-            auto batch = rightWindowState->getVectorBatch(batchId);
+            auto keyGroup = keyGroups[i];
+            auto sequenceNumber = sequenceNumbers[i];
+            auto rowId = rowIds[i];
+            auto batch = rightWindowState->getVectorBatch(keyGroup, sequenceNumber);
             auto value = batch->template GetValueAt<TYPE>(colIdx - leftTypes.size(), rowId);
             for (size_t j = 0; j < leftElements->size(); j++) {
                 int valIdx = i + leftElements->size() * j;
@@ -809,15 +818,13 @@ inline void WindowJoinOperator<KeyType>::insertRight(
             }
         }
     }
-    delete[] batchIDdst;
-    delete[] rowIDdst;
 }
 
 template <typename KeyType>
 void WindowJoinOperator<KeyType>::insertRightVarchar(
     int colIdx,
-    std::vector<VectorBatchId>* leftElements,
-    std::vector<VectorBatchId>* rightElements,
+    std::vector<ComboId>* leftElements,
+    std::vector<ComboId>* rightElements,
     omnistream::VectorBatch* outputBatch,
     bool isInner)
 {
@@ -826,9 +833,10 @@ void WindowJoinOperator<KeyType>::insertRightVarchar(
     if (isNonEquiCondition || !isInner) {
         int rowIdx = 0;
         for (auto element : *rightElements) {
-            int batchId = VectorBatchUtil::getBatchId(element);
-            int rowId = VectorBatchUtil::getRowId(element);
-            auto batch = rightWindowState->getVectorBatch(batchId);
+            auto keyGroup = VectorBatchUtil::getKeyGroup(element);
+            auto sequenceNumber = VectorBatchUtil::getSequenceNumber(element);
+            auto rowId = VectorBatchUtil::getRowId(element);
+            auto batch = rightWindowState->getVectorBatch(keyGroup, sequenceNumber);
             auto value = reinterpret_cast<varcharVecType*>(batch->Get(colIdx - leftTypes.size()))->GetValue(rowId);
             col->SetValue(rowIdx, value);
             rowIdx++;
@@ -837,27 +845,16 @@ void WindowJoinOperator<KeyType>::insertRightVarchar(
             }
         }
     } else {
-        int num = (*rightElements).size();
-        uint32_t* batchIDdst = new uint32_t[num];
-        uint32_t* rowIDdst = new uint32_t[num];
-        int processNum = svcntw();
-        int half = svcntd();
-        for (int i = 0; i < num; i += processNum) {
-            svbool_t pg = svwhilelt_b64(i, num);
-            svbool_t pg2 = svwhilelt_b64(i + half, num);
-            svbool_t pg3 = svwhilelt_b32(i, num);
-            svuint64_t comboID = svld1(pg, (*rightElements).data() + i);
-            svuint64_t comboID2 = svld1(pg2, (*rightElements).data() + i + half);
-            svuint32_t rowID = svuzp1(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
-            svuint32_t batchID = svuzp2(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
-            svst1_u32(pg3, rowIDdst + i, rowID);
-            svst1_u32(pg3, batchIDdst + i, batchID);
-        }
+        auto num = rightElements->size();
+        auto keyGroups = std::vector<int32_t>(num);
+        auto sequenceNumbers = std::vector<uint32_t>(num);
+        auto rowIds = std::vector<int32_t>(num);
+        VectorBatchUtil::decodeComboIds(*rightElements, keyGroups, sequenceNumbers, rowIds);
         for (size_t i = 0; i < rightElements->size(); i++) {
-            auto element = rightElements->at(i);
-            int batchId = batchIDdst[i];
-            int rowId = rowIDdst[i];
-            auto batch = rightWindowState->getVectorBatch(batchId);
+            auto keyGroup = keyGroups[i];
+            auto sequenceNumber = sequenceNumbers[i];
+            auto rowId = rowIds[i];
+            auto batch = rightWindowState->getVectorBatch(keyGroup, sequenceNumber);
             auto value = reinterpret_cast<varcharVecType*>(batch->Get(colIdx - leftTypes.size()))->GetValue(rowId);
             for (size_t j = 0; j < leftElements->size(); j++) {
                 int valIdx = i + leftElements->size() * j;
@@ -867,8 +864,6 @@ void WindowJoinOperator<KeyType>::insertRightVarchar(
                 delete batch;
             }
         }
-        delete[] batchIDdst;
-        delete[] rowIDdst;
     }
 }
 
@@ -903,28 +898,30 @@ void WindowJoinOperator<KeyType>::getAllColRefs(nlohmann::json& config)
 }
 
 template <typename KeyType>
-bool WindowJoinOperator<KeyType>::filter(VectorBatchId leftElement, VectorBatchId rightElement)
+bool WindowJoinOperator<KeyType>::filter(ComboId leftElement, ComboId rightElement)
 {
     if (isNonEquiCondition) {
+        auto leftKeyGroup = VectorBatchUtil::getKeyGroup(leftElement);
+        auto leftSequenceNumber = VectorBatchUtil::getSequenceNumber(leftElement);
         auto leftRowId = VectorBatchUtil::getRowId(leftElement);
-        auto leftBatchId = VectorBatchUtil::getBatchId(leftElement);
 
+        auto rightKeyGroup = VectorBatchUtil::getKeyGroup(rightElement);
+        auto rightSequenceNumber = VectorBatchUtil::getSequenceNumber(rightElement);
         auto rightRowId = VectorBatchUtil::getRowId(rightElement);
-        auto rightBatchId = VectorBatchUtil::getBatchId(rightElement);
 
         int64_t* vals = new int64_t[totalNumOfCols];
         bool* nulls = new bool[totalNumOfCols];
         auto resultBool = new bool(false);
-        auto batches = std::vector<omnistream::VectorBatch*>(totalNumOfCols);
+        auto batches = std::vector<omnistream::VectorBatch*>();
 
         for (auto col : colRefsForNonEquiCondition) {
             omnistream::VectorBatch* batch;
             omniruntime::vec::BaseVector* vector;
             if (col < static_cast<int>(leftTypes.size())) {
-                batch = leftWindowState->getVectorBatch(leftBatchId);
+                batch = leftWindowState->getVectorBatch(leftKeyGroup, leftSequenceNumber);
                 vector = batch->Get(col);
             } else {
-                batch = rightWindowState->getVectorBatch(rightBatchId);
+                batch = rightWindowState->getVectorBatch(rightKeyGroup, rightSequenceNumber);
                 vector = batch->Get(col - leftTypes.size());
             }
             batches.push_back(batch);

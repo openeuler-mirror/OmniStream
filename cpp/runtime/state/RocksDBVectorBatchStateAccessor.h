@@ -77,7 +77,7 @@ public:
         }
     }
 
-    bool getSerializedBatch(int64_t batchId, ByteView* value) override
+    bool getSerializedBatch(omnistream::VectorBatchId batchId, ByteView* value) override
     {
         if (value == nullptr) {
             return false;
@@ -123,7 +123,7 @@ protected:
     }
 
 private:
-    std::vector<int8_t> serializeVectorBatchKey(int64_t batchId) const
+    std::vector<int8_t> serializeVectorBatchKey(omnistream::VectorBatchId batchId) const
     {
         OutputBufferStatus outputBufferStatus;
         DataOutputSerializer outputSerializer;

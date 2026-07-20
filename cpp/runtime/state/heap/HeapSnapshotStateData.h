@@ -17,6 +17,8 @@
 #include <utility>
 #include <vector>
 
+#include "table/data/vectorbatch/VectorBatchStorageInfo.h"
+
 /**
  * HeapSnapshotStateData 承载 Heap compatible savepoint 转换阶段需要复用的
  * VectorBatch 侧表 frozen bytes。
@@ -33,7 +35,7 @@
  * entries() 与 findVectorBatchEntry() 返回的引用/指针均指向类内部存储；调用方
  * 不应在继续追加记录后长期缓存旧指针，因为 vector 扩容可能使旧指针失效。
  * 查询不存在的 batchId 返回 nullptr。普通 addEntry() 不写入 batchId 索引，并会
- * 强制把 vectorBatchId 归一为 -1，避免普通状态记录被误解释为 VectorBatch entry。
+ * 强制把 vectorBatchId 归一为 INVALID_VECTOR_BATCH_ID，避免普通状态记录被误解释为 VectorBatch entry。
  *
  * Heap snapshot frozen data 与 iterator close 解耦：iterator 关闭只结束迭代生命周期，
  * 不应清理本对象中的 frozen bytes，资源层可继续通过 shared_ptr 创建 VB accessor。
@@ -43,7 +45,7 @@ public:
     struct SerializedEntry {
         std::vector<int8_t> serializedKey;
         std::vector<int8_t> serializedValue;
-        int64_t vectorBatchId = -1;
+        omnistream::VectorBatchId vectorBatchId = omnistream::INVALID_VECTOR_BATCH_ID;
     };
 
     // 记录注册状态名，便于资源层按 logical/vb state name 建立访问关系。
@@ -51,18 +53,18 @@ public:
 
     void addEntry(SerializedEntry entry)
     {
-        entry.vectorBatchId = -1;
+        entry.vectorBatchId = omnistream::INVALID_VECTOR_BATCH_ID;
         entries_.push_back(std::move(entry));
     }
 
-    void addVectorBatchEntry(SerializedEntry entry, int64_t batchId)
+    void addVectorBatchEntry(SerializedEntry entry, omnistream::VectorBatchId batchId)
     {
         entry.vectorBatchId = batchId;
         entries_.push_back(std::move(entry));
         vectorBatchEntryIndices_[batchId] = entries_.size() - 1;
     }
 
-    const SerializedEntry* findVectorBatchEntry(int64_t batchId) const
+    const SerializedEntry* findVectorBatchEntry(omnistream::VectorBatchId batchId) const
     {
         auto iter = vectorBatchEntryIndices_.find(batchId);
         if (iter == vectorBatchEntryIndices_.end()) {
@@ -93,5 +95,5 @@ public:
 
 private:
     std::vector<SerializedEntry> entries_;
-    std::unordered_map<int64_t, std::size_t> vectorBatchEntryIndices_;
+    std::unordered_map<omnistream::VectorBatchId, std::size_t> vectorBatchEntryIndices_;
 };

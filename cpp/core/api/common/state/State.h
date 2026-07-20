@@ -11,9 +11,14 @@
 
 #pragma once
 
+#include <cstdint>
+#include <unordered_map>
 #include <vector>
-#include "table/data/vectorbatch/VectorBatch.h"
+
+#include "common.h"
+
 namespace omnistream {
+class VectorBatch;
 enum class StateType {
     HEAP = 0,
     ROCKSDB = 1,
@@ -22,55 +27,49 @@ enum class StateType {
 } // namespace omnistream
 class State {
 public:
-    State() : vectorBatches() {};
-    virtual ~State()
-    {
-        for (auto batch : vectorBatches) {
-            delete batch;
-        }
-    };
+    State() = default;
+
+    virtual ~State() = default;
+
     virtual void clear() = 0;
-    virtual void addVectorBatch(omnistream::VectorBatch* vectorBatch)
-    {
-        vectorBatches.push_back(vectorBatch);
-    };
 
-    const std::vector<omnistream::VectorBatch*>& getVectorBatches() const
+    // only used for VectorBatch storage
+    virtual uint32_t getNextSequenceNumber(int32_t keyGroup)
     {
-        return vectorBatches;
-    };
-    virtual long getVectorBatchesSize()
-    {
-        return vectorBatches.size();
-    };
-    virtual omnistream::VectorBatch* getVectorBatch(int batchId)
-    {
-        if (batchId < 0 || static_cast<size_t>(batchId) >= vectorBatches.size()) {
-            THROW_LOGIC_EXCEPTION(
-                "batchId out of bounds: batchId = " << batchId << ", vectorBatches.size() = " << vectorBatches.size());
-        }
-        return vectorBatches[batchId];
-    }
-    virtual void clearVectors(int64_t currentTimestamp)
-    {
-        for (size_t i = 0; i < vectorBatches.size(); ++i) {
-            if (vectorBatches[i] && vectorBatches[i]->isEmpty(currentTimestamp)) {
-                delete vectorBatches[i];
-                vectorBatches[i] = nullptr;
-            }
-        }
+        NOT_IMPL_EXCEPTION;
     }
 
-    virtual void clearVectors(std::vector<size_t>& indicesToDelete)
+    virtual void addVectorBatch(int32_t keyGroup, omnistream::VectorBatch* vectorBatch)
     {
-        for (size_t index : indicesToDelete) {
-            if (index < vectorBatches.size() && vectorBatches[index]) {
-                delete vectorBatches[index];
-                vectorBatches[index] = nullptr;
-            }
-        }
+        NOT_IMPL_EXCEPTION;
     }
 
-protected:
-    std::vector<omnistream::VectorBatch*> vectorBatches;
+    /**
+     *
+     * @param vectorBatchByKeyGroup the key is the keyGroup of the VectorBatch
+     */
+    virtual void addVectorBatches(const std::unordered_map<int32_t, omnistream::VectorBatch*>& vectorBatchByKeyGroup)
+    {
+        NOT_IMPL_EXCEPTION;
+    }
+
+    virtual omnistream::VectorBatch* getVectorBatch(int32_t keyGroup, uint32_t sequenceNumber)
+    {
+        NOT_IMPL_EXCEPTION;
+    }
+
+    virtual std::vector<omnistream::VectorBatch*> getVectorBatches(int32_t keyGroup)
+    {
+        NOT_IMPL_EXCEPTION;
+    }
+
+    virtual void clearVectorBatches(int64_t currentTimestamp)
+    {
+        NOT_IMPL_EXCEPTION;
+    }
+
+    virtual void clearVectorBatches(int32_t keyGroup, std::vector<uint32_t>& sequenceNumbersToDelete)
+    {
+        NOT_IMPL_EXCEPTION;
+    }
 };

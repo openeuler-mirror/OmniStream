@@ -8,65 +8,126 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_VECTOR_BATCH_UTIL_H
-#define FLINK_TNEL_VECTOR_BATCH_UTIL_H
 
-#include "table/data/vectorbatch/VectorBatch.h"
-#include "OmniOperatorJIT/core/src/vector/unsafe_vector.h"
+#pragma once
+
 #include <arm_sve.h>
 #include <cstdint>
 #include <numeric>
 #include <vector>
+#include "table/data/vectorbatch/VectorBatch.h"
+#include "OmniOperatorJIT/core/src/vector/unsafe_vector.h"
+#include "core/utils/SVEUtil.h"
+#include "table/data/vectorbatch/VectorBatchStorageInfo.h"
 
+namespace omnistream {
 class VectorBatchUtil {
 public:
-    static inline int32_t getBatchId(int64_t id)
+    static inline int32_t getKeyGroup(ComboId comboId)
     {
-        uint64_t uid = static_cast<uint64_t>(id);
-        return (int32_t)(uid >> 32);
+        return static_cast<int32_t>((comboId >> 48) & UINT16_MAX);
     }
 
-    static inline int32_t getRowId(int64_t id)
+    static inline uint32_t getSequenceNumber(ComboId comboId)
     {
-        return (int32_t)id;
+        return static_cast<uint32_t>((comboId >> 16) & UINT32_MAX);
     }
 
-    static inline int64_t getComboId(int batchId, int rowId)
+    static inline int32_t getRowId(ComboId comboId)
     {
-        uint64_t ubatchId = static_cast<uint64_t>(batchId);
-        uint32_t urowId = static_cast<uint32_t>(rowId);
-        ubatchId = (ubatchId << 32) | urowId;
-        return static_cast<int64_t>(ubatchId);
+        return static_cast<int32_t>(comboId & UINT16_MAX);
     }
 
-    static void deComboIDSVE(uint64_t* src, uint32_t* batchIDdst, uint32_t* rowIDdst, int num)
+    static inline VectorBatchId getVectorBatchId(int32_t keyGroup, uint32_t sequenceNumber)
     {
-        int processNum = svcntw();
-        int half = svcntd();
-        for (int i = 0; i < num; i += processNum) {
-            svbool_t pg = svwhilelt_b64(i, num);
-            svbool_t pg2 = svwhilelt_b64(i + half, num);
-            svbool_t pg3 = svwhilelt_b32(i, num);
-            svuint64_t comboID = svld1(pg, src + i);
-            svuint64_t comboID2 = svld1(pg2, src + i + half);
+        if (keyGroup < 0 || keyGroup > UINT16_MAX) {
+            THROW_RUNTIME_ERROR("keyGroup out of range");
+        }
 
-            svuint32_t rowID = svuzp1(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
-            svuint32_t batchID = svuzp2(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
+        auto ukeyGroup = static_cast<uint64_t>(keyGroup);
+        auto usequenceNumber = static_cast<uint64_t>(sequenceNumber);
+        return (ukeyGroup << 48) | (usequenceNumber << 16);
+    }
 
-            svst1_u32(pg3, rowIDdst + i, rowID);
-            svst1_u32(pg3, batchIDdst + i, batchID);
+    static inline VectorBatchId getVectorBatchId(ComboId comboId)
+    {
+        return (comboId >> 16) << 16;
+    }
+
+    static inline ComboId getComboId(int32_t keyGroup, uint32_t sequenceNumber, int32_t rowId)
+    {
+        auto vectorBatchId = getVectorBatchId(keyGroup, sequenceNumber);
+
+        return getComboId(vectorBatchId, rowId);
+    }
+
+    static inline ComboId getComboId(omnistream::VectorBatchId vectorBatchId, int32_t rowId)
+    {
+        if ((vectorBatchId & UINT16_MAX) != 0) {
+            THROW_RUNTIME_ERROR("the rowId part of VectorBatchId should be 0");
+        }
+        if (rowId < 0 || rowId > UINT16_MAX) {
+            THROW_RUNTIME_ERROR("rowId out of range");
+        }
+
+        return vectorBatchId | static_cast<uint64_t>(rowId);
+    }
+
+    static void decodeComboIds(
+        const std::vector<ComboId>& comboIds,
+        std::vector<int32_t>& keyGroups,
+        std::vector<uint32_t>& sequenceNumbers,
+        std::vector<int32_t>& rowIds)
+    {
+        const auto perCount = static_cast<int32_t>(svcntw());
+        const auto halfPerCount = static_cast<int32_t>(svcntd());
+        const auto num = static_cast<int32_t>(comboIds.size());
+
+        for (int32_t i = 0; i < num; i += perCount) {
+            svbool_t pgLow = svwhilelt_b64_s32(i, num);
+            svbool_t pgHigh = svwhilelt_b64_s32(i + halfPerCount, num);
+            svbool_t pgOut = svwhilelt_b32_s32(i, num);
+
+            svuint64_t comboIdsLow = svld1_u64(pgLow, comboIds.data() + i);
+            svuint64_t comboIdsHigh = svld1_u64(pgHigh, comboIds.data() + i + halfPerCount);
+
+            svuint64_t rowIdsLow = svand_n_u64_x(pgLow, comboIdsLow, UINT16_MAX);
+            svuint64_t rowIdsHigh = svand_n_u64_x(pgHigh, comboIdsHigh, UINT16_MAX);
+
+            svuint64_t sequenceNumbersLow = svand_n_u64_x(pgLow, svlsr_n_u64_x(pgLow, comboIdsLow, 16), UINT32_MAX);
+            svuint64_t sequenceNumbersHigh = svand_n_u64_x(pgHigh, svlsr_n_u64_x(pgHigh, comboIdsHigh, 16), UINT32_MAX);
+
+            svuint64_t keyGroupsLow = svlsr_n_u64_x(pgLow, comboIdsLow, 48);
+            svuint64_t keyGroupsHigh = svlsr_n_u64_x(pgHigh, comboIdsHigh, 48);
+
+            svuint32_t rowIdsPacked = svuzp1_u32(svreinterpret_u32_u64(rowIdsLow), svreinterpret_u32_u64(rowIdsHigh));
+            svuint32_t sequenceNumbersPacked =
+                svuzp1_u32(svreinterpret_u32_u64(sequenceNumbersLow), svreinterpret_u32_u64(sequenceNumbersHigh));
+            svuint32_t keyGroupsPacked =
+                svuzp1_u32(svreinterpret_u32_u64(keyGroupsLow), svreinterpret_u32_u64(keyGroupsHigh));
+
+            svst1_s32(pgOut, rowIds.data() + i, svreinterpret_s32_u32(rowIdsPacked));
+            svst1_u32(pgOut, sequenceNumbers.data() + i, sequenceNumbersPacked);
+            svst1_s32(pgOut, keyGroups.data() + i, svreinterpret_s32_u32(keyGroupsPacked));
         }
     }
 
-    static void getComboId_sve(int batchId, int rowCount, int64_t* result)
+    static void getComboId_sve(int32_t keyGroup, uint32_t sequenceNumber, int32_t rowCount, ComboId* result)
     {
-        int processNum = svcntd();
-        svint64_t batchData = svlsl_n_s64_x(svptrue_b64(), svdup_n_s64(batchId), 32);
-        for (int i = 0; i < rowCount; i += processNum) {
-            svbool_t pg = svwhilelt_b64(i, rowCount);
-            svint64_t rowData = svindex_s64(i, 1);
-            svint64_t comboIDs = svorr_z(pg, batchData, rowData);
-            svst1_s64(pg, result + i, comboIDs);
+        if (keyGroup < 0 || keyGroup > UINT16_MAX) {
+            THROW_RUNTIME_ERROR("keyGroup out of range");
+        }
+
+        const int32_t processNum = static_cast<int32_t>(svcntd());
+        svuint64_t batchData = svorr_x(
+            svptrue_b64(),
+            svlsl_n_u64_x(svptrue_b64(), svdup_n_u64(static_cast<uint64_t>(keyGroup)), 48),
+            svlsl_n_u64_x(svptrue_b64(), svdup_n_u64(static_cast<uint64_t>(sequenceNumber)), 16));
+        for (int32_t rowId = 0; rowId < rowCount; rowId += processNum) {
+            svbool_t pg = svwhilelt_b64(rowId, rowCount);
+            svuint64_t rowData = svreinterpret_u64_s64(svindex_s64(rowId, 1));
+            svuint64_t comboIds = svorr_z(pg, batchData, rowData);
+            svst1_u64(pg, result + rowId, comboIds);
         }
     }
 
@@ -92,6 +153,55 @@ public:
             slicedBatch->setRowKind(j, batch->getRowKind(j + offset));
         }
         return slicedBatch;
+    }
+
+    // The caller takes ownership of the returned pointer
+    static omnistream::VectorBatch* buildNewVectorBatchByRowIds(
+        omnistream::VectorBatch* vectorBatch, std::vector<int32_t>& rowIds)
+    {
+        if (vectorBatch == nullptr) {
+            THROW_RUNTIME_ERROR("vectorBatch cannot be nullptr");
+        }
+
+        auto result = new omnistream::VectorBatch(rowIds.size());
+        for (int32_t i = 0; i < vectorBatch->GetVectorCount(); ++i) {
+            result->Append(copyVectorByRowIds(vectorBatch, i, rowIds));
+        }
+
+        omnistream::SVEUtil::copyU8ArrayByIndices(
+            reinterpret_cast<uint8_t*>(vectorBatch->getRowKinds()),
+            reinterpret_cast<uint8_t*>(result->getRowKinds()),
+            rowIds);
+
+        omnistream::SVEUtil::copyI64ArrayByIndices(vectorBatch->getTimestamps(), result->getTimestamps(), rowIds);
+        return result;
+    }
+
+    /**
+     * Copy selected elements from one vector in a VectorBatch into a new vector by row ids.
+     *
+     * @param vectorBatch Source VectorBatch that owns the vector to copy from.
+     * @param vectorIndex Index of the source vector inside vectorBatch.
+     * @param rowIds Row ids to copy from the source vector.
+     * @return A newly allocated vector containing the selected elements. The caller takes ownership of the returned
+     * pointer.
+     */
+    static omniruntime::vec::BaseVector* copyVectorByRowIds(
+        omnistream::VectorBatch* vectorBatch, int32_t vectorIndex, std::vector<int32_t>& rowIds)
+    {
+        omniruntime::vec::BaseVector* result = nullptr;
+        if (vectorBatch->Get(vectorIndex)->GetEncoding() == omniruntime::vec::OMNI_FLAT ||
+            (vectorBatch->Get(vectorIndex)->GetTypeId() != omniruntime::type::OMNI_CHAR &&
+             vectorBatch->Get(vectorIndex)->GetTypeId() != omniruntime::type::OMNI_VARCHAR)) {
+            // The original vector is not varchar or it is varchar but flat
+            result = omniruntime::vec::VectorHelper::CopyPositionsVector(
+                vectorBatch->Get(vectorIndex), rowIds.data(), 0, static_cast<int32_t>(rowIds.size()));
+        } else {
+            // It is a varchar dictionary, copy it out
+            result = omnistream::VectorBatch::CopyPositionsAndFlatten(
+                vectorBatch->Get(vectorIndex), rowIds.data(), 0, static_cast<int32_t>(rowIds.size()));
+        }
+        return result;
     }
 
     // To print VectorBatch, use VectorHelper::PrintVecBatch from OmniOperatorJIT/core/src/vector/vector_helper.h
@@ -195,5 +305,4 @@ public:
         return oss.str();
     }
 };
-
-#endif // FLINK_TNEL_VECTOR_BATCH_UTIL_H
+} // namespace omnistream

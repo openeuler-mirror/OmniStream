@@ -8,8 +8,8 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_COPYONWRITESTATETABLE_H
-#define FLINK_TNEL_COPYONWRITESTATETABLE_H
+
+#pragma once
 
 #include "StateTable.h"
 #include "CopyOnWriteStateMap.h"
@@ -72,5 +72,3 @@ inline int CopyOnWriteStateTable<K, N, S>::computeKeyGroupForKeyHash(K key)
     int group = keyHash(key) % StateTable<K, N, S>::keyContext->getNumberOfKeyGroups();
     return group;
 }
-
-#endif // FLINK_TNEL_COPYONWRITESTATETABLE_H

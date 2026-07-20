@@ -16,6 +16,7 @@
 
 #include "OmniOperatorJIT/core/src/type/data_type.h"
 #include "runtime/state/restore/RestoreKVState.h"
+#include "table/data/vectorbatch/VectorBatchStorageInfo.h"
 
 namespace omnistream {
 
@@ -26,8 +27,8 @@ constexpr int VB_RESTORE_BATCH_SIZE = 1024;
 
 // VB 批次状态：内部由 RestoreKVStateVB 持有，不对外暴露
 struct VbBatchState {
-    int currentBatchId = 0;
-    int currentRowId = 0;
+    omnistream::VectorBatchId currentBatchId = 0;
+    int32_t currentRowId = 0;
     VectorBatch* currentBatch = nullptr;
 };
 
@@ -47,8 +48,8 @@ public:
     // 满批时自动写 VB side table 并重置当前 batch。
     virtual void writeRowData(const std::vector<int8_t>& keyBytes, const RowDataView& row)
     {
-        int64_t comboId = appendRowToVectorBatch(row);
-        writeEntry<int64_t>(keyBytes, comboId);
+        omnistream::ComboId comboId = appendRowToVectorBatch(row);
+        writeEntry<omnistream::ComboId>(keyBytes, comboId);
     }
 
     // 仅 flush VB 尾批（如有），不 flush main writer。
@@ -75,7 +76,7 @@ public:
 protected:
     // 将解码后的行数据追加到当前 VectorBatch，返回 comboId。
     // 满批时子类自动写 side table 并重置 VB（内部维护 vbState）。
-    virtual int64_t appendRowToVectorBatch(const RowDataView& row) = 0;
+    virtual omnistream::ComboId appendRowToVectorBatch(const RowDataView& row) = 0;
 
     // flush 尾批到 VB side table
     virtual void flushVectorBatchIfNotEmpty() = 0;

@@ -47,6 +47,7 @@
 #include <iomanip>
 
 #include "RocksDbOperationUtils.h"
+#include "data/util/SequenceNumberHelper.h"
 
 /* S is the value used in the State,
  * like RowData* for HeapValueState,
@@ -120,18 +121,8 @@ public:
         if (it2 != kvStateInformation->end() && it2->second->columnFamilyHandle_) {
             VBTable = it2->second->columnFamilyHandle_;
 
-            std::unique_ptr<RocksIteratorWrapper> iterator =
-                RocksDbOperationUtils::getRocksIterator(db, VBTable, readOptions);
-            iterator->seekToLast();
-            if (iterator->isValid()) {
-                std::string key = iterator->key();
-                DataInputDeserializer in(key.data(), key.size(), 0);
-                in.readByte();
-                vectorBatchId = (long)in.readLong();
-                vectorBatchId++;
-            }
-            INFO_RELEASE(
-                "rocksdbMapStateTable createTable " << " cfName=" << cfName << "vb vectorBatchId=" << vectorBatchId);
+            restoreNextSequenceNumberByKeyGroup();
+            INFO_RELEASE("rocksdbMapStateTable createTable " << " cfName=" << cfName);
         } else {
             s = db->CreateColumnFamily(familyOptions, cfName + "vb", &VBTable);
             if (it2 != kvStateInformation->end()) {
@@ -794,17 +785,26 @@ public:
         return metaInfo->getNamespaceSerializer();
     }
 
-    void addVectorBatch(omnistream::VectorBatch* vectorBatch)
+    uint32_t getNextSequenceNumber(int32_t keyGroup)
     {
+        return sequenceNumberHelper_.getNextSequenceNumber(keyGroup);
+    }
+
+    void addVectorBatch(int32_t keyGroup, omnistream::VectorBatch* vectorBatch)
+    {
+        if (vectorBatch == nullptr) {
+            THROW_RUNTIME_ERROR("vectorBatch is nullptr");
+        }
+        auto sequenceNumber = sequenceNumberHelper_.getNextSequenceNumber(keyGroup);
         DataOutputSerializer keyOutputSerializer;
         OutputBufferStatus outputBufferStatus;
         keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
 
-        int keyGroup = computeKeyGroup(vectorBatchId);
-        keyOutputSerializer.writeByte(static_cast<uint32_t>(keyGroup));
+        CompositeKeySerializationUtils::writeKeyGroup(keyGroup, keyGroupPrefixBytes_, keyOutputSerializer);
 
         LongSerializer longSerializer;
-        longSerializer.serialize(&vectorBatchId, keyOutputSerializer);
+        auto sequenceNumberI64 = static_cast<int64_t>(sequenceNumber);
+        longSerializer.serialize(&sequenceNumberI64, keyOutputSerializer);
 
         ROCKSDB_NAMESPACE::Slice key(
             reinterpret_cast<const char*>(keyOutputSerializer.getData()), (int32_t)(keyOutputSerializer.getPosition()));
@@ -816,22 +816,73 @@ public:
         ROCKSDB_NAMESPACE::Slice vbValue(
             reinterpret_cast<const char*>(serializedBatchInfo.buffer), serializedBatchInfo.size);
 
-        auto res = rocksDb->Put(writeOptions, VBTable, key, vbValue);
-        // delete [] buffer;
-        vectorBatchId += 1;
+        auto status = rocksDb->Put(writeOptions, VBTable, key, vbValue);
+        if (!status.ok()) {
+            THROW_RUNTIME_ERROR("Failed to add VectorBatch to RocksDB: " << status.ToString());
+        }
+        sequenceNumberHelper_.addNextSequenceNumber(keyGroup);
     }
 
-    omnistream::VectorBatch* getVectorBatch(long batchId)
+    void addVectorBatches(const std::unordered_map<int32_t, omnistream::VectorBatch*>& vectorBatchByKeyGroup)
+    {
+        if (vectorBatchByKeyGroup.empty()) {
+            return;
+        }
+        ROCKSDB_NAMESPACE::WriteBatch writeBatch;
+
+        DataOutputSerializer keyOutputSerializer;
+        OutputBufferStatus outputBufferStatus;
+        keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
+        LongSerializer longSerializer;
+
+        for (auto& [keyGroup, vectorBatch] : vectorBatchByKeyGroup) {
+            if (vectorBatch == nullptr) {
+                THROW_RUNTIME_ERROR("vectorBatch is nullptr");
+            }
+            keyOutputSerializer.clear();
+            CompositeKeySerializationUtils::writeKeyGroup(keyGroup, keyGroupPrefixBytes_, keyOutputSerializer);
+
+            auto sequenceNumber = sequenceNumberHelper_.getNextSequenceNumber(keyGroup);
+            auto sequenceNumberI64 = static_cast<int64_t>(sequenceNumber);
+            longSerializer.serialize(&sequenceNumberI64, keyOutputSerializer);
+
+            ROCKSDB_NAMESPACE::Slice key(
+                reinterpret_cast<const char*>(keyOutputSerializer.getData()),
+                (int32_t)(keyOutputSerializer.getPosition()));
+            int batchSize =
+                omnistream::VectorBatchSerializationUtils::calculateVectorBatchSerializableSize(vectorBatch);
+            std::vector<uint8_t> buf(batchSize);
+            auto* buffer = buf.data();
+            omnistream::SerializedBatchInfo serializedBatchInfo =
+                omnistream::VectorBatchSerializationUtils::serializeVectorBatch(vectorBatch, batchSize, buffer);
+            ROCKSDB_NAMESPACE::Slice vbValue(
+                reinterpret_cast<const char*>(serializedBatchInfo.buffer), serializedBatchInfo.size);
+            writeBatch.Put(VBTable, key, vbValue);
+        }
+
+        ROCKSDB_NAMESPACE::WriteOptions batchWriteOptions = writeOptions;
+        batchWriteOptions.memtable_insert_hint_per_batch = true;
+        auto status = rocksDb->Write(batchWriteOptions, &writeBatch);
+
+        if (!status.ok()) {
+            THROW_RUNTIME_ERROR("Failed to add VectorBatches to RocksDB: " << status.ToString());
+        }
+        for (auto& [keyGroup, vectorBatch] : vectorBatchByKeyGroup) {
+            sequenceNumberHelper_.addNextSequenceNumber(keyGroup);
+        }
+    }
+
+    omnistream::VectorBatch* getVectorBatch(int32_t keyGroup, uint32_t sequenceNumber)
     {
         DataOutputSerializer keyOutputSerializer;
         OutputBufferStatus outputBufferStatus;
         keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
 
-        int keyGroup = computeKeyGroup(batchId);
-        keyOutputSerializer.writeByte(static_cast<uint32_t>(keyGroup));
+        CompositeKeySerializationUtils::writeKeyGroup(keyGroup, keyGroupPrefixBytes_, keyOutputSerializer);
 
         LongSerializer longSerializer;
-        longSerializer.serialize(&batchId, keyOutputSerializer);
+        auto sequenceNumberI64 = static_cast<int64_t>(sequenceNumber);
+        longSerializer.serialize(&sequenceNumberI64, keyOutputSerializer);
 
         ROCKSDB_NAMESPACE::Slice key(
             reinterpret_cast<const char*>(keyOutputSerializer.getData()), (int32_t)(keyOutputSerializer.getPosition()));
@@ -847,12 +898,12 @@ public:
         }
     }
 
-    long getVectorBatchesSize()
+    std::vector<omnistream::VectorBatch*> getVectorBatches(int32_t keyGroup)
     {
-        return vectorBatchId;
+        NOT_IMPL_EXCEPTION;
     }
 
-    void clearVectors(int64_t currentTimestamp)
+    void clearVectorBatches(int64_t currentTimestamp)
     {
         ROCKSDB_NAMESPACE::WriteBatch batchToDelete;
         std::unique_ptr<ROCKSDB_NAMESPACE::Iterator> it(rocksDb->NewIterator(readOptions, VBTable));
@@ -879,24 +930,24 @@ public:
         }
     }
 
-    void clearVectors(std::vector<size_t>& indicesToDelete)
+    void clearVectorBatches(int32_t keyGroup, std::vector<uint32_t>& sequenceNumbersToDelete)
     {
-        if (indicesToDelete.empty()) {
+        if (sequenceNumbersToDelete.empty()) {
             return;
         }
 
         ROCKSDB_NAMESPACE::WriteBatch batchToDelete;
         LongSerializer longSerializer;
 
-        for (size_t index : indicesToDelete) {
-            long batchId = static_cast<long>(index);
-
+        for (auto sequenceNumber : sequenceNumbersToDelete) {
             // Recreate serializers inside the loop to ensure clean buffers for each key
             DataOutputSerializer keyOutputSerializer;
             OutputBufferStatus outputBufferStatus;
             keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
 
-            longSerializer.serialize(&batchId, keyOutputSerializer);
+            CompositeKeySerializationUtils::writeKeyGroup(keyGroup, keyGroupPrefixBytes_, keyOutputSerializer);
+            auto sequenceNumberI64 = static_cast<int64_t>(sequenceNumber);
+            longSerializer.serialize(&sequenceNumberI64, keyOutputSerializer);
 
             ROCKSDB_NAMESPACE::Slice key(
                 reinterpret_cast<const char*>(keyOutputSerializer.getData()),
@@ -1511,6 +1562,60 @@ private:
     {
         return keyContext->getKeyGroupRange()->getStartKeyGroup();
     }
+
+    void restoreNextSequenceNumberByKeyGroup()
+    {
+        auto* keyGroupRange = keyContext->getKeyGroupRange();
+        if (keyGroupRange == nullptr) {
+            THROW_RUNTIME_ERROR("KeyGroupRange is nullptr while restoring sequenceNumber.");
+        }
+
+        std::unique_ptr<RocksIteratorWrapper> iterator =
+            RocksDbOperationUtils::getRocksIterator(rocksDb, VBTable, readOptions);
+        DataOutputSerializer keyOutputSerializer;
+        OutputBufferStatus outputBufferStatus;
+        keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
+        for (int32_t keyGroup = keyGroupRange->getStartKeyGroup(); keyGroup <= keyGroupRange->getEndKeyGroup();
+             ++keyGroup) {
+            keyOutputSerializer.clear();
+            CompositeKeySerializationUtils::writeKeyGroup(keyGroup + 1, keyGroupPrefixBytes_, keyOutputSerializer);
+            ROCKSDB_NAMESPACE::Slice upperBound(
+                reinterpret_cast<const char*>(keyOutputSerializer.getData()),
+                (int32_t)(keyOutputSerializer.getPosition()));
+            iterator->seekForPrev(upperBound);
+            if (!iterator->isValid()) {
+                continue;
+            }
+
+            ROCKSDB_NAMESPACE::Slice key = iterator->keySlice();
+            if (key.size() != static_cast<size_t>(keyGroupPrefixBytes_) + sizeof(int64_t)) {
+                THROW_RUNTIME_ERROR("Invalid VectorBatch key size while restoring sequenceNumber.");
+            }
+
+            const auto* keyData = reinterpret_cast<const uint8_t*>(key.data());
+            bool matchesKeyGroup = true;
+            for (int32_t i = 0; i < keyGroupPrefixBytes_; ++i) {
+                auto expectedByte =
+                    CompositeKeySerializationUtils::extractByteAtPosition(keyGroup, keyGroupPrefixBytes_ - i - 1);
+                if (keyData[i] != expectedByte) {
+                    matchesKeyGroup = false;
+                    break;
+                }
+            }
+            if (!matchesKeyGroup) {
+                continue;
+            }
+
+            DataInputDeserializer in(keyData, static_cast<int>(key.size()), keyGroupPrefixBytes_);
+            int64_t curSequenceNumber = in.readLong();
+            if (curSequenceNumber < 0 ||
+                curSequenceNumber > static_cast<int64_t>(omnistream::SequenceNumberHelper::MAX_SEQUENCE_NUMBER)) {
+                THROW_RUNTIME_ERROR("Invalid VectorBatch sequenceNumber while restoring: " << curSequenceNumber);
+            }
+            sequenceNumberHelper_.updateNextSequenceNumber(keyGroup, static_cast<uint32_t>(curSequenceNumber + 1));
+        }
+    }
+
     TypeSerializer* keySerializer;
     TypeSerializer* userKeySerializer;
     // KeyGroupRange *keyGroupRange;
@@ -1518,7 +1623,7 @@ private:
     ROCKSDB_NAMESPACE::ColumnFamilyHandle* VBTable;
     std::unique_ptr<RegisteredKeyValueStateBackendMetaInfo> metaInfo;
     int size = 0;
-    long vectorBatchId = 0;
+    omnistream::SequenceNumberHelper sequenceNumberHelper_{}; // only used for VectorBatch storage
     ROCKSDB_NAMESPACE::DB* rocksDb;
     int keyGroupPrefixBytes_ = 1;
     ROCKSDB_NAMESPACE::ReadOptions readOptions;
@@ -1705,6 +1810,7 @@ RocksdbMapStateTable<K, N, UK, UV>::RocksdbMapStateTable(
     keyGroupPrefixBytes_ =
         CompositeKeySerializationUtils::computeRequiredBytesInKeyGroupPrefix(keyContext->getNumberOfKeyGroups());
     writeOptions.disableWAL = true;
+    sequenceNumberHelper_ = omnistream::SequenceNumberHelper(keyContext->getNumberOfKeyGroups());
 }
 
 template <typename K, typename N, typename UK, typename UV>

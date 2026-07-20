@@ -10,6 +10,7 @@
  */
 
 #include "StreamingJoinOperator.h"
+#include <limits>
 
 template class StreamingJoinOperator<RowData*>;
 template class StreamingJoinOperator<long>;
@@ -40,7 +41,7 @@ void StreamingJoinOperator<K>::processBatch(
         bool filterNulls = this->filterNullKeys[0];
         auto backend = this->getKeyedStateBackend();
         inputSideStateView->addOrRectractRecord(
-            input, keySelector, otherIsOuter, backend, filterNulls, this->matchedCount);
+            input, keySelector, otherIsOuter, backend, maxParallelism, filterNulls, this->matchedCount);
 
         // 3. Build the output
         if (!leftIsOuter && !rightIsOuter) {
@@ -97,6 +98,7 @@ void StreamingJoinOperator<K>::open()
 
     this->keySelectorLeft = new KeySelector<K>(leftKeyTypes, this->leftKeyIndex);
     this->keySelectorRight = new KeySelector<K>(rightKeyTypes, this->rightKeyIndex);
+    maxParallelism = static_cast<StreamingRuntimeContext<K>*>(this->getRuntimeContext())->getMaxNumberOfSubtasks();
 }
 
 template <typename K>
@@ -206,77 +208,64 @@ omniruntime::vec::BaseVector* StreamingJoinOperator<K>::buildOtherSideColumn(
 {
     auto outputCol = new omniruntime::vec::Vector<T>(this->matchedCountTot);
     int rowIndex = 0; // rowIndex used for writing
-    int curbatchId = -1;
+    ComboId currentBatchCacheKey = std::numeric_limits<ComboId>::max();
 
     omniruntime::vec::Vector<S>* inputCol;
 
     for (size_t i = 0; i < this->matchedLists.size(); i++) {
         if (this->matchedLists[i] != nullptr) {
-            const std::vector<int64_t>& vec = *(this->matchedLists[i]);
-            for (auto id : vec) {
-                DealOneBatchInColumn(id, icol, rowIndex, curbatchId, otherSideStateView, inputCol, outputCol);
+            const std::vector<ComboId>& comboIds = *(this->matchedLists[i]);
+            for (auto comboId : comboIds) {
+                DealOneBatchInColumn(
+                    comboId, icol, rowIndex, currentBatchCacheKey, otherSideStateView, inputCol, outputCol);
             }
         } else if (inputIsOuter) { // No match and input is Outer: add null-padded records
             outputCol->SetNull(rowIndex++);
         }
     }
 
-    int num = this->deleteRecords.size();
-    uint32_t* batchIDdst = new uint32_t[num];
-    uint32_t* rowIDdst = new uint32_t[num];
-    int processNum = svcntw();
-    int half = svcntd();
-    for (int i = 0; i < num; i += processNum) {
-        svbool_t pg = svwhilelt_b64(i, num);
-        svbool_t pg2 = svwhilelt_b64(i + half, num);
-        svbool_t pg3 = svwhilelt_b32(i, num);
-        svuint64_t comboID = svld1(pg, reinterpret_cast<uint64_t*>(this->deleteRecords.data()) + i);
-        svuint64_t comboID2 = svld1(pg2, reinterpret_cast<uint64_t*>(this->deleteRecords.data()) + i + half);
-        svuint32_t rowID = svuzp1(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
-        svuint32_t batchID = svuzp2(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
-        svst1_u32(pg3, rowIDdst + i, rowID);
-        svst1_u32(pg3, batchIDdst + i, batchID);
-    }
     // Loop wont run for inner join as deletedRecords can have elements only if other is Outer
-    for (int i = 0; i < num; i++) {
-        auto batchId = batchIDdst[i];
-        auto rowId = rowIDdst[i];
-        if (curbatchId != batchId) {
-            if (otherSideStateView->getVectorBatch(batchId) == nullptr) {
+    for (auto comboId : this->deleteRecords) {
+        auto keyGroup = VectorBatchUtil::getKeyGroup(comboId);
+        auto sequenceNumber = VectorBatchUtil::getSequenceNumber(comboId);
+        auto batchCacheKey = VectorBatchUtil::getComboId(keyGroup, sequenceNumber, 0);
+        auto rowId = VectorBatchUtil::getRowId(comboId);
+        if (currentBatchCacheKey != batchCacheKey) {
+            if (otherSideStateView->getVectorBatch(keyGroup, sequenceNumber) == nullptr) {
                 throw std::runtime_error("get batch is nullptr in buildOtherSideColumn");
             }
             inputCol = reinterpret_cast<omniruntime::vec::Vector<S>*>(
-                otherSideStateView->getVectorBatch(batchId)->GetVectors()[icol]);
-            curbatchId = batchId;
+                otherSideStateView->getVectorBatch(keyGroup, sequenceNumber)->GetVectors()[icol]);
+            currentBatchCacheKey = batchCacheKey;
         }
         auto val = inputCol->GetValue(rowId);
         outputCol->SetValue(rowIndex++, val);
     }
-    delete[] batchIDdst;
-    delete[] rowIDdst;
     return outputCol;
 }
 
 template <typename K>
 template <typename T, typename S>
 void StreamingJoinOperator<K>::DealOneBatchInColumn(
-    long id,
+    ComboId comboId,
     int32_t icol,
     int& rowIndex,
-    int& curbatchId,
+    ComboId& currentBatchCacheKey,
     JoinRecordStateView<K>* otherSideStateView,
     omniruntime::vec::Vector<S>*& inputCol,
     omniruntime::vec::Vector<T>*& outputCol)
 {
-    auto batchId = VectorBatchUtil::getBatchId(id);
-    auto rowId = VectorBatchUtil::getRowId(id);
-    if (curbatchId != batchId) {
-        auto vectorBatch = otherSideStateView->getVectorBatch(batchId);
+    auto keyGroup = VectorBatchUtil::getKeyGroup(comboId);
+    auto sequenceNumber = VectorBatchUtil::getSequenceNumber(comboId);
+    auto batchCacheKey = VectorBatchUtil::getComboId(keyGroup, sequenceNumber, 0);
+    auto rowId = VectorBatchUtil::getRowId(comboId);
+    if (currentBatchCacheKey != batchCacheKey) {
+        auto vectorBatch = otherSideStateView->getVectorBatch(keyGroup, sequenceNumber);
         if (vectorBatch == nullptr) {
             throw std::runtime_error("vectorBatch is nullptr");
         }
         inputCol = reinterpret_cast<omniruntime::vec::Vector<S>*>(vectorBatch->GetVectors()[icol]);
-        curbatchId = batchId;
+        currentBatchCacheKey = batchCacheKey;
     }
     auto val = inputCol->GetValue(rowId);
     outputCol->SetValue(rowIndex++, val);
@@ -294,41 +283,25 @@ omniruntime::vec::BaseVector* StreamingJoinOperator<K>::buildOtherSideColumnVarc
         omniruntime::vec::DictionaryContainer<std::string_view, omniruntime::vec::LargeStringContainer>>;
     for (size_t i = 0; i < this->matchedLists.size(); i++) {
         if (this->matchedLists[i] != nullptr) {
-            const std::vector<int64_t>& vec = *(this->matchedLists[i]);
-            for (auto id : vec) {
-                DealOneBatchInColumnVarchar(id, icol, rowIndex, otherSideStateView, outputCol);
+            const std::vector<ComboId>& comboIds = *(this->matchedLists[i]);
+            for (auto comboId : comboIds) {
+                DealOneBatchInColumnVarchar(comboId, icol, rowIndex, otherSideStateView, outputCol);
             }
         } else if (inputIsOuter) { // No match and input is Outer: add null-padded records
             outputCol->SetNull(rowIndex++);
         }
     }
-    int num = this->deleteRecords.size();
-    uint32_t* batchIDdst = new uint32_t[num];
-    uint32_t* rowIDdst = new uint32_t[num];
-    int processNum = svcntw();
-    int half = svcntd();
-    for (int i = 0; i < num; i += processNum) {
-        svbool_t pg = svwhilelt_b64(i, num);
-        svbool_t pg2 = svwhilelt_b64(i + half, num);
-        svbool_t pg3 = svwhilelt_b32(i, num);
-        svuint64_t comboID = svld1(pg, reinterpret_cast<uint64_t*>(this->deleteRecords.data()) + i);
-        svuint64_t comboID2 = svld1(pg2, reinterpret_cast<uint64_t*>(this->deleteRecords.data()) + i + half);
-
-        svuint32_t rowID = svuzp1(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
-        svuint32_t batchID = svuzp2(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
-
-        svst1_u32(pg3, rowIDdst + i, rowID);
-        svst1_u32(pg3, batchIDdst + i, batchID);
-    }
     // Loop wont run for inner join as deletedRecords can have elements only if other is Outer
-    for (int i = 0; i < num; i++) {
-        auto batchId = batchIDdst[i];
-        auto rowId = rowIDdst[i];
-        auto inputCol = otherSideStateView->getVectorBatch(batchId)->Get(icol);
-        if (otherSideStateView->getVectorBatch(batchId) == nullptr) {
+    for (auto comboId : this->deleteRecords) {
+        auto keyGroup = VectorBatchUtil::getKeyGroup(comboId);
+        auto sequenceNumber = VectorBatchUtil::getSequenceNumber(comboId);
+        auto rowId = VectorBatchUtil::getRowId(comboId);
+        auto vectorBatch = otherSideStateView->getVectorBatch(keyGroup, sequenceNumber);
+        if (vectorBatch == nullptr) {
             LOG("string from vectorBatch is nullptr");
             throw std::runtime_error("string from vectorBatch is nullptr");
         }
+        auto inputCol = vectorBatch->Get(icol);
         if (inputCol->GetEncoding() == OMNI_FLAT) {
             auto castedCol = reinterpret_cast<FlatTypeS*>(inputCol);
             auto sv = castedCol->GetValue(rowId);
@@ -339,14 +312,12 @@ omniruntime::vec::BaseVector* StreamingJoinOperator<K>::buildOtherSideColumnVarc
             outputCol->SetValue(rowIndex++, sv);
         }
     }
-    delete[] batchIDdst;
-    delete[] rowIDdst;
     return outputCol;
 }
 
 template <typename K>
 void StreamingJoinOperator<K>::DealOneBatchInColumnVarchar(
-    long id,
+    ComboId comboId,
     int32_t icol,
     int& rowIndex,
     JoinRecordStateView<K>* otherSideStateView,
@@ -355,13 +326,15 @@ void StreamingJoinOperator<K>::DealOneBatchInColumnVarchar(
     using FlatTypeS = omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>;
     using DictTypeS = omniruntime::vec::Vector<
         omniruntime::vec::DictionaryContainer<std::string_view, omniruntime::vec::LargeStringContainer>>;
-    auto batchId = VectorBatchUtil::getBatchId(id);
-    auto rowId = VectorBatchUtil::getRowId(id);
-    if (otherSideStateView->getVectorBatch(batchId) == nullptr) {
+    auto keyGroup = VectorBatchUtil::getKeyGroup(comboId);
+    auto sequenceNumber = VectorBatchUtil::getSequenceNumber(comboId);
+    auto rowId = VectorBatchUtil::getRowId(comboId);
+    auto vectorBatch = otherSideStateView->getVectorBatch(keyGroup, sequenceNumber);
+    if (vectorBatch == nullptr) {
         LOG("string from vectorBatch is nullptr");
         return;
     }
-    auto inputCol = otherSideStateView->getVectorBatch(batchId)->Get(icol);
+    auto inputCol = vectorBatch->Get(icol);
     if (inputCol->GetEncoding() == OMNI_FLAT) {
         auto castedCol = reinterpret_cast<FlatTypeS*>(inputCol);
         auto sv = castedCol->GetValue(rowId);
@@ -465,25 +438,7 @@ void StreamingJoinOperator<K>::setOutPutValueOther(
                     outCol, buildOtherSideColumn<int64_t, int64_t>(input, otherSideStateView, icol, inputIsOuter));
                 break;
             case DataTypeId::OMNI_VARCHAR:
-                if (otherSideStateView->getVectorBatchesSize() > 0 &&
-                    (otherSideStateView->getVectorBatch(0) != nullptr) &&
-                    otherSideStateView->getVectorBatch(0)->Get(icol)->GetEncoding() == omniruntime::vec::OMNI_FLAT) {
-                    outputVB->SetVector(
-                        outCol,
-                        buildOtherSideColumn<
-                            omniruntime::vec::LargeStringContainer<std::string_view>,
-                            omniruntime::vec::LargeStringContainer<std::string_view>>(
-                            input, otherSideStateView, icol, inputIsOuter));
-                } else {
-                    outputVB->SetVector(
-                        outCol,
-                        buildOtherSideColumn<
-                            omniruntime::vec::LargeStringContainer<std::string_view>,
-                            omniruntime::vec::
-                                DictionaryContainer<std::string_view, omniruntime::vec::LargeStringContainer>>(
-                            input, otherSideStateView, icol, inputIsOuter));
-                }
-
+                outputVB->SetVector(outCol, buildOtherSideColumnVarchar(input, otherSideStateView, icol, inputIsOuter));
                 break;
             default: std::runtime_error("DataType not supported yet!");
         }

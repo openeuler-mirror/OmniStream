@@ -57,14 +57,14 @@ protected:
     using HeapRestoreKVState<K>::deserializeKey;
     using typename HeapRestoreKVState<K>::DeserializedKeyGuard;
 
-    int64_t appendRowToVectorBatch(const RowDataView& row) override;
+    omnistream::ComboId appendRowToVectorBatch(const RowDataView& row) override;
     void flushVectorBatchIfNotEmpty() override;
     void flushMainWriter() override;
     void discardVectorBatch() override;
     void discardMainWriter() override;
 
     // 覆写 HeapRestoreKVState 的 fail-fast writeLongEntry：
-    // VB 恢复路径通过 writeRowData → writeEntry<int64_t> → writeLongEntry 写入 comboId
+    // VB 恢复路径通过 writeRowData → writeEntry<omnistream::ComboId> → writeLongEntry 写入 comboId
     void writeLongEntry(const std::vector<int8_t>& keyBytes, int64_t value) override;
 
     // writeBytesEntry 从 HeapRestoreKVState 继承（按 stateType 路由 MAP/LIST/VALUE）
@@ -118,7 +118,7 @@ void HeapRestoreKVStateVB<K>::writeLongEntry(const std::vector<int8_t>& keyBytes
 }
 
 template <typename K>
-int64_t HeapRestoreKVStateVB<K>::appendRowToVectorBatch(const RowDataView& row)
+omnistream::ComboId HeapRestoreKVStateVB<K>::appendRowToVectorBatch(const RowDataView& row)
 {
     if (row.valueBytes == nullptr || row.columnTypes == nullptr) {
         INFO_RELEASE(

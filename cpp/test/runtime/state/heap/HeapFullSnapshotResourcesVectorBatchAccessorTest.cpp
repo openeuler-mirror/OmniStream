@@ -73,7 +73,8 @@ HeapSnapshotStateData::SerializedEntry makeEntry(std::vector<int8_t> serializedV
     return entry;
 }
 
-std::shared_ptr<HeapSnapshotStateData> makeStateDataWithBatch(int64_t batchId, std::vector<int8_t> serializedValue)
+std::shared_ptr<HeapSnapshotStateData> makeStateDataWithBatch(
+    omnistream::VectorBatchId batchId, std::vector<int8_t> serializedValue)
 {
     auto stateData = std::make_shared<HeapSnapshotStateData>();
     stateData->addVectorBatchEntry(makeEntry(std::move(serializedValue)), batchId);
@@ -141,17 +142,21 @@ private:
 TEST_F(HeapFullSnapshotResourcesVectorBatchAccessorTest, DefaultVectorBatchIteratorDoesNotCaptureAccessorData)
 {
     auto keyGroupRange = std::make_unique<KeyGroupRange>(0, 0);
-    auto context = std::make_unique<InternalKeyContextImpl<int>>(keyGroupRange.get(), 1);
+    auto context = std::make_unique<InternalKeyContextImpl<uint32_t>>(keyGroupRange.get(), 1);
     {
         auto* metaInfo = new RegisteredKeyValueStateBackendMetaInfo(
             StateDescriptor::Type::VALUE, kVectorBatchStateName, new VoidNamespaceSerializer(), new LongSerializer());
-        CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch*> table(
+        CopyOnWriteStateTable<uint32_t, VoidNamespace, omnistream::VectorBatch*> table(
             context.get(), metaInfo, IntSerializer::INSTANCE);
         std::unique_ptr<omnistream::VectorBatch> batch = makeVectorBatch(1);
         table.put(kBatchId, 0, VoidNamespace(), batch.release());
 
-        HeapSingleStateIterator<int, VoidNamespace, omnistream::VectorBatch*> iterator(
-            &table, 0, 1, HeapSingleStateIterator<int, VoidNamespace, omnistream::VectorBatch*>::VbDataTag{}, false);
+        HeapSingleStateIterator<uint32_t, VoidNamespace, omnistream::VectorBatch*> iterator(
+            &table,
+            0,
+            1,
+            HeapSingleStateIterator<uint32_t, VoidNamespace, omnistream::VectorBatch*>::VbDataTag{},
+            false);
 
         EXPECT_EQ(iterator.getSnapshotData(), nullptr);
         EXPECT_TRUE(iterator.isValid());
@@ -165,17 +170,21 @@ TEST_F(HeapFullSnapshotResourcesVectorBatchAccessorTest, DefaultVectorBatchItera
 TEST_F(HeapFullSnapshotResourcesVectorBatchAccessorTest, CapturedVectorBatchIteratorIndexesAccessorData)
 {
     auto keyGroupRange = std::make_unique<KeyGroupRange>(0, 0);
-    auto context = std::make_unique<InternalKeyContextImpl<int>>(keyGroupRange.get(), 1);
+    auto context = std::make_unique<InternalKeyContextImpl<uint32_t>>(keyGroupRange.get(), 1);
     {
         auto* metaInfo = new RegisteredKeyValueStateBackendMetaInfo(
             StateDescriptor::Type::VALUE, kVectorBatchStateName, new VoidNamespaceSerializer(), new LongSerializer());
-        CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch*> table(
+        CopyOnWriteStateTable<uint32_t, VoidNamespace, omnistream::VectorBatch*> table(
             context.get(), metaInfo, IntSerializer::INSTANCE);
         std::unique_ptr<omnistream::VectorBatch> batch = makeVectorBatch(1);
         table.put(kBatchId, 0, VoidNamespace(), batch.release());
 
-        HeapSingleStateIterator<int, VoidNamespace, omnistream::VectorBatch*> iterator(
-            &table, 0, 1, HeapSingleStateIterator<int, VoidNamespace, omnistream::VectorBatch*>::VbDataTag{}, true);
+        HeapSingleStateIterator<uint32_t, VoidNamespace, omnistream::VectorBatch*> iterator(
+            &table,
+            0,
+            1,
+            HeapSingleStateIterator<uint32_t, VoidNamespace, omnistream::VectorBatch*>::VbDataTag{},
+            true);
 
         std::shared_ptr<HeapSnapshotStateData> snapshotData = iterator.getSnapshotData();
         ASSERT_NE(snapshotData, nullptr);

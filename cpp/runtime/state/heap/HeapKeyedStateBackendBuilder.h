@@ -183,6 +183,7 @@ private:
     void restoreVbEntryToHeap(
         HeapKeyedStateBackend<K>* backend,
         const RestoreStateInfo& info,
+        int keyGroupPrefixBytes,
         const std::vector<int8_t>& keyBytes,
         const std::vector<int8_t>& valueBytes);
 
@@ -437,7 +438,8 @@ HeapKeyedStateBackend<K>* HeapKeyedStateBackendBuilder<K>::build()
                         continue; // State was skipped in Phase 1
                     }
                     if (info.stateName.size() >= 2 && info.stateName.substr(info.stateName.size() - 2) == "vb") {
-                        restoreVbEntryToHeap(backend.get(), info, entry.getKey(), entry.getValue());
+                        restoreVbEntryToHeap(
+                            backend.get(), info, keyGroupPrefixBytes, entry.getKey(), entry.getValue());
                     } else {
                         restoreEntryToHeap(
                             backend.get(), info, keyGroupId, keyGroupPrefixBytes, entry.getKey(), entry.getValue());
@@ -754,18 +756,30 @@ template <typename K>
 void HeapKeyedStateBackendBuilder<K>::restoreVbEntryToHeap(
     HeapKeyedStateBackend<K>* backend,
     const RestoreStateInfo& info,
+    int keyGroupPrefixBytes,
     const std::vector<int8_t>& keyBytes,
     const std::vector<int8_t>& valueBytes)
 {
-    // vb key format: [1 byte keyGroup] + [8 bytes batchId via LongSerializer]
-    int vbKeyGroup = keyBytes.empty() ? 0 : (static_cast<int>(keyBytes[0]) & 0xFF);
-    DataInputDeserializer keyInput(
-        reinterpret_cast<const uint8_t*>(keyBytes.data()), static_cast<int>(keyBytes.size()), 1);
+    // vb key format: [keyGroup] + [8 bytes sequenceNumber via LongSerializer]
+    const auto expectedKeySize = static_cast<size_t>(keyGroupPrefixBytes) + sizeof(int64_t);
+    if (keyGroupPrefixBytes <= 0 || keyBytes.size() != expectedKeySize) {
+        THROW_RUNTIME_ERROR(
+            "Invalid VectorBatch key size while restoring to heap: expected " << expectedKeySize << ", actual "
+                                                                              << keyBytes.size());
+    }
+    const auto* keyData = reinterpret_cast<const uint8_t*>(keyBytes.data());
+    int vbKeyGroup = CompositeKeySerializationUtils::readKeyGroup(keyData, keyGroupPrefixBytes);
+    DataInputDeserializer keyInput(keyData, static_cast<int>(keyBytes.size()), keyGroupPrefixBytes);
 
     LongSerializer longSerializer;
-    void* rawBatchId = longSerializer.deserialize(keyInput);
-    int64_t batchId = *static_cast<int64_t*>(rawBatchId);
-    delete static_cast<int64_t*>(rawBatchId);
+    void* rawSequenceNumber = longSerializer.deserialize(keyInput);
+    int64_t sequenceNumber = *static_cast<int64_t*>(rawSequenceNumber);
+    delete static_cast<int64_t*>(rawSequenceNumber);
+    if (sequenceNumber < 0 || sequenceNumber > static_cast<int64_t>(SequenceNumberHelper::MAX_SEQUENCE_NUMBER)) {
+        THROW_RUNTIME_ERROR("Invalid VectorBatch sequenceNumber while restoring: " << sequenceNumber);
+    }
+    auto sequenceNumberU32 = static_cast<uint32_t>(sequenceNumber);
+    auto nextSequenceNumber = sequenceNumberU32 + 1;
 
     // Deserialize VectorBatch from value bytes
     std::vector<uint8_t> valueBuf(valueBytes.size());
@@ -785,7 +799,8 @@ void HeapKeyedStateBackendBuilder<K>::restoreVbEntryToHeap(
     }
 
     auto* table =
-        reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch*>*>(vbStateTablePtr);
+        reinterpret_cast<CopyOnWriteStateTable<uint32_t, VoidNamespace, omnistream::VectorBatch*>*>(vbStateTablePtr);
     VoidNamespace ns;
-    table->put(static_cast<int>(batchId), vbKeyGroup, ns, vectorBatch);
+    table->put(sequenceNumberU32, vbKeyGroup, ns, vectorBatch);
+    table->updateNextSequenceNumber(vbKeyGroup, nextSequenceNumber);
 }

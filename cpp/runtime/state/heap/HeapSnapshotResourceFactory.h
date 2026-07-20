@@ -167,16 +167,18 @@ private:
             auto nsBackendId = std::get<2>(pair.second);
             // All vb state tables share the same type, handle uniformly before type dispatch
             if (stateName.size() >= 2 && stateName.compare(stateName.size() - 2, 2, "vb") == 0) {
-                auto* vbTable = reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch*>*>(
-                    stateTablePtr);
+                auto* vbTable =
+                    reinterpret_cast<CopyOnWriteStateTable<uint32_t, VoidNamespace, omnistream::VectorBatch*>*>(
+                        stateTablePtr);
                 auto* vbMetaInfo = vbTable->getMetaInfo();
                 preparedData.metaInfoSnapshots.push_back(vbMetaInfo->snapshot());
-                auto iterator = std::make_unique<HeapSingleStateIterator<int, VoidNamespace, omnistream::VectorBatch*>>(
-                    vbTable,
-                    kvStateId,
-                    preparedData.keyGroupPrefixBytes,
-                    HeapSingleStateIterator<int, VoidNamespace, omnistream::VectorBatch*>::VbDataTag{},
-                    captureVectorBatchAccessorData);
+                auto iterator =
+                    std::make_unique<HeapSingleStateIterator<uint32_t, VoidNamespace, omnistream::VectorBatch*>>(
+                        vbTable,
+                        kvStateId,
+                        preparedData.keyGroupPrefixBytes,
+                        HeapSingleStateIterator<uint32_t, VoidNamespace, omnistream::VectorBatch*>::VbDataTag{},
+                        captureVectorBatchAccessorData);
                 if (captureVectorBatchAccessorData) {
                     iterator->getSnapshotData()->stateName = stateName;
                     preparedData.snapshotStateDataByName[stateName] = iterator->getSnapshotData();

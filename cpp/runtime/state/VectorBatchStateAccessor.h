@@ -17,6 +17,7 @@
 #include <utility>
 
 #include "core/utils/ByteView.h"
+#include "data/util/VectorBatchUtil.h"
 #include "runtime/state/ByteBoundedVectorBatchCache.h"
 #include "streaming/runtime/streamrecord/StreamElement.h"
 #include "table/data/RowData.h"
@@ -47,11 +48,11 @@ public:
 
     virtual ~VectorBatchStateAccessor() = default;
 
-    virtual bool getSerializedBatch(int64_t batchId, ByteView* value) = 0;
+    virtual bool getSerializedBatch(omnistream::VectorBatchId batchId, ByteView* value) = 0;
 
-    std::unique_ptr<RowData> getRow(int64_t comboId);
+    std::unique_ptr<RowData> getRow(omnistream::ComboId comboId);
 
-    virtual std::unique_ptr<RowData> getRow(int64_t batchId, int32_t rowId)
+    virtual std::unique_ptr<RowData> getRow(omnistream::VectorBatchId batchId, int32_t rowId)
     {
         return getRowWithVectorBatchCaching(batchId, rowId);
     }
@@ -59,7 +60,7 @@ public:
     virtual void close() = 0;
 
 protected:
-    std::unique_ptr<RowData> getRowWithVectorBatchCaching(int64_t batchId, int32_t rowId)
+    std::unique_ptr<RowData> getRowWithVectorBatchCaching(omnistream::VectorBatchId batchId, int32_t rowId)
     {
         omnistream::VectorBatch* cachedBatch = decodedBatchCache_.get(batchId);
         if (cachedBatch != nullptr) {

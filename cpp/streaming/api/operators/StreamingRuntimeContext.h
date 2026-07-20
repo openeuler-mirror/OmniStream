@@ -74,6 +74,11 @@ public:
         return environment->taskConfiguration().getIndexOfSubtask();
     }
 
+    int getMaxNumberOfSubtasks()
+    {
+        return environment->taskConfiguration().getMaxNumberOfSubtasks();
+    }
+
     long getAutoWatermarkInterval()
     {
         return static_cast<omnistream::RuntimeEnvironmentV2*>(environment)
