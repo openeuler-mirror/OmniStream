@@ -80,6 +80,8 @@ public:
             // Step 6: 定义统一的 target entry 写出逻辑。 首条 target entry 使用 writeFirst，同一 source entry
             // 的后续结果不重复写边界信息。
             bool hasOutput = false;
+            bool pendingNewKeyGroup = false;
+            bool pendingNewKeyValueState = false;
             auto emitEntry = [&](const ConvertedEntry& converted,
                                  const KeyValueStateIterator::CurrentEntry& sourceEntry,
                                  bool& sourceHasOutput) {
@@ -102,10 +104,12 @@ public:
                         value,
                         converted.context->mappedKvStateId,
                         sourceEntry.keyGroup,
-                        !sourceHasOutput && sourceEntry.newKeyGroup,
-                        !sourceHasOutput && sourceEntry.newKeyValueState);
+                        !sourceHasOutput && pendingNewKeyGroup,
+                        !sourceHasOutput && pendingNewKeyValueState);
                 }
                 sourceHasOutput = true;
+                pendingNewKeyGroup = false;
+                pendingNewKeyValueState = false;
             };
 
             // Step 7: 遍历，普通 KV/PQ 直接透传，VB 状态由 Adaptor 解引用 comboId 列表并输出 0-N 条结果。
@@ -126,6 +130,8 @@ public:
 
             while (iterator->isValid()) {
                 const auto& entry = iterator->current();
+                pendingNewKeyGroup = pendingNewKeyGroup || entry.newKeyGroup;
+                pendingNewKeyValueState = pendingNewKeyValueState || entry.newKeyValueState;
                 bool sourceHasOutput = false;
                 convertEntry(entry, [&](ConvertedEntry converted) { emitEntry(converted, entry, sourceHasOutput); });
                 iterator->next();
