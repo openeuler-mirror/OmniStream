@@ -210,12 +210,14 @@ private:
                 adaptor->prepareForRestore(operatorDescription_);
                 return std::make_shared<RocksDBCompatibleFullRestoreOperation<K>>(
                     keyGroupRange,
+                    keyGroupPrefixBytes,
                     keySerializer,
                     kvStateInformation,
                     instanceRocksDBPath,
                     dbOptions,
                     columnFamilyOptionsFactory,
                     restoreStateHandles,
+                    writeBatchSize,
                     omniTaskBridge,
                     adaptorInfo_,
                     std::move(adaptor));
