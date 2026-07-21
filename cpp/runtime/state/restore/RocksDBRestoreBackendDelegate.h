@@ -185,7 +185,8 @@ std::unique_ptr<RestoreKVStateVB> RocksDBRestoreBackendDelegate<K>::createKVStat
             mainMetaInfo.getName() + "vb",
             mainMetaInfo.getBackendStateType(),
             mainMetaInfo.getOptionsImmutable(),
-            mainMetaInfo.getSerializerSnapshotsImmutable());
+            mainMetaInfo.getSerializerSnapshotsImmutable(),
+            mainMetaInfo.getSerializersImmutable());
         auto vbStateInfo = rocksDbHandle_->getOrRegisterStateColumnFamilyHandle(nullptr, vbMetaInfo);
         info.vbCF = vbStateInfo->columnFamilyHandle_;
         INFO_RELEASE(

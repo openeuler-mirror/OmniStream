@@ -168,10 +168,31 @@ StateMetaInfoSnapshot VectorBatchRestoreUtil::buildOmniMainMetaInfo(
         stateType = StateDescriptor::Type::VALUE;
     }
 
-    RegisteredKeyValueStateBackendMetaInfo correctedMetaInfo(
-        stateType, flinkMetaInfo.getName(), nsSerializer, valueSerializer);
+    // 直接构造 StateMetaInfoSnapshot，使用 commonSerializerKeyToString (UPPERCASE) key，
+    // 与 fromMetaInfoSnapshot() 的读取 key 保持一致。
+    // 避免通过 RegisteredKeyValueStateBackendMetaInfo::computeSnapshot() 间接构造时
+    // 因 key 大小写不一致导致序列化器丢失。
+    std::unordered_map<std::string, std::string> optionsMap;
+    optionsMap[StateMetaInfoSnapshot::commonOptionsKeyToString(
+        StateMetaInfoSnapshot::CommonOptionsKeys::KEYED_STATE_TYPE)] = std::to_string(static_cast<int>(stateType));
 
-    return *correctedMetaInfo.snapshot();
+    std::unordered_map<std::string, TypeSerializer*> serializerMap;
+    serializerMap.emplace(
+        StateMetaInfoSnapshot::commonSerializerKeyToString(
+            StateMetaInfoSnapshot::CommonSerializerKeys::NAMESPACE_SERIALIZER),
+        nsSerializer);
+    serializerMap.emplace(
+        StateMetaInfoSnapshot::commonSerializerKeyToString(
+            StateMetaInfoSnapshot::CommonSerializerKeys::VALUE_SERIALIZER),
+        valueSerializer);
+
+    std::unordered_map<std::string, std::shared_ptr<TypeSerializerSnapshot>> serializerConfigSnapshotsMap;
+    return StateMetaInfoSnapshot(
+        flinkMetaInfo.getName(),
+        flinkMetaInfo.getBackendStateType(),
+        optionsMap,
+        serializerConfigSnapshotsMap,
+        serializerMap);
 }
 
 VectorBatch* VectorBatchRestoreUtil::sliceVectorBatch(VectorBatch* batch, int startRow, int endRow)
