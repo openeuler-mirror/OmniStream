@@ -25,6 +25,8 @@ FieldGetter* RowData::createFieldGetter(LogicalType* fieldType, int fieldPos)
         throw std::runtime_error("field type is null");
     }
     switch (fieldType->getTypeId()) {
+        case DataTypeId::OMNI_INT:
+            return new FieldGetter(fieldPos, reinterpret_cast<getFieldByPosFn>(&RowData::getInt));
         case DataTypeId::OMNI_LONG:
             return new FieldGetter(fieldPos, reinterpret_cast<getFieldByPosFn>(&RowData::getLong));
         case DataTypeId::OMNI_VARCHAR:
@@ -48,7 +50,7 @@ FieldGetter* RowData::createFieldGetter(LogicalType* fieldType, int fieldPos)
             }
             return new FieldGetter(fieldPos, false);
         }
-        default: THROW_LOGIC_EXCEPTION("Unknown type" + std::to_string(fieldType->getTypeId()));
+        default: THROW_LOGIC_EXCEPTION("Unknown type: " + std::to_string(fieldType->getTypeId()));
     }
 }
 
