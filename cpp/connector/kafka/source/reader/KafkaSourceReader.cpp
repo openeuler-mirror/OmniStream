@@ -22,15 +22,15 @@ KafkaSourceReader::KafkaSourceReader(
     : SingleThreadMultiplexSourceReaderBase<RdKafka::Message, KafkaPartitionSplit, KafkaPartitionSplitState>(
           elementsQueue, splitFetcherManager, recordEmitter, context, isBatch)
 {
-    // 修改为读取配置的形式
+    // 默认关闭 offset 提交，仅当显式配置为 "true" 时开启
     auto it = props.find("commit.offsets.on.checkpoint");
-    if (it != props.end() && it->second == "false") {
-        commitOffsetsOnCheckpoint_ = false;
-        INFO_RELEASE(
-            "Offset commit on checkpoint is disabled. "
-            "Consuming offset will not be reported back to Kafka cluster.");
-    } else {
+    if (it != props.end() && it->second == "true") {
         commitOffsetsOnCheckpoint_ = true;
+        INFO_RELEASE(
+            "Offset commit on checkpoint is enabled. "
+            "Consuming offset will be reported back to Kafka cluster.");
+    } else {
+        commitOffsetsOnCheckpoint_ = false;
     }
 }
 

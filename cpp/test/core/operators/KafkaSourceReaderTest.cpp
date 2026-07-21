@@ -86,39 +86,39 @@ TEST_F(KafkaSourceReaderConfigTest, CommitOffsetsEnabledWhenConfigIsTrue)
     EXPECT_TRUE(reader->commitOffsetsOnCheckpoint_);
 }
 
-// Missing property -> enabled (default)
-TEST_F(KafkaSourceReaderConfigTest, CommitOffsetsEnabledByDefault)
+// Missing property -> disabled (default)
+TEST_F(KafkaSourceReaderConfigTest, CommitOffsetsDisabledByDefault)
 {
     std::unordered_map<std::string, std::string> props;
     auto reader = createReader(props);
-    EXPECT_TRUE(reader->commitOffsetsOnCheckpoint_);
+    EXPECT_FALSE(reader->commitOffsetsOnCheckpoint_);
 }
 
-// Non-"false" value -> enabled
-TEST_F(KafkaSourceReaderConfigTest, CommitOffsetsEnabledWhenConfigIsNotFalse)
+// Non-"true" value -> disabled
+TEST_F(KafkaSourceReaderConfigTest, CommitOffsetsDisabledWhenConfigIsNotTrue)
 {
     std::unordered_map<std::string, std::string> props;
     props["commit.offsets.on.checkpoint"] = "yes";
     auto reader = createReader(props);
-    EXPECT_TRUE(reader->commitOffsetsOnCheckpoint_);
+    EXPECT_FALSE(reader->commitOffsetsOnCheckpoint_);
 }
 
-// Empty string value -> enabled
-TEST_F(KafkaSourceReaderConfigTest, CommitOffsetsEnabledWhenConfigIsEmpty)
+// Empty string value -> disabled
+TEST_F(KafkaSourceReaderConfigTest, CommitOffsetsDisabledWhenConfigIsEmpty)
 {
     std::unordered_map<std::string, std::string> props;
     props["commit.offsets.on.checkpoint"] = "";
     auto reader = createReader(props);
-    EXPECT_TRUE(reader->commitOffsetsOnCheckpoint_);
+    EXPECT_FALSE(reader->commitOffsetsOnCheckpoint_);
 }
 
-// Case sensitivity: "False" is not "false" -> enabled
-TEST_F(KafkaSourceReaderConfigTest, CommitOffsetsEnabledWhenConfigIsCaseSensitive)
+// Case sensitivity: "True" is not "true" -> disabled
+TEST_F(KafkaSourceReaderConfigTest, CommitOffsetsDisabledWhenConfigIsCaseSensitive)
 {
     std::unordered_map<std::string, std::string> props;
-    props["commit.offsets.on.checkpoint"] = "False";
+    props["commit.offsets.on.checkpoint"] = "True";
     auto reader = createReader(props);
-    EXPECT_TRUE(reader->commitOffsetsOnCheckpoint_);
+    EXPECT_FALSE(reader->commitOffsetsOnCheckpoint_);
 }
 
 // Behavioral: when disabled, snapshotState returns early and
