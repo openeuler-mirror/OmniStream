@@ -51,6 +51,13 @@ public:
         writeEntry<int64_t>(keyBytes, comboId);
     }
 
+    // 仅 flush VB 尾批（如有），不 flush main writer。
+    // 用于 keyGroup 切换时强制提交当前 VB 批次，避免跨 keyGroup 数据混合。
+    void flushVB()
+    {
+        flushVectorBatchIfNotEmpty();
+    }
+
     // flush：写尾批（如有）→ flush main writer
     void flush() override
     {

@@ -23,7 +23,6 @@ class OperatorSavepointAdaptorFactory {
 public:
     OperatorSavepointAdaptorFactory() = delete;
 
-    static std::unique_ptr<OperatorSavepointAdaptor> createAdaptor(
-        FlinkSavepointAdaptorType type, const nlohmann::json& operatorDescription);
+    static std::unique_ptr<OperatorSavepointAdaptor> createAdaptor(FlinkSavepointAdaptorType type);
 };
 } // namespace omnistream

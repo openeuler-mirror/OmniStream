@@ -22,34 +22,33 @@ using omnistream::OperatorSavepointAdaptorFactory;
 // None：不支持兼容 savepoint，工厂返回 nullptr。
 TEST(OperatorSavepointAdaptorFactoryTest, ReturnsNullForNone)
 {
-    nlohmann::json desc = nlohmann::json::object();
-    EXPECT_EQ(OperatorSavepointAdaptorFactory::createAdaptor(FlinkSavepointAdaptorType::None, desc), nullptr);
+    EXPECT_EQ(OperatorSavepointAdaptorFactory::createAdaptor(FlinkSavepointAdaptorType::None), nullptr);
 }
 
 // OmniIsCompatible：走 canonical 路径，无需 Adaptor，工厂返回 nullptr。
 TEST(OperatorSavepointAdaptorFactoryTest, ReturnsNullForOmniIsCompatible)
 {
-    nlohmann::json desc = nlohmann::json::object();
-    EXPECT_EQ(
-        OperatorSavepointAdaptorFactory::createAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible, desc), nullptr);
+    EXPECT_EQ(OperatorSavepointAdaptorFactory::createAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible), nullptr);
+}
+
+// DeduplicateAdaptor：已实现的 Adaptor，工厂返回 DeduplicateSavepointAdaptor 实例。
+TEST(OperatorSavepointAdaptorFactoryTest, ReturnsDeduplicateAdaptor)
+{
+    auto adaptor = OperatorSavepointAdaptorFactory::createAdaptor(FlinkSavepointAdaptorType::DeduplicateAdaptor);
+    EXPECT_NE(adaptor, nullptr);
 }
 
 // 预留但尚未实现的 Adaptor 类型，工厂目前统一返回 nullptr。
 TEST(OperatorSavepointAdaptorFactoryTest, ReturnsNullForNotYetImplementedTypes)
 {
-    nlohmann::json desc = nlohmann::json::object();
     EXPECT_EQ(
-        OperatorSavepointAdaptorFactory::createAdaptor(FlinkSavepointAdaptorType::DeduplicateAdaptor, desc), nullptr);
+        OperatorSavepointAdaptorFactory::createAdaptor(FlinkSavepointAdaptorType::AppendOnlyTopNAdaptor), nullptr);
     EXPECT_EQ(
-        OperatorSavepointAdaptorFactory::createAdaptor(FlinkSavepointAdaptorType::AppendOnlyTopNAdaptor, desc),
+        OperatorSavepointAdaptorFactory::createAdaptor(FlinkSavepointAdaptorType::StreamingJoinNoUniqueKeyAdaptor),
         nullptr);
     EXPECT_EQ(
         OperatorSavepointAdaptorFactory::createAdaptor(
-            FlinkSavepointAdaptorType::StreamingJoinNoUniqueKeyAdaptor, desc),
-        nullptr);
-    EXPECT_EQ(
-        OperatorSavepointAdaptorFactory::createAdaptor(
-            FlinkSavepointAdaptorType::StreamingLeftOuterJoinNoUniqueKeyAdaptor, desc),
+            FlinkSavepointAdaptorType::StreamingLeftOuterJoinNoUniqueKeyAdaptor),
         nullptr);
 }
 

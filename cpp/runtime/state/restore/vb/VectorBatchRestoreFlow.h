@@ -11,7 +11,10 @@
 
 #pragma once
 
+#include <algorithm>
+#include <iomanip>
 #include <memory>
+#include <sstream>
 #include <unordered_map>
 #include <vector>
 
@@ -122,6 +125,12 @@ public:
                             }
                             default: break;
                         }
+                    }
+
+                    // keyGroup 切换时强制 flush 所有 KV_WITH_VB writer 的 VB 尾批，
+                    // 避免跨 keyGroup 的数据混合到同一 VB batch 中。
+                    for (auto& [id, w] : kvVbWriters) {
+                        w->flushVB();
                     }
                 }
 
