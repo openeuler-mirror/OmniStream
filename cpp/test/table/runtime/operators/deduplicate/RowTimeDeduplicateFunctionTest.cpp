@@ -728,9 +728,7 @@ TEST(RowTimeDeduplicateTest, UpdateBeforeKeepLastRowTimeTest)
 
     std::cout << "finish test" << std::endl;
 
-    delete inputVB1;
-    delete inputVB2;
-    delete inputVB3;
     delete outputVB1;
     delete outputVB2;
+    delete outputVB3;
 }

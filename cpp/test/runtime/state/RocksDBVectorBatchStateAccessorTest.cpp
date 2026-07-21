@@ -72,7 +72,7 @@ std::vector<int8_t> serializeVectorBatch(int32_t rowCount)
     return serializeVectorBatch(batch.get());
 }
 
-std::vector<int8_t> makeVbKey(int64_t batchId, int32_t keyGroupPrefixBytes, int32_t keyGroup)
+std::vector<int8_t> makeVbKey(omnistream::VectorBatchId batchId, int32_t keyGroupPrefixBytes, int32_t keyGroup)
 {
     OutputBufferStatus outputBufferStatus;
     DataOutputSerializer outputSerializer;
@@ -189,7 +189,7 @@ protected:
         }
     }
 
-    void writeVectorBatch(int64_t batchId, const std::vector<int8_t>& value)
+    void writeVectorBatch(omnistream::VectorBatchId batchId, const std::vector<int8_t>& value)
     {
         std::vector<int8_t> key = makeVbKey(batchId, keyGroupPrefixBytes_, keyGroup_);
         rocksdb::Status status = db_->Put(

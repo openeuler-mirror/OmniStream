@@ -49,7 +49,7 @@ public:
     {
     }
 
-    bool getSerializedBatch(int64_t batchId, ByteView* value) override
+    bool getSerializedBatch(omnistream::VectorBatchId batchId, ByteView* value) override
     {
         if (value == nullptr || stateData_ == nullptr) {
             return false;

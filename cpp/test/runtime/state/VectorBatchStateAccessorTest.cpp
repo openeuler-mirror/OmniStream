@@ -51,7 +51,7 @@ class TestVectorBatchStateAccessor : public VectorBatchStateAccessor {
 public:
     using VectorBatchStateAccessor::getRow;
 
-    void putSerializedBatch(int64_t batchId, std::vector<int8_t> bytes)
+    void putSerializedBatch(omnistream::VectorBatchId batchId, std::vector<int8_t> bytes)
     {
         batches_.emplace(batchId, std::move(bytes));
     }
@@ -60,7 +60,7 @@ public:
     {
     }
 
-    std::unique_ptr<RowData> getRowForTest(int64_t batchId, int32_t rowId)
+    std::unique_ptr<RowData> getRowForTest(omnistream::VectorBatchId batchId, int32_t rowId)
     {
         return getRow(batchId, rowId);
     }
@@ -76,7 +76,7 @@ public:
     }
 
 protected:
-    bool getSerializedBatch(int64_t batchId, ByteView* serializedBatch) override
+    bool getSerializedBatch(omnistream::VectorBatchId batchId, ByteView* serializedBatch) override
     {
         auto iter = batches_.find(batchId);
         if (iter == batches_.end()) {
@@ -89,7 +89,7 @@ protected:
     }
 
 private:
-    std::unordered_map<int64_t, std::vector<int8_t>> batches_;
+    std::unordered_map<omnistream::VectorBatchId, std::vector<int8_t>> batches_;
 };
 
 class VectorBatchStateAccessorTest : public ::testing::Test {
@@ -100,12 +100,15 @@ protected:
 // 有效 batchId/rowId 和 comboId 入口都应从序列化 VectorBatch 中提取调用方拥有的 RowData。
 TEST_F(VectorBatchStateAccessorTest, GetRowReturnsOwnedRowDataForValidSerializedBatch)
 {
-    constexpr int64_t batchId = 42;
+    int32_t keyGroup = 0;
+    uint32_t sequenceNumber = 0;
+    auto batchId = omnistream::VectorBatchUtil::getVectorBatchId(keyGroup, sequenceNumber);
     accessor_.putSerializedBatch(batchId, serializeVectorBatch(2));
 
     std::unique_ptr<RowData> first = accessor_.getRowForTest(batchId, 1);
     std::unique_ptr<RowData> second = accessor_.getRowForTest(batchId, 1);
-    std::unique_ptr<RowData> fromCombo = accessor_.getRow(VectorBatchUtil::getComboId(batchId, 1));
+    std::unique_ptr<RowData> fromCombo =
+        accessor_.getRow(omnistream::VectorBatchUtil::getComboId(keyGroup, sequenceNumber, 1));
 
     ASSERT_NE(first.get(), nullptr);
     ASSERT_NE(second.get(), nullptr);
@@ -127,7 +130,7 @@ TEST_F(VectorBatchStateAccessorTest, GetRowReturnsNullWhenBatchMissing)
 // rowId 越过 VectorBatch 行数时，getRow 应返回 nullptr，避免把越界访问交给下层未定义行为处理。
 TEST_F(VectorBatchStateAccessorTest, GetRowReturnsNullWhenRowIdOutOfRange)
 {
-    constexpr int64_t batchId = 7;
+    constexpr omnistream::VectorBatchId batchId = 7;
     accessor_.putSerializedBatch(batchId, serializeVectorBatch(2));
 
     std::unique_ptr<RowData> row = accessor_.getRowForTest(batchId, 2);

@@ -85,9 +85,9 @@ public:
             uintptr_t stateTablePtr = std::get<0>(pair.second);
             if (isVectorBatchSideTableName(pair.first)) {
                 auto* stateTable =
-                    reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch*>*>(
+                    reinterpret_cast<CopyOnWriteStateTable<uint32_t, VoidNamespace, omnistream::VectorBatch*>*>(
                         stateTablePtr);
-                InternalKeyContext<int>* keyContext = stateTable->getKeyContext();
+                auto* keyContext = stateTable->getKeyContext();
                 delete stateTable;
                 delete keyContext;
                 delete desc;
@@ -318,7 +318,7 @@ private:
     template <typename N, typename S>
     StateTable<K, N, S>* tryRegisterStateTable(TypeSerializer* namespaceSerializer, StateDescriptor* stateDesc);
 
-    StateTable<int, VoidNamespace, omnistream::VectorBatch*>* tryRegisterVectorBatchStateTable(
+    StateTable<uint32_t, VoidNamespace, omnistream::VectorBatch*>* tryRegisterVectorBatchStateTable(
         StateDescriptor* stateDesc, KeyGroupRange* parentKeyGroupRange, int parentNumberOfKeyGroups);
 
     static std::string vectorBatchSideTableName(const std::string& logicalStateName)
@@ -485,22 +485,23 @@ StateTable<K, N, S>* HeapKeyedStateBackend<K>::tryRegisterStateTable(
 }
 
 template <typename K>
-StateTable<int, VoidNamespace, omnistream::VectorBatch*>* HeapKeyedStateBackend<K>::tryRegisterVectorBatchStateTable(
+StateTable<uint32_t, VoidNamespace, omnistream::VectorBatch*>*
+HeapKeyedStateBackend<K>::tryRegisterVectorBatchStateTable(
     StateDescriptor* stateDesc, KeyGroupRange* parentKeyGroupRange, int parentNumberOfKeyGroups)
 {
     const std::string vbName = vectorBatchSideTableName(stateDesc->getName());
     auto it = registeredKvStates.find(vbName);
     if (it != registeredKvStates.end()) {
-        return reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch*>*>(
+        return reinterpret_cast<CopyOnWriteStateTable<uint32_t, VoidNamespace, omnistream::VectorBatch*>*>(
             std::get<0>(it->second));
     }
 
     KeyGroupRange* vbKeyGroupRange =
         new KeyGroupRange(parentKeyGroupRange->getStartKeyGroup(), parentKeyGroupRange->getEndKeyGroup());
-    auto* vectorBatchKeyContext = new InternalKeyContextImpl<int>(vbKeyGroupRange, parentNumberOfKeyGroups);
+    auto* vectorBatchKeyContext = new InternalKeyContextImpl<uint32_t>(vbKeyGroupRange, parentNumberOfKeyGroups);
     RegisteredKeyValueStateBackendMetaInfo* metaInfo = new RegisteredKeyValueStateBackendMetaInfo(
         StateDescriptor::Type::VALUE, vbName, new VoidNamespaceSerializer(), new LongSerializer());
-    auto* vectorBatchStateTable = new CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch*>(
+    auto* vectorBatchStateTable = new CopyOnWriteStateTable<uint32_t, VoidNamespace, omnistream::VectorBatch*>(
         vectorBatchKeyContext, metaInfo, new IntSerializer());
     auto* vbDesc = new ValueStateDescriptor<omnistream::VectorBatch*>(vbName, new LongSerializer());
     registeredKvStates[vbName] =
@@ -515,7 +516,7 @@ HeapListState<K, N, V>* HeapKeyedStateBackend<K>::createOrUpdateInternalListStat
 {
     using S = std::vector<V>*;
     StateTable<K, N, S>* stateTable = tryRegisterStateTable<N, S>(namespaceSerializer, stateDesc);
-    StateTable<int, VoidNamespace, omnistream::VectorBatch*>* vectorBatchStateTable =
+    StateTable<uint32_t, VoidNamespace, omnistream::VectorBatch*>* vectorBatchStateTable =
         tryRegisterVectorBatchStateTable(stateDesc, stateTable->getKeyGroupRange(), stateTable->getNumberOfKeyGroups());
     auto it = createdKvState.find(stateDesc->getName());
     HeapListState<K, N, V>* createdState;
@@ -537,7 +538,7 @@ HeapValueState<K, N, V>* HeapKeyedStateBackend<K>::createOrUpdateInternalValueSt
 {
     // For Value state, S is the same as V
     StateTable<K, N, V>* stateTable = tryRegisterStateTable<N, V>(namespaceSerializer, stateDesc);
-    StateTable<int, VoidNamespace, omnistream::VectorBatch*>* vectorBatchStateTable =
+    StateTable<uint32_t, VoidNamespace, omnistream::VectorBatch*>* vectorBatchStateTable =
         tryRegisterVectorBatchStateTable(stateDesc, stateTable->getKeyGroupRange(), stateTable->getNumberOfKeyGroups());
     auto it = createdKvState.find(stateDesc->getName());
     HeapValueState<K, N, V>* createdState;
@@ -559,7 +560,7 @@ HeapMapState<K, N, UK, UV>* HeapKeyedStateBackend<K>::createOrUpdateInternalMapS
 {
     using S = emhash7::HashMap<UK, UV>*;
     StateTable<K, N, S>* stateTable = tryRegisterStateTable<N, S>(namespaceSerializer, stateDesc);
-    StateTable<int, VoidNamespace, omnistream::VectorBatch*>* vectorBatchStateTable =
+    StateTable<uint32_t, VoidNamespace, omnistream::VectorBatch*>* vectorBatchStateTable =
         tryRegisterVectorBatchStateTable(stateDesc, stateTable->getKeyGroupRange(), stateTable->getNumberOfKeyGroups());
     auto it = createdKvState.find(stateDesc->getName());
     HeapMapState<K, N, UK, UV>* createdState;

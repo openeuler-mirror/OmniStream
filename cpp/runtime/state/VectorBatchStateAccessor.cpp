@@ -13,7 +13,8 @@
 
 #include "table/data/util/VectorBatchUtil.h"
 
-std::unique_ptr<RowData> VectorBatchStateAccessor::getRow(int64_t comboId)
+std::unique_ptr<RowData> VectorBatchStateAccessor::getRow(omnistream::ComboId comboId)
 {
-    return getRow(VectorBatchUtil::getBatchId(comboId), VectorBatchUtil::getRowId(comboId));
+    return getRow(
+        omnistream::VectorBatchUtil::getVectorBatchId(comboId), omnistream::VectorBatchUtil::getRowId(comboId));
 }

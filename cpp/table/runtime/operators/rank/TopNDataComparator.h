@@ -22,14 +22,11 @@ struct TopNDataComparator {
     {
         if (a == b) return false;
 
-        int batchIdA = VectorBatchUtil::getBatchId(a);
-        int rowIdA = VectorBatchUtil::getRowId(a);
+        int rowIdA = omnistream::VectorBatchUtil::getRowId(a);
+        int rowIdB = omnistream::VectorBatchUtil::getRowId(b);
 
-        int batchIdB = VectorBatchUtil::getBatchId(b);
-        int rowIdB = VectorBatchUtil::getRowId(b);
-
-        auto* vbA = fn->GetVectorBatch(batchIdA);
-        auto* vbB = fn->GetVectorBatch(batchIdB);
+        auto* vbA = fn->GetVectorBatch(a);
+        auto* vbB = fn->GetVectorBatch(b);
 
         if (vbA == nullptr || vbB == nullptr) {
             std::cout << "Error: VectorBatch is null in TopNDataComparator." << std::endl;

@@ -20,6 +20,7 @@
 #include "runtime/state/vbsave/VectorBatchSavePlan.h"
 #include "runtime/state/FullSnapshotResources.h"
 #include "runtime/state/KeyValueStateIterator.h"
+#include "table/data/vectorbatch/VectorBatchStorageInfo.h"
 
 namespace omnistream {
 
@@ -36,12 +37,12 @@ public:
         FullSnapshotResources& snapshotResources, const VectorBatchSavePlan& plan) = 0;
 
     // 从主状态 value 中解析单个 comboId，供 Deduplicate、StreamingJoin 等单引用状态使用。
-    virtual int64_t parseVectorBatchReference(
+    virtual omnistream::ComboId parseVectorBatchReference(
         ByteView value, const VectorBatchSaveStateContext& context, const VectorBatchSavePlan& plan) = 0;
 
     // 从主状态 value 中解析 comboId 列表，供 Top1、TopN 等一对多状态使用。
     // 默认将单 comboId 包装为列表，一对多 Adaptor 可按自身状态结构覆写。
-    virtual std::vector<int64_t> parseVectorBatchReferences(
+    virtual std::vector<omnistream::ComboId> parseVectorBatchReferences(
         ByteView value, const VectorBatchSaveStateContext& context, const VectorBatchSavePlan& plan)
     {
         return {parseVectorBatchReference(value, context, plan)};

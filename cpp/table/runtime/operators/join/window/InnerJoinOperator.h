@@ -11,7 +11,7 @@ class InnerJoinOperator : public WindowJoinOperator<KeyType> {
 public:
     InnerJoinOperator(
         const nlohmann::json& config, Output* output, TypeSerializer* leftSerializer, TypeSerializer* rightSerializer);
-    void join(std::vector<VectorBatchId>* leftRecords, std::vector<VectorBatchId>* rightRecords) override;
+    void join(std::vector<ComboId>* leftRecords, std::vector<ComboId>* rightRecords) override;
 };
 
 template <typename KeyType>
@@ -22,7 +22,7 @@ InnerJoinOperator<KeyType>::InnerJoinOperator(
 }
 
 template <typename KeyType>
-void InnerJoinOperator<KeyType>::join(std::vector<VectorBatchId>* leftRecords, std::vector<VectorBatchId>* rightRecords)
+void InnerJoinOperator<KeyType>::join(std::vector<ComboId>* leftRecords, std::vector<ComboId>* rightRecords)
 {
     if (leftRecords == nullptr || rightRecords == nullptr) {
         return;
@@ -34,8 +34,8 @@ void InnerJoinOperator<KeyType>::join(std::vector<VectorBatchId>* leftRecords, s
         this->output->collect(outputBatch);
         return;
     }
-    std::vector<VectorBatchId> filteredLeft;
-    std::vector<VectorBatchId> filteredRight;
+    std::vector<ComboId> filteredLeft;
+    std::vector<ComboId> filteredRight;
     for (auto leftRecord : *leftRecords) {
         for (auto rightRecord : *rightRecords) {
             if (this->filter(leftRecord, rightRecord)) {
@@ -60,7 +60,7 @@ public:
         TypeSerializer* leftSerializer,
         TypeSerializer* rightSerializer,
         bool isAntiJoin);
-    void join(std::vector<VectorBatchId>* leftRecords, std::vector<VectorBatchId>* rightRecords) override;
+    void join(std::vector<ComboId>* leftRecords, std::vector<ComboId>* rightRecords) override;
 
 private:
     bool isAntiJoin;
@@ -79,8 +79,7 @@ SemiAntiJoinOperator<KeyType>::SemiAntiJoinOperator(
 }
 
 template <typename KeyType>
-void SemiAntiJoinOperator<KeyType>::join(
-    std::vector<VectorBatchId>* leftRecords, std::vector<VectorBatchId>* rightRecords)
+void SemiAntiJoinOperator<KeyType>::join(std::vector<ComboId>* leftRecords, std::vector<ComboId>* rightRecords)
 {
 }
 
@@ -103,7 +102,7 @@ class LeftOuterJoinOperator : public AbstractOuterJoinOperator<KeyType> {
 public:
     LeftOuterJoinOperator(
         const nlohmann::json& config, Output* output, TypeSerializer* leftSerializer, TypeSerializer* rightSerializer);
-    void join(std::vector<VectorBatchId>* leftRecords, std::vector<VectorBatchId>* rightRecords) override;
+    void join(std::vector<ComboId>* leftRecords, std::vector<ComboId>* rightRecords) override;
 };
 
 template <typename KeyType>
@@ -114,8 +113,7 @@ LeftOuterJoinOperator<KeyType>::LeftOuterJoinOperator(
 }
 
 template <typename KeyType>
-void LeftOuterJoinOperator<KeyType>::join(
-    std::vector<VectorBatchId>* leftRecords, std::vector<VectorBatchId>* rightRecords)
+void LeftOuterJoinOperator<KeyType>::join(std::vector<ComboId>* leftRecords, std::vector<ComboId>* rightRecords)
 {
     // map = key : <left rows, right rows>
     if (leftRecords != nullptr && rightRecords != nullptr) {
@@ -137,7 +135,7 @@ class RightOuterJoinOperator : public AbstractOuterJoinOperator<KeyType> {
 public:
     RightOuterJoinOperator(
         const nlohmann::json& config, Output* output, TypeSerializer* leftSerializer, TypeSerializer* rightSerializer);
-    void join(std::vector<VectorBatchId>* leftRecords, std::vector<VectorBatchId>* rightRecords) override;
+    void join(std::vector<ComboId>* leftRecords, std::vector<ComboId>* rightRecords) override;
 };
 
 template <typename KeyType>
@@ -148,8 +146,7 @@ RightOuterJoinOperator<KeyType>::RightOuterJoinOperator(
 }
 
 template <typename KeyType>
-void RightOuterJoinOperator<KeyType>::join(
-    std::vector<VectorBatchId>* leftRecords, std::vector<VectorBatchId>* rightRecords)
+void RightOuterJoinOperator<KeyType>::join(std::vector<ComboId>* leftRecords, std::vector<ComboId>* rightRecords)
 {
     if (leftRecords != nullptr && rightRecords != nullptr) {
         auto outputBatch =
@@ -170,7 +167,7 @@ class FullOuterJoinOperator : public AbstractOuterJoinOperator<KeyType> {
 public:
     FullOuterJoinOperator(
         const nlohmann::json& config, Output* output, TypeSerializer* leftSerializer, TypeSerializer* rightSerializer);
-    void join(std::vector<VectorBatchId>* leftRecords, std::vector<VectorBatchId>* rightRecords) override;
+    void join(std::vector<ComboId>* leftRecords, std::vector<ComboId>* rightRecords) override;
 };
 
 template <typename KeyType>
@@ -181,8 +178,7 @@ FullOuterJoinOperator<KeyType>::FullOuterJoinOperator(
 }
 
 template <typename KeyType>
-void FullOuterJoinOperator<KeyType>::join(
-    std::vector<VectorBatchId>* leftRecords, std::vector<VectorBatchId>* rightRecords)
+void FullOuterJoinOperator<KeyType>::join(std::vector<ComboId>* leftRecords, std::vector<ComboId>* rightRecords)
 {
     if (leftRecords != nullptr && rightRecords != nullptr) {
         auto outputBatch =

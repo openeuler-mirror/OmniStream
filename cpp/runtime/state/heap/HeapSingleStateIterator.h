@@ -71,7 +71,7 @@ public:
     }
 
     HeapSingleStateIterator(
-        StateTable<int, VoidNamespace, omnistream::VectorBatch*>* vbTable,
+        StateTable<uint32_t, VoidNamespace, omnistream::VectorBatch*>* vbTable,
         int kvStateId,
         int keyGroupPrefixBytes,
         VbDataTag,
@@ -276,7 +276,7 @@ private:
         }
     }
 
-    std::vector<int8_t> serializeVbKey(int keyGroup, const int64_t& batchId, const VoidNamespace&)
+    std::vector<int8_t> serializeVbKey(int keyGroup, uint32_t sequenceNumber, const VoidNamespace&)
     {
         OutputBufferStatus outputBufferStatus;
         DataOutputSerializer outputSerializer;
@@ -285,7 +285,8 @@ private:
         outputSerializer.writeByte(static_cast<uint32_t>(keyGroup));
 
         LongSerializer longSerializer;
-        longSerializer.serialize(const_cast<int64_t*>(&batchId), outputSerializer);
+        auto sequenceNumberI64 = static_cast<int64_t>(sequenceNumber);
+        longSerializer.serialize(&sequenceNumberI64, outputSerializer);
 
         std::vector<int8_t> result(outputSerializer.getPosition());
         memcpy(result.data(), outputSerializer.getData(), outputSerializer.getPosition());

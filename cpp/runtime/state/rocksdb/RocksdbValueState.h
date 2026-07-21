@@ -87,12 +87,14 @@ public:
         std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation);
 
     void clear() override;
-    void addVectorBatch(omnistream::VectorBatch* vectorBatch) override;
-    omnistream::VectorBatch* getVectorBatch(int batchId) override;
-    long getVectorBatchesSize() override;
+    uint32_t getNextSequenceNumber(int32_t keyGroup) override;
+    void addVectorBatch(int32_t keyGroup, omnistream::VectorBatch* vectorBatch) override;
+    void addVectorBatches(const std::unordered_map<int32_t, omnistream::VectorBatch*>& vectorBatchByKeyGroup) override;
+    omnistream::VectorBatch* getVectorBatch(int32_t keyGroup, uint32_t sequenceNumber) override;
+    std::vector<omnistream::VectorBatch*> getVectorBatches(int32_t keyGroup) override;
     void updateByBatch(std::unordered_map<K, V>& pendingUpdates);
-    void clearVectors(int64_t currentTimestamp) override;
-    void clearVectors(std::vector<size_t>& indicesToDelete) override;
+    void clearVectorBatches(int64_t currentTimestamp) override;
+    void clearVectorBatches(int32_t keyGroup, std::vector<uint32_t>& sequenceNumbersToDelete) override;
     // [FALCON] -------------------------------------------------------------------------------------------
     // function to get defaultValue, get currentNamespace and set currentKey & namespace
     V getDefaultValue()
@@ -457,22 +459,35 @@ RocksdbValueState<K, N, V>* RocksdbValueState<K, N, V>::update(
 }
 
 template <typename K, typename N, typename V>
-void RocksdbValueState<K, N, V>::addVectorBatch(omnistream::VectorBatch* vectorBatch)
+uint32_t RocksdbValueState<K, N, V>::getNextSequenceNumber(int32_t keyGroup)
 {
-    stateTable->addVectorBatch(vectorBatch);
+    return stateTable->getNextSequenceNumber(keyGroup);
+}
+
+template <typename K, typename N, typename V>
+void RocksdbValueState<K, N, V>::addVectorBatch(int32_t keyGroup, omnistream::VectorBatch* vectorBatch)
+{
+    stateTable->addVectorBatch(keyGroup, vectorBatch);
 };
 
 template <typename K, typename N, typename V>
-omnistream::VectorBatch* RocksdbValueState<K, N, V>::getVectorBatch(int batchId)
+void RocksdbValueState<K, N, V>::addVectorBatches(
+    const std::unordered_map<int32_t, omnistream::VectorBatch*>& vectorBatchByKeyGroup)
 {
-    return stateTable->getVectorBatch(batchId);
+    stateTable->addVectorBatches(vectorBatchByKeyGroup);
+}
+
+template <typename K, typename N, typename V>
+omnistream::VectorBatch* RocksdbValueState<K, N, V>::getVectorBatch(int32_t keyGroup, uint32_t sequenceNumber)
+{
+    return stateTable->getVectorBatch(keyGroup, sequenceNumber);
 };
 
 template <typename K, typename N, typename V>
-long RocksdbValueState<K, N, V>::getVectorBatchesSize()
+std::vector<omnistream::VectorBatch*> RocksdbValueState<K, N, V>::getVectorBatches(int32_t keyGroup)
 {
-    return stateTable->getVectorBatchesSize();
-};
+    return stateTable->getVectorBatches(keyGroup);
+}
 
 template <typename K, typename N, typename V>
 void RocksdbValueState<K, N, V>::clear()
@@ -491,13 +506,13 @@ void RocksdbValueState<K, N, V>::updateByBatch(std::unordered_map<K, V>& pending
 }
 
 template <typename K, typename N, typename V>
-void RocksdbValueState<K, N, V>::clearVectors(int64_t currentTimestamp)
+void RocksdbValueState<K, N, V>::clearVectorBatches(int64_t currentTimestamp)
 {
-    return stateTable->clearVectors(currentTimestamp);
+    return stateTable->clearVectorBatches(currentTimestamp);
 }
 
 template <typename K, typename N, typename V>
-void RocksdbValueState<K, N, V>::clearVectors(std::vector<size_t>& indicesToDelete)
+void RocksdbValueState<K, N, V>::clearVectorBatches(int32_t keyGroup, std::vector<uint32_t>& sequenceNumbersToDelete)
 {
-    return stateTable->clearVectors(indicesToDelete);
+    return stateTable->clearVectorBatches(keyGroup, sequenceNumbersToDelete);
 }

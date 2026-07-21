@@ -40,7 +40,7 @@ public:
     }
 
 protected:
-    int64_t appendRowToVectorBatch(const RowDataView& row) override;
+    omnistream::ComboId appendRowToVectorBatch(const RowDataView& row) override;
     void flushVectorBatchIfNotEmpty() override;
     void flushMainWriter() override;
     void discardVectorBatch() override;
@@ -109,16 +109,14 @@ void RocksDBRestoreKVStateVB<K>::writeBytesEntry(const std::vector<int8_t>& /*ke
 }
 
 template <typename K>
-int64_t RocksDBRestoreKVStateVB<K>::appendRowToVectorBatch(const RowDataView& row)
+omnistream::ComboId RocksDBRestoreKVStateVB<K>::appendRowToVectorBatch(const RowDataView& row)
 {
     if (row.valueBytes == nullptr || row.columnTypes == nullptr) {
         throw std::runtime_error("RocksDBRestoreKVStateVB: RowDataView has null valueBytes or columnTypes");
     }
-    int64_t comboId =
+    omnistream::ComboId comboId =
         VectorBatchRestoreUtil::appendRowToVectorBatch(vbState_, *row.valueBytes, columnTypes_, vectorBatchSize_);
-    if (comboId < 0) {
-        throw std::runtime_error("RocksDBRestoreKVStateVB: appendRowToVectorBatch failed");
-    }
+
     if (vbState_.currentRowId >= vectorBatchSize_) {
         flushVectorBatchIfNotEmpty();
     }

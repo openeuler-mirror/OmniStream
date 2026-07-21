@@ -9,8 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef OMNISTREAM_SOURCEOUTPUTWITHWATERMARKS_H
-#define OMNISTREAM_SOURCEOUTPUTWITHWATERMARKS_H
+#pragma once
 
 #include <memory>
 #include <utility>
@@ -150,7 +149,8 @@ private:
             if (assignedTimestamp - watermarkGenerator_->getLastEmittedMaxTimestamp() > autoWatermarkInterval_) {
                 splitBatch = true;
                 const int32_t newRowCnt = i + 1 - offset;
-                omnistream::VectorBatch* pBatch = VectorBatchUtil::sliceVectorBatch(vectorBatch, offset, newRowCnt);
+                omnistream::VectorBatch* pBatch =
+                    omnistream::VectorBatchUtil::sliceVectorBatch(vectorBatch, offset, newRowCnt);
 
                 // IMPORTANT: The event must be emitted before the watermark generator is called.
                 reusingRecord_->replace(pBatch, assignedTimestamp);
@@ -164,7 +164,8 @@ private:
         if (splitBatch) {
             const int32_t newRowCnt = rowCount - offset;
             if (newRowCnt > 0) {
-                omnistream::VectorBatch* pBatch = VectorBatchUtil::sliceVectorBatch(vectorBatch, offset, newRowCnt);
+                omnistream::VectorBatch* pBatch =
+                    omnistream::VectorBatchUtil::sliceVectorBatch(vectorBatch, offset, newRowCnt);
                 reusingRecord_->replace(pBatch, maxTimestampInBatch);
                 recordsOutput_->emitRecord(reusingRecord_);
                 watermarkGenerator_->OnEvent(pBatch, maxTimestampInBatch, onEventWatermarkOutput_);
@@ -185,5 +186,3 @@ private:
     StreamRecord* reusingRecord_;
     long autoWatermarkInterval_;
 };
-
-#endif // OMNISTREAM_SOURCEOUTPUTWITHWATERMARKS_H

@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "core/utils/ByteView.h"
+#include "table/data/vectorbatch/VectorBatchStorageInfo.h"
 
 namespace omnistream {
 
@@ -31,7 +32,7 @@ public:
     template <typename V>
     void writeEntry(const std::vector<int8_t>& keyBytes, const V& value)
     {
-        if constexpr (std::is_same_v<V, int64_t>) {
+        if constexpr (std::is_same_v<V, int64_t> || std::is_same_v<V, ComboId>) {
             writeLongEntry(keyBytes, value);
         } else if constexpr (std::is_same_v<V, ByteView>) {
             writeBytesEntry(keyBytes, value);

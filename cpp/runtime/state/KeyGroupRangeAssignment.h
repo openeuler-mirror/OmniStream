@@ -23,7 +23,7 @@ public:
     // Prevent instantiation
     KeyGroupRangeAssignment() = delete;
 
-    static inline int assignToKeyGroup(K key, int maxParallelism)
+    static inline int assignToKeyGroup(const K& key, int maxParallelism)
     {
         if constexpr (KeyTypeTraits<K>::isRowKey || KeyTypeTraits<K>::isSharedRowKey) {
             // std::hash<RowData*> uses a simpler hasher. But here we need to keep it same as java
@@ -45,7 +45,7 @@ public:
         return keyGroupId * parallelism / maxParallelism;
     }
 
-    static inline int assignKeyToParallelOperator(K key, int maxParallelism, int parallelism)
+    static inline int assignKeyToParallelOperator(const K& key, int maxParallelism, int parallelism)
     {
         int keyGroup = assignToKeyGroup(key, maxParallelism);
         auto result = computeOperatorIndexForKeyGroup(maxParallelism, parallelism, keyGroup);

@@ -43,7 +43,7 @@ public:
         ::BinaryRowData* row,
         int rowPos);
 
-    static int64_t appendRowToVectorBatch(
+    static omnistream::ComboId appendRowToVectorBatch(
         VbBatchState& vbState,
         const std::vector<int8_t>& valueBytes,
         const std::vector<omniruntime::type::DataTypeId>& columnTypes,

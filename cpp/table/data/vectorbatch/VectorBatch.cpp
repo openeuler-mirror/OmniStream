@@ -45,6 +45,7 @@ VectorBatch::VectorBatch(omniruntime::vec::VectorBatch* baseVecBatch, int64_t* t
     this->timestamps = timestamps;
     this->maxTimestamp = INT64_MIN;
 }
+// todo: 这个函数看是否可以删掉
 int64_t VectorBatch::setMaxTimestamp(int colIdx)
 {
     omniruntime::vec::Vector<int64_t>* col = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(this->Get(colIdx));

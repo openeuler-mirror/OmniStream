@@ -677,7 +677,7 @@ TEST(BssStateTest, BssListState_vectorbatch)
 {
     LongSerializer* serializer = LongSerializer::INSTANCE;
     // Initialize the InternalKeyContext
-    InternalKeyContextImpl<RowData*>* context = new InternalKeyContextImpl<RowData*>(new KeyGroupRange(0, 1), 1);
+    InternalKeyContextImpl<RowData*>* context = new InternalKeyContextImpl<RowData*>(new KeyGroupRange(0, 1), 2);
     BinaryRowData* keyRowData = BinaryRowData::createBinaryRowDataWithMem(1);
     keyRowData->setLong(0, 100);
     context->setCurrentKey(keyRowData);
@@ -688,23 +688,44 @@ TEST(BssStateTest, BssListState_vectorbatch)
     initialListState(listState);
     listState->setCurrentNamespace(1000);
     omnistream::VectorBatch* tmpBatch = GetVectorBatch(vecBatchRows);
-    auto batchid = listState->getVectorBatchesSize();
-    listState->addVectorBatch(tmpBatch);
-    LOG("vectorbatch id " << batchid);
-    auto res = listState->getVectorBatch(batchid);
+    auto keyGroup = context->getCurrentKeyGroupIndex();
+    auto sequenceNumber = listState->getNextSequenceNumber(keyGroup);
+    listState->addVectorBatch(keyGroup, tmpBatch);
+    LOG("vectorbatch sequenceNumber " << sequenceNumber);
+    auto res = listState->getVectorBatch(keyGroup, sequenceNumber);
     LOG("vectorbatch row : " << tmpBatch->GetRowCount() << ", vector : " << tmpBatch->GetVectorCount());
     for (int i = 0; i < tmpBatch->GetVectorCount(); ++i) {
         for (int j = 0; j < tmpBatch->GetRowCount(); ++j) {
             EXPECT_EQ(tmpBatch->GetValueAt<long>(i, j), res->GetValueAt<long>(i, j));
         }
     }
+
+    auto* tmpBatch2 = GetVectorBatch(vecBatchRows);
+    auto* tmpBatch3 = GetVectorBatch(vecBatchRows);
+    std::unordered_map<int32_t, omnistream::VectorBatch*> batchesByKeyGroup = {
+        {keyGroup, tmpBatch2}, {keyGroup - 1, tmpBatch3}};
+    listState->addVectorBatches(batchesByKeyGroup);
+    EXPECT_EQ(listState->getNextSequenceNumber(keyGroup), 2);
+    EXPECT_EQ(listState->getNextSequenceNumber(keyGroup - 1), 1);
+    auto storedBatches = listState->getVectorBatches(keyGroup);
+    ASSERT_EQ(storedBatches.size(), 2);
+    EXPECT_EQ(storedBatches.at(1)->GetValueAt<long>(0, 0), tmpBatch2->GetValueAt<long>(0, 0));
+    for (auto* storedBatch : storedBatches) {
+        delete storedBatch;
+    }
+    auto storedBatchesInOtherKeyGroup = listState->getVectorBatches(keyGroup - 1);
+    ASSERT_EQ(storedBatchesInOtherKeyGroup.size(), 1);
+    EXPECT_EQ(storedBatchesInOtherKeyGroup.at(0)->GetValueAt<long>(0, 0), tmpBatch3->GetValueAt<long>(0, 0));
+    delete storedBatchesInOtherKeyGroup.at(0);
+    delete tmpBatch2;
+    delete tmpBatch3;
 }
 
 TEST(BssStateTest, BssMapState_vectorbatch)
 {
     LongSerializer* serializer = LongSerializer::INSTANCE;
     // Initialize the InternalKeyContext
-    InternalKeyContextImpl<RowData*>* context = new InternalKeyContextImpl<RowData*>(new KeyGroupRange(0, 1), 1);
+    InternalKeyContextImpl<RowData*>* context = new InternalKeyContextImpl<RowData*>(new KeyGroupRange(0, 1), 2);
     BinaryRowData* keyRowData = BinaryRowData::createBinaryRowDataWithMem(1);
     keyRowData->setLong(0, 100);
     context->setCurrentKey(keyRowData);
@@ -717,9 +738,13 @@ TEST(BssStateTest, BssMapState_vectorbatch)
     initialMapState(mapState);
     mapState->setCurrentNamespace(1000);
     omnistream::VectorBatch* tmpBatch = GetVectorBatch(vecBatchRows);
-    mapState->addVectorBatch(tmpBatch);
-    LOG("vectorbatch id " << mapState->getVectorBatchesSize());
-    auto res = mapState->getVectorBatch(mapState->getVectorBatchesSize() - 1);
+    auto keyGroup = context->getCurrentKeyGroupIndex();
+    auto sequenceNumber = mapState->getNextSequenceNumber(keyGroup);
+    EXPECT_EQ(sequenceNumber, 0);
+    mapState->addVectorBatch(keyGroup, tmpBatch);
+    EXPECT_EQ(mapState->getNextSequenceNumber(keyGroup), 1);
+    LOG("vectorbatch sequenceNumber " << sequenceNumber);
+    auto res = mapState->getVectorBatch(keyGroup, sequenceNumber);
     LOG("vectorbatch row : " << tmpBatch->GetRowCount() << ", vector : " << tmpBatch->GetVectorCount());
     for (int i = 0; i < tmpBatch->GetVectorCount(); ++i) {
         for (int j = 0; j < tmpBatch->GetRowCount(); ++j) {
@@ -728,14 +753,29 @@ TEST(BssStateTest, BssMapState_vectorbatch)
     }
 
     omnistream::VectorBatch* tmpBatch2 = GetVectorBatch(vecBatchRows);
-    mapState->addVectorBatch(tmpBatch2);
-    LOG("vectorbatch id " << mapState->getVectorBatchesSize());
-    auto res1 = mapState->getVectorBatch(mapState->getVectorBatchesSize() - 1);
+    auto sequenceNumber1 = mapState->getNextSequenceNumber(keyGroup);
+    mapState->addVectorBatch(keyGroup, tmpBatch2);
+    LOG("vectorbatch sequenceNumber " << sequenceNumber1);
+    auto res1 = mapState->getVectorBatch(keyGroup, sequenceNumber1);
     LOG("vectorbatch row : " << tmpBatch2->GetRowCount() << ", vector : " << tmpBatch->GetVectorCount());
     for (int i = 0; i < tmpBatch2->GetVectorCount(); ++i) {
         for (int j = 0; j < tmpBatch2->GetRowCount(); ++j) {
             EXPECT_EQ(tmpBatch2->GetValueAt<long>(i, j), res1->GetValueAt<long>(i, j));
         }
     }
+
+    // sequenceNumber is scoped to a keyGroup; the same sequenceNumber in another
+    // keyGroup must address a different VectorBatchId.
+    int32_t otherKeyGroup = keyGroup - 1;
+    auto otherSequenceNumber = mapState->getNextSequenceNumber(otherKeyGroup);
+    EXPECT_EQ(otherSequenceNumber, 0);
+    auto* otherBatch = GetVectorBatch(vecBatchRows);
+    reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(otherBatch->Get(0))->SetValue(0, 999);
+    mapState->addVectorBatch(otherKeyGroup, otherBatch);
+    EXPECT_EQ(mapState->getNextSequenceNumber(otherKeyGroup), 1);
+    EXPECT_EQ(mapState->getNextSequenceNumber(keyGroup), 2);
+    auto* otherResult = mapState->getVectorBatch(otherKeyGroup, otherSequenceNumber);
+    EXPECT_EQ(otherResult->GetValueAt<long>(0, 0), 999);
+    EXPECT_EQ(mapState->getVectorBatch(keyGroup, sequenceNumber)->GetValueAt<long>(0, 0), 100);
 }
 #endif

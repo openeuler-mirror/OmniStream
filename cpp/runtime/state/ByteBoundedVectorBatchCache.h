@@ -18,6 +18,7 @@
 
 #include "runtime/state/cache/WeightedLruCache.h"
 #include "table/data/vectorbatch/VectorBatch.h"
+#include "table/data/vectorbatch/VectorBatchStorageInfo.h"
 
 /*
  * 按序列化字节数限制容量的 decoded VectorBatch 缓存。
@@ -42,7 +43,7 @@ public:
     ByteBoundedVectorBatchCache(const ByteBoundedVectorBatchCache&) = delete;
     ByteBoundedVectorBatchCache& operator=(const ByteBoundedVectorBatchCache&) = delete;
 
-    omnistream::VectorBatch* get(int64_t batchId)
+    omnistream::VectorBatch* get(omnistream::VectorBatchId batchId)
     {
         auto* cachedBatch = cache_.get(batchId);
         if (cachedBatch == nullptr) {
@@ -51,7 +52,8 @@ public:
         return cachedBatch->get();
     }
 
-    omnistream::VectorBatch* put(int64_t batchId, std::unique_ptr<omnistream::VectorBatch>&& batch, size_t bytes)
+    omnistream::VectorBatch* put(
+        omnistream::VectorBatchId batchId, std::unique_ptr<omnistream::VectorBatch>&& batch, size_t bytes)
     {
         if (batch == nullptr) {
             return nullptr;
@@ -90,5 +92,5 @@ public:
     }
 
 private:
-    WeightedLruCache<int64_t, std::unique_ptr<omnistream::VectorBatch>> cache_;
+    WeightedLruCache<omnistream::VectorBatchId, std::unique_ptr<omnistream::VectorBatch>> cache_;
 };
