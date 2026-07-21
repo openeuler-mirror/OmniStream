@@ -151,9 +151,47 @@ public:
         resultSubpartitionStateFuture = future;
     }
 
-    std::pair<long, long> cancel()
+    std::pair<long, long> cancel(const std::string& reason = "checkpoint declined due to operator error")
     {
-        // TTODO
+        // 取消所有已设置的 futures，避免已有有效 future 继续执行并报告成功，
+        // 导致 TM 侧报错但 JM 看到 SP 任务成功的问题。
+        int resetCount = 0;
+        if (keyedStateManagedFuture != nullptr) {
+            keyedStateManagedFuture.reset();
+            resetCount++;
+        }
+        if (keyedStateRawFuture != nullptr) {
+            keyedStateRawFuture.reset();
+            resetCount++;
+        }
+        if (operatorStateManagedFuture != nullptr) {
+            operatorStateManagedFuture.reset();
+            resetCount++;
+        }
+        if (operatorStateRawFuture != nullptr) {
+            operatorStateRawFuture.reset();
+            resetCount++;
+        }
+        if (inputChannelStateFuture != nullptr) {
+            inputChannelStateFuture.reset();
+            resetCount++;
+        }
+        if (resultSubpartitionStateFuture != nullptr) {
+            resultSubpartitionStateFuture.reset();
+            resetCount++;
+        }
+
+        INFO_RELEASE(
+            "OperatorSnapshotFutures::cancel reason=[" << reason << "], resetCount=" << resetCount
+                                                       << ", injecting failed keyedStateManagedFuture");
+
+        // 注入失败状态的 keyedStateManagedFuture，将真实失败原因传递到 JM
+        auto failedPromise = std::make_shared<std::promise<std::shared_ptr<SnapshotResult<KeyedStateHandle>>>>();
+        failedPromise->set_exception(std::make_exception_ptr(std::runtime_error(reason)));
+        keyedStateManagedFuture =
+            std::make_shared<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>>(
+                [promise = std::move(failedPromise)]() { return promise->get_future().get(); });
+
         return std::make_pair(0, 0);
     }
     void OperatorSemInit()

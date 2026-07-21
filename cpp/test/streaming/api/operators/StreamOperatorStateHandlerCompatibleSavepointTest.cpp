@@ -209,7 +209,14 @@ TEST(StreamOperatorStateHandlerCompatibleSavepointTest, CompatibleSavepointWithN
     std::unique_ptr<SavepointType> savepointType(SavepointType::savepoint(SavepointFormatType::COMPATIBLE));
     auto checkpointOptions = makeCheckpointOptions(*savepointType);
 
-    EXPECT_THROW(snapshot(*handler, &op, checkpointOptions.get()), std::logic_error);
+    auto futures = snapshot(*handler, &op, checkpointOptions.get());
+
+    EXPECT_NE(futures, nullptr);
+    auto keyedStateFuture = futures->getKeyedStateManagedFuture();
+    EXPECT_NE(keyedStateFuture, nullptr);
+    // cancel() injected a failed future; operator() stores the exception internally
+    (*keyedStateFuture)();
+    EXPECT_THROW(keyedStateFuture->get_future().get(), std::runtime_error);
     EXPECT_EQ(backend->snapshotCount(), 0);
     EXPECT_EQ(backend->savepointCount(), 0);
     EXPECT_EQ(backend->compatibleSavepointCount(), 0);

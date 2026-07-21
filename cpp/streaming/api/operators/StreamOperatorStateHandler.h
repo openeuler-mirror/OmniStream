@@ -296,37 +296,29 @@ public:
                 "Error:StreamOperatorStateHandler::snapshotState operator="
                 << operatorName << ", checkpointId=" << checkpointId << ", exception=" << e.what());
             try {
-                snapshotInProgress->cancel();
+                snapshotInProgress->cancel(e.what());
             } catch (...) {
                 // Do nothing
             }
-            std::string snapshotFailMessage = "Could not complete snapshot " + std::to_string(checkpointId) +
-                                              " for operator " + operatorName + ". Root cause: " + e.what();
-
             try {
                 snapshotContext->closeExceptionally();
             } catch (...) {
                 // Do nothing
             }
-            THROW_LOGIC_EXCEPTION(snapshotFailMessage);
         } catch (...) {
             INFO_RELEASE(
                 "Error:StreamOperatorStateHandler::snapshotState operator=" << operatorName << ", checkpointId="
                                                                             << checkpointId << ", exception=unknown");
             try {
-                snapshotInProgress->cancel();
+                snapshotInProgress->cancel("unknown exception");
             } catch (...) {
                 // Do nothing
             }
-            std::string snapshotFailMessage =
-                "Could not complete snapshot " + std::to_string(checkpointId) + " for operator " + operatorName + ".";
-
             try {
                 snapshotContext->closeExceptionally();
             } catch (...) {
                 // Do nothing
             }
-            THROW_LOGIC_EXCEPTION(snapshotFailMessage);
         }
     };
 

@@ -684,6 +684,39 @@ OperatorSnapshotFutures* OperatorChainV2::BuildOperatorSnapshotFutures(
     return snapshotInProgress;
 }
 
+std::string OperatorChainV2::checkCompatibleSavepointSupport()
+{
+    std::string unsupportedReasons;
+    auto iter = getAllOperators(false);
+    while (iter.hasNext()) {
+        auto* op = iter.next()->getStreamOperator();
+        FlinkSavepointAdaptorInfo adaptorInfo;
+        if (auto aop = dynamic_cast<AbstractStreamOperator<RowData*>*>(op)) {
+            adaptorInfo = aop->getSavepointAdaptorInfo();
+        } else if (auto rd_aop = dynamic_cast<AbstractStreamOperator<std::shared_ptr<RowData>>*>(op)) {
+            adaptorInfo = rd_aop->getSavepointAdaptorInfo();
+        } else if (auto sop = dynamic_cast<AbstractStreamOperator<Object*>*>(op)) {
+            adaptorInfo = sop->getSavepointAdaptorInfo();
+        } else if (auto lop = dynamic_cast<AbstractStreamOperator<long>*>(op)) {
+            adaptorInfo = lop->getSavepointAdaptorInfo();
+        } else if (auto vop = dynamic_cast<AbstractStreamOperator<void*>*>(op)) {
+            adaptorInfo = vop->getSavepointAdaptorInfo();
+        } else if (auto bop = dynamic_cast<AbstractStreamOperator<BinaryRowData*>*>(op)) {
+            adaptorInfo = bop->getSavepointAdaptorInfo();
+        } else {
+            // 非 AbstractStreamOperator 的算子无 keyed state，跳过
+            continue;
+        }
+        if (adaptorInfo.type == FlinkSavepointAdaptorType::None) {
+            if (!unsupportedReasons.empty()) {
+                unsupportedReasons += "; ";
+            }
+            unsupportedReasons += adaptorInfo.reason;
+        }
+    }
+    return unsupportedReasons;
+}
+
 OperatorSnapshotFutures* OperatorChainV2::CheckpointStreamOperator(
     StreamOperator* op,
     CheckpointMetaData checkpointMetaData,
