@@ -378,7 +378,10 @@ StreamOperator* StreamOperatorFactory::CreateSinkOp(
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
     const char* env = std::getenv("WRITE_TO_FILE");
     opDescriptionJSON["outputfile"] = (env && std::string(env) == "TRUE") ? std::string("/tmp/flink_output.txt") : "";
-    return static_cast<OneInputStreamOperator*>(new SinkOperator(opDescriptionJSON));
+    auto* op = new SinkOperator(opDescriptionJSON);
+    // SP-INTEROP: SinkOperator 无 managed keyed state，Omni 原生格式即为 Flink 兼容。
+    op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
+    return static_cast<OneInputStreamOperator*>(op);
 }
 
 StreamOperator* StreamOperatorFactory::CreateSourceOp(
@@ -436,6 +439,8 @@ StreamOperator* StreamOperatorFactory::CreateSourceOp(
 
             auto* source = new StreamSource<omnistream::VectorBatch>(func, chainOutput, false);
             source->setup(std::move(task));
+            // SP-INTEROP: StreamSource 无 managed keyed state，Omni 原生格式即为 Flink 兼容。
+            source->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
             return static_cast<StreamOperator*>(source);
         } else if (format == "nexmark") {
             int batchSize = opDescriptionJSON["batchSize"];
@@ -449,6 +454,8 @@ StreamOperator* StreamOperatorFactory::CreateSourceOp(
             auto* source = new StreamSource<omnistream::VectorBatch>(func, chainOutput, false);
             source->setup(std::move(task));
             source->setDescription(opDescriptionJSON);
+            // SP-INTEROP: StreamSource 无 managed keyed state，Omni 原生格式即为 Flink 兼容。
+            source->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
             return static_cast<StreamOperator*>(source);
         } else if (format == "joinSource") {
             // In JoinSource, all values have been set to their default value
@@ -456,6 +463,8 @@ StreamOperator* StreamOperatorFactory::CreateSourceOp(
             auto* source = new StreamSource<omnistream::VectorBatch>(func, chainOutput, false);
             source->setup(std::move(task));
             source->setDescription(opDescriptionJSON);
+            // SP-INTEROP: StreamSource 无 managed keyed state，Omni 原生格式即为 Flink 兼容。
+            source->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
             return static_cast<StreamOperator*>(source);
         } else if (format == "kafka") {
             auto description = opConfig.getDescription();
@@ -498,8 +507,10 @@ StreamOperator* StreamOperatorFactory::CreateTimestampInserterOp(
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
     nlohmann::json object;
     object["outputfile"] = "/tmp/flink_output.txt";
-    return static_cast<OneInputStreamOperator*>(
-        new TimeStampInserterSinkOperator(object, chainOutput, opDescriptionJSON));
+    auto* op = new TimeStampInserterSinkOperator(object, chainOutput, opDescriptionJSON);
+    // SP-INTEROP: TimeStampInserter 无 managed keyed state，Omni 原生格式即为 Flink 兼容。
+    op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
+    return static_cast<OneInputStreamOperator*>(op);
 }
 
 StreamOperator* StreamOperatorFactory::CreateProcessOp(
