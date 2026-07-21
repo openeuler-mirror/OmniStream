@@ -295,8 +295,7 @@ HeapKeyedStateBackend<K>* HeapKeyedStateBackendBuilder<K>::build()
                     << ", stateHandleCount=" << restoreStateHandles.size());
                 throw std::invalid_argument("Heap compatible restore requires OmniTaskBridge when state handles exist");
             }
-            compatiblePreparedAdaptor =
-                omnistream::OperatorSavepointAdaptorFactory::createAdaptor(adaptorInfo_.type, operatorDescription_);
+            compatiblePreparedAdaptor = omnistream::OperatorSavepointAdaptorFactory::createAdaptor(adaptorInfo_.type);
             if (compatiblePreparedAdaptor == nullptr) {
                 INFO_RELEASE("Error:Heap compatible restore adaptor factory returned null: " << adaptorInfo_.reason);
                 throw std::runtime_error("Heap compatible restore adaptor factory returned null");

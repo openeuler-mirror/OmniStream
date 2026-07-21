@@ -32,6 +32,7 @@ struct RocksDBWriterContext {
     long writeBatchSize = 0;
     int keyGroupPrefixBytes = 0;
     int startKeyGroup = 0;
+    int keyGroupId = 0;
     int64_t* mainEntryCount = nullptr;
     int64_t* vbBatchCount = nullptr;
 };
@@ -54,9 +55,9 @@ public:
         INFO_RELEASE("RocksDBRestoreKVState: flush kvStateId=" << kvStateId_ << ", totalEntries=" << entryCount_);
     }
 
-    void setKeyGroupId(int /*keyGroupId*/) override
+    void setKeyGroupId(int keyGroupId) override
     {
-        // RocksDB writers encode keyGroup in the key bytes; this is a no-op.
+        ctx_.keyGroupId = keyGroupId;
     }
 
     void discard() override
@@ -95,10 +96,6 @@ void RocksDBRestoreKVState<K>::writeLongEntry(const std::vector<int8_t>& keyByte
     }
     mainWriter_->Put(mainCF_, keySlice, valueSlice);
     if (ctx_.mainEntryCount) (*ctx_.mainEntryCount)++;
-    entryCount_++;
-    INFO_RELEASE(
-        "RocksDBRestoreKVState: writeLongEntry kvStateId=" << kvStateId_ << ", entry#" << entryCount_
-                                                           << ", keySize=" << keyBytes.size() << ", value=" << value);
 }
 
 template <typename K>
@@ -112,9 +109,5 @@ void RocksDBRestoreKVState<K>::writeBytesEntry(const std::vector<int8_t>& keyByt
     }
     mainWriter_->Put(mainCF_, keySlice, valueSlice);
     if (ctx_.mainEntryCount) (*ctx_.mainEntryCount)++;
-    entryCount_++;
-    INFO_RELEASE(
-        "RocksDBRestoreKVState: writeBytesEntry kvStateId=" << kvStateId_ << ", entry#" << entryCount_ << ", keySize="
-                                                            << keyBytes.size() << ", valueSize=" << value.size());
 }
 } // namespace omnistream

@@ -11,13 +11,13 @@
 
 #include "OperatorSavepointAdaptorFactory.h"
 #include "OperatorSavepointAdaptor.h"
+#include "DeduplicateSavepointAdaptor.h"
 
 namespace omnistream {
-std::unique_ptr<OperatorSavepointAdaptor> OperatorSavepointAdaptorFactory::createAdaptor(
-    FlinkSavepointAdaptorType type, const nlohmann::json& operatorDescription)
+std::unique_ptr<OperatorSavepointAdaptor> OperatorSavepointAdaptorFactory::createAdaptor(FlinkSavepointAdaptorType type)
 {
     switch (type) {
-        case FlinkSavepointAdaptorType::DeduplicateAdaptor:
+        case FlinkSavepointAdaptorType::DeduplicateAdaptor: return std::make_unique<DeduplicateSavepointAdaptor>();
         case FlinkSavepointAdaptorType::AppendOnlyTopNAdaptor:
         case FlinkSavepointAdaptorType::StreamingJoinNoUniqueKeyAdaptor:
         case FlinkSavepointAdaptorType::StreamingLeftOuterJoinNoUniqueKeyAdaptor:

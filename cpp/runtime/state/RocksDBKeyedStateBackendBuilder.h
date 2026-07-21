@@ -200,8 +200,7 @@ private:
                     throw std::runtime_error(
                         "RocksDB compatible full restore does not support incremental/native state handles");
                 }
-                auto adaptor =
-                    omnistream::OperatorSavepointAdaptorFactory::createAdaptor(adaptorInfo_.type, operatorDescription_);
+                auto adaptor = omnistream::OperatorSavepointAdaptorFactory::createAdaptor(adaptorInfo_.type);
                 if (adaptor == nullptr) {
                     INFO_RELEASE(
                         "Error:RocksDB compatible restore adaptor factory returned null: " << adaptorInfo_.reason);

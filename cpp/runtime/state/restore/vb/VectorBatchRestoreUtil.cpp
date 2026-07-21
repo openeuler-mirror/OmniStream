@@ -88,9 +88,6 @@ static bool isRestoreSupportedType(omniruntime::type::DataTypeId typeId)
         case omniruntime::type::DataTypeId::OMNI_TIMESTAMP:
         case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
         case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-        case omniruntime::type::DataTypeId::OMNI_DATE64:
-        case omniruntime::type::DataTypeId::OMNI_TIME64:
-        case omniruntime::type::DataTypeId::OMNI_DECIMAL64:
         case omniruntime::type::DataTypeId::OMNI_CHAR:
         case omniruntime::type::DataTypeId::OMNI_VARCHAR: return true;
         default: return false;

@@ -111,7 +111,13 @@ RocksDBRestoreBackendDelegate<K>::RocksDBRestoreBackendDelegate(
       keyGroupPrefixBytes_(keyGroupPrefixBytes),
       writeBatchSize_(writeBatchSize),
       writerCtx_{
-          rocksDbHandle->getDb(), writeBatchSize, keyGroupPrefixBytes, startKeyGroup, &mainEntryCount_, &vbBatchCount_},
+          rocksDbHandle->getDb(),
+          writeBatchSize,
+          keyGroupPrefixBytes,
+          startKeyGroup,
+          -1 /* keyGroupId: 哨兵值，必须由 setKeyGroupId() 设置后才可写入 */,
+          &mainEntryCount_,
+          &vbBatchCount_},
       registeredPQStates_(std::move(registeredPQStates))
 {
 }

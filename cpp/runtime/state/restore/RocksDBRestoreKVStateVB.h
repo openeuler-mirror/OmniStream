@@ -34,9 +34,9 @@ public:
         const std::vector<omniruntime::type::DataTypeId>& columnTypes,
         int vectorBatchSize);
 
-    void setKeyGroupId(int /*keyGroupId*/) override
+    void setKeyGroupId(int keyGroupId) override
     {
-        // RocksDB writers encode keyGroup in the key bytes; this is a no-op.
+        ctx_.keyGroupId = keyGroupId;
     }
 
 protected:
@@ -100,10 +100,6 @@ void RocksDBRestoreKVStateVB<K>::writeLongEntry(const std::vector<int8_t>& keyBy
     }
     mainWriter_->Put(mainCF_, keySlice, valueSlice);
     if (ctx_.mainEntryCount) (*ctx_.mainEntryCount)++;
-    INFO_RELEASE(
-        "RocksDBRestoreKVStateVB: writeLongEntry kvStateId=" << kvStateId_ << ", mainEntry#" << *ctx_.mainEntryCount
-                                                             << ", keySize=" << keyBytes.size()
-                                                             << ", comboId=" << value);
 }
 
 template <typename K>
@@ -126,10 +122,6 @@ int64_t RocksDBRestoreKVStateVB<K>::appendRowToVectorBatch(const RowDataView& ro
     if (vbState_.currentRowId >= vectorBatchSize_) {
         flushVectorBatchIfNotEmpty();
     }
-    INFO_RELEASE(
-        "RocksDBRestoreKVStateVB: appendRowToVB kvStateId=" << kvStateId_ << ", batchId=" << vbState_.currentBatchId
-                                                            << ", rowId=" << vbState_.currentRowId << ", comboId="
-                                                            << comboId << ", valueSize=" << row.valueBytes->size());
     return comboId;
 }
 
@@ -139,10 +131,6 @@ void RocksDBRestoreKVStateVB<K>::flushVectorBatchIfNotEmpty()
     if (vbState_.currentBatch == nullptr) {
         return;
     }
-
-    INFO_RELEASE(
-        "RocksDBRestoreKVStateVB: flushVectorBatch - kvStateId="
-        << kvStateId_ << ", batchId=" << vbState_.currentBatchId << ", rows=" << vbState_.currentRowId);
 
     int32_t actualRowCnt = vbState_.currentRowId;
     VectorBatch* sliceForSerialization = nullptr;
@@ -200,10 +188,6 @@ void RocksDBRestoreKVStateVB<K>::flushVectorBatchIfNotEmpty()
     vbState_.currentBatchId++;
     vbState_.currentRowId = 0;
     if (ctx_.vbBatchCount) (*ctx_.vbBatchCount)++;
-    INFO_RELEASE(
-        "RocksDBRestoreKVStateVB: flushed VB kvStateId=" << kvStateId_ << ", batchId=" << vbState_.currentBatchId - 1
-                                                         << ", rows=" << actualRowCnt
-                                                         << ", totalVbBatches=" << *ctx_.vbBatchCount);
 }
 
 template <typename K>

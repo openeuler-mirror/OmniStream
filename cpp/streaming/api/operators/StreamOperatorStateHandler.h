@@ -382,8 +382,7 @@ private:
                 ->snapshot(checkpointId, timestamp, checkpointStreamFactory, checkpointOptions, bridge, keySerializer);
         }
 
-        auto adaptor = omnistream::OperatorSavepointAdaptorFactory::createAdaptor(
-            adaptorInfo.type, streamOperator->getOperatorDescription());
+        auto adaptor = omnistream::OperatorSavepointAdaptorFactory::createAdaptor(adaptorInfo.type);
         if (adaptor == nullptr) {
             INFO_RELEASE(
                 "Error:StreamOperatorStateHandler::prepareCompatibleSavepoint cp="
