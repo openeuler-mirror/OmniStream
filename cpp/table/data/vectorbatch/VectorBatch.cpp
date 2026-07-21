@@ -11,9 +11,31 @@
 
 #include "VectorBatch.h"
 #include <fstream>
+#include <cstdio>
+#include <cstdlib>
+#include <cmath>
 #include "data/binary/BinaryRowData.h"
 #include "table/data/rowdata_marshaller.h"
 #include "OmniOperatorJIT/core/src/codegen/time_util.h"
+#include "OmniOperatorJIT/core/src/codegen/functions/dtoa.h"
+#include "OmniOperatorJIT/core/src/type/TimestampConversion.h"
+
+namespace {
+
+std::string FormatDoubleLikeJava(double value)
+{
+    constexpr std::size_t kBufLen = omniruntime::codegen::function::MAX_DATA_LENGTH;
+    char buf[kBufLen];
+    std::size_t len = omniruntime::codegen::function::DoubleToString::DoubleToStringConverter(value, buf);
+    return std::string(buf, len);
+}
+
+std::string FormatDateLikeJava(int32_t daysSinceEpoch)
+{
+    return omniruntime::type::util::ToIso8601(daysSinceEpoch);
+}
+}  // namespace
+
 namespace omnistream {
 VectorBatch::VectorBatch(size_t rowCnt)
     : omniruntime::vec::VectorBatch(rowCnt),
@@ -307,10 +329,15 @@ void VectorBatch::WriteToFileInternal(
         case omniruntime::type::DataTypeId::OMNI_VARCHAR:
         case omniruntime::type::DataTypeId::OMNI_CHAR: WriteString(file, vectorID, rowID); break;
         case omniruntime::type::DataTypeId::OMNI_DOUBLE:
-            file << reinterpret_cast<omniruntime::vec::Vector<double>*>(vectors[vectorID])->GetValue(rowID);
+            file << FormatDoubleLikeJava(
+                reinterpret_cast<omniruntime::vec::Vector<double> *>(vectors[vectorID])->GetValue(rowID));
             break;
         case omniruntime::type::DataTypeId::OMNI_INT:
             file << reinterpret_cast<omniruntime::vec::Vector<int32_t>*>(vectors[vectorID])->GetValue(rowID);
+            break;
+        case omniruntime::type::DataTypeId::OMNI_DATE32:
+            file << FormatDateLikeJava(
+                reinterpret_cast<omniruntime::vec::Vector<int32_t> *>(vectors[vectorID])->GetValue(rowID));
             break;
         case omniruntime::type::DataTypeId::OMNI_BOOLEAN:
             file << reinterpret_cast<omniruntime::vec::Vector<bool>*>(vectors[vectorID])->GetValue(rowID);
@@ -417,6 +444,12 @@ void VectorBatch::convertToJson(
                 j[inputFields[colIndex]] = result;
                 break;
             }
+            case omniruntime::type::DataTypeId::OMNI_DATE32: {
+                auto days = reinterpret_cast<omniruntime::vec::Vector<int32_t> *>(vectors[colIndex])->GetValue(
+                        rowIndex);
+                j[inputFields[colIndex]] = FormatDateLikeJava(days);
+                break;
+            }
             case omniruntime::type::DataTypeId::OMNI_BOOLEAN: {
                 auto result = reinterpret_cast<omniruntime::vec::Vector<bool>*>(vectors[colIndex])->GetValue(rowIndex);
                 j[inputFields[colIndex]] = result;
@@ -517,7 +550,8 @@ omnistream::VectorBatch* VectorBatch::CreateVectorBatch(int rowCount, const std:
     auto* vectorBatch = new omnistream::VectorBatch(rowCount);
     for (size_t i = 0; i < dataTypes.size(); i++) {
         switch (dataTypes[i]) {
-            case (omniruntime::type::DataTypeId::OMNI_INT): {
+            case (omniruntime::type::DataTypeId::OMNI_INT):
+            case (omniruntime::type::DataTypeId::OMNI_DATE32): {
                 auto vec = new omniruntime::vec::Vector<int32_t>(rowCount);
                 vectorBatch->Append(vec);
                 break;
@@ -527,6 +561,11 @@ omnistream::VectorBatch* VectorBatch::CreateVectorBatch(int rowCount, const std:
             case (omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE):
             case (omniruntime::type::DataTypeId::OMNI_TIMESTAMP): {
                 auto vec = new omniruntime::vec::Vector<int64_t>(rowCount);
+                vectorBatch->Append(vec);
+                break;
+            }
+            case (omniruntime::type::DataTypeId::OMNI_DOUBLE): {
+                auto vec = new omniruntime::vec::Vector<double>(rowCount);
                 vectorBatch->Append(vec);
                 break;
             }

@@ -46,6 +46,9 @@ public:
     int* getInt(int pos) override;
     void setInt(int pos, int value) override;
 
+    double *getDouble(int pos) override;
+    void setDouble(int pos, double value) override;
+
     TimestampData getTimestamp(int pos) override;
     TimestampData getTimestampPrecise(int pos) override;
     void setTimestamp(int pos, const TimestampData& value, int precision) override;
