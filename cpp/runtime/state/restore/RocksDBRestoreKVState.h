@@ -95,6 +95,7 @@ void RocksDBRestoreKVState<K>::writeLongEntry(const std::vector<int8_t>& keyByte
         mainWriter_ = std::make_unique<RocksDBWriteBatchWrapper>(ctx_.db, ctx_.writeBatchSize);
     }
     mainWriter_->Put(mainCF_, keySlice, valueSlice);
+    entryCount_++;
     if (ctx_.mainEntryCount) (*ctx_.mainEntryCount)++;
 }
 
@@ -108,6 +109,7 @@ void RocksDBRestoreKVState<K>::writeBytesEntry(const std::vector<int8_t>& keyByt
         mainWriter_ = std::make_unique<RocksDBWriteBatchWrapper>(ctx_.db, ctx_.writeBatchSize);
     }
     mainWriter_->Put(mainCF_, keySlice, valueSlice);
+    entryCount_++;
     if (ctx_.mainEntryCount) (*ctx_.mainEntryCount)++;
 }
 } // namespace omnistream
