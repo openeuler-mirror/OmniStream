@@ -30,14 +30,12 @@
 namespace omnistream {
 DeduplicateSavepointAdaptor::~DeduplicateSavepointAdaptor()
 {
-    delete mainValueSerializer_;
-    mainValueSerializer_ = nullptr;
 }
 
 void DeduplicateSavepointAdaptor::prepareForRestore(const nlohmann::json& operatorDescription)
 {
     if (mainValueSerializer_ == nullptr) {
-        mainValueSerializer_ = new LongSerializer();
+        mainValueSerializer_ = LongSerializer::INSTANCE;
     }
     // 从算子描述中解析恢复方向的列类型并缓存
     restoreColumnTypes_ = convertToDataTypes(parseInputTypes(operatorDescription));

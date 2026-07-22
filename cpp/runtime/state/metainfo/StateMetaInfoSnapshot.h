@@ -115,6 +115,11 @@ public:
         return name;
     }
 
+    const std::unordered_map<std::string, TypeSerializer*>& getSerializersImmutable() const
+    {
+        return serializers;
+    }
+
     const std::unordered_map<std::string, std::shared_ptr<TypeSerializerSnapshot>>& getSerializerSnapshotsImmutable()
         const
     {
