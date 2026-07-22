@@ -19,6 +19,7 @@
 #include "OmniOperatorJIT/core/src/codegen/time_util.h"
 #include "OmniOperatorJIT/core/src/codegen/functions/dtoa.h"
 #include "OmniOperatorJIT/core/src/type/TimestampConversion.h"
+#include "OmniOperatorJIT/core/src/vector/map_vector.h"
 
 namespace {
 
@@ -33,6 +34,44 @@ std::string FormatDoubleLikeJava(double value)
 std::string FormatDateLikeJava(int32_t daysSinceEpoch)
 {
     return omniruntime::type::util::ToIso8601(daysSinceEpoch);
+}
+
+// Format one scalar element of a MapVector's key/value child vector at a given
+// flattened index into a string, mimicking Flink's map-to-string rendering.
+std::string FormatMapElement(omniruntime::vec::BaseVector *child, int64_t index)
+{
+    using namespace omniruntime::vec;
+    using omniruntime::type::DataTypeId;
+    if (child->IsNull(index)) {
+        return "null";
+    }
+    switch (child->GetTypeId()) {
+        case DataTypeId::OMNI_VARCHAR:
+        case DataTypeId::OMNI_CHAR: {
+            if (child->GetEncoding() == OMNI_FLAT) {
+                auto casted = reinterpret_cast<Vector<LargeStringContainer<std::string_view>> *>(child);
+                auto sv = casted->GetValue(index);
+                return std::string(sv.data(), sv.size());
+            } else { // DICTIONARY
+                auto casted = reinterpret_cast<
+                    Vector<DictionaryContainer<std::string_view, LargeStringContainer>> *>(child);
+                auto sv = casted->GetValue(index);
+                return std::string(sv.data(), sv.size());
+            }
+        }
+        case DataTypeId::OMNI_INT:
+            return std::to_string(reinterpret_cast<Vector<int32_t> *>(child)->GetValue(index));
+        case DataTypeId::OMNI_DATE32:
+            return FormatDateLikeJava(reinterpret_cast<Vector<int32_t> *>(child)->GetValue(index));
+        case DataTypeId::OMNI_LONG:
+            return std::to_string(reinterpret_cast<Vector<int64_t> *>(child)->GetValue(index));
+        case DataTypeId::OMNI_DOUBLE:
+            return FormatDoubleLikeJava(reinterpret_cast<Vector<double> *>(child)->GetValue(index));
+        case DataTypeId::OMNI_BOOLEAN:
+            return reinterpret_cast<Vector<bool> *>(child)->GetValue(index) ? "true" : "false";
+        default:
+            throw std::runtime_error("FormatMapElement: unsupported map element type");
+    }
 }
 }  // namespace
 
@@ -350,6 +389,23 @@ void VectorBatch::WriteToFileInternal(
         case omniruntime::type::DataTypeId::OMNI_DECIMAL128: {
             auto valueStr = transformDecimal128(vectorID, rowID, decimalInfo);
             file << valueStr;
+            break;
+        }
+        case omniruntime::type::DataTypeId::OMNI_MAP: {
+            // Render a MAP value as Flink does: {k1=v1, k2=v2}. Empty map -> {}.
+            auto mapVec = reinterpret_cast<omniruntime::vec::MapVector *>(vectors[vectorID]);
+            auto keys = mapVec->GetKeyVector().get();
+            auto values = mapVec->GetValueVector().get();
+            int64_t start = mapVec->GetOffset(rowID);
+            int64_t end = mapVec->GetOffset(rowID + 1);
+            file << "{";
+            for (int64_t k = start; k < end; ++k) {
+                if (k > start) {
+                    file << ", ";
+                }
+                file << FormatMapElement(keys, k) << "=" << FormatMapElement(values, k);
+            }
+            file << "}";
             break;
         }
         default: std::runtime_error("WriteToFileInternal data type not supported");
