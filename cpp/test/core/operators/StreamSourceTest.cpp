@@ -10,6 +10,40 @@
 #include "taskmanager/OmniRuntimeEnvironment.h"
 #include "runtime/state/TaskStateManager.h"
 
+namespace {
+class CancelTrackingSourceFunction : public SourceFunction<omnistream::VectorBatch> {
+public:
+    void run(SourceContext*) override
+    {
+    }
+
+    void cancel() override
+    {
+        cancelCount++;
+    }
+
+    int getCancelCount() const
+    {
+        return cancelCount;
+    }
+
+private:
+    int cancelCount = 0;
+};
+} // namespace
+
+TEST(StreamSourceTest, StopCancelsSourceFunction)
+{
+    auto* sourceFunction = new CancelTrackingSourceFunction();
+    StreamSource<omnistream::VectorBatch> source(sourceFunction, nullptr);
+
+    source.stop(StopMode::DRAIN);
+    source.stop(StopMode::NO_DRAIN);
+
+    EXPECT_EQ(sourceFunction->getCancelCount(), 2);
+    source.run();
+}
+
 TEST(StreamSourceTest, NexmarkSourceFunction)
 {
     std::string description = R"({"format":"nexmark", "batchSize":10, "configMap":{"maxEvents":100}})";
