@@ -69,6 +69,7 @@ public:
     std::vector<bool> getStateConsumedFuture1() override;
     void RequestPartitions() override;
     void FinishReadRecoveredState() override;
+    void FinishInnerRecoveredState() override;
 
     int GetNumberOfInputChannels() override;
     int GetGateIndex() override;
@@ -103,6 +104,7 @@ public:
 
     void sendTaskEvent(const std::shared_ptr<TaskEvent>& event) override;
     void ResumeConsumption(const InputChannelInfo& channelInfo) override;
+    void TimeOutResumeConsumption(const InputChannelInfo& channelInfo) override;
     void acknowledgeAllRecordsProcessed(const InputChannelInfo& channelInfo) override;
 
     void notifyChannelNonEmpty(std::shared_ptr<InputChannel> channel);
@@ -117,16 +119,6 @@ public:
 
     std::string toString() override;
     void changeLocalInputChannelToOriginal(int channelIndex, std::shared_ptr<InputChannel> original);
-
-    void SetForwardResumeToJava(bool forwardResumeToJava)
-    {
-        forwardResumeToJava_ = forwardResumeToJava;
-    }
-
-    bool GetForwardResumeToJava() const
-    {
-        return forwardResumeToJava_;
-    }
 
 private:
     void convertRecoveredInputChannels();
@@ -231,7 +223,6 @@ private:
     // Segment to read data from file region
     // ObjectSegment *unpooledSegment; // todo: need fix
     bool shouldDrainOnEndOfData = true;
-    bool forwardResumeToJava_ = true;
 };
 } // namespace omnistream
 

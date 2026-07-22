@@ -43,23 +43,32 @@ public:
         std::shared_ptr<Counter> numBuffersIn);
 
     int getChannelIndex() const;
+    int getGateIdx() const;
     InputChannelInfo getChannelInfo() const;
     InputChannelInfo& getChannelInfo();
     ResultPartitionIDPOD getPartitionId() const;
 
     virtual void resumeConsumption() = 0;
+    virtual void TimeOutResumeConsumption() = 0;
     virtual void acknowledgeAllRecordsProcessed() = 0;
 
 public:
     virtual void requestSubpartition(int subpartitionIndex) = 0;
     virtual std::optional<BufferAndAvailability> getNextBuffer() = 0;
 
-    virtual void CheckpointStarted(const CheckpointBarrier& barrier)
+    virtual void CheckpointStarted(
+        const CheckpointBarrier& barrier, std::shared_ptr<ChannelStateWriter> channelStateWriter)
     {
     }
+
     virtual void CheckpointStopped(long checkpointId)
     {
     }
+
+    virtual void notifyDataAvailable()
+    {
+    }
+
     virtual void ConvertToPriorityEvent(int sequenceNumber)
     {
     }
@@ -71,6 +80,9 @@ public:
     virtual void announceBufferSize(int newBufferSize) = 0;
     virtual int getBuffersInUseCount() = 0;
     virtual void SetChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter) = 0;
+    virtual void SetPersistenceFlag(bool flag) = 0;
+    virtual bool IsNeedPersistence() = 0;
+    virtual void AddInputData(long checkpointId, const omnistream::InputChannelInfo& info) = 0;
 
 public:
     void checkError();

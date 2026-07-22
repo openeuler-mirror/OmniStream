@@ -33,9 +33,10 @@ OmniPushingAsyncDataInput::OmniDataOutput* OmniOneInputStreamTask::createDataOut
 OmniStreamTaskInput* OmniOneInputStreamTask::CreateTaskInput(std::shared_ptr<CheckpointedInputGate> inputGate)
 {
     auto inputRescalingDescriptor = env_->getTaskStateManager()->getInputRescalingDescriptor();
-    auto edges = taskConfiguration_.getStreamConfigPOD().getOutEdgesInOrder();
+    auto pod = env_->taskConfiguration().getStreamConfigPOD();
+    const std::vector<StreamEdgePOD>& edges = pod.getInStreamEdges();
     auto getPartitionerFunction = std::function<StreamPartitioner<IOReadableWritable>*(int)>(
-        [this, edges](int i) { return this->createPartitionerFromDesc(edges[i]); });
+        [this, edges](int i) { return this->createPartitionerFromDesc(edges[i], true); });
     // initialize TypeInformation and channelInfos
     if (taskType == 1) {
         // todo: fix it later
@@ -43,7 +44,7 @@ OmniStreamTaskInput* OmniOneInputStreamTask::CreateTaskInput(std::shared_ptr<Che
         auto channelInfos = inputGate->GetChannelInfos();
         channelInfoIndex.reserve(channelInfos.size());
         for (size_t i = 0; i < channelInfos.size(); ++i) {
-            channelInfoIndex.push_back(static_cast<long>(channelInfos[i].getInputChannelIdx()));
+            channelInfoIndex.push_back(static_cast<long>(channelInfos[i].getComplexId()));
         }
         LOG("OperatorDescription "
             << this->taskConfiguration_.getStreamConfigPOD().getOperatorDescription().toString());
@@ -79,10 +80,11 @@ OmniStreamTaskInput* OmniOneInputStreamTask::CreateTaskInput(std::shared_ptr<Che
         auto numberOfInputChannels = inputGate->GetNumberOfInputChannels();
         // Create a C++ normal array (vector)
         std::vector<long> channel_array(numberOfInputChannels);
-
+        auto channelInfos = inputGate->GetChannelInfos();
         // Copy elements from JSON array to C++ array
-        for (size_t i = 0; i < numberOfInputChannels; ++i) {
-            channel_array[i] = static_cast<long>(i);
+        uint32_t i = 0;
+        for (auto& item : channelInfos) {
+            channel_array[i++] = item.getComplexId();
         }
 
         TypeDescriptionPOD inputType;

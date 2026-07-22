@@ -138,7 +138,7 @@ void SingleCheckpointBarrierHandler::MarkCheckpointAlignedAndTransformState(
         }
     }
 
-    if (alignedChannels_.size() == 1 && shouldTrackAlignment) {
+    if (alignedChannels_.size() == 1 && alternating_) {
         if (targetChannelCount_ == 1) {
             MarkAlignmentStartAndEnd(barrier.GetId(), barrier.GetTimestamp());
         } else {
@@ -148,12 +148,17 @@ void SingleCheckpointBarrierHandler::MarkCheckpointAlignedAndTransformState(
 
     // We must mark alignment end before calling currentState.barrierReceived which might
     // trigger a checkpoint with unfinished future for alignment duration
-    if (alignedChannels_.size() == (unsigned int)targetChannelCount_ && shouldTrackAlignment) {
+    if (alternating_ && alignedChannels_.size() == (unsigned int)targetChannelCount_) {
         if (targetChannelCount_ > 1) {
             MarkAlignmentEnd();
         }
+        if (!allBarriersReceivedFuture_V2->IsDone()) {
+            if (barrier.IsCheckpoint()) {
+                ResetAlignmentTimer();
+            }
+            allBarriersReceivedFuture_V2->Complete();
+        }
     }
-
     try {
         auto* old = currentState_;
         auto* next = stateTransformer(old);
@@ -174,12 +179,18 @@ void SingleCheckpointBarrierHandler::MarkCheckpointAlignedAndTransformState(
         throw std::runtime_error("Error in state transformation: unknown exception");
     }
 
+    if (alternating_ && barrier.IsCheckpoint() && shouldTrackAlignment && alignedChannels_.size() == 1 &&
+        targetChannelCount_ > 1 && barrier.GetCheckpointOptions()->IsTimeoutable()) {
+        RegisterAlignmentTimer(barrier);
+    }
+
     if (alignedChannels_.size() == (unsigned int)targetChannelCount_) {
         alignedChannels_.clear();
         lastCancelledOrCompletedCheckpointId_ = currentCheckpointId_;
         LOG_DEBUG(taskName_ + ": All the channels are aligned for checkpoint " + std::to_string(currentCheckpointId_));
-
-        ResetAlignmentTimer();
+        if (barrier.IsCheckpoint()) {
+            ResetAlignmentTimer();
+        }
         if (!allBarriersReceivedFuture_V2->IsDone()) {
             allBarriersReceivedFuture_V2->Complete();
         }
@@ -302,7 +313,7 @@ void SingleCheckpointBarrierHandler::RegisterAlignmentTimer(const CheckpointBarr
 
     ResetAlignmentTimer();
 
-    int64_t timerDelay = BarrierAlignmentUtil::getTimerDelay(GetClock().RelativeTimeMillis(), announcedBarrier);
+    int64_t timerDelay = announcedBarrier.GetCheckpointOptions()->GetAlignedCheckpointTimeout();
     const int64_t barrierId = announcedBarrier.GetId();
     currentAlignmentTimerCheckpointId_ = barrierId;
 
@@ -326,14 +337,14 @@ void SingleCheckpointBarrierHandler::RegisterAlignmentTimer(const CheckpointBarr
             }
 
             LOG("Timeout, start transition.");
-            currentCheckpointUnaligned_ = true;
-            auto* old = currentState_;
+            this->currentCheckpointUnaligned_ = true;
+            auto* old = this->currentState_;
             auto* next = old->AlignedCheckpointTimeout(
-                dynamic_cast<Controller*>(context_), const_cast<CheckpointBarrier*>(&announcedBarrier));
+                dynamic_cast<Controller*>(this->context_), const_cast<CheckpointBarrier*>(&announcedBarrier));
             if (next != old) {
                 delete old;
             }
-            currentState_ = next;
+            this->currentState_ = next;
         } catch (const CheckpointException& ex) {
             AbortInternal(barrierId, ex);
         } catch (const std::exception& e) {

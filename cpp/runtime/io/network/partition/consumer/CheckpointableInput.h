@@ -24,11 +24,15 @@ public:
 
     virtual void ResumeConsumption(const omnistream::InputChannelInfo& channelInfo) = 0;
 
+    virtual void TimeOutResumeConsumption(const omnistream::InputChannelInfo& channelInfo) = 0;
+
     virtual std::vector<omnistream::InputChannelInfo> GetChannelInfos() = 0;
 
     virtual void CheckpointStarted(const CheckpointBarrier& barrier) = 0;
 
     virtual void CheckpointStopped(long cancelledCheckpointId) = 0;
+
+    virtual void notifyDataAvailable() = 0;
 
     virtual int GetInputGateIndex() = 0;
 

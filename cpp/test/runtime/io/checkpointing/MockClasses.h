@@ -41,7 +41,10 @@ public:
     {
         resumedChannels_.insert(info.getInputChannelIdx());
     }
-
+    void TimeOutResumeConsumption(const InputChannelInfo& info) override
+    {
+        resumedChannels_.insert(info.getInputChannelIdx());
+    }
     void ConvertToPriorityEvent(int, int) override
     {
     }
@@ -68,6 +71,10 @@ public:
     void CheckpointStopped(long) override
     {
         stopped = true;
+    }
+
+    void notifyDataAvailable() override
+    {
     }
 
     int GetInputGateIndex() override
@@ -165,6 +172,9 @@ public:
     void resumeConsumption() override
     {
     }
+    void TimeOutResumeConsumption() override
+    {
+    }
     void acknowledgeAllRecordsProcessed() override
     {
     }
@@ -198,6 +208,16 @@ public:
     std::string toString() override
     {
         return "DummyInputChannel";
+    }
+    void SetPersistenceFlag(bool flag) override
+    {
+    }
+    bool IsNeedPersistence() override
+    {
+        return false;
+    }
+    void AddInputData(long checkpointId, const omnistream::InputChannelInfo& info) override
+    {
     }
 
 private:

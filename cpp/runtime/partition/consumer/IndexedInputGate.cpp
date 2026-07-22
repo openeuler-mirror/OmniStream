@@ -17,7 +17,23 @@ void IndexedInputGate::CheckpointStarted(const CheckpointBarrier& barrier)
 {
     int num = GetNumberOfInputChannels();
     for (int i = 0; i < num; ++i) {
-        getChannel(i)->CheckpointStarted(barrier);
+        if (getChannel(i)->IsNeedPersistence()) {
+            getChannel(i)->SetPersistenceFlag(true);
+        } else {
+            getChannel(i)->SetPersistenceFlag(false);
+        }
+        getChannel(i)->CheckpointStarted(barrier, channelStateWriter_);
+    }
+}
+
+void IndexedInputGate::AddInputData(long checkpointId, const omnistream::InputChannelInfo& info)
+{
+    int num = GetNumberOfInputChannels();
+    for (int i = 0; i < num; ++i) {
+        if (getChannel(i)->getChannelInfo() == info) {
+            getChannel(i)->AddInputData(checkpointId, info);
+            break;
+        }
     }
 }
 
@@ -26,6 +42,14 @@ void IndexedInputGate::CheckpointStopped(long checkpointId)
     int num = GetNumberOfInputChannels();
     for (int i = 0; i < num; ++i) {
         getChannel(i)->CheckpointStopped(checkpointId);
+    }
+}
+
+void IndexedInputGate::notifyDataAvailable()
+{
+    int num = GetNumberOfInputChannels();
+    for (int i = 0; i < num; ++i) {
+        getChannel(i)->notifyDataAvailable();
     }
 }
 
@@ -51,6 +75,9 @@ void IndexedInputGate::SetChannelStateWriter(std::shared_ptr<ChannelStateWriter>
     int num = GetNumberOfInputChannels();
     for (int i = 0; i < num; ++i) {
         getChannel(i)->SetChannelStateWriter(channelStateWriter);
+    }
+    if (channelStateWriter_ == nullptr) {
+        channelStateWriter_ = channelStateWriter;
     }
 }
 } // namespace omnistream

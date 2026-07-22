@@ -63,6 +63,7 @@ public:
     static const int ANNOUNCEMENT_EVENT;
     static const int VIRTUAL_CHANNEL_SELECTOR_EVENT;
     static const int END_OF_USER_RECORDS_EVENT;
+    static const int INNER_RECOVER_EVENT;
     static constexpr uint8_t CHECKPOINT_TYPE_CHECKPOINT = 0x00;
     static constexpr uint8_t CHECKPOINT_TYPE_SAVEPOINT = 0x01;
     static constexpr uint8_t CHECKPOINT_TYPE_SAVEPOINT_SUSPEND = 0x02;

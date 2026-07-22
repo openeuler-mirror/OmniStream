@@ -86,7 +86,9 @@ public:
     virtual void cancel();
 
     // most case to be overrided by subclass
-    virtual void init() {};
+    virtual void init()
+    {
+    }
 
     void restoreGates();
 
@@ -160,7 +162,8 @@ public:
         std::shared_ptr<CheckpointMetaData> checkpointMetaData, std::shared_ptr<CheckpointOptions> checkpointOptions);
     StreamPartitionerV2<StreamRecord>* createPartitionerFromDesc(StreamPartitionerPOD partitioner);
 
-    datastream::StreamPartitioner<IOReadableWritable>* createPartitionerFromDesc(const StreamEdgePOD& edge);
+    datastream::StreamPartitioner<IOReadableWritable>* createPartitionerFromDesc(
+        const StreamEdgePOD& edge, bool recover = false);
     ProcessingTimeService* createProcessingTimeService();
 
 protected:
@@ -187,10 +190,10 @@ protected:
      * StreamTaskActionExecutor.SynchronizedStreamTaskActionExecutor
      * SynchronizedStreamTaskActionExecutor} to provide lock to {@link SourceStreamTask}. */
     std::shared_ptr<StreamTaskActionExecutor> actionExecutor_;
-
+    uint32_t numberOfInnerRecover;
     // mailbox loop
-    TaskMailbox* mailbox_; // 负责存储相应 task 任务（也就是 mail），它支持多写单读，单线程读取并处理, delete by
-                           // MailboxProcessor
+    TaskMailbox*
+        mailbox_; // 负责存储相应 task 任务（也就是 mail），它支持多写单读，单线程读取并处理, delete by MailboxProcessor
     std::unique_ptr<MailboxProcessor>
         mailboxProcessor_; // MailBox 的核心处理线程，MailboxDefaultAction 是其默认的 action 实现
     std::shared_ptr<MailboxExecutor> mainMailboxExecutor_; // 它负责向 MailBox 提交 task 任务

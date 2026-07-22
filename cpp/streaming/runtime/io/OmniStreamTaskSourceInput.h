@@ -60,6 +60,10 @@ public:
         isBlockedAvailability->resetUnavailable();
     }
 
+    void TimeOutResumeConsumption(const InputChannelInfo& channelInfo) override
+    {
+    }
+
     void BlockConsumption()
     {
         isBlockedAvailability->resetUnavailable();
@@ -79,6 +83,10 @@ public:
     }
 
     void CheckpointStopped(long checkpointId) override {};
+
+    void notifyDataAvailable() override
+    {
+    }
 
     std::vector<InputChannelInfo> GetChannelInfos() override
     {

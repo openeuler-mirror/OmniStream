@@ -155,10 +155,6 @@ public:
         CheckpointStreamFactory* streamFactory,
         CheckpointOptions* checkpointOptions) override
     {
-        if (registeredOperatorStates_->empty() && registeredBroadcastStates_->empty()) {
-            return nullptr;
-        }
-
         auto snapshotStrategyRunner = std::make_unique<SnapshotStrategyRunner<OperatorStateHandle, SnapshotResources>>(
             "DefaultOperatorStateBackend snapshot",
             snapshotStrategy_,

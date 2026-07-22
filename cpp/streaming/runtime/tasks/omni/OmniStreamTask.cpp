@@ -130,7 +130,7 @@ void OmniStreamTask::postConstruct()
     InjectChannelStateWriterIntoChannels();
     // Reconstruct LocalRecoveryConfig
     std::shared_ptr<LocalRecoveryDirectoryProviderImpl> dirProvider;
-
+    numberOfInnerRecover = env_->getInputGates().size();
     if (taskConfiguration_.getCheckpointConfig().getLocalRecovery()) {
         std::string localRecoveryProviderStr = taskConfiguration_.getLocalRecoveryConfig();
         nlohmann::json localJson = nlohmann::json::parse(localRecoveryProviderStr);
@@ -245,14 +245,14 @@ void OmniStreamTask::restoreGates()
     try {
         INFO_RELEASE("restoreGates begin " << taskName_);
         auto indexedInputGates = env_->GetAllInputGates();
+        auto reader = env_->getTaskStateManager()->getSequentialChannelStateReader();
+        INFO_RELEASE("restoreGates before readOutputData, task=" << taskName_);
+        reader->readOutputData(env_->getAllWriters(), true);
+        INFO_RELEASE("restoreGates after readOutputData, task=" << taskName_);
         if (indexedInputGates.empty()) {
             INFO_RELEASE("SQL scenarios, do not need to restore the channel.");
             return;
         }
-        auto reader = env_->getTaskStateManager()->getSequentialChannelStateReader();
-        INFO_RELEASE("restoreGates before readOutputData, task=" << taskName_);
-        reader->readOutputData(env_->getAllWriters(), false);
-        INFO_RELEASE("restoreGates after readOutputData, task=" << taskName_);
 
         std::vector<std::shared_ptr<InputGate>> inputGateVec;
         inputGateVec.reserve(indexedInputGates.size());
@@ -265,26 +265,27 @@ void OmniStreamTask::restoreGates()
         INFO_RELEASE("restoreGates before recovery mailbox loop");
         mailboxProcessor_->runMailboxLoop();
         INFO_RELEASE("restoreGates after recovery mailbox loop");
-
-        for (const auto& inputGate : inputGateVec) {
-            auto recoveredFlags = inputGate->getStateConsumedFuture1();
-
-            bool allRecovered = true;
-            for (bool done : recoveredFlags) {
-                if (!done) {
-                    allRecovered = false;
-                    break;
+        bool allRecovered = true;
+        do {
+            for (const auto& inputGate : inputGateVec) {
+                auto recoveredFlags = inputGate->getStateConsumedFuture1();
+                allRecovered = true;
+                for (bool done : recoveredFlags) {
+                    if (!done) {
+                        allRecovered = false;
+                        break;
+                    }
                 }
-            }
 
-            if (!allRecovered) {
-                LOG("restoreGates: some recovered channels are not fully consumed yet");
-                throw std::runtime_error("restoreGates exited but some recovered channels were not fully consumed");
-            }
+                if (!allRecovered) {
+                    INFO_RELEASE("restoreGates: some recovered channels are not fully consumed yet");
+                    continue;
+                }
 
-            INFO_RELEASE("restoreGates requestPartitions directly after recovery loop");
-            inputGate->RequestPartitions();
-        }
+                INFO_RELEASE("restoreGates requestPartitions directly after recovery loop");
+                inputGate->RequestPartitions();
+            }
+        } while (!allRecovered);
 
         INFO_RELEASE("restoreGates complete!");
     } catch (...) {
@@ -368,10 +369,13 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller* controller)
     switch (status) {
         case DataInputStatus::MORE_AVAILABLE: return;
         case DataInputStatus::NOTHING_AVAILABLE: break;
-        case DataInputStatus::END_OF_RECOVERY:
-            INFO_RELEASE("processInput END_OF_RECOVERY, stop recovery mail box!");
-            mailboxProcessor_->suspend();
+        case DataInputStatus::INNER_RECOVER:
+            INFO_RELEASE("processInput INNER_RECOVER, stop recovery mail box :" << numberOfInnerRecover);
+            if (--numberOfInnerRecover == 0) {
+                mailboxProcessor_->suspend();
+            }
             return;
+        case DataInputStatus::END_OF_RECOVERY: return;
         case DataInputStatus::END_OF_DATA: EndData(StopMode::DRAIN); return;
         case DataInputStatus::NOT_PROCESSED: return;
         case DataInputStatus::STOPPED: EndData(StopMode::NO_DRAIN); return;
@@ -381,10 +385,7 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller* controller)
             return;
     }
     std::shared_ptr<CompletableFuture> resumeFuture;
-    if (!recordWriter_->isAvailable()) {
-        resumeFuture = recordWriter_->GetAvailableFuture();
-        INFO_RELEASE("recordWriter is not available, wait for it, task=" << taskName_);
-    } else if (!inputProcessor_->isAvailable()) {
+    if (!inputProcessor_->isAvailable()) {
         resumeFuture = inputProcessor_->GetAvailableFuture();
         LOG("inputProcessor is not available, wait for it");
     } else {
@@ -516,7 +517,8 @@ StreamPartitionerV2<StreamRecord>* OmniStreamTask::createPartitionerFromDesc(Str
     }
 }
 
-datastream::StreamPartitioner<IOReadableWritable>* OmniStreamTask::createPartitionerFromDesc(const StreamEdgePOD& edge)
+datastream::StreamPartitioner<IOReadableWritable>* OmniStreamTask::createPartitionerFromDesc(
+    const StreamEdgePOD& edge, bool recover)
 {
     const auto& partitioner = edge.getPartitioner();
 
@@ -532,9 +534,14 @@ datastream::StreamPartitioner<IOReadableWritable>* OmniStreamTask::createPartiti
         auto taskInfo = env_->taskConfiguration();
         std::unordered_map<int, StreamConfigPOD> configMap = taskInfo.getChainedConfigMap();
         auto description = configMap[sourceId].getOperatorDescription().getDescription();
+        if (recover) {
+            // 可能是非对齐input buffer恢复在fiter时使用
+            description = configMap[targetId].getOperatorDescription().getDescription();
+        }
         nlohmann::json config = nlohmann::json::parse(description);
         int32_t maxParallelism = env_->taskConfiguration().getMaxNumberOfSubtasks();
-        return new datastream::KeyGroupStreamPartitioner<IOReadableWritable, Object>(config, targetId, maxParallelism);
+        return new datastream::KeyGroupStreamPartitioner<IOReadableWritable, Object>(
+            config, targetId, maxParallelism, recover);
     } else if (partitioner.getPartitionerName() == StreamPartitionerPOD::NONE) {
         throw std::invalid_argument("Invalid partitioner!");
     } else {

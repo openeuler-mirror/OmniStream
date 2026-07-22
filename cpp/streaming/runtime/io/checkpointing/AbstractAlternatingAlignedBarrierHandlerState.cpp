@@ -34,10 +34,13 @@ BarrierHandlerState* AbstractAlternatingAlignedBarrierHandlerState::BarrierRecei
     if (controller->AllBarriersReceived()) {
         controller->InitInputsCheckpoint(*barrier);
         controller->TriggerGlobalCheckpoint(*barrier);
-        return FinishCheckpoint();
+        if (barrier->IsCheckpoint()) {
+            return FinishCheckpoint();
+        }
+        return FinishSavepoint(barrier->GetId());
     }
 
-    return TransitionAfterBarrierReceived(state);
+    return TransitionAfterBarrierReceived(std::move(state));
 }
 
 BarrierHandlerState* AbstractAlternatingAlignedBarrierHandlerState::AnnouncementReceived(
@@ -53,5 +56,15 @@ BarrierHandlerState* AbstractAlternatingAlignedBarrierHandlerState::Announcement
 BarrierHandlerState* AbstractAlternatingAlignedBarrierHandlerState::FinishCheckpoint()
 {
     state.UnblockAllChannels();
+    return new AlternatingWaitingForFirstBarrier(state.EmptyState());
+}
+
+BarrierHandlerState* AbstractAlternatingAlignedBarrierHandlerState::FinishSavepoint(long id)
+{
+    state.UnblockAllChannels();
+    for (auto* input : state.getInputs()) {
+        input->notifyDataAvailable();
+        input->CheckpointStopped(id);
+    }
     return new AlternatingWaitingForFirstBarrier(state.EmptyState());
 }

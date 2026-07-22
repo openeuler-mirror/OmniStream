@@ -83,6 +83,7 @@ NetworkBuffer::NetworkBuffer(
     this->currentSize = bufferLength;
     this->readerIndex_ = readIndex;
     refCount_.store(1);
+    isRecycled_.store(false);
     this->segmentOwner = segmentOwner;
     const char* env_p = std::getenv("BUFFER_SLEEP_MICRO_S");
     if (env_p != nullptr) {

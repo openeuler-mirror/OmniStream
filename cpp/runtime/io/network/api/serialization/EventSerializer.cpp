@@ -29,6 +29,7 @@
 #include "runtime/event/EndOfSegmentEvent.h"
 #include "runtime/io/network/api/CancelCheckpointMarker.h"
 #include "runtime/event/SubtaskConnectionDescriptor.h"
+#include "event/InnerRecoverEvent.h"
 
 namespace omnistream {
 const int EventSerializer::INVALID_EVENT = -1;
@@ -41,6 +42,7 @@ const int EventSerializer::END_OF_CHANNEL_STATE_EVENT = 5;
 const int EventSerializer::ANNOUNCEMENT_EVENT = 6;
 const int EventSerializer::VIRTUAL_CHANNEL_SELECTOR_EVENT = 7;
 const int EventSerializer::END_OF_USER_RECORDS_EVENT = 8;
+const int EventSerializer::INNER_RECOVER_EVENT = 9;
 
 datastream::NetworkBuffer* EventSerializer::toBuffer(std::shared_ptr<AbstractEvent> event, bool hasPriority)
 {
@@ -133,6 +135,10 @@ MemorySegment* EventSerializer::ToSerializedEvent(std::shared_ptr<AbstractEvent>
         data = new uint8_t[4]{0, 0, 0, END_OF_CHANNEL_STATE_EVENT};
         memorySegment = new MemorySegment(data, 4);
         return memorySegment;
+    } else if (dynamic_cast<InnerRecoverEvent*>(event.get())) {
+        data = new uint8_t[4]{0, 0, 0, INNER_RECOVER_EVENT};
+        memorySegment = new MemorySegment(data, 4);
+        return memorySegment;
     } else if (dynamic_cast<SubtaskConnectionDescriptor*>(event.get())) {
         auto selector = dynamic_cast<SubtaskConnectionDescriptor*>(event.get());
         ByteBuffer byteBuffer = ByteBuffer(12);
@@ -215,6 +221,12 @@ std::shared_ptr<AbstractEvent> EventSerializer::fromSerializedEvent(Buffer* buff
             buffer->RecycleBuffer();
         }
         return des;
+    } else if (eventType == INNER_RECOVER_EVENT) {
+        if (recycleEvent) {
+            buffer->RecycleBuffer();
+        }
+        // delete buffer;
+        return InnerRecoverEvent::getInstance();
     } else {
         if (recycleEvent) {
             buffer->RecycleBuffer();
@@ -365,11 +377,8 @@ std::shared_ptr<CheckpointBarrier> EventSerializer::DeserializeCheckpointBarrier
     // Read the alignment timeout
     int64_t alignmentTimeout = buffer.getLong();
     // Build the CheckpointOptions instance
-    auto parsedOptions =
-        std::make_shared<CheckpointOptions>(snapshotType, locationRef, alignmentType, alignmentTimeout);
-    CheckpointOptions* runtimeOptions = parsedOptions->ToRuntimeAlignedNoTimeout();
     std::shared_ptr<CheckpointOptions> checkpointOptions =
-        runtimeOptions == parsedOptions.get() ? parsedOptions : std::shared_ptr<CheckpointOptions>(runtimeOptions);
+        std::make_shared<CheckpointOptions>(snapshotType, locationRef, alignmentType, alignmentTimeout);
     // Construct and return the CheckpointBarrier
     return std::make_shared<CheckpointBarrier>(id, timestamp, checkpointOptions);
 }

@@ -79,6 +79,10 @@ void SubtaskCheckpointCoordinatorImpl::CancelAlignmentTimer()
 void SubtaskCheckpointCoordinatorImpl::PrepareInflightDataSnapshot(long checkpointId)
 {
     auto future = (*prepareInputSnapshot)(channelStateWriter, checkpointId);
+    if (future == nullptr) {
+        channelStateWriter->FinishInput(checkpointId);
+        return;
+    }
     future->ThenRun([this, checkpointId, future]() mutable {
         try {
             future->Get();
@@ -375,8 +379,8 @@ void SubtaskCheckpointCoordinatorImpl::checkpointState(
     CheckpointBarrier* checkpointBarrier =
         new CheckpointBarrier(metadata->GetCheckpointId(), metadata->GetTimestamp(), options);
 
-    operatorChain->broadcastEvent(
-        std::shared_ptr<omnistream::AbstractEvent>(checkpointBarrier), options->IsUnalignedCheckpoint());
+    bool isPriorityEvent = options->IsUnalignedCheckpoint();
+    operatorChain->broadcastEvent(std::shared_ptr<omnistream::AbstractEvent>(checkpointBarrier), isPriorityEvent);
 
     if (options->NeedsChannelState()) {
         channelStateWriter->FinishOutput(metadata->GetCheckpointId());

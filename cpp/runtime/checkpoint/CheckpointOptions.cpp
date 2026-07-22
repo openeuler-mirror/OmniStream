@@ -49,19 +49,6 @@ CheckpointOptions::CheckpointOptions(
 {
 }
 
-CheckpointOptions* CheckpointOptions::ToRuntimeAlignedNoTimeout() const
-{
-    if (!IsExactlyOnceMode()) {
-        return const_cast<CheckpointOptions*>(this);
-    }
-
-    if (alignmentType_ == AlignmentType::ALIGNED && alignedCheckpointTimeout_ == NO_ALIGNED_CHECKPOINT_TIME_OUT) {
-        return const_cast<CheckpointOptions*>(this);
-    }
-
-    return AlignedNoTimeout(*checkpointType_, targetLocation_);
-}
-
 CheckpointOptions* CheckpointOptions::NotExactlyOnce(
     SnapshotType& type, std::shared_ptr<CheckpointStorageLocationReference> location)
 {
@@ -346,4 +333,9 @@ CheckpointOptions* CheckpointOptions::WithUnalignedUnsupported()
         return ForceAligned(*checkpointType_, targetLocation_, alignedCheckpointTimeout_);
     }
     return this;
+}
+
+CheckpointOptions* CheckpointOptions::ToAlignedWithTimeout()
+{
+    return AlignedWithTimeout(*checkpointType_, targetLocation_, alignedCheckpointTimeout_);
 }
