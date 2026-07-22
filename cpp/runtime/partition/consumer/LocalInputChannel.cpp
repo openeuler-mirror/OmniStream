@@ -13,6 +13,8 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+
+#include "runtime/buffer/ObjectSegment.h"
 #include "runtime/buffer/OriginalNetworkBufferRecycler.h"
 #include "runtime/partition/PartitionNotFoundException.h"
 #include "runtime/buffer/ReadOnlySlicedNetworkBuffer.h"
@@ -70,6 +72,7 @@ void LocalInputChannel::CheckpointStarted(
     inflightBuffers_.clear();
     channelStatePersister->StartPersisting(barrier.GetId(), knownBuffers);
 }
+
 void LocalInputChannel::SetPersistenceFlag(bool flag)
 {
     isNeedPersistence_ = flag;
@@ -98,6 +101,14 @@ void LocalInputChannel::CheckpointStopped(long checkpointId)
         return;
     }
     channelStatePersister->StopPersisting(checkpointId);
+    for (auto& buffer : inflightBuffers_) {
+        ObjectSegment* objectSegment = dynamic_cast<ObjectSegment*>(buffer->GetSegment());
+        ;
+        if (objectSegment != nullptr) {
+            objectSegment->ReleaseObjects();
+        }
+    }
+    inflightBuffers_.clear();
     startSize_ = 0;
 }
 
@@ -241,28 +252,37 @@ std::optional<BufferAndAvailability> LocalInputChannel::getNextBuffer()
     }
     insize += bufferLength;
     if (isNeedPersistence_ && buffer->isBuffer()) {
-        datastream::ReadOnlySlicedNetworkBuffer* readOnlyBuffer = (datastream::ReadOnlySlicedNetworkBuffer*)buffer;
-        int readIndex = readOnlyBuffer->GetMemorySegmentOffset();
         uint8_t* newBufferAddress = (uint8_t*)malloc(bufferLength);
         if (newBufferAddress == nullptr) {
             INFO_RELEASE("Error: malloc failed.");
             throw std::invalid_argument("malloc failed");
         }
-        MemorySegment* newMemorySegment = new MemorySegment(newBufferAddress, bufferLength);
         auto segment = buffer->GetSegment();
-        auto memorySegment = dynamic_cast<MemorySegment*>(segment);
-        if (memorySegment == nullptr) {
-            throw std::runtime_error("ChannelStateSerializerImpl::WriteData requires MemorySegment-backed buffer");
+        if (segment->isObjectSegment()) {
+            auto newObjectSegment = std::make_shared<ObjectSegment>(bufferLength);
+            const ObjectSegment* objectSegment = dynamic_cast<const ObjectSegment*>(segment);
+            newObjectSegment->put(0, objectSegment, buffer->GetOffset(), bufferLength);
+            auto* copiedBuffer = new VectorBatchBuffer(newObjectSegment);
+            copiedBuffer->SetSize(bufferLength);
+            inflightBuffers_.push_back(copiedBuffer);
+        } else {
+            datastream::ReadOnlySlicedNetworkBuffer* readOnlyBuffer = (datastream::ReadOnlySlicedNetworkBuffer*)buffer;
+            int readIndex = readOnlyBuffer->GetMemorySegmentOffset();
+            MemorySegment* newMemorySegment = new MemorySegment(newBufferAddress, bufferLength);
+            auto memorySegment = dynamic_cast<MemorySegment*>(segment);
+            if (memorySegment == nullptr) {
+                throw std::runtime_error("ChannelStateSerializerImpl::WriteData requires MemorySegment-backed buffer");
+            }
+            newMemorySegment->put(0, reinterpret_cast<uint8_t*>(memorySegment->getData()), readIndex, bufferLength);
+            ::datastream::NetworkBuffer* newNetworkBuffer = new ::datastream::NetworkBuffer(
+                newMemorySegment,
+                bufferLength,
+                0,
+                std::make_shared<OriginalNetworkBufferRecycler>(),
+                ObjectBufferDataType::DATA_BUFFER,
+                true);
+            inflightBuffers_.push_back(newNetworkBuffer);
         }
-        newMemorySegment->put(0, reinterpret_cast<uint8_t*>(memorySegment->getData()) + readIndex, 0, bufferLength);
-        ::datastream::NetworkBuffer* newNetworkBuffer = new ::datastream::NetworkBuffer(
-            newMemorySegment,
-            bufferLength,
-            0,
-            std::make_shared<OriginalNetworkBufferRecycler>(),
-            ObjectBufferDataType::DATA_BUFFER,
-            true);
-        inflightBuffers_.push_back(newNetworkBuffer);
     }
     if (!buffer->isBuffer()) {
         std::shared_ptr<AbstractEvent> event = EventSerializer::fromBufferNotRecycle(buffer);

@@ -3,8 +3,18 @@
  */
 
 #include "RecoveredInputChannel.h"
+
+#include "runtime/buffer/ReadOnlySlicedVectorBatchBuffer.h"
 #include "buffer/ReadOnlySlicedNetworkBuffer.h"
 #include "event/InnerRecoverEvent.h"
+#include "buffer/VectorBatchBuffer.h"
+#include "buffer/NetworkObjectBufferPool.h"
+#include "runtime/buffer/NetworkBuffer.h"
+#include "core/memory/MemorySegment.h"
+#include "table/utils/VectorBatchDeserializationUtils.h"
+#include "streaming/runtime/streamrecord/StreamElement.h"
+#include "streaming/api/watermark/Watermark.h"
+#include "streaming/runtime/streamrecord/StreamRecord.h"
 
 std::shared_ptr<omnistream::InputChannel> RecoveredInputChannel::toInputChannel()
 {
@@ -51,6 +61,10 @@ void RecoveredInputChannel::onRecoveredStateBuffer(Buffer* buffer)
 
 void RecoveredInputChannel::onRecoveredStateBuffer2(Buffer* buffer)
 {
+    if (isObjectBufferPool()) {
+        onRecoveredStateBufferForObjectBuffer(buffer);
+        return;
+    }
     bool recycleBuffer = true;
     bool wasEmpty = false;
     ReadOnlySlicedNetworkBuffer* readOnlyBuffer;
@@ -71,6 +85,96 @@ void RecoveredInputChannel::onRecoveredStateBuffer2(Buffer* buffer)
     if (recycleBuffer && readOnlyBuffer != nullptr) {
         readOnlyBuffer->RecycleBuffer();
     }
+}
+
+void RecoveredInputChannel::onRecoveredStateBufferForObjectBuffer(Buffer* buffer)
+{
+    bool recycleBuffer = true;
+    bool wasEmpty = false;
+    auto* memorySegment = dynamic_cast<MemorySegment*>(buffer->GetSegment());
+    if (memorySegment == nullptr) {
+        LOG("onRecoveredStateBufferForObjectBuffer: buffer segment is not MemorySegment, fallback to original path");
+        Buffer* readOnlyBuffer;
+        {
+            readOnlyBuffer = new omnistream::ReadOnlySlicedVectorBatchBuffer(
+                dynamic_cast<omnistream::VectorBatchBuffer*>(buffer), 0, buffer->GetSize());
+            std::lock_guard<std::mutex> lock(bufferLock);
+            if (!released) {
+                wasEmpty = receivedBuffers.empty();
+                receivedBuffers.emplace_back(readOnlyBuffer, nullptr);
+                recycleBuffer = false;
+            }
+        }
+        if (wasEmpty) {
+            notifyChannelNonEmpty();
+        }
+        if (recycleBuffer && readOnlyBuffer != nullptr) {
+            readOnlyBuffer->RecycleBuffer();
+        }
+        return;
+    }
+
+    uint8_t* data = memorySegment->getData();
+    int dataLength = buffer->GetSize();
+    uint8_t* dataPtr = data;
+    int32_t elementNum;
+    memcpy_s(&elementNum, sizeof(int32_t), dataPtr, sizeof(int32_t));
+    dataPtr += sizeof(int32_t);
+    std::shared_ptr<omnistream::ObjectSegment> objectSegment = std::make_shared<omnistream::ObjectSegment>(elementNum);
+    for (int32_t i = 0; i < elementNum; i++) {
+        int8_t dataType;
+        memcpy_s(&dataType, sizeof(int8_t), dataPtr, sizeof(int8_t));
+        dataPtr += sizeof(int8_t);
+        StreamElementTag tagType = static_cast<StreamElementTag>(dataType);
+        switch (tagType) {
+            case StreamElementTag::TAG_WATERMARK: {
+                long timestamp = omnistream::VectorBatchDeserializationUtils::derializeWatermark(dataPtr);
+                Watermark* watermark = new Watermark(timestamp);
+                objectSegment->putObject(i, watermark);
+                break;
+            }
+            case StreamElementTag::VECTOR_BATCH: {
+                omnistream::VectorBatch* vb =
+                    omnistream::VectorBatchDeserializationUtils::deserializeVectorBatch(dataPtr);
+                StreamRecord* streamRecord = new StreamRecord(vb);
+                objectSegment->putObject(i, streamRecord);
+                break;
+            }
+            default: break;
+        }
+    }
+
+    auto* vectorBatchBuffer = new omnistream::VectorBatchBuffer(objectSegment);
+    vectorBatchBuffer->SetSize(objectSegment->getSize());
+    {
+        std::lock_guard<std::mutex> lock(bufferLock);
+        if (!released) {
+            wasEmpty = receivedBuffers.empty();
+            receivedBuffers.emplace_back(vectorBatchBuffer, nullptr);
+            recycleBuffer = false;
+        }
+    }
+
+    if (wasEmpty) {
+        notifyChannelNonEmpty();
+    }
+
+    if (recycleBuffer && vectorBatchBuffer != nullptr) {
+        vectorBatchBuffer->RecycleBuffer();
+    }
+}
+
+bool RecoveredInputChannel::isObjectBufferPool()
+{
+    auto gate = inputGate;
+    if (!gate) {
+        return false;
+    }
+    auto segmentProvider = gate->getSegmentProvider();
+    if (!segmentProvider) {
+        return false;
+    }
+    return std::dynamic_pointer_cast<omnistream::NetworkObjectBufferPool>(segmentProvider) != nullptr;
 }
 
 void RecoveredInputChannel::finishReadRecoveredState()

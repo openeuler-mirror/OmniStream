@@ -56,6 +56,7 @@ public:
         const CheckpointBarrier& barrier, std::shared_ptr<ChannelStateWriter> channelStateWriter) override;
     void CheckpointStopped(long checkpointId) override;
     std::vector<Buffer*> GetInflightBuffersUnsafe(long checkpointId);
+    std::vector<Buffer*> GetInflightVectorBatchBuffersUnsafe(long checkpointId);
 
     void ResetLastBarrier()
     {
@@ -79,6 +80,7 @@ public:
 
 private:
     std::queue<Buffer*> dataQueue;
+    Buffer* delayData = nullptr;
     int lastSequenceNumber = 0;
     int expectSequenceNumber = 0;
     int initialCredit;
@@ -92,5 +94,6 @@ private:
     bool isUnlock = false;
     bool isNeedExpansion = false;
     std::vector<Buffer*> inflightBuffers_;
+    int taskType = 0;
 };
 }; // namespace omnistream

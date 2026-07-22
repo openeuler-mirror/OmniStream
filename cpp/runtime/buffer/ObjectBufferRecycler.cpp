@@ -15,4 +15,6 @@
 namespace omnistream {
 // Define the static member
 std::shared_ptr<DummyObjectBufferRecycler> DummyObjectBufferRecycler::instance = nullptr;
+
+std::shared_ptr<DeepCopiedObjectBufferRecycler> DeepCopiedObjectBufferRecycler::instance = nullptr;
 } // namespace omnistream

@@ -248,6 +248,18 @@ void InputChannelRecoveredStateHandler::close()
         "Close InputChannelRecoveredStateHandler, FinishInnerRecoveredState inputGate size:" << inputGates.size());
 }
 
+bool InputChannelRecoveredStateHandler::usesObjectSegment(const InputChannelInfo& channelInfo)
+{
+    const auto channels = getMappedChannels(channelInfo);
+    if (channels.empty()) {
+        throw std::runtime_error("Cannot determine recovered buffer kind: no mapped input channel");
+    }
+
+    const bool objectPool = channels.front()->isObjectBufferPool();
+
+    return objectPool;
+}
+
 std::shared_ptr<RecoveredInputChannel> InputChannelRecoveredStateHandler::getChannel(
     int gateIndex, int subPartitionIndex)
 {

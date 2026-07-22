@@ -82,6 +82,8 @@ public:
 
     void onRecoveredStateBuffer(Buffer* buffer);
     void onRecoveredStateBuffer2(Buffer* buffer);
+    void onRecoveredStateBufferForObjectBuffer(Buffer* buffer);
+    bool isObjectBufferPool();
 
     void finishReadRecoveredState();
 
