@@ -142,13 +142,19 @@ BinaryRowData* CsvConverter::convert(const CsvRow& csvRow)
             LOG("CsvConverter: Converting value '" << value << "' to string for column " << i);
             std::string_view sv = value;
             rowData->setStringView(i, sv);
-        } else if (
-            type == omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE ||
-            type == omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
+        } else if (type == omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE) {
             LOG("CsvConverter: Converting value '" << value << "' to timestamp for column " << i);
             try {
                 static int milliSec = 3;
                 rowData->setTimestamp(i, TimestampData::fromString(value), milliSec); //并没有读取毫秒精度以上的那部分小数点后的数据
+            } catch (...) {
+                rowData->setNullAt(i);
+            }
+        } else if (type == omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
+            LOG("CsvConverter: Converting value '" << value << "' to timestamp with local time zone for column " << i);
+            try {
+                static int milliSec = 3;
+                rowData->setTimestamp(i, TimestampData::fromLocalTimeString(value), milliSec);
             } catch (...) {
                 rowData->setNullAt(i);
             }

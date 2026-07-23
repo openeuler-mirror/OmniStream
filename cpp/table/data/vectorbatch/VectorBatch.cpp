@@ -164,6 +164,7 @@ std::string removeTrailingZeros(std::string num)
 std::string VectorBatch::TransformTimeWithTimeZone(
     int vectorID, int rowID, const std::string& tzStr, int precision) const
 {
+    (void)tzStr;
     auto millis = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(vectors[vectorID])->GetValue(rowID);
     int64_t adjusted_seconds = (millis >= 0) ? (millis / 1000) : ((millis - 999) / 1000);
     int milliseconds = millis % 1000;
@@ -171,12 +172,15 @@ std::string VectorBatch::TransformTimeWithTimeZone(
         const int addTime = 1000;
         milliseconds += addTime; // 确保毫秒非负（如-1234ms → -2秒 + 766ms）
     }
-    setenv("TZ", omniruntime::codegen::function::TimeZoneUtil::GetTZ(tzStr.c_str()), 1);
-    tzset();
     struct tm timeinfo;
-    localtime_r(&adjusted_seconds, &timeinfo);
+    gmtime_r(&adjusted_seconds, &timeinfo);
     char buffer[80];
-    strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
+    strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%S", &timeinfo);
+
+    if (milliseconds == 0) {
+        return std::string(buffer) + "Z";
+    }
+
     std::ostringstream oss;
     oss << buffer << ".";
 
@@ -188,8 +192,7 @@ std::string VectorBatch::TransformTimeWithTimeZone(
         oss << std::setw(3) << std::setfill('0') << milliseconds << std::string(6, '0');
     }
 
-    std::string result = oss.str();
-    return result;
+    return oss.str() + "Z";
 }
 
 std::string VectorBatch::TransformOnlyTime(int vectorID, int rowID, int precision) const
@@ -251,7 +254,11 @@ std::string VectorBatch::TransformTime(int vectorID, int rowID, int precision) c
 
     // 格式化为字符串
     char buffer[80];
-    strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
+    strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%S", &timeinfo);
+
+    if (milliseconds == 0) {
+        return std::string(buffer);
+    }
 
     std::ostringstream oss;
     oss << buffer << ".";

@@ -52,13 +52,19 @@ bool TimestampData::isCompact(int percision)
 
 /**
  * Convert string to milliseconds since Unix Epoch
- * @param str Support formats like "2025-02-07 12:00:00.000" and "1989-03-04 08:00:00"
+ * @param str Support formats like "2025-02-07 12:00:00.000", "1989-03-04 08:00:00",
+ *            "2025-02-07T12:00:00.000" and "1989-03-04T08:00:00" ('T' or space separator)
  * @return
  */
 long TimestampData::stringToEpochMillis(const std::string& str)
 {
-    const char* start = str.data();
-    const char* end = str.data() + str.size();
+    std::string normalized;
+    normalized.reserve(str.size());
+    for (char c : str) {
+        normalized.push_back((c == 'T' || c == 't') ? ' ' : c);
+    }
+    const char* start = normalized.data();
+    const char* end = normalized.data() + normalized.size();
     while (start < end && *start == ' ') ++start;
     while (end > start && *(end - 1) == ' ') --end;
     if (start >= end) {
