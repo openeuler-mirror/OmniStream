@@ -13,11 +13,14 @@
 #define OMNISTREAM_NEXMARKSOURCEFUNCTION_H
 
 #include <array>
-#include <list>
+#include <atomic>
 #include <chrono>
-#include <memory>
-#include <vector>
+#include <condition_variable>
 #include <exception>
+#include <list>
+#include <memory>
+#include <mutex>
+#include <vector>
 #include "core/api/common/state/ListStateDescriptor.h"
 #include "core/typeinfo/TypeInformation.h"
 #include "core/typeutils/LongSerializer.h"
@@ -48,7 +51,9 @@ class NexmarkSourceFunction : public SourceFunction<K>, public AbstractRichFunct
     volatile long numElementsEmitted;
 
     // Flag to make the source cancelable.
-    volatile bool isRunning;
+    std::atomic_bool isRunning;
+    std::mutex cancelMutex;
+    std::condition_variable cancelCondition;
 
     // Transient checkpointed state.
     std::shared_ptr<ListState<long>> checkpointedState;
@@ -88,19 +93,26 @@ public:
     // Overriding run method.
     void run(SourceContext* ctx) override
     {
-        while (isRunning && generator->hasNext()) {
+        while (isRunning.load() && generator->hasNext()) {
             long now = std::chrono::duration_cast<std::chrono::milliseconds>(
                            std::chrono::system_clock::now().time_since_epoch())
                            .count();
             NexmarkGenerator::NextEvent nextEvent = generator->nextEvent();
             if (nextEvent.wallclockTimestamp > now) {
-                // sleep until wall clock less than current timestamp.
-                std::this_thread::sleep_for(std::chrono::milliseconds(nextEvent.wallclockTimestamp - now));
+                const auto waitDuration = std::chrono::milliseconds(nextEvent.wallclockTimestamp - now);
+                std::unique_lock<std::mutex> lock(cancelMutex);
+                cancelCondition.wait_for(lock, waitDuration, [this]() { return !isRunning.load(); });
+            }
+            if (!isRunning.load()) {
+                break;
             }
 
             auto next = deserializer->deserialize(std::move(nextEvent.event));
             {
-                ctx->getCheckpointLock()->mutex.lock();
+                std::lock_guard<std::recursive_mutex> checkpointLock(ctx->getCheckpointLock()->mutex);
+                if (!isRunning.load()) {
+                    break;
+                }
                 numElementsEmitted = generator->getEventsCountSoFar();
                 // Only do output when a batch is prepared
                 if (next) {
@@ -110,7 +122,6 @@ public:
                         std::cerr << "Exception during collect: " << e.what() << std::endl;
                     }
                 }
-                ctx->getCheckpointLock()->mutex.unlock();
             }
         }
     }
@@ -118,7 +129,11 @@ public:
     // Overriding cancel method.
     void cancel() override
     {
-        isRunning = false;
+        {
+            std::lock_guard<std::mutex> lock(cancelMutex);
+            isRunning.store(false);
+        }
+        cancelCondition.notify_all();
     }
 
     // Overriding close method.
