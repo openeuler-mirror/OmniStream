@@ -21,6 +21,7 @@
 #include "runtime/state/heap/HeapSnapshotStateData.h"
 #include "core/memory/DataOutputSerializer.h"
 #include "core/typeutils/TypeSerializer.h"
+#include "table/data/util/VectorBatchUtil.h"
 #include "core/typeutils/MapSerializer.h"
 #include "core/typeutils/ListSerializer.h"
 #include "core/typeutils/LongSerializer.h"
@@ -249,7 +250,10 @@ private:
                 if (snapshotData_ == nullptr) {
                     addSnapshotEntry(std::move(entry));
                 } else {
-                    snapshotData_->addVectorBatchEntry(std::move(entry), it->first);
+                    // Use full VectorBatchId (keyGroup<<48 | seqNum<<16) to avoid cross-keyGroup collision
+                    auto fullBatchId =
+                        omnistream::VectorBatchUtil::getVectorBatchId(keyGroup, static_cast<uint32_t>(it->first));
+                    snapshotData_->addVectorBatchEntry(std::move(entry), fullBatchId);
                 }
             }
         }

@@ -26,6 +26,7 @@
 #include "table/data/RowData.h"
 #include "table/data/RowKind.h"
 #include "table/data/vectorbatch/VectorBatch.h"
+#include "table/data/util/VectorBatchUtil.h"
 #include "table/utils/VectorBatchSerializationUtils.h"
 
 namespace fs = std::filesystem;
@@ -34,9 +35,12 @@ namespace {
 
 constexpr const char* kDbRootPath = "/tmp/rocksdb_vb_accessor_ut/";
 constexpr const char* kVectorBatchColumnFamily = "vb_test_cf";
-constexpr int64_t kBatchId = 42;
 constexpr int32_t kNumberOfKeyGroups = 512;
 constexpr int32_t kKeyGroup = 257;
+constexpr uint32_t kBatchSeqNum = 42;
+// Encoded VectorBatchId: (keyGroup << 48) | (seqNum << 16), matching VectorBatchUtil encoding.
+constexpr omnistream::VectorBatchId kBatchId =
+    (static_cast<uint64_t>(kKeyGroup) << 48) | (static_cast<uint64_t>(kBatchSeqNum) << 16);
 constexpr int32_t kSerializedVectorBatchBufferBytes = 64 * 1024;
 
 std::string makeRocksDbPath()
@@ -72,15 +76,20 @@ std::vector<int8_t> serializeVectorBatch(int32_t rowCount)
     return serializeVectorBatch(batch.get());
 }
 
-std::vector<int8_t> makeVbKey(omnistream::VectorBatchId batchId, int32_t keyGroupPrefixBytes, int32_t keyGroup)
+std::vector<int8_t> makeVbKey(omnistream::VectorBatchId batchId, int32_t keyGroupPrefixBytes)
 {
     OutputBufferStatus outputBufferStatus;
     DataOutputSerializer outputSerializer;
     outputSerializer.setBackendBuffer(&outputBufferStatus);
 
+    // Match RocksDBVectorBatchStateAccessor::serializeVectorBatchKey:
+    // extract keyGroup and seqNum from the encoded 64-bit batchId.
+    auto keyGroup = omnistream::VectorBatchUtil::getKeyGroup(batchId);
     CompositeKeySerializationUtils::writeKeyGroup(keyGroup, keyGroupPrefixBytes, outputSerializer);
     LongSerializer longSerializer;
-    longSerializer.serialize(&batchId, outputSerializer);
+    auto seqNum = omnistream::VectorBatchUtil::getSequenceNumber(batchId);
+    int64_t seqNumForSerializer = static_cast<int64_t>(seqNum);
+    longSerializer.serialize(&seqNumForSerializer, outputSerializer);
 
     return std::vector<int8_t>(
         reinterpret_cast<int8_t*>(outputSerializer.getData()),
@@ -177,6 +186,8 @@ protected:
     void takeSnapshot()
     {
         releaseSnapshot();
+        // Flush WAL to ensure all prior writes are visible to the snapshot.
+        db_->FlushWAL(true);
         snapshot_ = db_->GetSnapshot();
         ASSERT_NE(snapshot_, nullptr);
     }
@@ -191,7 +202,7 @@ protected:
 
     void writeVectorBatch(omnistream::VectorBatchId batchId, const std::vector<int8_t>& value)
     {
-        std::vector<int8_t> key = makeVbKey(batchId, keyGroupPrefixBytes_, keyGroup_);
+        std::vector<int8_t> key = makeVbKey(batchId, keyGroupPrefixBytes_);
         rocksdb::Status status = db_->Put(
             rocksdb::WriteOptions(),
             cfHandle_,
@@ -412,6 +423,7 @@ TEST_F(RocksDBVectorBatchStateAccessorTest, CreateVectorBatchStateAccessorMapsLo
     const std::string vbStateName = logicalStateName + "vb";
     std::vector<int8_t> expectedValue = serializeVectorBatch(1);
     writeVectorBatch(kBatchId, expectedValue);
+    db_->FlushWAL(true);
     auto resources = createSnapshotResources(
         {{logicalStateName, createKvStateInfo(logicalStateName, defaultCfHandle_)},
          {vbStateName, createKvStateInfo(vbStateName, cfHandle_)}});
@@ -513,6 +525,9 @@ TEST_F(RocksDBVectorBatchStateAccessorTest, AccessorCreatedByResourcesReadsFromR
     std::vector<int8_t> newerValue = serializeVectorBatch(2);
     ASSERT_NE(snapshotValue, newerValue);
     writeVectorBatch(kBatchId, snapshotValue);
+    // Ensure the write is committed to WAL before createSnapshotResources
+    // takes a RocksDB snapshot, so the snapshot can see the entry.
+    db_->FlushWAL(true);
     auto resources = createSnapshotResources(
         {{logicalStateName, createKvStateInfo(logicalStateName, defaultCfHandle_)},
          {vbStateName, createKvStateInfo(vbStateName, cfHandle_)}});

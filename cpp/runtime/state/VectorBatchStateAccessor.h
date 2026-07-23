@@ -17,6 +17,7 @@
 #include <utility>
 
 #include "core/utils/ByteView.h"
+#include "common.h"
 #include "data/util/VectorBatchUtil.h"
 #include "runtime/state/ByteBoundedVectorBatchCache.h"
 #include "streaming/runtime/streamrecord/StreamElement.h"
@@ -71,6 +72,10 @@ protected:
         if (!getSerializedBatch(batchId, &serializedBytes)) {
             return nullptr;
         }
+
+        INFO_RELEASE(
+            "VectorBatchStateAccessor::getRow - batchId=" << batchId << ", rowId=" << rowId
+                                                          << ", serializedSize=" << serializedBytes.size());
 
         std::unique_ptr<omnistream::VectorBatch> decodedBatch = deserializeBatch(serializedBytes);
         if (decodedBatch == nullptr) {

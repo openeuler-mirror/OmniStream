@@ -129,8 +129,10 @@ public:
 
                     // keyGroup 切换时强制 flush 所有 KV_WITH_VB writer 的 VB 尾批，
                     // 避免跨 keyGroup 的数据混合到同一 VB batch 中。
+                    // flush 后重置 batchId，保证每个 keyGroup 内部从 0 开始独立递增。
                     for (auto& [id, w] : kvVbWriters) {
                         w->flushVB();
+                        w->resetBatchId();
                     }
                 }
 

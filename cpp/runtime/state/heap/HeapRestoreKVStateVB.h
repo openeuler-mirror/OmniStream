@@ -49,6 +49,11 @@ public:
         RestoreKVStateVB::discard();
     }
 
+    void resetBatchId() override
+    {
+        vbState_.currentBatchId = 0;
+    }
+
 protected:
     // 显式引入模板基类成员，避免 dependent-name 查找失败
     using HeapRestoreKVState<K>::stateInfo_;
@@ -126,8 +131,8 @@ omnistream::ComboId HeapRestoreKVStateVB<K>::appendRowToVectorBatch(const RowDat
                                                                                                 << "'");
         throw std::runtime_error("HeapRestoreKVStateVB: RowDataView has null valueBytes or columnTypes");
     }
-    int64_t comboId =
-        VectorBatchRestoreUtil::appendRowToVectorBatch(vbState_, *row.valueBytes, columnTypes_, vectorBatchSize_);
+    int64_t comboId = VectorBatchRestoreUtil::appendRowToVectorBatch(
+        vbState_, *row.valueBytes, columnTypes_, vectorBatchSize_, keyGroupId_);
     if (comboId < 0) {
         INFO_RELEASE("HeapRestoreKVStateVB: Error: appendRowToVectorBatch failed for '" << stateInfo_.stateName << "'");
         throw std::runtime_error("HeapRestoreKVStateVB: appendRowToVectorBatch failed");
@@ -170,8 +175,8 @@ void HeapRestoreKVStateVB<K>::flushVectorBatchIfNotEmpty()
         }
     }
 
-    int vbKeyGroup = vbTable->getKeyGroupRange()->getStartKeyGroup();
-    vbTable->put(vbState_.currentBatchId, vbKeyGroup, ns, batchToStore);
+    vbTable->put(vbState_.currentBatchId, keyGroupId_, ns, batchToStore);
+    vbTable->updateNextSequenceNumber(keyGroupId_, static_cast<uint32_t>(vbState_.currentBatchId) + 1);
 
     vbState_.currentBatch = nullptr;
     vbState_.currentBatchId++;

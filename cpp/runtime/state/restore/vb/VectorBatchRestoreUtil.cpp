@@ -98,7 +98,8 @@ omnistream::ComboId VectorBatchRestoreUtil::appendRowToVectorBatch(
     VbBatchState& vbState,
     const std::vector<int8_t>& valueBytes,
     const std::vector<omniruntime::type::DataTypeId>& columnTypes,
-    int batchSize)
+    int batchSize,
+    int32_t keyGroup)
 {
     if (valueBytes.empty()) {
         INFO_RELEASE("VectorBatchRestoreUtil: empty value bytes, cannot parse RowData");
@@ -149,7 +150,7 @@ omnistream::ComboId VectorBatchRestoreUtil::appendRowToVectorBatch(
 
     populateVectorBatchFromRow(vbState.currentBatch, columnTypes, row.get(), vbState.currentRowId);
 
-    auto comboId = VectorBatchUtil::getComboId(vbState.currentBatchId, vbState.currentRowId);
+    auto comboId = VectorBatchUtil::getComboId(keyGroup, vbState.currentBatchId, vbState.currentRowId);
     vbState.currentRowId++;
     return comboId;
 }

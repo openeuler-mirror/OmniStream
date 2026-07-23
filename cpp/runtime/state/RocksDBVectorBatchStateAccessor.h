@@ -28,6 +28,7 @@
 #include "runtime/state/CompositeKeySerializationUtils.h"
 #include "runtime/state/VectorBatchStateAccessor.h"
 #include "table/data/RowData.h"
+#include "table/data/util/VectorBatchUtil.h"
 #include "table/data/vectorbatch/VectorBatch.h"
 
 /**
@@ -129,9 +130,14 @@ private:
         DataOutputSerializer outputSerializer;
         outputSerializer.setBackendBuffer(&outputBufferStatus);
 
-        CompositeKeySerializationUtils::writeKeyGroup(keyGroup_, keyGroupPrefixBytes_, outputSerializer);
+        // Use keyGroup from batchId (not the accessor's fixed keyGroup_),
+        // since comboIds now encode keyGroup and VBs are split by keyGroup.
+        auto keyGroup = omnistream::VectorBatchUtil::getKeyGroup(batchId);
+        CompositeKeySerializationUtils::writeKeyGroup(keyGroup, keyGroupPrefixBytes_, outputSerializer);
         LongSerializer longSerializer;
-        longSerializer.serialize(&batchId, outputSerializer);
+        auto sequenceNumber = omnistream::VectorBatchUtil::getSequenceNumber(batchId);
+        int64_t seqNumForSerializer = static_cast<int64_t>(sequenceNumber);
+        longSerializer.serialize(&seqNumForSerializer, outputSerializer);
 
         return std::vector<int8_t>(
             reinterpret_cast<int8_t*>(outputSerializer.getData()),

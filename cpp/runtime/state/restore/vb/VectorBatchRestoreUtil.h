@@ -47,7 +47,8 @@ public:
         VbBatchState& vbState,
         const std::vector<int8_t>& valueBytes,
         const std::vector<omniruntime::type::DataTypeId>& columnTypes,
-        int batchSize);
+        int batchSize,
+        int32_t keyGroup = 0);
 
     static StateMetaInfoSnapshot buildOmniMainMetaInfo(
         const StateMetaInfoSnapshot& flinkMetaInfo, TypeSerializer* valueSerializer);
