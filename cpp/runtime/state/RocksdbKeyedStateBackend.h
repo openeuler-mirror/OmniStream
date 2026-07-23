@@ -71,6 +71,11 @@ using namespace omniruntime::type;
 template <typename K>
 class RocksdbKeyedStateBackend : public AbstractKeyedStateBackend<K> {
 public:
+    omnistream::StateType getStateType() const noexcept override
+    {
+        return omnistream::StateType::ROCKSDB;
+    }
+
     // Originally used to create an internal state, not necessary here
     uintptr_t createOrUpdateInternalState(TypeSerializer* namespaceSerializer, StateDescriptor* stateDesc) override;
 

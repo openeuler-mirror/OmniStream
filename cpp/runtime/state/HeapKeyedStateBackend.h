@@ -60,6 +60,11 @@ using namespace omniruntime::type;
 template <typename K>
 class HeapKeyedStateBackend : public AbstractKeyedStateBackend<K> {
 public:
+    omnistream::StateType getStateType() const noexcept override
+    {
+        return omnistream::StateType::HEAP;
+    }
+
     HeapKeyedStateBackend(TypeSerializer* keySerializer, InternalKeyContext<K>* context)
         : AbstractKeyedStateBackend<K>(keySerializer, context)
     {

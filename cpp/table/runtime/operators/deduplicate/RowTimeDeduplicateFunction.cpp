@@ -119,22 +119,21 @@ void RowTimeDeduplicateFunction::open(const Configuration& config)
     // Uses int64_t as the template type but not omnistream::ComboId to keep compatibility with existing code.
     auto* recordStateDesc = new ValueStateDescriptor<int64_t>(deduplicateStateName, serializer);
 
-    this->recordStateVB =
-        static_cast<StreamingRuntimeContext<RowData*>*>(getRuntimeContext())->getState<int64_t>(recordStateDesc);
-    if (dynamic_cast<RocksdbValueState<RowData*, VoidNamespace, int64_t>*>(recordStateVB)) {
-        static_cast<RocksdbValueState<RowData*, VoidNamespace, int64_t>*>(this->recordStateVB)
+    auto* runtimeContext = static_cast<StreamingRuntimeContext<RowData*>*>(getRuntimeContext());
+    this->recordStateVB = runtimeContext->getState<int64_t>(recordStateDesc);
+    stateType_ = runtimeContext->getStateType();
+    omnistream::checkStateType(stateType_, "RowTimeDeduplicateFunction");
+    if (stateType_ == omnistream::StateType::ROCKSDB) {
+        static_cast<RocksdbValueState<RowData*, VoidNamespace, int64_t>*>(recordStateVB)
             ->setDefaultValue(static_cast<int64_t>(INVALID_COMBO_ID));
-        INFO_RELEASE("RowTimeDeduplicateFunction backend is rocksdb");
-        backendType_ = omnistream::StateType::ROCKSDB;
-    } else if (dynamic_cast<HeapValueState<RowData*, VoidNamespace, int64_t>*>(recordStateVB)) {
-        static_cast<HeapValueState<RowData*, VoidNamespace, int64_t>*>(this->recordStateVB)
+    } else if (stateType_ == omnistream::StateType::HEAP) {
+        static_cast<HeapValueState<RowData*, VoidNamespace, int64_t>*>(recordStateVB)
             ->setDefaultValue(static_cast<int64_t>(INVALID_COMBO_ID));
-        INFO_RELEASE("RowTimeDeduplicateFunction backend is mem");
-        backendType_ = omnistream::StateType::HEAP;
     } else {
-        THROW_LOGIC_EXCEPTION("RowTimeDeduplicateFunction backend is not supported");
+        THROW_LOGIC_EXCEPTION("RowTimeDeduplicateFunction only support heap and rocksdb state type");
     }
-    maxParallelism_ = static_cast<StreamingRuntimeContext<RowData*>*>(getRuntimeContext())->getMaxNumberOfSubtasks();
+
+    maxParallelism_ = runtimeContext->getMaxNumberOfSubtasks();
     LOG("RowTimeDeduplicateFunction open finish");
 }
 
@@ -153,7 +152,7 @@ std::vector<int32_t> RowTimeDeduplicateFunction::getKeyedTypes(
 void RowTimeDeduplicateFunction::freeDelBatch()
 {
     vectorBatchCacheMap.clear();
-    if (backendType_ == omnistream::StateType::HEAP) {
+    if (stateType_ == omnistream::StateType::HEAP) {
         delVb.clear();
         return;
     }
@@ -282,7 +281,7 @@ omnistream::VectorBatch* RowTimeDeduplicateFunction::GetVectorBatchByComboId(Com
 void RowTimeDeduplicateFunction::UpdateStateBackend(
     std::vector<std::tuple<ComboId, ComboId, RowData*>>& updateRecords, Context& ctx)
 {
-    if (backendType_ == omnistream::StateType::HEAP) {
+    if (stateType_ == omnistream::StateType::HEAP) {
         // mem backend
         for (auto record : updateRecords) {
             ComboId curComboId = std::get<1>(record);
@@ -298,10 +297,8 @@ void RowTimeDeduplicateFunction::UpdateStateBackend(
             auto rowKey = std::get<2>(record);
             pendingUpdates.emplace(rowKey, static_cast<int64_t>(curComboId));
         }
-        auto rocksdbStateBackend = dynamic_cast<RocksdbValueState<RowData*, VoidNamespace, int64_t>*>(recordStateVB);
-        if (rocksdbStateBackend) {
-            rocksdbStateBackend->updateByBatch(pendingUpdates);
-        }
+        auto* rocksdbStateBackend = static_cast<RocksdbValueState<RowData*, VoidNamespace, int64_t>*>(recordStateVB);
+        rocksdbStateBackend->updateByBatch(pendingUpdates);
     }
     // clear the keys
     for (auto record : updateRecords) {

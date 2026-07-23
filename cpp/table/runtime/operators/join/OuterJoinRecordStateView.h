@@ -32,17 +32,8 @@ public:
         recordStateDesc->setKeyValueBackendTypeId(
             BackendDataType::XXHASH128_BK, BackendDataType::TUPLE_INT32_INT32_INT64);
         this->recordStateVB = ctx->template getMapState<XXH128_hash_t, UV>(recordStateDesc);
-        if (dynamic_cast<RocksdbMapState<K, VoidNamespace, XXH128_hash_t, UV>*>(recordStateVB)) {
-            INFO_RELEASE("OuterInputSideHasNoUniqueKey backend is rocksdb");
-            this->backendType_ = omnistream::StateType::ROCKSDB;
-            return;
-        }
-        if (dynamic_cast<HeapMapState<K, VoidNamespace, XXH128_hash_t, UV>*>(recordStateVB)) {
-            INFO_RELEASE("OuterInputSideHasNoUniqueKey backend is mem");
-            this->backendType_ = omnistream::StateType::HEAP;
-            return;
-        }
-        THROW_LOGIC_EXCEPTION("OuterInputSideHasNoUniqueKey backend is not supported");
+        this->stateType_ = ctx->getStateType();
+        omnistream::checkStateType(this->stateType_, "OuterInputSideHasNoUniqueKey");
     }
 
     ~OuterInputSideHasNoUniqueKey() override = default;
@@ -171,16 +162,16 @@ bool OuterInputSideHasNoUniqueKey<K>::addOrRectractRecord(
         this->reuseVectorBatchByKeyGroup_[keyGroup] = splitBatch;
     }
     this->addVectorBatches(this->reuseVectorBatchByKeyGroup_);
-    bool stateOwnsInput = this->backendType_ == omnistream::StateType::HEAP && !shouldSplitVectorBatch &&
+    bool stateOwnsInput = this->stateType_ == omnistream::StateType::HEAP && !shouldSplitVectorBatch &&
                           !this->reuseVectorBatchByKeyGroup_.empty();
 
-    if (this->backendType_ != omnistream::StateType::HEAP && shouldSplitVectorBatch) {
+    if (this->stateType_ != omnistream::StateType::HEAP && shouldSplitVectorBatch) {
         for (const auto& [keyGroup, vectorBatch] : this->reuseVectorBatchByKeyGroup_) {
             delete vectorBatch;
         }
     }
     // compress a row into a xxhash128 value.
-    if (this->backendType_ == omnistream::StateType::ROCKSDB) {
+    if (this->stateType_ == omnistream::StateType::ROCKSDB) {
         ProcessRockDBRecordsInBatch(input, numAssociates);
         this->reuseKeys_.clear();
         this->reuseComboIds_.clear();
@@ -266,7 +257,7 @@ void OuterInputSideHasNoUniqueKey<K>::ProcessRockDBRecordsInBatch(
         }
         auto keyAndUkey = std::make_pair(keys[i], xxh128Hashes[i]);
         auto recordIter = rockdbRecords.find(keyAndUkey);
-        UV val{0, numAssociates[i], this->reuseComboIds_[i]};
+        UV val{0, numAssociates[i], static_cast<int64_t>(this->reuseComboIds_[i])};
         if (recordIter != rockdbRecords.end()) {
             val = recordIter->second;
         }
@@ -308,11 +299,9 @@ void OuterInputSideHasNoUniqueKey<K>::ProcessRockDBRecordsInBatch(
         }
     }
 
-    auto rockState = dynamic_cast<RocksdbMapState<K, VoidNamespace, XXH128_hash_t, UV>*>(recordStateVB);
-    if (rockState) {
-        rockState->putByBatch(addOrUpdateRecords);
-        rockState->removeByBatch(deleteRecords);
-    }
+    auto* rockState = static_cast<RocksdbMapState<K, VoidNamespace, XXH128_hash_t, UV>*>(recordStateVB);
+    rockState->putByBatch(addOrUpdateRecords);
+    rockState->removeByBatch(deleteRecords);
     // clean up
     for (int i = 0; i < keys.size(); i++) {
         if constexpr (std::is_pointer_v<K>) {
@@ -329,8 +318,8 @@ void OuterInputSideHasNoUniqueKey<K>::GetRockDBRecordsInBatch(
     std::vector<K>& keys,
     std::unordered_map<std::pair<K, XXH128_hash_t>, UV>& result)
 {
-    auto rockState = dynamic_cast<RocksdbMapState<K, VoidNamespace, XXH128_hash_t, UV>*>(recordStateVB);
-    if (rockState) {
+    auto* rockState = static_cast<RocksdbMapState<K, VoidNamespace, XXH128_hash_t, UV>*>(recordStateVB);
+    {
         std::unordered_map<K, std::unordered_set<XXH128_hash_t>> keyAndUkeysMap;
         for (int i = 0; i < keys.size(); i++) {
             auto joinKey = keys.at(i);

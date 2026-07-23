@@ -58,14 +58,15 @@ public:
     {
         std::string topNStateName = "data-state-with-append";
         TypeSerializer* topNSerializer = new SortedVectorLong();
-        auto* topNStateDesc = new ValueStateDescriptor<std::vector<ComboId>*>(topNStateName, topNSerializer);
+        // Uses int64_t as the template type but not omnistream::ComboId to keep compatibility with existing code.
+        auto* topNStateDesc = new ValueStateDescriptor<std::vector<int64_t>*>(topNStateName, topNSerializer);
         this->topNState = static_cast<StreamingRuntimeContext<K>*>(this->getRuntimeContext())
-                              ->template getState<std::vector<ComboId>*>(topNStateDesc);
+                              ->template getState<std::vector<int64_t>*>(topNStateDesc);
 
-        if (dynamic_cast<RocksdbValueState<RowData*, VoidNamespace, std::vector<ComboId>*>*>(topNState)) {
-            backendType_ = omnistream::StateType::ROCKSDB;
-        }
-        maxParallelism_ = static_cast<StreamingRuntimeContext<K>*>(this->getRuntimeContext())->getMaxNumberOfSubtasks();
+        auto* runtimeContext = static_cast<StreamingRuntimeContext<K>*>(this->getRuntimeContext());
+        stateType_ = runtimeContext->getStateType();
+        omnistream::checkStateType(stateType_, "AppendOnlyTopNFunction");
+        maxParallelism_ = runtimeContext->getMaxNumberOfSubtasks();
     }
 
     void processBatch(
@@ -138,15 +139,14 @@ public:
             this->collectOutputBatch(out, outputBatch);
         }
 
-        std::unordered_map<K, std::vector<ComboId>*> rocksDBBatchUpdateMap;
+        std::unordered_map<K, std::vector<int64_t>*> rocksDBBatchUpdateMap;
 
         if (changedKeysInThisBatch.size() > 0) {
             for (auto key : changedKeysInThisBatch) {
                 BufferT* changedBuffer = partitionKeyToTopNbufferMap[key];
-                int size = changedBuffer->GetSize();
-                std::vector<ComboId>* updatedTopNState = changedBuffer->ToPlainVector();
+                auto* updatedTopNState = changedBuffer->ToPlainVector();
 
-                if (backendType_ == omnistream::StateType::ROCKSDB) {
+                if (stateType_ == omnistream::StateType::ROCKSDB) {
                     rocksDBBatchUpdateMap.emplace(key, updatedTopNState);
                 } else {
                     ctx.setCurrentKey(key);
@@ -163,7 +163,7 @@ public:
             inputBatchGuard.release();
         }
 
-        if (backendType_ == omnistream::StateType::ROCKSDB) {
+        if (stateType_ == omnistream::StateType::ROCKSDB) {
             if (rocksDBBatchUpdateMap.size() > 0) {
                 updateRockDBTopNStateByBatch(rocksDBBatchUpdateMap);
             }
@@ -192,7 +192,7 @@ public:
         rowToDel.clear();
 
         for (auto it : this->vectorBatchCacheMap) {
-            if (backendType_ != omnistream::StateType::HEAP) {
+            if (stateType_ != omnistream::StateType::HEAP) {
                 delete it.second;
             }
         }
@@ -209,18 +209,18 @@ public:
         buffer = nullptr;
     }
 
-    void updateRockDBTopNStateByBatch(std::unordered_map<K, std::vector<ComboId>*>& rocksDBBatchUpdateMap)
+    void updateRockDBTopNStateByBatch(std::unordered_map<K, std::vector<int64_t>*>& rocksDBBatchUpdateMap)
     {
-        auto rockdbTopNState = dynamic_cast<RocksdbValueState<K, VoidNamespace, std::vector<ComboId>*>*>(topNState);
+        auto* rockdbTopNState = static_cast<RocksdbValueState<K, VoidNamespace, std::vector<int64_t>*>*>(topNState);
         rockdbTopNState->updateByBatch(rocksDBBatchUpdateMap);
     }
 
     bool addCurrentToTargetBuffer(ComboId currentComId, long topN, BufferT* buffer)
     {
         if (buffer->GetSize() < topN) {
-            return buffer->AddElement(currentComId);
+            return buffer->AddElement(static_cast<int64_t>(currentComId));
         } else {
-            auto smallestComId = buffer->GetSmallestElement();
+            auto smallestComId = static_cast<ComboId>(buffer->GetSmallestElement());
             auto prowId = VectorBatchUtil::getRowId(smallestComId);
             auto crowId = VectorBatchUtil::getRowId(currentComId);
 
@@ -394,7 +394,8 @@ private:
     static const int64_t serialVersionUID = -4708453213104128011LL;
     // a map state stores mapping from sort key to records list which is in topN
     // ValueState<RowData*>* vectorBatchState;
-    ValueState<std::vector<ComboId>*>* topNState;
+    // Uses int64_t as the template type but not omnistream::ComboId to keep compatibility with existing code.
+    ValueState<std::vector<int64_t>*>* topNState;
     BufferT* buffer;
     // the kvSortedMap stores mapping from partition key to it's buffer
     emhash7::HashMap<K, BufferT*> partitionKeyToTopNbufferMap;
@@ -404,7 +405,7 @@ private:
     KeySelector<K> partitionKeySelector;
     KeySelector<RowData*> sortKeySelector;
     std::vector<RowData*> rowToDel;
-    omnistream::StateType backendType_ = omnistream::StateType::HEAP;
+    omnistream::StateType stateType_ = omnistream::StateType::HEAP;
     int32_t maxParallelism_ = 0;
     std::unordered_map<int32_t, omnistream::VectorBatch*> reuseVectorBatchByKeyGroup_{};
     std::unordered_map<int32_t, std::vector<int32_t>> reuseOldRowIdsByKeyGroup_{};
@@ -424,7 +425,7 @@ private:
             auto listOfRows = topNState->value();
             if (listOfRows) {
                 topBuffer->LoadFromPlainVector(*listOfRows);
-                if (backendType_ == omnistream::StateType::ROCKSDB) {
+                if (stateType_ == omnistream::StateType::ROCKSDB) {
                     delete listOfRows;
                 }
             }
@@ -437,7 +438,7 @@ private:
         return topBuffer;
     }
 
-    void processElementWithRowNumber2(ComboId currentComId, TimestampedCollector* out)
+    void processElementWithRowNumber2(int64_t currentComId, TimestampedCollector* out)
     {
         // find current comid position in buffer, and the record behind it should be updated with rank number
         //  Create an iterator over buffer entries.
@@ -477,7 +478,7 @@ private:
         }
     }
 
-    void processElementWithoutRowNumber2(ComboId currentComId, TimestampedCollector* out)
+    void processElementWithoutRowNumber2(int64_t currentComId, TimestampedCollector* out)
     {
         collectedIds.push_back(currentComId);
         this->collectedRowKinds.push_back(RowKind::INSERT);
