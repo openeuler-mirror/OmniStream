@@ -26,6 +26,7 @@
 #include "table/runtime/operators/deduplicate/RowTimeDeduplicateFunction.h"
 #include "streaming/api/operators/KeyedProcessOperator.h"
 #include "table/runtime/operators/join/StreamingJoinOperator.h"
+#include "table/runtime/operators/join/StreamingSemiAntiJoinOperator.h"
 #include "core/typeinfo/TypeInfoFactory.h"
 #include "table/runtime/operators/wmassigners/WatermarkAssignerOperator.h"
 #include "table/runtime/operators/sink/SinkOperator.h"
@@ -79,8 +80,15 @@ StreamOperator* StreamOperatorFactory::createOperatorAndCollector(
         execCalc->setup();
         LOG("Operator StreamCalcBatch address  " + std::to_string(reinterpret_cast<long>(execCalc)));
         return static_cast<OneInputStreamOperator*>(execCalc);
-    } else if (uniqueName == OPERATOR_NAME_STREAM_JOIN) {
-        // todo this ios test
+    } else if (uniqueName == OPERATOR_NAME_STREAM_JOIN || uniqueName == OPERATOR_NAME_STREAM_SEMI_ANTI_JOIN) {
+        const auto& desc = opConfig.getDescription();
+        std::string joinType = desc.contains("joinType") ? desc["joinType"].get<std::string>() : "InnerJoin";
+        if (joinType == "LeftSemiJoin" || joinType == "LeftAntiJoin") {
+            LOG("Generating StreamingSemiAntiJoinOperator...");
+            auto* op = new StreamingSemiAntiJoinOperator<RowData*>(desc, chainOutput);
+            op->setup();
+            return static_cast<TwoInputStreamOperator*>(op);
+        }
         LOG("Generating StreamingJoinOperator...");
         auto opDescriptionJSON = opConfig.getDescription();
         auto* op = new StreamingJoinOperator<RowData*>(opDescriptionJSON, chainOutput);
@@ -193,6 +201,8 @@ StreamOperator* StreamOperatorFactory::createOperatorAndCollector(
         return CreateStreamCalcOp(opDesc, chainOutput, task);
     } else if (operatorID == OPERATOR_NAME_STREAM_JOIN) {
         return CreateStreamJoinOp(opDesc, chainOutput, task);
+    } else if (operatorID == OPERATOR_NAME_STREAM_SEMI_ANTI_JOIN) {
+        return CreateStreamJoinOp(opDesc, chainOutput, task);
     } else if (operatorID == OPERATOR_NAME_LOCAL_WINDOW_AGG) {
         return CreateLocalWindowAggOp(opDesc, chainOutput, task);
     } else if (operatorID == OPERATOR_NAME_GLOBAL_WINDOW_AGG) {
@@ -261,9 +271,18 @@ StreamOperator* StreamOperatorFactory::CreateStreamCalcOp(
 StreamOperator* StreamOperatorFactory::CreateStreamJoinOp(
     OperatorPOD& opConfig, WatermarkGaugeExposingOutput* chainOutput, std::shared_ptr<omnistream::OmniStreamTask> task)
 {
-    LOG("Generating StreamingJoinOperator...");
     auto description = opConfig.getDescription();
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
+    // Route semi/anti (EXISTS/NOT EXISTS) to StreamingSemiAntiJoinOperator by joinType.
+    std::string joinType =
+        opDescriptionJSON.contains("joinType") ? opDescriptionJSON["joinType"].get<std::string>() : "InnerJoin";
+    if (joinType == "LeftSemiJoin" || joinType == "LeftAntiJoin") {
+        LOG("Generating StreamingSemiAntiJoinOperator...");
+        auto* op = new StreamingSemiAntiJoinOperator<RowData*>(opDescriptionJSON, chainOutput);
+        op->setup(std::move(task));
+        return static_cast<TwoInputStreamOperator*>(op);
+    }
+    LOG("Generating StreamingJoinOperator...");
     auto* op = new StreamingJoinOperator<RowData*>(opDescriptionJSON, chainOutput);
     op->setup(std::move(task));
     // SP-INTEROP: StreamingJoin 的 compatible Adaptor 按当前真实算子 description 分类，
