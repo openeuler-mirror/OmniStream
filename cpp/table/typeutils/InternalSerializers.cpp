@@ -37,6 +37,7 @@ TypeSerializer* InternalSerializers::createInternal(LogicalType* type)
             return LongSerializer::INSTANCE; // DOUBLE is a fixed 8-byte field; reuse the dummy serializer like INT/LONG
         case DataTypeId::OMNI_DATE32:
             return LongSerializer::INSTANCE; // DATE is a fixed-width (int days) field; reuse the dummy serializer like INT
+        case DataTypeId::OMNI_BOOLEAN: return LongSerializer::INSTANCE;
         case DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE: return LongSerializer::INSTANCE;
         case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE: return LongSerializer::INSTANCE;
         case DataTypeId::OMNI_TIMESTAMP_WITH_TIME_ZONE: return LongSerializer::INSTANCE;
