@@ -39,6 +39,11 @@ public:
         ctx_.keyGroupId = keyGroupId;
     }
 
+    void resetBatchId() override
+    {
+        vbState_.currentBatchId = 0;
+    }
+
 protected:
     omnistream::ComboId appendRowToVectorBatch(const RowDataView& row) override;
     void flushVectorBatchIfNotEmpty() override;
@@ -114,10 +119,20 @@ omnistream::ComboId RocksDBRestoreKVStateVB<K>::appendRowToVectorBatch(const Row
     if (row.valueBytes == nullptr || row.columnTypes == nullptr) {
         throw std::runtime_error("RocksDBRestoreKVStateVB: RowDataView has null valueBytes or columnTypes");
     }
-    omnistream::ComboId comboId =
-        VectorBatchRestoreUtil::appendRowToVectorBatch(vbState_, *row.valueBytes, columnTypes_, vectorBatchSize_);
+    omnistream::ComboId comboId = VectorBatchRestoreUtil::appendRowToVectorBatch(
+        vbState_, *row.valueBytes, columnTypes_, vectorBatchSize_, ctx_.keyGroupId);
+    if (comboId == omnistream::INVALID_COMBO_ID) {
+        INFO_RELEASE(
+            "RocksDBRestoreKVStateVB: Error: appendRowToVectorBatch failed for kvStateId="
+            << kvStateId_ << ", keyGroupId=" << ctx_.keyGroupId);
+        throw std::runtime_error("RocksDBRestoreKVStateVB: appendRowToVectorBatch failed");
+    }
 
     if (vbState_.currentRowId >= vectorBatchSize_) {
+        INFO_RELEASE(
+            "RocksDBRestoreKVStateVB::appendRow - batch full, kvStateId="
+            << kvStateId_ << ", batchId=" << vbState_.currentBatchId << ", rowCount=" << vbState_.currentRowId
+            << ", keyGroupId=" << ctx_.keyGroupId);
         flushVectorBatchIfNotEmpty();
     }
     return comboId;
@@ -157,8 +172,13 @@ void RocksDBRestoreKVStateVB<K>::flushVectorBatchIfNotEmpty()
         return;
     }
 
+    INFO_RELEASE(
+        "RocksDBRestoreKVStateVB::flushVB - kvStateId="
+        << kvStateId_ << ", batchId=" << vbState_.currentBatchId << ", rowCount=" << actualRowCnt
+        << ", serializedSize=" << serializedBatchInfo.size << ", keyGroupId=" << ctx_.keyGroupId);
+
     DataOutputSerializer keyTarget(ctx_.keyGroupPrefixBytes + 8);
-    CompositeKeySerializationUtils::writeKeyGroup(ctx_.startKeyGroup, ctx_.keyGroupPrefixBytes, keyTarget);
+    CompositeKeySerializationUtils::writeKeyGroup(ctx_.keyGroupId, ctx_.keyGroupPrefixBytes, keyTarget);
     keyTarget.writeLong(static_cast<int64_t>(vbState_.currentBatchId));
 
     std::vector<int8_t> vbKey(keyTarget.getData(), keyTarget.getData() + keyTarget.getPosition());

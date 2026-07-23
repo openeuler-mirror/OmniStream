@@ -59,6 +59,10 @@ public:
         flushVectorBatchIfNotEmpty();
     }
 
+    // 重置 VB batch 计数器（在 keyGroup 切换 flush 之后调用），
+    // 保证每个 keyGroup 内部 VectorBatchId 从 0 开始独立递增。
+    virtual void resetBatchId() = 0;
+
     // flush：写尾批（如有）→ flush main writer
     void flush() override
     {

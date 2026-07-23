@@ -26,6 +26,7 @@
 #include "table/data/RowData.h"
 #include "table/data/RowKind.h"
 #include "table/data/vectorbatch/VectorBatch.h"
+#include "table/data/util/VectorBatchUtil.h"
 #include "table/utils/VectorBatchSerializationUtils.h"
 
 namespace {
@@ -189,9 +190,12 @@ TEST_F(HeapFullSnapshotResourcesVectorBatchAccessorTest, CapturedVectorBatchIter
         std::shared_ptr<HeapSnapshotStateData> snapshotData = iterator.getSnapshotData();
         ASSERT_NE(snapshotData, nullptr);
         EXPECT_TRUE(iterator.isValid());
-        ASSERT_NE(snapshotData->findVectorBatchEntry(kBatchId), nullptr);
+        // collectVbEntries() encodes batchId as (keyGroup<<48 | seqNum<<16),
+        // so lookup must use the same encoded form.
+        auto encodedBatchId = omnistream::VectorBatchUtil::getVectorBatchId(0, static_cast<uint32_t>(kBatchId));
+        ASSERT_NE(snapshotData->findVectorBatchEntry(encodedBatchId), nullptr);
         iterator.close();
-        EXPECT_NE(snapshotData->findVectorBatchEntry(kBatchId), nullptr);
+        EXPECT_NE(snapshotData->findVectorBatchEntry(encodedBatchId), nullptr);
     }
 }
 
