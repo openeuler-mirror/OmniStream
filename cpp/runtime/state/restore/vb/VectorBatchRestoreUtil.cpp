@@ -136,8 +136,7 @@ omnistream::ComboId VectorBatchRestoreUtil::appendRowToVectorBatch(
     valInput.readFully(row->getSegment(), rowLen, 0, rowLen);
 
     if (vbState.currentBatch == nullptr) {
-        INFO_RELEASE(
-            "VectorBatchRestoreUtil: creating new VectorBatch, batchId=" << vbState.currentBatchId << ", numFields="
+        LOG("VectorBatchRestoreUtil: creating new VectorBatch, batchId=" << vbState.currentBatchId << ", numFields="
                                                                          << numFields << ", batchSize=" << batchSize);
 
         try {
