@@ -95,7 +95,9 @@ private:
 
     std::vector<int32_t> keyIndex; // key index
 
-    ValueState<ComboId>* recordStateVB = nullptr; // stores the selected row comboId for each key
+    // stores the selected row comboId for each key
+    // Uses int64_t as the template type but not omnistream::ComboId to keep compatibility with existing code.
+    ValueState<int64_t>* recordStateVB = nullptr;
 
     KeySelector<RowData*>* groupByKeySelector;
     std::vector<int32_t> keyedTypes;
