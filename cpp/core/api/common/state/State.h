@@ -20,11 +20,15 @@
 namespace omnistream {
 class VectorBatch;
 enum class StateType {
+    UNKNOWN = -1,
     HEAP = 0,
     ROCKSDB = 1,
     BSS = 2
 };
+
+void checkStateType(StateType stateType, const std::string& description);
 } // namespace omnistream
+
 class State {
 public:
     State() = default;

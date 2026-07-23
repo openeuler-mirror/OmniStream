@@ -28,6 +28,11 @@ template <typename K>
 class DefaultKeyedStateStore {
 public:
     DefaultKeyedStateStore(AbstractKeyedStateBackend<K>* backend) : backend(backend) {};
+    omnistream::StateType getStateType() const
+    {
+        return backend->getStateType();
+    }
+
     template <typename UK, typename UV>
     MapState<UK, UV>* getMapState(MapStateDescriptor<UK, UV>* descriptor)
     {

@@ -29,12 +29,24 @@ public:
     StreamingRuntimeContext() = default;
     explicit StreamingRuntimeContext(DefaultKeyedStateStore<K>* keyedStateStore, omnistream::EnvironmentV2* env)
         : keyedStateStore(keyedStateStore),
-          environment(env) {};
-    void close() override {};
+          environment(env)
+    {
+    }
+
+    void close() override
+    {
+    }
+
     void setKeyedStateStore(DefaultKeyedStateStore<K>* keyedStateStore)
     {
         this->keyedStateStore = keyedStateStore;
-    };
+    }
+
+    omnistream::StateType getStateType() const
+    {
+        return keyedStateStore->getStateType();
+    }
+
     // This does not exist in Flink, flink send environment from constructor
     void setEnvironment(omnistream::EnvironmentV2* env)
     {

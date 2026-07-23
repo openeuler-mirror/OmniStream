@@ -50,6 +50,10 @@ public:
           maxParallelism_(maxParallelism)
     {
     }
+    omnistream::StateType getStateType() const noexcept override
+    {
+        return omnistream::StateType::BSS;
+    }
 
     uintptr_t createOrUpdateInternalState(TypeSerializer* namespaceSerializer, StateDescriptor* stateDesc) override;
 

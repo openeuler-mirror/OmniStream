@@ -23,6 +23,10 @@ public:
     virtual void setCurrentKey(K key) = 0;
     virtual K getCurrentKey() = 0;
     virtual uintptr_t createOrUpdateInternalState(TypeSerializer* namespaceSerializer, StateDescriptor* stateDesc) = 0;
+    virtual omnistream::StateType getStateType() const noexcept
+    {
+        return omnistream::StateType::UNKNOWN;
+    }
     virtual void dispose() = 0;
     virtual TypeSerializer* getKeySerializer() = 0;
 

@@ -18,15 +18,15 @@ struct TopNDataComparator {
     {
     }
 
-    inline bool operator()(long a, long b) const
+    inline bool operator()(int64_t a, int64_t b) const
     {
         if (a == b) return false;
 
-        int rowIdA = omnistream::VectorBatchUtil::getRowId(a);
-        int rowIdB = omnistream::VectorBatchUtil::getRowId(b);
+        int rowIdA = omnistream::VectorBatchUtil::getRowId(static_cast<ComboId>(a));
+        int rowIdB = omnistream::VectorBatchUtil::getRowId(static_cast<ComboId>(b));
 
-        auto* vbA = fn->GetVectorBatch(a);
-        auto* vbB = fn->GetVectorBatch(b);
+        auto* vbA = fn->GetVectorBatch(static_cast<ComboId>(a));
+        auto* vbB = fn->GetVectorBatch(static_cast<ComboId>(b));
 
         if (vbA == nullptr || vbB == nullptr) {
             std::cout << "Error: VectorBatch is null in TopNDataComparator." << std::endl;

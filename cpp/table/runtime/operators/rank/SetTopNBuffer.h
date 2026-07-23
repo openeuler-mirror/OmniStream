@@ -6,13 +6,13 @@
 
 /**
  * In-memory ordered TopN buffer.
- * Stores comboIds (uint64_t), sorted by Comparator.
+ * Stores comboIds as int64_t, matching the state backend representation.
  * Uses multiset so equal-sort rows can coexist.
  */
 template <typename Comparator>
 class SetTopNBuffer {
 public:
-    using Buffer = std::multiset<omnistream::ComboId, Comparator>;
+    using Buffer = std::multiset<int64_t, Comparator>;
 
     explicit SetTopNBuffer(Comparator cmp) : buffer_(cmp), bufferId(-99)
     {
@@ -27,7 +27,7 @@ public:
         return buffer_.end();
     }
 
-    inline bool AddElement(omnistream::ComboId id)
+    inline bool AddElement(int64_t id)
     {
         buffer_.insert(id);
         return true;
@@ -47,22 +47,22 @@ public:
         return (int)buffer_.size();
     }
 
-    inline omnistream::ComboId GetSmallestElement() const
+    inline int64_t GetSmallestElement() const
     {
         auto it = buffer_.end();
         --it;
         return *it;
     }
 
-    inline void LoadFromPlainVector(const std::vector<omnistream::ComboId>& plain)
+    inline void LoadFromPlainVector(const std::vector<int64_t>& plain)
     {
         buffer_.clear();
         buffer_.insert(plain.begin(), plain.end());
     }
 
-    inline std::vector<omnistream::ComboId>* ToPlainVector() const
+    inline std::vector<int64_t>* ToPlainVector() const
     {
-        return new std::vector<omnistream::ComboId>(buffer_.begin(), buffer_.end());
+        return new std::vector<int64_t>(buffer_.begin(), buffer_.end());
     }
     inline void SetBufferId(int id)
     {

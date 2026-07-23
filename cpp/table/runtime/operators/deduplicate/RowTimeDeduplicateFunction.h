@@ -105,7 +105,7 @@ private:
     // omnistream::VectorBatch *res = nullptr;
     std::set<omnistream::VectorBatch*> delVb;
     std::unordered_map<VectorBatchId, omnistream::VectorBatch*> vectorBatchCacheMap;
-    omnistream::StateType backendType_ = omnistream::StateType::HEAP;
+    omnistream::StateType stateType_ = omnistream::StateType::HEAP;
     int32_t maxParallelism_ = 0;
     std::unordered_map<int32_t, omnistream::VectorBatch*> reuseVectorBatchByKeyGroup_{};
     std::unordered_map<int32_t, std::vector<int32_t>> reuseOldRowIdsByKeyGroup_{};
