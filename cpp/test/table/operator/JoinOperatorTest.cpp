@@ -615,8 +615,6 @@ TEST(InnerJoinTest, SimpleJoinWithNullKey)
         EXPECT_EQ(expectedVB->getRowKind(i), outputVB->getRowKind(i));
     }
 
-    delete vectorBatchLeft;
-    delete vectorBatchRight;
     delete outputVB;
     delete expectedVB;
 }

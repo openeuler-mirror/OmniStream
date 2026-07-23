@@ -38,7 +38,8 @@ template <typename K>
 class JoinRecordStateView {
 public:
     /** update the inputSideStateView based on rowKind of input. Add accumulate rows and rectract non-accumulate rows*/
-    virtual void addOrRectractRecord(
+    // Returns true when the state backend takes ownership of input.
+    virtual bool addOrRectractRecord(
         omnistream::VectorBatch* input,
         KeySelector<K>* keySelector,
         bool OtherIsOuter,
@@ -167,7 +168,18 @@ public:
         return recordStateVB;
     };
 
-    void addOrRectractRecord(
+    /**
+     *
+     * @param input
+     * @param keySelector
+     * @param otherIsOuter
+     * @param backend
+     * @param maxParallelism
+     * @param filterNulls
+     * @param numAssociates
+     * @return true if the ownership of the input VectorBatch is owned by the state
+     */
+    bool addOrRectractRecord(
         omnistream::VectorBatch* input,
         KeySelector<K>* keySelector,
         bool otherIsOuter,
@@ -193,7 +205,7 @@ private:
 };
 
 template <typename K>
-void InputSideHasNoUniqueKey<K>::addOrRectractRecord(
+bool InputSideHasNoUniqueKey<K>::addOrRectractRecord(
     omnistream::VectorBatch* input,
     KeySelector<K>* keySelector,
     bool otherIsOuter,
@@ -235,6 +247,8 @@ void InputSideHasNoUniqueKey<K>::addOrRectractRecord(
         this->reuseVectorBatchByKeyGroup_[keyGroup] = splitBatch;
     }
     this->addVectorBatches(this->reuseVectorBatchByKeyGroup_);
+    bool stateOwnsInput = this->backendType_ == omnistream::StateType::HEAP && !shouldSplitVectorBatch &&
+                          !this->reuseVectorBatchByKeyGroup_.empty();
 
     if (this->backendType_ != omnistream::StateType::HEAP && shouldSplitVectorBatch) {
         for (const auto& [keyGroup, vectorBatch] : this->reuseVectorBatchByKeyGroup_) {
@@ -248,7 +262,7 @@ void InputSideHasNoUniqueKey<K>::addOrRectractRecord(
         this->reuseComboIds_.clear();
         this->reuseVectorBatchByKeyGroup_.clear();
         this->reuseOldRowIdsByKeyGroup_.clear();
-        return;
+        return false;
     }
 
     std::vector<XXH128_hash_t> xxh128Hashes = input->getXXH128s();
@@ -281,6 +295,7 @@ void InputSideHasNoUniqueKey<K>::addOrRectractRecord(
     this->reuseComboIds_.clear();
     this->reuseVectorBatchByKeyGroup_.clear();
     this->reuseOldRowIdsByKeyGroup_.clear();
+    return stateOwnsInput;
 }
 
 template <typename K>

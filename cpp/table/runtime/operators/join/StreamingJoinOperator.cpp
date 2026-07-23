@@ -23,6 +23,7 @@ void StreamingJoinOperator<K>::processBatch(
     bool inputIsLeft,
     bool isSuppress)
 {
+    auto inputGuard = std::unique_ptr<omnistream::VectorBatch>(input);
     try {
         LOG("===================Join processBatch Start=======================");
         // 1. Find matched rows in the otherside. Result will be stored in AbstractStreamingJoinOperator::matchedLists
@@ -40,8 +41,11 @@ void StreamingJoinOperator<K>::processBatch(
         auto keySelector = inputIsLeft ? this->keySelectorLeft : this->keySelectorRight;
         bool filterNulls = this->filterNullKeys[0];
         auto backend = this->getKeyedStateBackend();
-        inputSideStateView->addOrRectractRecord(
+        bool stateOwnsInput = inputSideStateView->addOrRectractRecord(
             input, keySelector, otherIsOuter, backend, maxParallelism, filterNulls, this->matchedCount);
+        if (stateOwnsInput) {
+            inputGuard.release();
+        }
 
         // 3. Build the output
         if (!leftIsOuter && !rightIsOuter) {

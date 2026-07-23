@@ -93,7 +93,18 @@ public:
         return recordStateVB;
     };
 
-    void addOrRectractRecord(
+    /**
+     *
+     * @param input
+     * @param keySelector
+     * @param otherIsOuter
+     * @param backend
+     * @param maxParallelism
+     * @param filterNulls
+     * @param numAssociates
+     * @return true if the ownership of the input VectorBatch is owned by the state
+     */
+    bool addOrRectractRecord(
         omnistream::VectorBatch* input,
         KeySelector<K>* keySelector,
         bool otherIsOuter,
@@ -118,7 +129,7 @@ private:
 };
 
 template <typename K>
-void OuterInputSideHasNoUniqueKey<K>::addOrRectractRecord(
+bool OuterInputSideHasNoUniqueKey<K>::addOrRectractRecord(
     omnistream::VectorBatch* input,
     KeySelector<K>* keySelector,
     bool otherIsOuter,
@@ -160,6 +171,8 @@ void OuterInputSideHasNoUniqueKey<K>::addOrRectractRecord(
         this->reuseVectorBatchByKeyGroup_[keyGroup] = splitBatch;
     }
     this->addVectorBatches(this->reuseVectorBatchByKeyGroup_);
+    bool stateOwnsInput = this->backendType_ == omnistream::StateType::HEAP && !shouldSplitVectorBatch &&
+                          !this->reuseVectorBatchByKeyGroup_.empty();
 
     if (this->backendType_ != omnistream::StateType::HEAP && shouldSplitVectorBatch) {
         for (const auto& [keyGroup, vectorBatch] : this->reuseVectorBatchByKeyGroup_) {
@@ -173,7 +186,7 @@ void OuterInputSideHasNoUniqueKey<K>::addOrRectractRecord(
         this->reuseComboIds_.clear();
         this->reuseVectorBatchByKeyGroup_.clear();
         this->reuseOldRowIdsByKeyGroup_.clear();
-        return;
+        return false;
     }
     std::vector<XXH128_hash_t> xxh128Hashes = input->getXXH128s();
     for (int i = 0; i < input->GetRowCount(); i++) {
@@ -208,6 +221,7 @@ void OuterInputSideHasNoUniqueKey<K>::addOrRectractRecord(
     this->reuseComboIds_.clear();
     this->reuseVectorBatchByKeyGroup_.clear();
     this->reuseOldRowIdsByKeyGroup_.clear();
+    return stateOwnsInput;
 }
 
 template <typename K>
