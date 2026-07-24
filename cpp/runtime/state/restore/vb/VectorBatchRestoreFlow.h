@@ -35,14 +35,13 @@ public:
     static void executeRestore(
         Derived& derived, SavepointRestoreResultIterator& restoreIterator, RestoreBackendDelegate& backend)
     {
-        INFO_RELEASE("VectorBatchRestoreFlow::executeRestore - start (plan+dispatch model)");
+        LOG("VectorBatchRestoreFlow::executeRestore - start (plan+dispatch model)");
 
         int restoreResultIndex = 0;
         while (restoreIterator.hasNext()) {
             auto restoreResult = restoreIterator.next();
             auto& metaInfos = restoreResult->getStateMetaInfoSnapshots();
-            INFO_RELEASE(
-                "VectorBatchRestoreFlow: restoreResult#" << restoreResultIndex++
+            LOG("VectorBatchRestoreFlow: restoreResult#" << restoreResultIndex++
                                                          << ", metaInfoCount=" << metaInfos.size());
 
             auto restorePlan = derived.buildRestorePlan(metaInfos);
@@ -147,7 +146,7 @@ public:
                 throw;
             }
         }
-        INFO_RELEASE("VectorBatchRestoreFlow::executeRestore - complete, restoreResults=" << restoreResultIndex);
+        LOG("VectorBatchRestoreFlow::executeRestore - complete, restoreResults=" << restoreResultIndex);
     }
 
 private:

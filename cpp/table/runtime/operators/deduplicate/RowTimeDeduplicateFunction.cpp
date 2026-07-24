@@ -192,7 +192,7 @@ omnistream::VectorBatch* RowTimeDeduplicateFunction::ProcessUpdateRecord(omnistr
     int outPutRowCount = 0;
 
     auto updateState = GetNeededUpdateRecord(inputVB);
-    INFO_RELEASE("state size : " << updateState.size());
+    LOG("state size : " << updateState.size());
     omnistream::VectorBatch* outputVB = nullptr;
     for (auto it : updateState) {
         RowData* k = it.first;
@@ -227,7 +227,7 @@ omnistream::VectorBatch* RowTimeDeduplicateFunction::ProcessUpdateRecord(omnistr
     }
 
     outputVB = new omnistream::VectorBatch(outPutRowCount);
-    INFO_RELEASE("outPutRowCount is " << outPutRowCount);
+    LOG("outPutRowCount is " << outPutRowCount);
     initOutputVector(outputVB, inputVB, outPutRowCount);
 
     int rowIndex = 0;

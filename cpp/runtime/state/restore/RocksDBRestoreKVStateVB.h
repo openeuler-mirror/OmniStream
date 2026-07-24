@@ -129,8 +129,7 @@ omnistream::ComboId RocksDBRestoreKVStateVB<K>::appendRowToVectorBatch(const Row
     }
 
     if (vbState_.currentRowId >= vectorBatchSize_) {
-        INFO_RELEASE(
-            "RocksDBRestoreKVStateVB::appendRow - batch full, kvStateId="
+        LOG("RocksDBRestoreKVStateVB::appendRow - batch full, kvStateId="
             << kvStateId_ << ", batchId=" << vbState_.currentBatchId << ", rowCount=" << vbState_.currentRowId
             << ", keyGroupId=" << ctx_.keyGroupId);
         flushVectorBatchIfNotEmpty();
@@ -172,8 +171,7 @@ void RocksDBRestoreKVStateVB<K>::flushVectorBatchIfNotEmpty()
         return;
     }
 
-    INFO_RELEASE(
-        "RocksDBRestoreKVStateVB::flushVB - kvStateId="
+    LOG("RocksDBRestoreKVStateVB::flushVB - kvStateId="
         << kvStateId_ << ", batchId=" << vbState_.currentBatchId << ", rowCount=" << actualRowCnt
         << ", serializedSize=" << serializedBatchInfo.size << ", keyGroupId=" << ctx_.keyGroupId);
 

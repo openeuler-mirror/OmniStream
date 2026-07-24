@@ -73,8 +73,7 @@ protected:
             return nullptr;
         }
 
-        INFO_RELEASE(
-            "VectorBatchStateAccessor::getRow - batchId=" << batchId << ", rowId=" << rowId
+        LOG("VectorBatchStateAccessor::getRow - batchId=" << batchId << ", rowId=" << rowId
                                                           << ", serializedSize=" << serializedBytes.size());
 
         std::unique_ptr<omnistream::VectorBatch> decodedBatch = deserializeBatch(serializedBytes);

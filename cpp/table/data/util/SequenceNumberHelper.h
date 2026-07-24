@@ -60,7 +60,7 @@ public:
 
         if (nextSequenceNumber > nextSequenceNumberByKeyGroup[keyGroup]) {
             nextSequenceNumberByKeyGroup[keyGroup] = nextSequenceNumber;
-            INFO_RELEASE("update nextSequenceNumber of keyGroup" << keyGroup << " to " << nextSequenceNumber);
+            LOG("update nextSequenceNumber of keyGroup" << keyGroup << " to " << nextSequenceNumber);
         }
     }
 
