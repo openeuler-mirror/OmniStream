@@ -15,6 +15,7 @@
 
 #include "state/RegisteredKeyValueStateBackendMetaInfo.h"
 #include "state/InternalKeyContext.h"
+#include "state/bss/BssKeyGroupUtils.h"
 #include "boost_state_table.h"
 #include "config.h"
 #include "boost_state_db.h"
@@ -43,10 +44,10 @@ public:
         return true;
     }
 
-    void createTable(ock::bss::BoostStateDBPtr& _dbPtr)
+    void createTable(ock::bss::BoostStateDBPtr& _dbPtr, const std::string& tableName)
     {
         auto tblDesc = std::make_shared<ock::bss::TableDescription>(
-            ock::bss::StateType::MAP, "dbTable", -1, ock::bss::TableSerializer{}, _dbPtr->GetConfig());
+            ock::bss::StateType::MAP, tableName, -1, ock::bss::TableSerializer{}, _dbPtr->GetConfig());
         dbTable = std::dynamic_pointer_cast<ock::bss::KMapTable>(_dbPtr->GetTableOrCreate(tblDesc));
     };
 
@@ -245,7 +246,11 @@ public:
             getNamespaceSerializer()->serialize(&nameSpace, serializer);
         }
         ock::bss::BinaryData priBinaryData(serializer.getData(), static_cast<uint32_t>(serializer.getPosition()));
-        hashCode = HashCode::Hash(priBinaryData.Data(), priBinaryData.Length());
+        // hash 低位对齐当前 key 的 Flink key group（BSS 按 hash % maxParallelism 推导分组）
+        hashCode = BssKeyGroupUtils::ForceKeyGroup(
+            HashCode::Hash(priBinaryData.Data(), priBinaryData.Length()),
+            static_cast<uint32_t>(keyContext->getCurrentKeyGroupIndex()),
+            static_cast<uint32_t>(keyContext->getNumberOfKeyGroups()));
         return priBinaryData;
     }
 
@@ -294,7 +299,11 @@ public:
     {
         LongSerializer::INSTANCE->serialize(&vectorBatchNamespaceKey, serializer);
         ock::bss::BinaryData priBinaryData(serializer.getData(), static_cast<int32_t>(serializer.getPosition()));
-        keyHashCode = HashCode::Hash(priBinaryData.Data(), static_cast<int32_t>(priBinaryData.Length()));
+        // VectorBatch 数据与记录 key 无关，统一归入本 subtask 的起始 key group
+        keyHashCode = BssKeyGroupUtils::ForceKeyGroup(
+            HashCode::Hash(priBinaryData.Data(), static_cast<int32_t>(priBinaryData.Length())),
+            static_cast<uint32_t>(keyContext->getKeyGroupRange()->getStartKeyGroup()),
+            static_cast<uint32_t>(keyContext->getNumberOfKeyGroups()));
         return priBinaryData;
     }
 

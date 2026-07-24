@@ -37,9 +37,9 @@ public:
         stateTable->addAll(currentNamespace, values);
     };
 
-    void CreateTable(ock::bss::BoostStateDBPtr& _dbPtr)
+    void CreateTable(ock::bss::BoostStateDBPtr& _dbPtr, const std::string& tableName)
     {
-        stateTable->createTable(_dbPtr);
+        stateTable->createTable(_dbPtr, tableName);
     };
 
     TypeSerializer* getNameSpaceSerializer() const

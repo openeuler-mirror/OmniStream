@@ -17,6 +17,7 @@
 #include "boost_state_table.h"
 #include "state/RegisteredKeyValueStateBackendMetaInfo.h"
 #include "state/InternalKeyContext.h"
+#include "state/bss/BssKeyGroupUtils.h"
 #include "boost_state_db.h"
 
 template <typename K, typename N, typename UV>
@@ -37,11 +38,11 @@ public:
         return true;
     }
 
-    void createTable(ock::bss::BoostStateDBPtr& _dbPtr)
+    void createTable(ock::bss::BoostStateDBPtr& _dbPtr, const std::string& tableName)
     {
         this->dbPtr = _dbPtr;
         auto tblDesc = std::make_shared<ock::bss::TableDescription>(
-            ock::bss::StateType::LIST, "dbTable", -1, ock::bss::TableSerializer{}, _dbPtr->GetConfig());
+            ock::bss::StateType::LIST, tableName, -1, ock::bss::TableSerializer{}, _dbPtr->GetConfig());
         dbTable = std::dynamic_pointer_cast<ock::bss::KListTable>(_dbPtr->GetTableOrCreate(tblDesc));
     };
 
@@ -188,7 +189,11 @@ public:
         LongSerializer longSerializer;
         longSerializer.serialize(&vectorBatchId, keyOutputSerializer);
         ock::bss::BinaryData priKey(keyOutputSerializer.getData(), keyOutputSerializer.getPosition());
-        uint32_t keyHashCode = HashCode::Hash(priKey.Data(), static_cast<int32_t>(priKey.Length()));
+        // VectorBatch 数据与记录 key 无关，统一归入本 subtask 的起始 key group
+        uint32_t keyHashCode = BssKeyGroupUtils::ForceKeyGroup(
+            HashCode::Hash(priKey.Data(), static_cast<int32_t>(priKey.Length())),
+            static_cast<uint32_t>(keyContext->getKeyGroupRange()->getStartKeyGroup()),
+            static_cast<uint32_t>(keyContext->getNumberOfKeyGroups()));
 
         int batchSize = omnistream::VectorBatchSerializationUtils::calculateVectorBatchSerializableSize(vectorBatch);
         uint8_t* buffer = new uint8_t[batchSize];
@@ -211,7 +216,10 @@ public:
         LongSerializer longSerializer;
         longSerializer.serialize(&batchId, keyOutputSerializer);
         ock::bss::BinaryData priKey(keyOutputSerializer.getData(), keyOutputSerializer.getPosition());
-        uint32_t keyHashCode = HashCode::Hash(priKey.Data(), static_cast<int32_t>(priKey.Length()));
+        uint32_t keyHashCode = BssKeyGroupUtils::ForceKeyGroup(
+            HashCode::Hash(priKey.Data(), static_cast<int32_t>(priKey.Length())),
+            static_cast<uint32_t>(keyContext->getKeyGroupRange()->getStartKeyGroup()),
+            static_cast<uint32_t>(keyContext->getNumberOfKeyGroups()));
         auto getResult = dbTable->Get(keyHashCode, priKey);
         auto address =
             reinterpret_cast<uint8_t*>(reinterpret_cast<uint8_t*>(getResult.addresses.at(0)) + sizeof(int8_t));
@@ -272,7 +280,11 @@ public:
             getNamespaceSerializer()->serialize(&nameSpace, serializer);
         }
         ock::bss::BinaryData priBinaryData(serializer.getData(), static_cast<int32_t>(serializer.getPosition()));
-        keyHashCode = HashCode::Hash(serializer.getData(), static_cast<int32_t>(serializer.getPosition()));
+        // hash 低位对齐当前 key 的 Flink key group（BSS 按 hash % maxParallelism 推导分组）
+        keyHashCode = BssKeyGroupUtils::ForceKeyGroup(
+            HashCode::Hash(serializer.getData(), static_cast<int32_t>(serializer.getPosition())),
+            static_cast<uint32_t>(keyContext->getCurrentKeyGroupIndex()),
+            static_cast<uint32_t>(keyContext->getNumberOfKeyGroups()));
         return priBinaryData;
     }
 

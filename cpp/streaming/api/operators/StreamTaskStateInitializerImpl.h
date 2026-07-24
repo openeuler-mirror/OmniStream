@@ -342,7 +342,47 @@ AbstractKeyedStateBackend<K>* StreamTaskStateInitializerImpl::keyedStatedBackend
     }
 #ifdef WITH_OMNISTATESTORE
     if (backendType == "EmbeddedOckStateBackend") {
-        return new BssKeyedStateBackend<K>(keySerializer, keyContext, start, end, maxParallelism);
+        auto bssBackend = new BssKeyedStateBackend<K>(keySerializer, keyContext, start, end, maxParallelism);
+        auto taskStateManager = env == nullptr ? nullptr : env->getTaskStateManager();
+        if (taskStateManager == nullptr) {
+            INFO_RELEASE("EmbeddedOckStateBackend: no TaskStateManager, starting with empty BSS state");
+            return bssBackend;
+        }
+        bssBackend->SetLocalRecoveryConfig(taskStateManager->createLocalRecoveryConfig());
+        auto omniTaskBridge = taskStateManager->getOmniTaskBridge();
+        if (omniTaskBridge) {
+            bssBackend->SetOmniTaskBridge(omniTaskBridge);
+        }
+        if (!taskStateManager->hasJobManagerTaskRestore()) {
+            INFO_RELEASE("EmbeddedOckStateBackend: no JobManagerTaskRestore, starting with empty BSS state");
+            return bssBackend;
+        }
+
+        PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskStates;
+        if (operatorID) {
+            prioritizedOperatorSubtaskStates = taskStateManager->prioritizedOperatorState(*operatorID);
+        } else {
+            auto operatorIdStr = env->taskConfiguration().getStreamConfigPOD().getOperatorDescription().getOperatorId();
+            auto operatorId = TaskStateSnapshotDeserializer::HexStringToOperatorId<OperatorID>(operatorIdStr);
+            prioritizedOperatorSubtaskStates = taskStateManager->prioritizedOperatorState(operatorId);
+        }
+
+        auto handleVector = prioritizedOperatorSubtaskStates.getPrioritizedManagedKeyedState();
+        std::vector<std::shared_ptr<KeyedStateHandle>> stateHandles;
+        for (const auto& collection : handleVector) {
+            for (const auto& handle : collection) {
+                if (handle) {
+                    stateHandles.push_back(handle);
+                }
+            }
+            if (!stateHandles.empty()) {
+                break; // Use the highest priority alternative
+            }
+        }
+        if (!stateHandles.empty()) {
+            bssBackend->RestoreFromStateHandles(stateHandles, omniTaskBridge);
+        }
+        return bssBackend;
     }
 
 #endif

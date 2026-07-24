@@ -94,9 +94,9 @@ public:
         delete stateTable;
     };
 
-    void CreateTable(ock::bss::BoostStateDBPtr& _dbPtr)
+    void CreateTable(ock::bss::BoostStateDBPtr& _dbPtr, const std::string& tableName)
     {
-        stateTable->createTable(_dbPtr);
+        stateTable->createTable(_dbPtr, tableName);
     }
 
     void clearVectors(int64_t currentTimestamp)
