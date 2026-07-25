@@ -396,12 +396,14 @@ void VectorBatch::WriteToFileInternal(
             file << FormatDoubleLikeJava(
                 reinterpret_cast<omniruntime::vec::Vector<double> *>(vectors[vectorID])->GetValue(rowID));
             break;
-        case omniruntime::type::DataTypeId::OMNI_INT:
-            file << reinterpret_cast<omniruntime::vec::Vector<int32_t>*>(vectors[vectorID])->GetValue(rowID);
-            break;
         case omniruntime::type::DataTypeId::OMNI_DATE32:
-            file << FormatDateLikeJava(
-                reinterpret_cast<omniruntime::vec::Vector<int32_t> *>(vectors[vectorID])->GetValue(rowID));
+        case omniruntime::type::DataTypeId::OMNI_INT:
+            if (inputTypes[vectorID].substr(0, 4) == "DATE") {
+                file << FormatDateLikeJava(
+                    reinterpret_cast<omniruntime::vec::Vector<int32_t> *>(vectors[vectorID])->GetValue(rowID));
+            } else {
+                file << reinterpret_cast<omniruntime::vec::Vector<int32_t>*>(vectors[vectorID])->GetValue(rowID);
+            }
             break;
         case omniruntime::type::DataTypeId::OMNI_BOOLEAN:
             file << std::boolalpha
@@ -507,16 +509,17 @@ void VectorBatch::convertToJson(
                 j[inputFields[colIndex]] = result;
                 break;
             }
+            case omniruntime::type::DataTypeId::OMNI_DATE32:
             case omniruntime::type::DataTypeId::OMNI_INT: {
-                auto result =
-                    reinterpret_cast<omniruntime::vec::Vector<int32_t>*>(vectors[colIndex])->GetValue(rowIndex);
-                j[inputFields[colIndex]] = result;
-                break;
-            }
-            case omniruntime::type::DataTypeId::OMNI_DATE32: {
-                auto days = reinterpret_cast<omniruntime::vec::Vector<int32_t> *>(vectors[colIndex])->GetValue(
-                        rowIndex);
-                j[inputFields[colIndex]] = FormatDateLikeJava(days);
+                if (inputTypes[colIndex].substr(0, 4) == "DATE") {
+                    auto days = reinterpret_cast<omniruntime::vec::Vector<int32_t> *>(vectors[colIndex])->GetValue(
+                            rowIndex);
+                    j[inputFields[colIndex]] = FormatDateLikeJava(days);
+                } else {
+                    auto result =
+                        reinterpret_cast<omniruntime::vec::Vector<int32_t>*>(vectors[colIndex])->GetValue(rowIndex);
+                    j[inputFields[colIndex]] = result;
+                }
                 break;
             }
             case omniruntime::type::DataTypeId::OMNI_BOOLEAN: {

@@ -58,13 +58,8 @@ bool TimestampData::isCompact(int percision)
  */
 long TimestampData::stringToEpochMillis(const std::string& str)
 {
-    std::string normalized;
-    normalized.reserve(str.size());
-    for (char c : str) {
-        normalized.push_back((c == 'T' || c == 't') ? ' ' : c);
-    }
-    const char* start = normalized.data();
-    const char* end = normalized.data() + normalized.size();
+    const char* start = str.data();
+    const char* end = str.data() + str.size();
     while (start < end && *start == ' ') ++start;
     while (end > start && *(end - 1) == ' ') --end;
     if (start >= end) {
@@ -84,10 +79,38 @@ long TimestampData::stringToEpochMillis(const std::string& str)
     const char* datetimeEnd = dotPtr ? dotPtr : end;
 
     std::tm t = {};
-    int parse_count =
-        sscanf(start, "%d-%d-%d %d:%d:%d", &t.tm_year, &t.tm_mon, &t.tm_mday, &t.tm_hour, &t.tm_min, &t.tm_sec);
-    if (parse_count != 6) {
-        THROW_RUNTIME_ERROR("Failed to parse datetime string" + std::string(start, datetimeEnd));
+    int* fields[6] = { &t.tm_year, &t.tm_mon, &t.tm_mday, &t.tm_hour, &t.tm_min, &t.tm_sec };
+    const char* p = start;
+    for (int i = 0; i < 6; ++i) {
+        std::from_chars_result res = std::from_chars(p, datetimeEnd, *fields[i]);
+        if (res.ec != std::errc{}) {
+            THROW_RUNTIME_ERROR("Failed to parse datetime string" + std::string(start, datetimeEnd));
+        }
+        p = res.ptr;
+        if (i == 5) {
+            break;
+        }
+        if (i == 2) {
+            if (p >= datetimeEnd) {
+                THROW_RUNTIME_ERROR("Failed to parse datetime string" + std::string(start, datetimeEnd));
+            }
+            bool gotSep = false;
+            if (*p == 'T' || *p == 't') {
+                ++p;
+                gotSep = true;
+            }
+            const char* before = p;
+            while (p < datetimeEnd && *p == ' ') ++p;
+            if (p == before && !gotSep) {
+                THROW_RUNTIME_ERROR("Failed to parse datetime string" + std::string(start, datetimeEnd));
+            }
+        } else {
+            char delim = (i == 0 || i == 1) ? '-' : ':';
+            if (p >= datetimeEnd || *p != delim) {
+                THROW_RUNTIME_ERROR("Failed to parse datetime string" + std::string(start, datetimeEnd));
+            }
+            ++p;
+        }
     }
     // tm_year starts from 1900, tm_mon starts from 0
     t.tm_year -= 1900;
