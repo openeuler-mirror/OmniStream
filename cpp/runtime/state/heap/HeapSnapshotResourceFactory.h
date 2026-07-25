@@ -278,6 +278,22 @@ private:
                         preparedData.stateIterators.push_back(
                             std::make_unique<HeapSingleStateIterator<K, VoidNamespace, S>>(
                                 table, kvStateId, preparedData.keyGroupPrefixBytes));
+                    } else if (keyId == BackendDataType::VARCHAR_BK && valueId == BackendDataType::VARCHAR_BK) {
+                        // JSON_OBJECTAGG: MapView<VoidNamespace, std::string, std::string>.
+                        using S = emhash7::HashMap<std::string, std::string>*;
+                        auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S>*>(stateTablePtr);
+                        preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
+                        preparedData.stateIterators.push_back(
+                            std::make_unique<HeapSingleStateIterator<K, VoidNamespace, S>>(
+                                table, kvStateId, preparedData.keyGroupPrefixBytes));
+                    } else if (keyId == BackendDataType::BIGINT_BK && valueId == BackendDataType::VARCHAR_BK) {
+                        // JSON_ARRAYAGG: MapView<VoidNamespace, long, std::string>.
+                        using S = emhash7::HashMap<int64_t, std::string>*;
+                        auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S>*>(stateTablePtr);
+                        preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
+                        preparedData.stateIterators.push_back(
+                            std::make_unique<HeapSingleStateIterator<K, VoidNamespace, S>>(
+                                table, kvStateId, preparedData.keyGroupPrefixBytes));
                     } else if (keyId == BackendDataType::ROW_BK && valueId == BackendDataType::INT_BK) {
                         using S = emhash7::HashMap<RowData*, int32_t>*;
                         auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S>*>(stateTablePtr);

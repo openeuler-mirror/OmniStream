@@ -17,6 +17,8 @@
 #include "runtime/generated/function/MinMaxFunction.h"
 #include "runtime/generated/function/SumFunction.h"
 #include "runtime/generated/function/udf/LastStringValueFunction.h"
+#include "runtime/generated/function/JsonObjectAggFunction.h"
+#include "runtime/generated/function/JsonArrayAggFunction.h"
 #include <iostream>
 #include <regex>
 
@@ -68,7 +70,9 @@ bool TimestampEqualiser(RowData* r1, RowData* r2, int colIdx)
 
 std::string extractAggFunction(const std::string& input)
 {
-    std::regex aggRegex(R"((?:MAX|COUNT|SUM|MIN|AVG|last_string_value_without_retract))", std::regex_constants::icase);
+    std::regex aggRegex(
+        R"((?:JSON_OBJECTAGG|JSON_ARRAYAGG|MAX|COUNT|SUM|MIN|AVG|last_string_value_without_retract))",
+        std::regex_constants::icase);
     std::smatch match;
     if (std::regex_search(input, match, aggRegex)) {
         return match.str();
@@ -210,12 +214,56 @@ void GroupAggFunction::InitAggFunctions(int& accStartingIndex, int& aggValueInde
             function = sumFunction;
         } else if (aggType == "last_string_value_without_retract") {
             function = new LastStringValueFunction(aggIndex, aggDataType, accStartingIndex, aggValueIndex);
+        } else if (aggType == "JSON_OBJECTAGG") {
+            // JSON_OBJECTAGG(KEY key VALUE value [ {NULL|ABSENT} ON NULL ]): two arguments (key, value).
+            auto argIdx = aggCall["argIndexes"].get<vector<int>>();
+            if (argIdx.size() < 2) {
+                throw runtime_error("JSON_OBJECTAGG requires KEY and VALUE arguments: " + aggTypeStr);
+            }
+            int keyIdx = argIdx[0];
+            int valIdx = argIdx[1];
+            // Default is NULL ON NULL; only an explicit "ABSENT ON NULL" clause drops null values.
+            bool onNullAbsent = aggTypeStr.find("ABSENT") != std::string::npos;
+            auto* jsonObjFunction = new JsonObjectAggFunction(
+                keyIdx, valIdx, types[keyIdx], types[valIdx], aggFuncIndex, onNullAbsent, accStartingIndex,
+                aggValueIndex);
+            jsonObjFunction->open(new PerKeyStateDataViewStore(
+                dynamic_cast<StreamingRuntimeContext<RowData*>*>(getRuntimeContext())));
+            function = jsonObjFunction;
+        } else if (aggType == "JSON_ARRAYAGG") {
+            // JSON_ARRAYAGG(items [ {NULL|ABSENT} ON NULL ]): single argument.
+            auto argIdx = aggCall["argIndexes"].get<vector<int>>();
+            if (argIdx.empty()) {
+                throw runtime_error("JSON_ARRAYAGG requires an argument: " + aggTypeStr);
+            }
+            int itemIdx = argIdx[0];
+            // Planner names carry the ON NULL clause as a suffix: JSON_ARRAYAGG_ABSENT_ON_NULL (default)
+            // vs JSON_ARRAYAGG_NULL_ON_NULL. Match on "ABSENT" (underscore-joined, not spaced).
+            bool onNullAbsent = aggTypeStr.find("ABSENT") != std::string::npos;
+            auto* jsonArrFunction = new JsonArrayAggFunction(
+                itemIdx, types[itemIdx], aggFuncIndex, onNullAbsent, accStartingIndex, aggValueIndex);
+            jsonArrFunction->open(new PerKeyStateDataViewStore(
+                dynamic_cast<StreamingRuntimeContext<RowData*>*>(getRuntimeContext())));
+            function = jsonArrFunction;
         } else {
             throw runtime_error("Unsupported aggregate type: " + aggTypeStr);
         }
         // here we only consider the case of one aggregated column for each aggCal.
         functions.push_back(function);
-        accStartingIndex += ((aggType == "AVG") || (aggType == "SUM" && shouldDoRetract)) ? 2 : 1;
+        // BinaryRowData accumulator slots consumed by this function. JSON_OBJECTAGG / JSON_ARRAYAGG
+        // keep all their state in a keyed MapView (StateDataView); their Flink accumulator is a RAW
+        // MapView type that is filtered out of accTypes above, so accumulatorArity does not count
+        // them. They must therefore occupy 0 acc slots, otherwise accStartingIndex would drift past
+        // accumulatorArity and open() would throw "accStartingIndex does not match accumulatorArity".
+        int accSlots;
+        if (aggType == "AVG" || (aggType == "SUM" && shouldDoRetract)) {
+            accSlots = 2;
+        } else if (aggType == "JSON_OBJECTAGG" || aggType == "JSON_ARRAYAGG") {
+            accSlots = 0;
+        } else {
+            accSlots = 1;
+        }
+        accStartingIndex += accSlots;
         aggValueIndex++;
         aggFuncIndex++;
     }

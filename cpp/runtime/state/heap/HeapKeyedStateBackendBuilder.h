@@ -616,6 +616,20 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
                 reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<std::string, int>*>*>(
                     stateTablePtr);
             table->put(*static_cast<K*>(rawKey), keyGroupId, *static_cast<VoidNamespace*>(rawNs), mapVal);
+        } else if (mapKeyId == BackendDataType::VARCHAR_BK && mapValId == BackendDataType::VARCHAR_BK) {
+            // JSON_OBJECTAGG: MapView<VoidNamespace, std::string, std::string>.
+            auto* mapVal = deserializeEmhashMap<std::string, std::string>(mapKeySer, mapValSer, valInput);
+            auto* table =
+                reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<std::string, std::string>*>*>(
+                    stateTablePtr);
+            table->put(*static_cast<K*>(rawKey), keyGroupId, *static_cast<VoidNamespace*>(rawNs), mapVal);
+        } else if (mapKeyId == BackendDataType::BIGINT_BK && mapValId == BackendDataType::VARCHAR_BK) {
+            // JSON_ARRAYAGG: MapView<VoidNamespace, long, std::string>.
+            auto* mapVal = deserializeEmhashMap<int64_t, std::string>(mapKeySer, mapValSer, valInput);
+            auto* table =
+                reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<int64_t, std::string>*>*>(
+                    stateTablePtr);
+            table->put(*static_cast<K*>(rawKey), keyGroupId, *static_cast<VoidNamespace*>(rawNs), mapVal);
         } else if (
             (mapKeyId == BackendDataType::OBJECT_BK || mapKeyId == BackendDataType::POJO_BK) &&
             (mapValId == BackendDataType::OBJECT_BK || mapValId == BackendDataType::POJO_BK)) {
