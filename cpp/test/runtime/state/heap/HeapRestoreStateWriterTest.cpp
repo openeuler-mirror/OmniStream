@@ -87,8 +87,8 @@ protected:
         auto* mapSer = new MapSerializer(new XxH128_hashSerializer(), new JoinTupleSerializer());
 
         std::unordered_map<std::string, TypeSerializer*> serializers;
-        serializers["namespaceSerializer"] = VoidNamespaceSerializer::INSTANCE;
-        serializers["stateSerializer"] = mapSer;
+        serializers["NAMESPACE_SERIALIZER"] = VoidNamespaceSerializer::INSTANCE;
+        serializers["VALUE_SERIALIZER"] = mapSer;
 
         return StateMetaInfoSnapshot(
             name,
@@ -107,8 +107,8 @@ protected:
         auto* listSer = new ListSerializer(new LongSerializer());
 
         std::unordered_map<std::string, TypeSerializer*> serializers;
-        serializers["namespaceSerializer"] = VoidNamespaceSerializer::INSTANCE;
-        serializers["stateSerializer"] = listSer;
+        serializers["NAMESPACE_SERIALIZER"] = VoidNamespaceSerializer::INSTANCE;
+        serializers["VALUE_SERIALIZER"] = listSer;
 
         return StateMetaInfoSnapshot(
             name,
