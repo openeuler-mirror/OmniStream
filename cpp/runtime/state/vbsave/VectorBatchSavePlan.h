@@ -128,6 +128,7 @@ struct VectorBatchSavePlan {
         std::string logicalStateName;
         TypeSerializer* valueSerializer = nullptr;
         VectorBatchAccessorOptions accessorOptions;
+        VectorBatchStateType stateType = VectorBatchStateType::KV_WITH_VB;
     };
     std::vector<StateContextSpec> stateContextSpecs;
 

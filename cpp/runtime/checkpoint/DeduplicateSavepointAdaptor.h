@@ -9,8 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef OMNISTREAM_DEDUPLICATE_SAVEPOINT_ADAPTOR_H
-#define OMNISTREAM_DEDUPLICATE_SAVEPOINT_ADAPTOR_H
+#pragma once
 
 #include <algorithm>
 #include <cstddef>
@@ -145,5 +144,3 @@ private:
     std::vector<omniruntime::type::DataTypeId> restoreColumnTypes_;
 };
 } // namespace omnistream
-
-#endif // OMNISTREAM_DEDUPLICATE_SAVEPOINT_ADAPTOR_H
