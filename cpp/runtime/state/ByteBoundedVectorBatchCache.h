@@ -16,9 +16,13 @@
 #include <memory>
 #include <utility>
 
+#include "core/utils/HashFunctor.h"
 #include "runtime/state/cache/WeightedLruCache.h"
 #include "table/data/vectorbatch/VectorBatch.h"
 #include "table/data/vectorbatch/VectorBatchStorageInfo.h"
+
+// VectorBatchId 使用标准 FNV-1a 64-bit，避免结构化整数 key 的规律低位集中到少数桶。
+using VectorBatchIdHash = omnistream::utils::Fnv1a64Hash;
 
 /*
  * 按序列化字节数限制容量的 decoded VectorBatch 缓存。
@@ -92,5 +96,5 @@ public:
     }
 
 private:
-    WeightedLruCache<omnistream::VectorBatchId, std::unique_ptr<omnistream::VectorBatch>> cache_;
+    WeightedLruCache<omnistream::VectorBatchId, std::unique_ptr<omnistream::VectorBatch>, VectorBatchIdHash> cache_;
 };

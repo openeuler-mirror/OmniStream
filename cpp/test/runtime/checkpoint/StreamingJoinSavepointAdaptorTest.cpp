@@ -178,7 +178,7 @@ TEST(StreamingJoinSavepointAdaptorTest, RestoreWritesVectorBatchHashAndComboIdTo
     ASSERT_EQ(writer.vbState.currentRowId, 1);
 
     // Restore writer 在提交尾批前会按实际写入行数裁剪 VectorBatch，测试使用相同语义计算 row hash。
-    std::unique_ptr<VectorBatch> actualBatch(
+    std::unique_ptr<omnistream::VectorBatch> actualBatch(
         VectorBatchRestoreUtil::sliceVectorBatch(writer.vbState.currentBatch, 0, writer.vbState.currentRowId));
     ASSERT_NE(actualBatch, nullptr);
     auto rowHashes = actualBatch->getXXH128s();
