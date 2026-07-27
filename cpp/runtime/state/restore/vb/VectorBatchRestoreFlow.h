@@ -11,10 +11,7 @@
 
 #pragma once
 
-#include <algorithm>
-#include <iomanip>
 #include <memory>
-#include <sstream>
 #include <unordered_map>
 #include <vector>
 
@@ -26,8 +23,8 @@
 namespace omnistream {
 
 // 恢复方向公共调度流程：遍历 Flink logical source entries，通过 Adaptor 提供的
-// RestorePlan 按 StateType 分发到 KV / KV_WITH_VB / PQ 子流程。
-// Derived 需实现: buildRestorePlan / getStateType / buildOmniMainMetaInfo /
+// 按 StateType 分发到 KV / KV_WITH_VB / PQ 子流程。
+// Derived 需实现:  getStateType / buildOmniMainMetaInfo / retrieveKVRowData
 
 class VectorBatchRestoreFlow final {
 public:
@@ -35,7 +32,7 @@ public:
     static void executeRestore(
         Derived& derived, SavepointRestoreResultIterator& restoreIterator, RestoreBackendDelegate& backend)
     {
-        LOG("VectorBatchRestoreFlow::executeRestore - start (plan+dispatch model)");
+        LOG("VectorBatchRestoreFlow::executeRestore - start (dispatch model)");
 
         int restoreResultIndex = 0;
         while (restoreIterator.hasNext()) {
@@ -44,38 +41,32 @@ public:
             LOG("VectorBatchRestoreFlow: restoreResult#" << restoreResultIndex++
                                                          << ", metaInfoCount=" << metaInfos.size());
 
-            auto restorePlan = derived.buildRestorePlan(metaInfos);
-
             // Step 1: 预创建所有 writer（按 kvStateId → type 分类）
             std::unordered_map<int, std::unique_ptr<RestoreKVState>> kvWriters;
             std::unordered_map<int, std::unique_ptr<RestoreKVStateVB>> kvVbWriters;
             std::unordered_map<int, std::unique_ptr<RestorePQState>> pqWriters;
             std::unordered_map<int, RestoreStateType> stateTypeMap;
 
-            for (int kvStateId : restorePlan->sourceKvStateIds()) {
-                RestoreStateType stateType = derived.getStateType(kvStateId, *restorePlan);
-                stateTypeMap[kvStateId] = stateType;
+            for (int i = 0; i < metaInfos.size(); ++i) {
+                RestoreStateType stateType = derived.getStateType(metaInfos[i]);
+                stateTypeMap[i] = stateType;
 
                 switch (stateType) {
                     case RestoreStateType::KV: {
-                        auto mainMetaInfo = derived.buildOmniMainMetaInfo(kvStateId, *restorePlan);
-                        kvWriters[kvStateId] = backend.createKVState(kvStateId, mainMetaInfo);
+                        kvWriters[i] = backend.createKVState(i, metaInfos[i]);
                         break;
                     }
                     case RestoreStateType::KV_WITH_VB: {
-                        auto mainMetaInfo = derived.buildOmniMainMetaInfo(kvStateId, *restorePlan);
-                        kvVbWriters[kvStateId] = backend.createKVStateVB(
-                            kvStateId,
-                            mainMetaInfo,
-                            restorePlan->columnTypes(kvStateId),
-                            restorePlan->batchSize(kvStateId));
+                        auto mainMetaInfo = derived.buildOmniMainMetaInfo(i, metaInfos[i]);
+                        kvVbWriters[i] =
+                            backend.createKVStateVB(i, mainMetaInfo, derived.columnTypes(i), derived.batchSize(i));
                         break;
                     }
                     case RestoreStateType::PQ: {
-                        pqWriters[kvStateId] = backend.createPQState(kvStateId, metaInfos[kvStateId]);
+                        pqWriters[i] = backend.createPQState(i, metaInfos[i]);
                         break;
                     }
-                    default: break;
+                    default: INFO_RELEASE("VectorBatchRestoreFlow::executeRestore get UNSUPPORT state type."); break;
                 }
             }
 
@@ -107,14 +98,7 @@ public:
                             case RestoreStateType::KV_WITH_VB: {
                                 auto& w = kvVbWriters[kvStateId];
                                 w->setKeyGroupId(keyGroupId);
-                                derived.retrieveKVRowData(
-                                    entry.getKey(),
-                                    entry.getValue(),
-                                    kvStateId,
-                                    *restorePlan,
-                                    [&w](const std::vector<int8_t>& key, const RowDataView& row) {
-                                        w->writeRowData(key, row);
-                                    });
+                                derived.retrieveKVRowData(entry.getKey(), entry.getValue(), kvStateId, w.get());
                                 break;
                             }
                             case RestoreStateType::PQ: {
@@ -122,10 +106,12 @@ public:
                                 w->writeEntry(entry.getKey(), entry.getValue());
                                 break;
                             }
-                            default: break;
+                            default:
+                                INFO_RELEASE(
+                                    "VectorBatchRestoreFlow::executeRestore get no writer : UNSUPPORT state type");
+                                break;
                         }
                     }
-
                     // keyGroup 切换时强制 flush 所有 KV_WITH_VB writer 的 VB 尾批，
                     // 避免跨 keyGroup 的数据混合到同一 VB batch 中。
                     // flush 后重置 batchId，保证每个 keyGroup 内部从 0 开始独立递增。

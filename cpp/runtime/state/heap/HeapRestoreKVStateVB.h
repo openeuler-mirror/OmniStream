@@ -54,6 +54,8 @@ public:
         vbState_.currentBatchId = 0;
     }
 
+    omnistream::ComboId appendRowToVectorBatch(const RowDataView& row) override;
+
 protected:
     // 显式引入模板基类成员，避免 dependent-name 查找失败
     using HeapRestoreKVState<K>::stateInfo_;
@@ -62,7 +64,6 @@ protected:
     using HeapRestoreKVState<K>::deserializeKey;
     using typename HeapRestoreKVState<K>::DeserializedKeyGuard;
 
-    omnistream::ComboId appendRowToVectorBatch(const RowDataView& row) override;
     void flushVectorBatchIfNotEmpty() override;
     void flushMainWriter() override;
     void discardVectorBatch() override;

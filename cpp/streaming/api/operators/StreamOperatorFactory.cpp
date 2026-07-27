@@ -334,7 +334,6 @@ StreamOperator* StreamOperatorFactory::CreateKeyedProcessOp(
         op->setDescription(opDescriptionJSON);
         op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::DeduplicateAdaptor);
         LOG("Operator KeyedProcessOperator address  " + std::to_string(reinterpret_cast<long>(op)));
-
         return static_cast<OneInputStreamOperator*>(op);
     } else if (
         opDescriptionJSON.contains("processFunction") &&
@@ -343,8 +342,7 @@ StreamOperator* StreamOperatorFactory::CreateKeyedProcessOp(
         AbstractTopNFunction<RowData*>* func = new AppendOnlyTopNFunction<RowData*>(opDescriptionJSON);
         auto* op = new KeyedProcessOperator(func, chainOutput, opDescriptionJSON);
         op->setup(std::move(task));
-        // 当前先设置为NONE,待sp流程支持格式转换后设置为对应的Adapter
-        op->setFlinkSavepointUnsupported("AppendOnlyTopN Adaptor not yet implemented");
+        op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::AppendOnlyTopNAdaptor);
         op->setDescription(opDescriptionJSON);
         LOG("Operator KeyedProcessOperator address  " + std::to_string(reinterpret_cast<long>(op)));
         return static_cast<OneInputStreamOperator*>(op);
@@ -365,7 +363,6 @@ StreamOperator* StreamOperatorFactory::CreateKeyedProcessOp(
         op->setFlinkSavepointUnsupported("GroupAgg Adaptor not yet implemented");
         op->setDescription(opDescriptionJSON);
         LOG("Operator KeyedProcessOperator address  " + std::to_string(reinterpret_cast<long>(op)));
-
         return static_cast<OneInputStreamOperator*>(op);
     }
     return nullptr;

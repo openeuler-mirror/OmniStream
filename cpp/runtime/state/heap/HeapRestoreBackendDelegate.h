@@ -128,7 +128,7 @@ typename HeapRestoreBackendDelegate<K>::RestoreStateInfo& HeapRestoreBackendDele
         return info;
     }
 
-    TypeSerializer* nsSerializer = mainMetaInfo.getTypeSerializer("namespaceSerializer");
+    TypeSerializer* nsSerializer = mainMetaInfo.getTypeSerializer("NAMESPACE_SERIALIZER");
     if (nsSerializer == nullptr) {
         nsSerializer = VoidSerializer::INSTANCE;
     }
@@ -144,7 +144,7 @@ typename HeapRestoreBackendDelegate<K>::RestoreStateInfo& HeapRestoreBackendDele
     info.stateType = stateType;
     info.columnTypes = columnTypes;
     info.namespaceSerializer = nsSerializer;
-    info.valueSerializer = mainMetaInfo.getTypeSerializer("stateSerializer");
+    info.valueSerializer = mainMetaInfo.getTypeSerializer("VALUE_SERIALIZER");
 
     INFO_RELEASE(
         "HeapRestoreBackendDelegate: register state[" << kvStateId << "] name=" << info.stateName
@@ -203,7 +203,7 @@ StateDescriptor* HeapRestoreBackendDelegate<K>::createMainTableDescriptor(const 
         stateType = StateDescriptor::Type::VALUE;
     }
 
-    TypeSerializer* valSerializer = mainMetaInfo.getTypeSerializer("stateSerializer");
+    TypeSerializer* valSerializer = mainMetaInfo.getTypeSerializer("VALUE_SERIALIZER");
     BackendDataType valueType = valSerializer ? valSerializer->getBackendId() : BackendDataType::BIGINT_BK;
 
     if (stateType == StateDescriptor::Type::MAP) {

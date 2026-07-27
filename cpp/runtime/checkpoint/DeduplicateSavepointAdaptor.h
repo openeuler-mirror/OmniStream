@@ -38,7 +38,7 @@ class OmniTaskBridge;
 // 只继承 OperatorSavepointAdaptor；VectorBatch/comboId 的保存与恢复通过组合公共 flow 完成：
 //   保存方向实现 VectorBatchSaveHooks，save() 调用 VectorBatchSaveFlow；
 //   恢复方向 restore() 调用 VectorBatchRestoreFlow，以自身为 Derived hook
-//   提供 buildRestorePlan()/getStateType()/buildOmniMainMetaInfo()/retrieveKVRowData()。
+//   提供 getStateType()/buildOmniMainMetaInfo()/retrieveKVRowData()。
 class DeduplicateSavepointAdaptor : public OperatorSavepointAdaptor, public VectorBatchSaveHooks {
 public:
     DeduplicateSavepointAdaptor() = default;
@@ -80,27 +80,19 @@ public:
 
     // ===== VectorBatchRestoreFlow Derived hook =====
 
-    // 构造恢复计划：扫描 Flink metadata，定位 deduplicate-state 的 kvStateId。
-    std::unique_ptr<RestorePlan> buildRestorePlan(const std::vector<StateMetaInfoSnapshot>& flinkMetaInfos);
-
     // 返回指定 kvStateId 的状态类型：PQ 状态返回 PQ，否则返回 KV_WITH_VB。
-    RestoreStateType getStateType(int kvStateId, const RestorePlan& plan);
+    RestoreStateType getStateType(const StateMetaInfoSnapshot& metaInfo);
 
     // 构造 Omni 主表 metadata（VALUE_SERIALIZER→LongSerializer=comboId）。
-    StateMetaInfoSnapshot buildOmniMainMetaInfo(int kvStateId, const RestorePlan& plan);
+    StateMetaInfoSnapshot buildOmniMainMetaInfo(int kvStateId, const StateMetaInfoSnapshot& flinkMetaInfo);
 
     // 解码一条 Flink logical entry 的 value，通过回调产出 key+RowDataView。
-    // Deduplicate 为 1→1 映射：每条 Flink entry 恰好产出 1 次 output(key, row)。
-    template <typename Output>
+    // Deduplicate 为 1→1 映射：每条 Flink entry 恰好产出 1 次 writeRowData(key, row)。
     void retrieveKVRowData(
-        const std::vector<int8_t>& key,
-        const std::vector<int8_t>& value,
-        int kvStateId,
-        const RestorePlan& plan,
-        Output&& output)
+        const std::vector<int8_t>& key, const std::vector<int8_t>& value, int kvStateId, RestoreKVStateVB* writer)
     {
-        RowDataView row{&value, &plan.columnTypes(kvStateId)};
-        output(key, row);
+        RowDataView row{&value, &restoreColumnTypes_};
+        writer->writeRowData(key, row);
     }
 
     // ===== VectorBatchSaveHooks: convertKVRowData =====
@@ -111,13 +103,21 @@ public:
         const VectorBatchSavePlan& plan,
         std::function<void(ConvertedEntry)> output) override;
 
+    int batchSize(int kvStateId) const
+    {
+        (void)kvStateId;
+        return VB_RESTORE_BATCH_SIZE;
+    }
+
+    std::vector<omniruntime::type::DataTypeId> columnTypes(int kvStateId)
+    {
+        (void)kvStateId;
+        return restoreColumnTypes_;
+    }
+
 private:
     // Deduplicate 保存计划构造：target metadata、kvStateId 映射、main state 列表与 context specs
     VectorBatchSavePlan buildDeduplicateSavePlan(FullSnapshotResources& snapshotResources);
-
-    std::vector<std::string> parseInputTypes(const nlohmann::json& operatorDescription);
-
-    std::vector<omniruntime::type::DataTypeId> convertToDataTypes(const std::vector<std::string>& typeNames);
 
     void buildStateSerializerMap();
 

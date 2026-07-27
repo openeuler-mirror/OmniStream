@@ -77,11 +77,11 @@ public:
         discardMainWriter();
     }
 
-protected:
     // 将解码后的行数据追加到当前 VectorBatch，返回 comboId。
     // 满批时子类自动写 side table 并重置 VB（内部维护 vbState）。
     virtual omnistream::ComboId appendRowToVectorBatch(const RowDataView& row) = 0;
 
+protected:
     // flush 尾批到 VB side table
     virtual void flushVectorBatchIfNotEmpty() = 0;
 

@@ -15,7 +15,9 @@
 #include <string>
 #include <nlohmann/json.hpp>
 
+#include "OmniOperatorJIT/core/src/type/data_type.h"
 #include "runtime/state/metainfo/StateMetaInfoSnapshot.h"
+#include "table/types/logical/LogicalType.h"
 #include "runtime/state/KeyValueStateIterator.h"
 #include "runtime/state/FullSnapshotResources.h"
 #include "runtime/state/SnapshotResult.h"
@@ -72,5 +74,32 @@ public:
     // 执行完整的兼容 Savepoint 恢复（由 *CompatibleFullRestoreOperation 调用）
     // 遍历 restoreIterator，将 Flink 状态转换为 Omni 格式并通过 backend 写入后端。
     virtual void restore(SavepointRestoreResultIterator& restoreIterator, RestoreBackendDelegate& backend) = 0;
+
+    // 从 JSON 对象中解析指定字段的字符串数组。
+    // fieldName: JSON 中的字段名（如 "inputTypes"）
+    // 返回解析后的字符串列表，字段不存在或非数组时返回空 vector
+    static std::vector<std::string> parseStringArray(const nlohmann::json& json, const std::string& fieldName)
+    {
+        std::vector<std::string> result;
+        if (json.contains(fieldName) && json[fieldName].is_array()) {
+            for (const auto& item : json[fieldName]) {
+                if (item.is_string()) {
+                    result.push_back(item.get<std::string>());
+                }
+            }
+        }
+        return result;
+    }
+
+    // 将 Flink 类型名称字符串列表转换为 Omni DataTypeId 列表
+    static std::vector<omniruntime::type::DataTypeId> convertToDataTypes(const std::vector<std::string>& typeNames)
+    {
+        std::vector<omniruntime::type::DataTypeId> result;
+        result.reserve(typeNames.size());
+        for (const auto& name : typeNames) {
+            result.push_back(LogicalType::flinkTypeToOmniTypeId(name));
+        }
+        return result;
+    }
 };
 } // namespace omnistream
