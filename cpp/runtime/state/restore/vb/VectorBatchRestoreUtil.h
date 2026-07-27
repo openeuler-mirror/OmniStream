@@ -48,7 +48,7 @@ public:
         const std::vector<int8_t>& valueBytes,
         const std::vector<omniruntime::type::DataTypeId>& columnTypes,
         int batchSize,
-        int32_t keyGroup = 0);
+        int32_t keyGroupId);
 
     static StateMetaInfoSnapshot buildOmniMainMetaInfo(
         const StateMetaInfoSnapshot& flinkMetaInfo, TypeSerializer* valueSerializer);

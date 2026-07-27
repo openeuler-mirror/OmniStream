@@ -87,7 +87,7 @@ public:
     {
         vectorBatchEntryIndices_.clear();
         for (std::size_t i = 0; i < entries_.size(); ++i) {
-            if (entries_[i].vectorBatchId >= 0) {
+            if (entries_[i].vectorBatchId != omnistream::INVALID_VECTOR_BATCH_ID) {
                 vectorBatchEntryIndices_[entries_[i].vectorBatchId] = i;
             }
         }

@@ -99,7 +99,7 @@ omnistream::ComboId VectorBatchRestoreUtil::appendRowToVectorBatch(
     const std::vector<int8_t>& valueBytes,
     const std::vector<omniruntime::type::DataTypeId>& columnTypes,
     int batchSize,
-    int32_t keyGroup)
+    int32_t keyGroupId)
 {
     if (valueBytes.empty()) {
         INFO_RELEASE("VectorBatchRestoreUtil: empty value bytes, cannot parse RowData");
@@ -118,7 +118,7 @@ omnistream::ComboId VectorBatchRestoreUtil::appendRowToVectorBatch(
             INFO_RELEASE(
                 "VectorBatchRestoreUtil: unsupported column type " << static_cast<int>(columnTypes[col])
                                                                    << " at column index " << col);
-            return -1;
+            return omnistream::INVALID_COMBO_ID;
         }
     }
 
@@ -136,6 +136,8 @@ omnistream::ComboId VectorBatchRestoreUtil::appendRowToVectorBatch(
     valInput.readFully(row->getSegment(), rowLen, 0, rowLen);
 
     if (vbState.currentBatch == nullptr) {
+        vbState.currentBatchId = vbState.nextBatchIdByKeyGroup[keyGroupId];
+        vbState.currentKeyGroupId = keyGroupId;
         LOG("VectorBatchRestoreUtil: creating new VectorBatch, batchId=" << vbState.currentBatchId << ", numFields="
                                                                          << numFields << ", batchSize=" << batchSize);
 
@@ -145,11 +147,16 @@ omnistream::ComboId VectorBatchRestoreUtil::appendRowToVectorBatch(
             INFO_RELEASE("VectorBatchRestoreUtil: CreateVectorBatch failed (" << e.what() << ").");
             throw;
         }
+    } else if (vbState.currentKeyGroupId != keyGroupId) {
+        INFO_RELEASE(
+            "Error: VectorBatchRestoreUtil::appendRowToVectorBatch -> currentKeyGroupId="
+            << vbState.currentKeyGroupId << ", keyGroupId=" << keyGroupId);
+        return omnistream::INVALID_COMBO_ID;
     }
 
     populateVectorBatchFromRow(vbState.currentBatch, columnTypes, row.get(), vbState.currentRowId);
 
-    auto comboId = VectorBatchUtil::getComboId(keyGroup, vbState.currentBatchId, vbState.currentRowId);
+    auto comboId = VectorBatchUtil::getComboId(keyGroupId, vbState.currentBatchId, vbState.currentRowId);
     vbState.currentRowId++;
     return comboId;
 }

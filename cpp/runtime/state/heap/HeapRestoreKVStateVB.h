@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <tuple>
 #include <vector>
 
 #include "runtime/state/heap/HeapRestoreKVState.h"
@@ -47,6 +48,12 @@ public:
     void discard() override
     {
         RestoreKVStateVB::discard();
+    }
+
+    // 返回 Heap compatible restore 输入 key 使用的 key-group prefix 字节数。
+    int getKeyGroupPrefixBytes() const override
+    {
+        return delegate_.getKeyGroupPrefixBytes();
     }
 
     void resetBatchId() override
@@ -99,21 +106,7 @@ HeapRestoreKVStateVB<K>::HeapRestoreKVStateVB(
 template <typename K>
 void HeapRestoreKVStateVB<K>::writeLongEntry(const std::vector<int8_t>& keyBytes, int64_t value)
 {
-    if (stateInfo_.mainStateDesc == nullptr) {
-        INFO_RELEASE("HeapRestoreKVStateVB: Error: mainStateDesc is null for '" << stateInfo_.stateName << "'");
-        throw std::runtime_error(
-            "HeapRestoreKVStateVB: Error: mainStateDesc is null for '" + stateInfo_.stateName + "'");
-    }
-
-    if (stateInfo_.mainTablePtr == 0) {
-        stateInfo_.mainTablePtr = delegate_.getBackend()->getStateTablePtr(stateInfo_.mainStateDesc->getName());
-    }
-    if (stateInfo_.mainTablePtr == 0) {
-        INFO_RELEASE("HeapRestoreKVStateVB: Error: main table not found for '" << stateInfo_.stateName << "'");
-        throw std::runtime_error(
-            "HeapRestoreKVStateVB: Error: main table not found for '" + stateInfo_.stateName + "'");
-    }
-
+    ensureMainTableReady();
     auto [rawKey, rawNs] = deserializeKey(keyBytes);
     DeserializedKeyGuard keyGuard(rawKey, rawNs);
 
@@ -132,9 +125,9 @@ omnistream::ComboId HeapRestoreKVStateVB<K>::appendRowToVectorBatch(const RowDat
                                                                                                 << "'");
         throw std::runtime_error("HeapRestoreKVStateVB: RowDataView has null valueBytes or columnTypes");
     }
-    int64_t comboId = VectorBatchRestoreUtil::appendRowToVectorBatch(
+    omnistream::ComboId comboId = VectorBatchRestoreUtil::appendRowToVectorBatch(
         vbState_, *row.valueBytes, columnTypes_, vectorBatchSize_, keyGroupId_);
-    if (comboId < 0) {
+    if (comboId == omnistream::INVALID_COMBO_ID) {
         INFO_RELEASE("HeapRestoreKVStateVB: Error: appendRowToVectorBatch failed for '" << stateInfo_.stateName << "'");
         throw std::runtime_error("HeapRestoreKVStateVB: appendRowToVectorBatch failed");
     }
@@ -162,7 +155,7 @@ void HeapRestoreKVStateVB<K>::flushVectorBatchIfNotEmpty()
         throw std::runtime_error("HeapRestoreKVStateVB: VB table not found for '" + vbTableName + "'");
     }
 
-    auto* vbTable = reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, VectorBatch*>*>(vbTablePtr);
+    auto* vbTable = reinterpret_cast<CopyOnWriteStateTable<uint32_t, VoidNamespace, VectorBatch*>*>(vbTablePtr);
 
     VoidNamespace ns;
     VectorBatch* batchToStore = vbState_.currentBatch;
@@ -177,11 +170,12 @@ void HeapRestoreKVStateVB<K>::flushVectorBatchIfNotEmpty()
     }
 
     vbTable->put(vbState_.currentBatchId, keyGroupId_, ns, batchToStore);
-    vbTable->updateNextSequenceNumber(keyGroupId_, static_cast<uint32_t>(vbState_.currentBatchId) + 1);
+    vbTable->updateNextSequenceNumber(keyGroupId_, vbState_.currentBatchId + 1);
 
     vbState_.currentBatch = nullptr;
-    vbState_.currentBatchId++;
+    vbState_.nextBatchIdByKeyGroup[keyGroupId_] = vbState_.currentBatchId + 1;
     vbState_.currentRowId = 0;
+    vbState_.currentKeyGroupId = -1;
 }
 
 template <typename K>

@@ -25,7 +25,7 @@ HeapSnapshotStateData::SerializedEntry makeEntry(std::vector<int8_t> key, std::v
 
 } // namespace
 
-// addEntry 应保留已经序列化好的 key/value 字节，默认 vectorBatchId 为 -1，且不能写入 VB 索引。
+// addEntry 应保留已经序列化好的 key/value 字节，默认 vectorBatchId 为 INVALID_VECTOR_BATCH_ID，且不能写入 VB 索引。
 TEST(HeapSnapshotStateDataTest, AddEntryPreservesSerializedKeyAndValue)
 {
     HeapSnapshotStateData data;
@@ -37,7 +37,7 @@ TEST(HeapSnapshotStateDataTest, AddEntryPreservesSerializedKeyAndValue)
     ASSERT_EQ(data.entries().size(), 1);
     EXPECT_EQ(data.entries()[0].serializedKey, bytes({0x01, 0x02}));
     EXPECT_EQ(data.entries()[0].serializedValue, bytes({0x11, 0x12, 0x13}));
-    EXPECT_EQ(data.entries()[0].vectorBatchId, -1);
+    EXPECT_EQ(data.entries()[0].vectorBatchId, omnistream::INVALID_VECTOR_BATCH_ID);
     EXPECT_EQ(data.findVectorBatchEntry(99), nullptr);
     EXPECT_EQ(data.findVectorBatchEntry(-1), nullptr);
 }

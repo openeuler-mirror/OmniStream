@@ -37,11 +37,13 @@ constexpr const char* kDbRootPath = "/tmp/rocksdb_vb_accessor_ut/";
 constexpr const char* kVectorBatchColumnFamily = "vb_test_cf";
 constexpr int32_t kNumberOfKeyGroups = 512;
 constexpr int32_t kKeyGroup = 257;
-constexpr uint32_t kBatchSeqNum = 42;
-// Encoded VectorBatchId: (keyGroup << 48) | (seqNum << 16), matching VectorBatchUtil encoding.
-constexpr omnistream::VectorBatchId kBatchId =
-    (static_cast<uint64_t>(kKeyGroup) << 48) | (static_cast<uint64_t>(kBatchSeqNum) << 16);
+constexpr uint32_t kSequenceNumber = 42;
 constexpr int32_t kSerializedVectorBatchBufferBytes = 64 * 1024;
+const omnistream::VectorBatchId kBatchId = omnistream::VectorBatchUtil::getVectorBatchId(kKeyGroup, kSequenceNumber);
+const omnistream::VectorBatchId kMissingBatchId =
+    omnistream::VectorBatchUtil::getVectorBatchId(kKeyGroup, kSequenceNumber + 1);
+const omnistream::VectorBatchId kAnotherBatchId =
+    omnistream::VectorBatchUtil::getVectorBatchId(kKeyGroup, kSequenceNumber + 2);
 
 std::string makeRocksDbPath()
 {
@@ -76,7 +78,7 @@ std::vector<int8_t> serializeVectorBatch(int32_t rowCount)
     return serializeVectorBatch(batch.get());
 }
 
-std::vector<int8_t> makeVbKey(omnistream::VectorBatchId batchId, int32_t keyGroupPrefixBytes)
+std::vector<int8_t> makeVbKey(omnistream::VectorBatchId batchId, int32_t keyGroupPrefixBytes, int32_t keyGroup)
 {
     OutputBufferStatus outputBufferStatus;
     DataOutputSerializer outputSerializer;
@@ -84,7 +86,6 @@ std::vector<int8_t> makeVbKey(omnistream::VectorBatchId batchId, int32_t keyGrou
 
     // Match RocksDBVectorBatchStateAccessor::serializeVectorBatchKey:
     // extract keyGroup and seqNum from the encoded 64-bit batchId.
-    auto keyGroup = omnistream::VectorBatchUtil::getKeyGroup(batchId);
     CompositeKeySerializationUtils::writeKeyGroup(keyGroup, keyGroupPrefixBytes, outputSerializer);
     LongSerializer longSerializer;
     auto seqNum = omnistream::VectorBatchUtil::getSequenceNumber(batchId);
@@ -202,7 +203,7 @@ protected:
 
     void writeVectorBatch(omnistream::VectorBatchId batchId, const std::vector<int8_t>& value)
     {
-        std::vector<int8_t> key = makeVbKey(batchId, keyGroupPrefixBytes_);
+        std::vector<int8_t> key = makeVbKey(batchId, keyGroupPrefixBytes_, keyGroup_);
         rocksdb::Status status = db_->Put(
             rocksdb::WriteOptions(),
             cfHandle_,
@@ -314,7 +315,7 @@ TEST_F(RocksDBVectorBatchStateAccessorTest, GetSerializedBatchReturnsFalseForMis
 
     ByteView value;
 
-    EXPECT_FALSE(accessor->getSerializedBatch(404, &value));
+    EXPECT_FALSE(accessor->getSerializedBatch(kMissingBatchId, &value));
 }
 
 // 构造函数必须拒绝空 DB、空列族或空 snapshot，避免后续读取路径在空依赖上崩溃。
@@ -541,10 +542,10 @@ TEST_F(RocksDBVectorBatchStateAccessorTest, AccessorCreatedByResourcesReadsFromR
     expectByteViewEquals(actualValue, snapshotValue);
 
     accessor->close();
-    ASSERT_NO_FATAL_FAILURE(writeVectorBatch(kBatchId + 1, newerValue));
+    ASSERT_NO_FATAL_FAILURE(writeVectorBatch(kMissingBatchId, newerValue));
 
     resources->cleanup();
-    ASSERT_NO_FATAL_FAILURE(writeVectorBatch(kBatchId + 2, newerValue));
+    ASSERT_NO_FATAL_FAILURE(writeVectorBatch(kAnotherBatchId, newerValue));
 }
 
 } // namespace

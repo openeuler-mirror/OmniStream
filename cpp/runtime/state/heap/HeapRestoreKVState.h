@@ -65,11 +65,13 @@ protected:
     void writeBytesEntry(const std::vector<int8_t>& keyBytes, ByteView value) override;
 
     std::tuple<void*, void*> deserializeKey(const std::vector<int8_t>& keyBytes);
+    std::tuple<void*, void*> deserializeKey(DataInputDeserializer& keyInput);
 
     void writeValueEntry(const std::vector<int8_t>& keyBytes, ByteView value);
 
     void writeMapEntry(const std::vector<int8_t>& keyBytes, ByteView value);
     void writeListEntry(const std::vector<int8_t>& keyBytes, ByteView value);
+    void ensureMainTableReady();
 
     struct DeserializedKeyGuard {
         void* rawKey;
@@ -127,6 +129,12 @@ std::tuple<void*, void*> HeapRestoreKVState<K>::deserializeKey(const std::vector
         static_cast<int>(keyBytes.size()),
         delegate_.getKeyGroupPrefixBytes());
 
+    return deserializeKey(keyInput);
+}
+
+template <typename K>
+std::tuple<void*, void*> HeapRestoreKVState<K>::deserializeKey(DataInputDeserializer& keyInput)
+{
     void* rawKey = nullptr;
     if constexpr (std::is_same_v<K, Object*>) {
         auto* keyObj = delegate_.getKeySerializer()->GetBuffer();
@@ -157,19 +165,7 @@ std::tuple<void*, void*> HeapRestoreKVState<K>::deserializeKey(const std::vector
 template <typename K>
 void HeapRestoreKVState<K>::writeValueEntry(const std::vector<int8_t>& keyBytes, ByteView value)
 {
-    if (stateInfo_.mainStateDesc == nullptr) {
-        INFO_RELEASE("HeapRestoreKVState: Error: mainStateDesc is null for '" << stateInfo_.stateName << "'");
-        throw std::runtime_error("HeapRestoreKVState: Error: mainStateDesc is null for '" + stateInfo_.stateName + "'");
-    }
-
-    if (stateInfo_.mainTablePtr == 0) {
-        stateInfo_.mainTablePtr = delegate_.getBackend()->getStateTablePtr(stateInfo_.mainStateDesc->getName());
-    }
-    if (stateInfo_.mainTablePtr == 0) {
-        INFO_RELEASE("HeapRestoreKVState: Error: main table not found for '" << stateInfo_.stateName << "'");
-        throw std::runtime_error("HeapRestoreKVState: Error: main table not found for '" + stateInfo_.stateName + "'");
-    }
-
+    ensureMainTableReady();
     auto [rawKey, rawNs] = deserializeKey(keyBytes);
     DeserializedKeyGuard keyGuard(rawKey, rawNs);
 
@@ -235,20 +231,12 @@ void HeapRestoreKVState<K>::writeValueEntry(const std::vector<int8_t>& keyBytes,
 template <typename K>
 void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, ByteView value)
 {
-    if (stateInfo_.mainStateDesc == nullptr) {
-        INFO_RELEASE("HeapRestoreKVState: Error: mainStateDesc is null for '" << stateInfo_.stateName << "'");
-        throw std::runtime_error("HeapRestoreKVState: Error: mainStateDesc is null for '" + stateInfo_.stateName + "'");
-    }
-
-    if (stateInfo_.mainTablePtr == 0) {
-        stateInfo_.mainTablePtr = delegate_.getBackend()->getStateTablePtr(stateInfo_.mainStateDesc->getName());
-    }
-    if (stateInfo_.mainTablePtr == 0) {
-        INFO_RELEASE("HeapRestoreKVState: Error: main table not found for '" << stateInfo_.stateName << "'");
-        throw std::runtime_error("HeapRestoreKVState: Error: main table not found for '" + stateInfo_.stateName + "'");
-    }
-
-    auto [rawKey, rawNs] = deserializeKey(keyBytes);
+    ensureMainTableReady();
+    DataInputDeserializer keyInput(
+        reinterpret_cast<const uint8_t*>(keyBytes.data()),
+        static_cast<int>(keyBytes.size()),
+        delegate_.getKeyGroupPrefixBytes());
+    auto [rawKey, rawNs] = deserializeKey(keyInput);
     DeserializedKeyGuard keyGuard(rawKey, rawNs);
 
     auto* mapKeySer = stateInfo_.mapKeySerializer;
@@ -270,7 +258,7 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
         auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<UK, UV>*>*>(
             stateInfo_.mainTablePtr);
 
-        std::unique_ptr<UK> ukPtr(static_cast<UK*>(mapKeySer->deserialize(valInput)));
+        std::unique_ptr<UK> ukPtr(static_cast<UK*>(mapKeySer->deserialize(keyInput)));
         UK uk = *ukPtr;
         std::unique_ptr<UV> uvPtr(static_cast<UV*>(mapValSer->deserialize(valInput)));
         UV uv = *uvPtr;
@@ -289,7 +277,7 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
         auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<UK, UV>*>*>(
             stateInfo_.mainTablePtr);
 
-        std::unique_ptr<UK> ukPtr(static_cast<UK*>(mapKeySer->deserialize(valInput)));
+        std::unique_ptr<UK> ukPtr(static_cast<UK*>(mapKeySer->deserialize(keyInput)));
         UK uk = *ukPtr;
         std::unique_ptr<UV> uvPtr(static_cast<UV*>(mapValSer->deserialize(valInput)));
         UV uv = *uvPtr;
@@ -308,7 +296,7 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
         auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<UK, UV>*>*>(
             stateInfo_.mainTablePtr);
 
-        std::unique_ptr<UK> ukPtr(static_cast<UK*>(mapKeySer->deserialize(valInput)));
+        std::unique_ptr<UK> ukPtr(static_cast<UK*>(mapKeySer->deserialize(keyInput)));
         UK uk = *ukPtr;
         std::unique_ptr<UV> uvPtr(static_cast<UV*>(mapValSer->deserialize(valInput)));
         UV uv = *uvPtr;
@@ -327,7 +315,7 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
         auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<UK, UV>*>*>(
             stateInfo_.mainTablePtr);
 
-        std::unique_ptr<UK> ukPtr(static_cast<UK*>(mapKeySer->deserialize(valInput)));
+        std::unique_ptr<UK> ukPtr(static_cast<UK*>(mapKeySer->deserialize(keyInput)));
         UK uk = *ukPtr;
         std::unique_ptr<UV> uvPtr(static_cast<UV*>(mapValSer->deserialize(valInput)));
         UV uv = *uvPtr;
@@ -346,7 +334,7 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
         auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<UK, UV>*>*>(
             stateInfo_.mainTablePtr);
 
-        auto* rawUk = static_cast<std::string*>(mapKeySer->deserialize(valInput));
+        auto* rawUk = static_cast<std::string*>(mapKeySer->deserialize(keyInput));
         UK uk = *rawUk;
         delete rawUk;
         std::unique_ptr<UV> uvPtr(static_cast<UV*>(mapValSer->deserialize(valInput)));
@@ -369,7 +357,7 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
             stateInfo_.mainTablePtr);
 
         Object* keyObj = mapKeySer->GetBuffer();
-        mapKeySer->deserialize(keyObj, valInput);
+        mapKeySer->deserialize(keyObj, keyInput);
         UK uk = keyObj->clone();
         keyObj->putRefCount();
 
@@ -396,7 +384,7 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
         auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<UK, UV>*>*>(
             stateInfo_.mainTablePtr);
 
-        void* rawUk = mapKeySer->deserialize(valInput);
+        void* rawUk = mapKeySer->deserialize(keyInput);
         UK uk = static_cast<RowData*>(rawUk)->copy();
         std::unique_ptr<UV> uvPtr(static_cast<UV*>(mapValSer->deserialize(valInput)));
         UV uv = *uvPtr;
@@ -415,7 +403,7 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
         auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<UK, UV>*>*>(
             stateInfo_.mainTablePtr);
 
-        void* rawUk = mapKeySer->deserialize(valInput);
+        void* rawUk = mapKeySer->deserialize(keyInput);
         UK uk = static_cast<RowData*>(rawUk)->copy();
         void* rawUv = mapValSer->deserialize(valInput);
         UV uv = static_cast<RowData*>(rawUv)->copy();
@@ -434,7 +422,7 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
         auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<UK, UV>*>*>(
             stateInfo_.mainTablePtr);
 
-        std::unique_ptr<UK> ukPtr(static_cast<UK*>(mapKeySer->deserialize(valInput)));
+        std::unique_ptr<UK> ukPtr(static_cast<UK*>(mapKeySer->deserialize(keyInput)));
         UK uk = *ukPtr;
         std::unique_ptr<UV> uvPtr(static_cast<UV*>(mapValSer->deserialize(valInput)));
         UV uv = *uvPtr;
@@ -453,7 +441,7 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
         auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<UK, UV>*>*>(
             stateInfo_.mainTablePtr);
 
-        void* rawUk = mapKeySer->deserialize(valInput);
+        void* rawUk = mapKeySer->deserialize(keyInput);
         UK uk = static_cast<RowData*>(rawUk)->copy();
         int listSize = valInput.readInt();
         auto* vec = new std::vector<RowData*>();
@@ -488,19 +476,7 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
 template <typename K>
 void HeapRestoreKVState<K>::writeListEntry(const std::vector<int8_t>& keyBytes, ByteView value)
 {
-    if (stateInfo_.mainStateDesc == nullptr) {
-        INFO_RELEASE("HeapRestoreKVState: Error: mainStateDesc is null for '" << stateInfo_.stateName << "'");
-        throw std::runtime_error("HeapRestoreKVState: Error: mainStateDesc is null for '" + stateInfo_.stateName + "'");
-    }
-
-    if (stateInfo_.mainTablePtr == 0) {
-        stateInfo_.mainTablePtr = delegate_.getBackend()->getStateTablePtr(stateInfo_.mainStateDesc->getName());
-    }
-    if (stateInfo_.mainTablePtr == 0) {
-        INFO_RELEASE("HeapRestoreKVState: Error: main table not found for '" << stateInfo_.stateName << "'");
-        throw std::runtime_error("HeapRestoreKVState: Error: main table not found for '" + stateInfo_.stateName + "'");
-    }
-
+    ensureMainTableReady();
     auto [rawKey, rawNs] = deserializeKey(keyBytes);
     DeserializedKeyGuard keyGuard(rawKey, rawNs);
 
@@ -539,6 +515,23 @@ void HeapRestoreKVState<K>::writeListEntry(const std::vector<int8_t>& keyBytes, 
     }
 
     stateInfo_.mainEntryCount++;
+}
+
+template <typename K>
+void HeapRestoreKVState<K>::ensureMainTableReady()
+{
+    if (stateInfo_.mainStateDesc == nullptr) {
+        INFO_RELEASE("HeapRestoreKVState: Error: mainStateDesc is null for '" << stateInfo_.stateName << "'");
+        throw std::runtime_error("HeapRestoreKVState: Error: mainStateDesc is null for '" + stateInfo_.stateName + "'");
+    }
+
+    if (stateInfo_.mainTablePtr == 0) {
+        stateInfo_.mainTablePtr = delegate_.getBackend()->getStateTablePtr(stateInfo_.mainStateDesc->getName());
+    }
+    if (stateInfo_.mainTablePtr == 0) {
+        INFO_RELEASE("HeapRestoreKVState: Error: main table not found for '" << stateInfo_.stateName << "'");
+        throw std::runtime_error("HeapRestoreKVState: Error: main table not found for '" + stateInfo_.stateName + "'");
+    }
 }
 
 } // namespace omnistream

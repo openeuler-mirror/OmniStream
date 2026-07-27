@@ -40,14 +40,6 @@ public:
     virtual omnistream::ComboId parseVectorBatchReference(
         ByteView value, const VectorBatchSaveStateContext& context, const VectorBatchSavePlan& plan) = 0;
 
-    // 从主状态 value 中解析 comboId 列表，供 Top1、TopN 等一对多状态使用。
-    // 默认将单 comboId 包装为列表，一对多 Adaptor 可按自身状态结构覆写。
-    virtual std::vector<omnistream::ComboId> parseVectorBatchReferences(
-        ByteView value, const VectorBatchSaveStateContext& context, const VectorBatchSavePlan& plan)
-    {
-        return {parseVectorBatchReference(value, context, plan)};
-    }
-
     // 将 source key 编码为 target Flink logical key，默认直接透传原 key。
     virtual std::vector<int8_t> encodeFlinkLogicalKey(
         const KeyValueStateIterator::CurrentEntry& entry,
@@ -63,7 +55,9 @@ public:
         const KeyValueStateIterator::CurrentEntry& entry,
         RowData& row,
         const VectorBatchSaveStateContext& context,
-        const VectorBatchSavePlan& plan) = 0;
+        const VectorBatchSavePlan& plan)
+    {
+    }
 
     // 执行单条 source entry 的完整 VB 转换流程。
     // Adaptor 解析 comboId 列表、解引用 RowData、编码 key/value，并通过 output 回调输出 0-N 条结果。

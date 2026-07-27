@@ -12,6 +12,7 @@
 #pragma once
 
 #include <cstdint>
+#include <unordered_map>
 #include <vector>
 
 #include "OmniOperatorJIT/core/src/type/data_type.h"
@@ -27,7 +28,12 @@ constexpr int VB_RESTORE_BATCH_SIZE = 1024;
 
 // VB 批次状态：内部由 RestoreKVStateVB 持有，不对外暴露
 struct VbBatchState {
-    omnistream::VectorBatchId currentBatchId = 0;
+    // 当前 keyGroup 正在写入的 VectorBatch sequenceNumber。
+    uint32_t currentBatchId = 0;
+    // 当前 VectorBatch 所属 keyGroup，用于防止跨 keyGroup 复用同一个 batch。
+    int32_t currentKeyGroupId = -1;
+    // 每个 keyGroup 的下一个 VectorBatch sequenceNumber，与运行时 addVectorBatch 语义保持一致。
+    std::unordered_map<int32_t, uint32_t> nextBatchIdByKeyGroup;
     int32_t currentRowId = 0;
     VectorBatch* currentBatch = nullptr;
 };
@@ -51,6 +57,10 @@ public:
         omnistream::ComboId comboId = appendRowToVectorBatch(row);
         writeEntry<omnistream::ComboId>(keyBytes, comboId);
     }
+
+    // 返回后端 composite key 中 key-group prefix 占用的字节数。
+    // StreamingJoin adaptor 使用该边界精确跳过 key-group prefix，并解析随后由 keyed RowData serializer 写出的长度字段。
+    virtual int getKeyGroupPrefixBytes() const = 0;
 
     // 仅 flush VB 尾批（如有），不 flush main writer。
     // 用于 keyGroup 切换时强制提交当前 VB 批次，避免跨 keyGroup 数据混合。

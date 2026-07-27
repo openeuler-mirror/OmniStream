@@ -31,10 +31,12 @@
 
 namespace {
 
-constexpr int64_t kBatchId = 42;
+constexpr int32_t kKeyGroup = 3;
+constexpr uint32_t kSequenceNumber = 42;
 constexpr const char* kLogicalStateName = "deduplicate-state";
 constexpr const char* kVectorBatchStateName = "deduplicate-statevb";
 constexpr int32_t kSerializedVectorBatchBufferBytes = 64 * 1024;
+const omnistream::VectorBatchId kBatchId = omnistream::VectorBatchUtil::getVectorBatchId(kKeyGroup, kSequenceNumber);
 
 std::vector<int8_t> bytes(std::initializer_list<int8_t> values)
 {
@@ -142,15 +144,15 @@ private:
 // 默认 VB iterator 只构造普通 vector entries，不创建 HeapSnapshotStateData，也不会维护 batchId 索引。
 TEST_F(HeapFullSnapshotResourcesVectorBatchAccessorTest, DefaultVectorBatchIteratorDoesNotCaptureAccessorData)
 {
-    auto keyGroupRange = std::make_unique<KeyGroupRange>(0, 0);
-    auto context = std::make_unique<InternalKeyContextImpl<uint32_t>>(keyGroupRange.get(), 1);
+    auto keyGroupRange = std::make_unique<KeyGroupRange>(kKeyGroup, kKeyGroup);
+    auto context = std::make_unique<InternalKeyContextImpl<uint32_t>>(keyGroupRange.get(), kKeyGroup + 1);
     {
         auto* metaInfo = new RegisteredKeyValueStateBackendMetaInfo(
             StateDescriptor::Type::VALUE, kVectorBatchStateName, new VoidNamespaceSerializer(), new LongSerializer());
         CopyOnWriteStateTable<uint32_t, VoidNamespace, omnistream::VectorBatch*> table(
             context.get(), metaInfo, IntSerializer::INSTANCE);
         std::unique_ptr<omnistream::VectorBatch> batch = makeVectorBatch(1);
-        table.put(kBatchId, 0, VoidNamespace(), batch.release());
+        table.put(kSequenceNumber, kKeyGroup, VoidNamespace(), batch.release());
 
         HeapSingleStateIterator<uint32_t, VoidNamespace, omnistream::VectorBatch*> iterator(
             &table,
@@ -170,15 +172,15 @@ TEST_F(HeapFullSnapshotResourcesVectorBatchAccessorTest, DefaultVectorBatchItera
 // 显式启用 VB accessor 数据捕获时，VB iterator 才创建 HeapSnapshotStateData 并建立 batchId 索引。
 TEST_F(HeapFullSnapshotResourcesVectorBatchAccessorTest, CapturedVectorBatchIteratorIndexesAccessorData)
 {
-    auto keyGroupRange = std::make_unique<KeyGroupRange>(0, 0);
-    auto context = std::make_unique<InternalKeyContextImpl<uint32_t>>(keyGroupRange.get(), 1);
+    auto keyGroupRange = std::make_unique<KeyGroupRange>(kKeyGroup, kKeyGroup);
+    auto context = std::make_unique<InternalKeyContextImpl<uint32_t>>(keyGroupRange.get(), kKeyGroup + 1);
     {
         auto* metaInfo = new RegisteredKeyValueStateBackendMetaInfo(
             StateDescriptor::Type::VALUE, kVectorBatchStateName, new VoidNamespaceSerializer(), new LongSerializer());
         CopyOnWriteStateTable<uint32_t, VoidNamespace, omnistream::VectorBatch*> table(
             context.get(), metaInfo, IntSerializer::INSTANCE);
         std::unique_ptr<omnistream::VectorBatch> batch = makeVectorBatch(1);
-        table.put(kBatchId, 0, VoidNamespace(), batch.release());
+        table.put(kSequenceNumber, kKeyGroup, VoidNamespace(), batch.release());
 
         HeapSingleStateIterator<uint32_t, VoidNamespace, omnistream::VectorBatch*> iterator(
             &table,
@@ -190,12 +192,9 @@ TEST_F(HeapFullSnapshotResourcesVectorBatchAccessorTest, CapturedVectorBatchIter
         std::shared_ptr<HeapSnapshotStateData> snapshotData = iterator.getSnapshotData();
         ASSERT_NE(snapshotData, nullptr);
         EXPECT_TRUE(iterator.isValid());
-        // collectVbEntries() encodes batchId as (keyGroup<<48 | seqNum<<16),
-        // so lookup must use the same encoded form.
-        auto encodedBatchId = omnistream::VectorBatchUtil::getVectorBatchId(0, static_cast<uint32_t>(kBatchId));
-        ASSERT_NE(snapshotData->findVectorBatchEntry(encodedBatchId), nullptr);
+        ASSERT_NE(snapshotData->findVectorBatchEntry(kBatchId), nullptr);
         iterator.close();
-        EXPECT_NE(snapshotData->findVectorBatchEntry(encodedBatchId), nullptr);
+        EXPECT_NE(snapshotData->findVectorBatchEntry(kBatchId), nullptr);
     }
 }
 

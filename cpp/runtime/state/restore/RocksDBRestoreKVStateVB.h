@@ -39,6 +39,12 @@ public:
         ctx_.keyGroupId = keyGroupId;
     }
 
+    // 返回 RocksDB composite key 使用的 key-group prefix 字节数。
+    int getKeyGroupPrefixBytes() const override
+    {
+        return ctx_.keyGroupPrefixBytes;
+    }
+
     void resetBatchId() override
     {
         vbState_.currentBatchId = 0;
@@ -185,7 +191,9 @@ void RocksDBRestoreKVStateVB<K>::flushVectorBatchIfNotEmpty()
 
     DataOutputSerializer keyTarget(ctx_.keyGroupPrefixBytes + 8);
     CompositeKeySerializationUtils::writeKeyGroup(ctx_.keyGroupId, ctx_.keyGroupPrefixBytes, keyTarget);
-    keyTarget.writeLong(static_cast<int64_t>(vbState_.currentBatchId));
+    LongSerializer longSerializer;
+    auto sequenceNumber = static_cast<int64_t>(vbState_.currentBatchId);
+    longSerializer.serialize(&sequenceNumber, keyTarget);
 
     std::vector<int8_t> vbKey(keyTarget.getData(), keyTarget.getData() + keyTarget.getPosition());
 
@@ -209,8 +217,9 @@ void RocksDBRestoreKVStateVB<K>::flushVectorBatchIfNotEmpty()
         delete sliceForSerialization;
     }
 
-    vbState_.currentBatchId++;
+    vbState_.nextBatchIdByKeyGroup[ctx_.keyGroupId] = vbState_.currentBatchId + 1;
     vbState_.currentRowId = 0;
+    vbState_.currentKeyGroupId = -1;
     if (ctx_.vbBatchCount) (*ctx_.vbBatchCount)++;
 }
 

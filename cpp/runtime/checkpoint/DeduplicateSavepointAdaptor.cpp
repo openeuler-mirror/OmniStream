@@ -213,7 +213,7 @@ void DeduplicateSavepointAdaptor::convertKVRowData(
 {
     // Deduplicate 为 1:1 映射，解析 comboId、解引用 VB RowData、编码后输出
     auto comboId = parseVectorBatchReference(ByteView(entry.value.data(), entry.value.size()), context, plan);
-    int64_t batchId = VectorBatchUtil::getVectorBatchId(comboId);
+    omnistream::VectorBatchId batchId = VectorBatchUtil::getVectorBatchId(comboId);
     int32_t rowId = VectorBatchUtil::getRowId(comboId);
     if (context.vbAccessor) {
         auto row = context.vbAccessor->getRow(batchId, rowId);
