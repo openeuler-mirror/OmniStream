@@ -44,8 +44,9 @@ public:
         vbState_.currentBatchId = 0;
     }
 
-protected:
     omnistream::ComboId appendRowToVectorBatch(const RowDataView& row) override;
+
+protected:
     void flushVectorBatchIfNotEmpty() override;
     void flushMainWriter() override;
     void discardVectorBatch() override;
@@ -108,9 +109,16 @@ void RocksDBRestoreKVStateVB<K>::writeLongEntry(const std::vector<int8_t>& keyBy
 }
 
 template <typename K>
-void RocksDBRestoreKVStateVB<K>::writeBytesEntry(const std::vector<int8_t>& /*keyBytes*/, ByteView /*value*/)
+void RocksDBRestoreKVStateVB<K>::writeBytesEntry(const std::vector<int8_t>& keyBytes, ByteView value)
 {
-    throw std::runtime_error("RocksDBRestoreKVStateVB: writeBytesEntry not supported, use writeRowData instead");
+    rocksdb::Slice keySlice(reinterpret_cast<const char*>(keyBytes.data()), keyBytes.size());
+    rocksdb::Slice valueSlice(reinterpret_cast<const char*>(value.data()), value.size());
+
+    if (mainWriter_ == nullptr) {
+        mainWriter_ = std::make_unique<RocksDBWriteBatchWrapper>(ctx_.db, ctx_.writeBatchSize);
+    }
+    mainWriter_->Put(mainCF_, keySlice, valueSlice);
+    if (ctx_.mainEntryCount) (*ctx_.mainEntryCount)++;
 }
 
 template <typename K>

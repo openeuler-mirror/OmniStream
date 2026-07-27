@@ -19,9 +19,15 @@
 #include "runtime/state/restore/RestoreKVState.h"
 #include "runtime/state/restore/RestoreKVStateVB.h"
 #include "runtime/state/restore/RestorePQState.h"
-#include "runtime/state/restore/RestorePlan.h"
 
 namespace omnistream {
+
+enum class RestoreStateType {
+    KV,         // 普通 KV 状态（无 VB side table）
+    KV_WITH_VB, // 带 VectorBatch side table 的 KV 状态
+    PQ,         // PriorityQueue 状态
+    UNSUPPORT,  // 未支持的状态
+};
 
 // ============================================================================
 // RestoreBackendDelegate — 兼容恢复流程的 state writer 工厂

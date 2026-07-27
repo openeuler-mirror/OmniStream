@@ -188,14 +188,6 @@ private:
         std::shared_ptr<PartitionableListState<S>> resultState = nullptr;
         auto* operatorStateSerializer = stateDescriptor->getStateSerializer();
         auto registeredIterator = registeredOperatorStates_->find(name);
-
-        // 打印当前 registeredOperatorStates_ 中所有的 key，以及本次查询的 name
-        std::string registeredKeys;
-        for (auto& entry : *registeredOperatorStates_) {
-            if (!registeredKeys.empty()) registeredKeys += ", ";
-            registeredKeys += entry.first;
-        }
-
         if (registeredIterator == registeredOperatorStates_->end()) {
             auto stateMetaInfo =
                 std::make_shared<RegisteredOperatorStateBackendMetaInfo>(name, mode, operatorStateSerializer);

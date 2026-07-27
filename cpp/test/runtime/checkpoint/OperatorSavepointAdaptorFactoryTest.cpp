@@ -38,11 +38,16 @@ TEST(OperatorSavepointAdaptorFactoryTest, ReturnsDeduplicateAdaptor)
     EXPECT_NE(adaptor, nullptr);
 }
 
+// AppendOnlyTopNAdaptor：已实现的 Adaptor，工厂返回 AppendOnlyTopNSavepointAdaptor 实例。
+TEST(OperatorSavepointAdaptorFactoryTest, ReturnsAppendOnlyTopNAdaptor)
+{
+    auto adaptor = OperatorSavepointAdaptorFactory::createAdaptor(FlinkSavepointAdaptorType::AppendOnlyTopNAdaptor);
+    EXPECT_NE(adaptor, nullptr);
+}
+
 // 预留但尚未实现的 Adaptor 类型，工厂目前统一返回 nullptr。
 TEST(OperatorSavepointAdaptorFactoryTest, ReturnsNullForNotYetImplementedTypes)
 {
-    EXPECT_EQ(
-        OperatorSavepointAdaptorFactory::createAdaptor(FlinkSavepointAdaptorType::AppendOnlyTopNAdaptor), nullptr);
     EXPECT_EQ(
         OperatorSavepointAdaptorFactory::createAdaptor(FlinkSavepointAdaptorType::StreamingJoinNoUniqueKeyAdaptor),
         nullptr);

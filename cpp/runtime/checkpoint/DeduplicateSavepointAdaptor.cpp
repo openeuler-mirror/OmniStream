@@ -38,12 +38,12 @@ void DeduplicateSavepointAdaptor::prepareForRestore(const nlohmann::json& operat
         mainValueSerializer_ = LongSerializer::INSTANCE;
     }
     // 从算子描述中解析恢复方向的列类型并缓存
-    restoreColumnTypes_ = convertToDataTypes(parseInputTypes(operatorDescription));
+    restoreColumnTypes_ = convertToDataTypes(parseStringArray(operatorDescription, "inputTypes"));
 }
 
 void DeduplicateSavepointAdaptor::prepareForSave(const nlohmann::json& operatorDescription)
 {
-    compatibleColumnTypes_ = parseInputTypes(operatorDescription);
+    compatibleColumnTypes_ = parseStringArray(operatorDescription, "inputTypes");
     buildStateSerializerMap();
 }
 
@@ -67,29 +67,6 @@ void DeduplicateSavepointAdaptor::validateForRestore(
     validator.requireKeyedValueState(DEDUPLICATE_STATE_NAME);
     validator.requirePriorityQueueStates();
     validator.requireNoMoreStates();
-}
-
-std::vector<std::string> DeduplicateSavepointAdaptor::parseInputTypes(const nlohmann::json& operatorDescription)
-{
-    std::vector<std::string> result;
-    if (operatorDescription.contains("inputTypes") && operatorDescription["inputTypes"].is_array()) {
-        for (const auto& type : operatorDescription["inputTypes"]) {
-            if (type.is_string()) {
-                result.push_back(type.get<std::string>());
-            }
-        }
-    }
-    return result;
-}
-
-std::vector<omniruntime::type::DataTypeId> DeduplicateSavepointAdaptor::convertToDataTypes(
-    const std::vector<std::string>& typeNames)
-{
-    std::vector<omniruntime::type::DataTypeId> result;
-    for (const auto& name : typeNames) {
-        result.push_back(LogicalType::flinkTypeToOmniTypeId(name));
-    }
-    return result;
 }
 
 void DeduplicateSavepointAdaptor::buildStateSerializerMap()
@@ -275,93 +252,23 @@ void DeduplicateSavepointAdaptor::save(
     VectorBatchSaveFlow::executeSave(*this, plan, stream, keyGroupOffsets, snapshotResources, std::move(keySerializer));
 }
 
-// ===== 恢复方向：plan + state dispatch 模型 =====
-
-namespace {
-// Deduplicate 的轻量 RestorePlan：包含 deduplicate-state 的 kvStateId 和 PQ timer 状态
-struct DeduplicateRestorePlan : RestorePlan {
-    int deduplicateKvStateId = -1;
-    std::vector<int> pqKvStateIds;
-    std::vector<omniruntime::type::DataTypeId> cachedColumnTypes;
-    int vbBatchSize = VB_RESTORE_BATCH_SIZE;
-    const StateMetaInfoSnapshot* flinkMetaInfo = nullptr; // 缓存的 Flink 元信息引用
-
-    std::vector<int> sourceKvStateIds() const override
-    {
-        std::vector<int> ids;
-        if (deduplicateKvStateId >= 0) {
-            ids.push_back(deduplicateKvStateId);
-        }
-        ids.insert(ids.end(), pqKvStateIds.begin(), pqKvStateIds.end());
-        return ids;
-    }
-
-    std::vector<omniruntime::type::DataTypeId> columnTypes(int kvStateId) const override
-    {
-        (void)kvStateId;
-        return cachedColumnTypes;
-    }
-
-    int batchSize(int kvStateId) const override
-    {
-        (void)kvStateId;
-        return vbBatchSize;
-    }
-};
-} // namespace
-
-std::unique_ptr<RestorePlan> DeduplicateSavepointAdaptor::buildRestorePlan(
-    const std::vector<StateMetaInfoSnapshot>& flinkMetaInfos)
+RestoreStateType DeduplicateSavepointAdaptor::getStateType(const StateMetaInfoSnapshot& metaInfo)
 {
-    auto plan = std::make_unique<DeduplicateRestorePlan>();
-    plan->cachedColumnTypes = restoreColumnTypes_;
-    plan->vbBatchSize = VB_RESTORE_BATCH_SIZE;
-
-    for (size_t i = 0; i < flinkMetaInfos.size(); ++i) {
-        if (flinkMetaInfos[i].getBackendStateType() == StateMetaInfoSnapshot::BackendStateType::KEY_VALUE &&
-            flinkMetaInfos[i].getName() == DEDUPLICATE_STATE_NAME) {
-            plan->deduplicateKvStateId = static_cast<int>(i);
-            plan->flinkMetaInfo = &flinkMetaInfos[i]; // 缓存引用供 buildOmniMainMetaInfo 使用
-        } else if (flinkMetaInfos[i].getBackendStateType() == StateMetaInfoSnapshot::BackendStateType::PRIORITY_QUEUE) {
-            plan->pqKvStateIds.push_back(static_cast<int>(i));
+    if (metaInfo.getBackendStateType() == StateMetaInfoSnapshot::BackendStateType::PRIORITY_QUEUE) {
+        return RestoreStateType::PQ;
+    } else if (metaInfo.getBackendStateType() == StateMetaInfoSnapshot::BackendStateType::KEY_VALUE) {
+        if (metaInfo.getName() == DEDUPLICATE_STATE_NAME) {
+            return RestoreStateType::KV_WITH_VB;
         }
+        return RestoreStateType::KV;
     }
-
-    if (plan->deduplicateKvStateId < 0) {
-        INFO_RELEASE("Error:DeduplicateSavepointAdaptor::buildRestorePlan - deduplicate-state not found in metadata");
-        throw std::runtime_error(
-            "DeduplicateSavepointAdaptor: Flink logical state '" + std::string(DEDUPLICATE_STATE_NAME) +
-            "' not found in metadata");
-    }
-    return plan;
+    return RestoreStateType::UNSUPPORT;
 }
 
-RestoreStateType DeduplicateSavepointAdaptor::getStateType(int kvStateId, const RestorePlan& plan)
+StateMetaInfoSnapshot DeduplicateSavepointAdaptor::buildOmniMainMetaInfo(
+    int kvStateId, const StateMetaInfoSnapshot& flinkMetaInfo)
 {
-    auto& dedupPlan = static_cast<const DeduplicateRestorePlan&>(plan);
-    for (int pqId : dedupPlan.pqKvStateIds) {
-        if (pqId == kvStateId) {
-            return RestoreStateType::PQ;
-        }
-    }
-    return RestoreStateType::KV_WITH_VB;
-}
-
-StateMetaInfoSnapshot DeduplicateSavepointAdaptor::buildOmniMainMetaInfo(int kvStateId, const RestorePlan& plan)
-{
-    auto& dedupPlan = static_cast<const DeduplicateRestorePlan&>(plan);
-    if (dedupPlan.flinkMetaInfo != nullptr) {
-        return VectorBatchRestoreUtil::buildOmniMainMetaInfo(*dedupPlan.flinkMetaInfo, mainValueSerializer_);
-    }
-    // 回退：无 Flink metaInfo 时直接构造（不会发生，仅防御）
-    std::unordered_map<std::string, std::string> options;
-    options[StateMetaInfoSnapshot::commonOptionsKeyToString(
-        StateMetaInfoSnapshot::CommonOptionsKeys::KEYED_STATE_TYPE)] = "VALUE";
-    return StateMetaInfoSnapshot(
-        DEDUPLICATE_STATE_NAME,
-        StateMetaInfoSnapshot::BackendStateType::KEY_VALUE,
-        options,
-        std::unordered_map<std::string, std::shared_ptr<TypeSerializerSnapshot>>());
+    return VectorBatchRestoreUtil::buildOmniMainMetaInfo(flinkMetaInfo, mainValueSerializer_);
 }
 
 void DeduplicateSavepointAdaptor::restore(

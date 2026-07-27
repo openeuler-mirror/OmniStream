@@ -32,6 +32,46 @@ public:
 
     KeySelector() = default;
 
+    KeySelector(const KeySelector&) = delete;
+
+    KeySelector& operator=(const KeySelector&) = delete;
+
+    KeySelector(KeySelector&& other) noexcept
+        : arenaAllocator(std::move(other.arenaAllocator)),
+          keyColTypeIds(std::move(other.keyColTypeIds)),
+          keyColIndices(std::move(other.keyColIndices)),
+          outIndices(std::move(other.outIndices)),
+          serializers(std::move(other.serializers)),
+          deserializers(std::move(other.deserializers)),
+          rowSerializers(std::move(other.rowSerializers)),
+          rowDeserializers(std::move(other.rowDeserializers)),
+          reusedKey(other.reusedKey),
+          m_canReuseKey(other.m_canReuseKey)
+    {
+        other.reusedKey = nullptr;
+    }
+
+    KeySelector& operator=(KeySelector&& other) noexcept
+    {
+        if (this != &other) {
+            if (reusedKey != nullptr) {
+                delete reusedKey;
+            }
+            arenaAllocator = std::move(other.arenaAllocator);
+            keyColTypeIds = std::move(other.keyColTypeIds);
+            keyColIndices = std::move(other.keyColIndices);
+            outIndices = std::move(other.outIndices);
+            serializers = std::move(other.serializers);
+            deserializers = std::move(other.deserializers);
+            rowSerializers = std::move(other.rowSerializers);
+            rowDeserializers = std::move(other.rowDeserializers);
+            reusedKey = other.reusedKey;
+            m_canReuseKey = other.m_canReuseKey;
+            other.reusedKey = nullptr;
+        }
+        return *this;
+    }
+
     ~KeySelector();
 
     K getKey(omnistream::VectorBatch* inputBatch, int row, bool enableKeyReuse = false);
