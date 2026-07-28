@@ -95,7 +95,8 @@ public:
 class AbstractSlicedSliceAssigner : public virtual SliceAssigner {
 public:
     AbstractSlicedSliceAssigner(SliceAssigner* innerAssigner, int sliceEndIndex);
-    ~AbstractSlicedSliceAssigner() override {
+    ~AbstractSlicedSliceAssigner() override
+    {
         delete innerAssigner;
     };
     int64_t assignSliceEnd(omnistream::VectorBatch* element, int rowId, ClockService* clock) override;
@@ -113,7 +114,8 @@ private:
 
 class AbstractSliceAssigner : public virtual SliceAssigner {
 public:
-    ~AbstractSliceAssigner() override {
+    ~AbstractSliceAssigner() override
+    {
         delete shiftTimeZone;
     }
     int64_t assignSliceEnd(omnistream::VectorBatch* element, int rowId, ClockService* clock) override;
@@ -230,8 +232,8 @@ public:
           innerAssigner(innerAssigner)
     {
     }
-    
-    ~WindowedSliceAssigner() override 
+
+    ~WindowedSliceAssigner() override
     {
         delete innerAssigner;
         delete reuseExpiredList;
