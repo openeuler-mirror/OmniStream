@@ -146,6 +146,8 @@ public:
 
     static omnistream::VectorBatch* CreateVectorBatch(int rowCnt, const std::vector<DataTypeId>& dataTypes);
 
+    static std::string RemoveTrailingZeros(std::string num);
+
 private:
     int64_t* timestamps;
     RowKind* rowKinds;

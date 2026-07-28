@@ -109,37 +109,6 @@ RowData* VectorBatch::extractRowData(int rowIndex)
     return outRow;
 }
 
-std::string removeTrailingZeros(std::string num)
-{
-    size_t dot_pos = num.find('.');
-    if (dot_pos == std::string::npos) {
-        return num;
-    }
-
-    std::string integer_part = num.substr(0, dot_pos);
-    std::string decimal_part = num.substr(dot_pos + 1);
-
-    // 去除小数部分末尾的零
-    size_t last_non_zero = decimal_part.find_last_not_of('0');
-    if (last_non_zero != std::string::npos) {
-        decimal_part = decimal_part.substr(0, last_non_zero + 1);
-    } else {
-        decimal_part.clear();
-    }
-
-    // 处理整数部分为空的情况（如输入是 ".500" → 转为 "0.500"）
-    if (integer_part.empty()) {
-        integer_part = "0";
-    }
-
-    // 组合结果
-    if (decimal_part.empty()) {
-        return integer_part;
-    } else {
-        return integer_part + "." + decimal_part;
-    }
-}
-
 std::string VectorBatch::TransformTimeWithTimeZone(
     int vectorID, int rowID, const std::string& tzStr, int precision) const
 {
@@ -382,7 +351,7 @@ void VectorBatch::convertToJson(
             case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
             case omniruntime::type::DataTypeId::OMNI_LONG: {
                 if (inputTypes[colIndex].substr(0, 9) == "TIMESTAMP") {
-                    auto result = TransformTime(colIndex, rowIndex);
+                    auto result = RemoveTrailingZeros(TransformTime(colIndex, rowIndex));
                     j[inputFields[colIndex]] = result;
                 } else {
                     auto result =
@@ -542,5 +511,36 @@ omnistream::VectorBatch* VectorBatch::CreateVectorBatch(int rowCount, const std:
         }
     }
     return vectorBatch;
+}
+
+std::string VectorBatch::RemoveTrailingZeros(std::string num)
+{
+    size_t dot_pos = num.find('.');
+    if (dot_pos == std::string::npos) {
+        return num;
+    }
+
+    std::string integer_part = num.substr(0, dot_pos);
+    std::string decimal_part = num.substr(dot_pos + 1);
+
+    // 去除小数部分末尾的零
+    size_t last_non_zero = decimal_part.find_last_not_of('0');
+    if (last_non_zero != std::string::npos) {
+        decimal_part = decimal_part.substr(0, last_non_zero + 1);
+    } else {
+        decimal_part.clear();
+    }
+
+    // 处理整数部分为空的情况（如输入是 ".500" → 转为 "0.500"）
+    if (integer_part.empty()) {
+        integer_part = "0";
+    }
+
+    // 组合结果
+    if (decimal_part.empty()) {
+        return integer_part;
+    } else {
+        return integer_part + "." + decimal_part;
+    }
 }
 } // namespace omnistream
