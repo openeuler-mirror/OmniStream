@@ -251,6 +251,13 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
     BackendDataType mapValId = mapValSer->getBackendId();
 
     DataInputDeserializer valInput(value.data(), static_cast<int>(value.size()));
+    if (valInput.readBoolean()) {
+        INFO_RELEASE(
+            "Error: HeapRestoreKVState::writeMapEntry  null MAP value is not supported for '" << stateInfo_.stateName
+                                                                                              << "'");
+        throw std::runtime_error(
+            "HeapRestoreKVState: null MAP value is not supported for '" + stateInfo_.stateName + "'");
+    }
 
     if (mapKeyId == BackendDataType::XXHASH128_BK && mapValId == BackendDataType::TUPLE_INT32_INT64) {
         using UK = XXH128_hash_t;
