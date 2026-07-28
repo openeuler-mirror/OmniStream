@@ -21,6 +21,7 @@
 #include "runtime/state/VectorBatchStateAccessor.h"
 #include "runtime/state/metainfo/StateMetaInfoSnapshot.h"
 #include "runtime/state/KeyGroupRange.h"
+#include "table/data/vectorbatch/VectorBatchStorageInfo.h"
 
 namespace omnistream {
 
@@ -148,7 +149,8 @@ struct ConvertedEntry {
     const VectorBatchSaveStateContext* context = nullptr;
     std::vector<int8_t> keyBytes;
     std::vector<int8_t> valueBytes;
-    int64_t comboRef = 0;
+    // 当前转换结果引用的 Omni VectorBatch 行标识，保持完整的无符号 ComboId 位布局。
+    omnistream::ComboId comboRef = 0;
 };
 
 } // namespace omnistream

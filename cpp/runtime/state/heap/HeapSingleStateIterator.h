@@ -171,7 +171,7 @@ private:
     void addSnapshotEntry(SerializedEntry entry)
     {
         if (snapshotData_ == nullptr) {
-            entry.vectorBatchId = -1;
+            entry.vectorBatchId = omnistream::INVALID_VECTOR_BATCH_ID;
             entries_.push_back(std::move(entry));
             return;
         }
@@ -250,10 +250,8 @@ private:
                 if (snapshotData_ == nullptr) {
                     addSnapshotEntry(std::move(entry));
                 } else {
-                    // Use full VectorBatchId (keyGroup<<48 | seqNum<<16) to avoid cross-keyGroup collision
-                    auto fullBatchId =
-                        omnistream::VectorBatchUtil::getVectorBatchId(keyGroup, static_cast<uint32_t>(it->first));
-                    snapshotData_->addVectorBatchEntry(std::move(entry), fullBatchId);
+                    auto vectorBatchId = omnistream::VectorBatchUtil::getVectorBatchId(keyGroup, it->first);
+                    snapshotData_->addVectorBatchEntry(std::move(entry), vectorBatchId);
                 }
             }
         }
@@ -286,7 +284,9 @@ private:
         DataOutputSerializer outputSerializer;
         outputSerializer.setBackendBuffer(&outputBufferStatus);
 
-        outputSerializer.writeByte(static_cast<uint32_t>(keyGroup));
+        // VB side table key 与 RocksDB 运行时保持一致：keyGroup 使用固定前缀宽度编码，
+        // 后续再写入 LongSerializer(sequenceNumber)。
+        CompositeKeySerializationUtils::writeKeyGroup(keyGroup, keyGroupPrefixBytes_, outputSerializer);
 
         LongSerializer longSerializer;
         auto sequenceNumberI64 = static_cast<int64_t>(sequenceNumber);

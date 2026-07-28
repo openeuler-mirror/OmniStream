@@ -58,6 +58,7 @@
 #include "co/KeyedCoProcessOperator.h"
 #include "StreamOperatorFactory.h"
 #include "runtime/checkpoint/FlinkSavepointAdaptorInfo.h"
+#include "runtime/checkpoint/StreamingJoinSavepointUtil.h"
 
 namespace omnistream {
 
@@ -81,8 +82,18 @@ StreamOperator* StreamOperatorFactory::createOperatorAndCollector(
     } else if (uniqueName == OPERATOR_NAME_STREAM_JOIN) {
         // todo this ios test
         LOG("Generating StreamingJoinOperator...");
-        auto* op = new StreamingJoinOperator<RowData*>(opConfig.getDescription(), chainOutput);
+        auto opDescriptionJSON = opConfig.getDescription();
+        auto* op = new StreamingJoinOperator<RowData*>(opDescriptionJSON, chainOutput);
         op->setup();
+        op->setDescription(opDescriptionJSON);
+        const FlinkSavepointAdaptorType adaptorType =
+            omnistream::StreamingJoinSavepointUtil::getAdaptorType(opDescriptionJSON);
+        if (adaptorType == FlinkSavepointAdaptorType::None) {
+            op->setFlinkSavepointUnsupported(
+                omnistream::StreamingJoinSavepointUtil::buildUnsupportedReason(opDescriptionJSON));
+        } else {
+            op->setFlinkSavepointAdaptor(adaptorType);
+        }
         return static_cast<TwoInputStreamOperator*>(op);
     } else if (uniqueName == OPERATOR_NAME_WATERMARK_ASSIGNER) {
         auto* watermarkAssignerOperator = new WatermarkAssignerOperator(
@@ -253,9 +264,17 @@ StreamOperator* StreamOperatorFactory::CreateStreamJoinOp(
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
     auto* op = new StreamingJoinOperator<RowData*>(opDescriptionJSON, chainOutput);
     op->setup(std::move(task));
-    // SP-INTEROP: StreamingJoin 的 compatible Adaptor 尚未实现（工厂对该类型返回 nullptr），
-    // 设 None + reason 以在 compatible 保存/恢复时 fail fast，避免静默产出空/错误 SP。
-    op->setFlinkSavepointUnsupported("StreamingJoin compatible savepoint adaptor not yet implemented");
+    // SP-INTEROP: StreamingJoin 的 compatible Adaptor 按当前真实算子 description 分类，
+    // 范围外 Join 仍设置 None + reason，在 compatible 保存/恢复时 fail fast，避免静默产出空/错误 SP。
+    op->setDescription(opDescriptionJSON);
+    const FlinkSavepointAdaptorType adaptorType =
+        omnistream::StreamingJoinSavepointUtil::getAdaptorType(opDescriptionJSON);
+    if (adaptorType == FlinkSavepointAdaptorType::None) {
+        op->setFlinkSavepointUnsupported(
+            omnistream::StreamingJoinSavepointUtil::buildUnsupportedReason(opDescriptionJSON));
+    } else {
+        op->setFlinkSavepointAdaptor(adaptorType);
+    }
     return static_cast<TwoInputStreamOperator*>(op);
 }
 

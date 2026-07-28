@@ -64,6 +64,7 @@ public:
     thread_local static BasicTypeInfo* STRING_TYPE_INFO;
     thread_local static BasicTypeInfo* BIG_INT_TYPE_INFO;
     thread_local static BasicTypeInfo* LONG_TYPE_INFO;
+    thread_local static BasicTypeInfo* INT_TYPE_INFO;
     thread_local static BasicTypeInfo* DOUBLE_TYPE_INFO;
 
 private:

@@ -11,6 +11,7 @@
 
 #ifndef OMNISTREAM_STATEMETAINFOSNAPSHOT_H
 #define OMNISTREAM_STATEMETAINFOSNAPSHOT_H
+#include <initializer_list>
 #include <string>
 #include <unordered_map>
 #include <memory>
@@ -47,6 +48,14 @@ public:
         NAMESPACE_SERIALIZER,
         VALUE_SERIALIZER
     };
+
+    // JNI 元数据读取流程归一化后的公共 serializer key。
+    static constexpr const char* KEYED_STATE_TYPE = "KEYED_STATE_TYPE";
+    static constexpr const char* OPERATOR_STATE_DISTRIBUTION_MODE = "OPERATOR_STATE_DISTRIBUTION_MODE";
+
+    static constexpr const char* COMMON_KEY_SERIALIZER_KEY = "KEY_SERIALIZER";
+    static constexpr const char* COMMON_NAMESPACE_SERIALIZER_KEY = "NAMESPACE_SERIALIZER";
+    static constexpr const char* COMMON_VALUE_SERIALIZER_KEY = "VALUE_SERIALIZER";
 
     StateMetaInfoSnapshot(
         const std::string& name,
@@ -136,6 +145,21 @@ public:
         return nullptr;
     }
 
+    /**
+     * 按传入顺序查找多个 serializer key，返回第一个存在且对应 serializer 非空的结果。
+     * 所有候选 key 均未命中时返回 nullptr，调用方可据此执行默认值或 fail-fast 逻辑。
+     */
+    TypeSerializer* getTypeSerializer(std::initializer_list<std::string> keys) const
+    {
+        for (const auto& key : keys) {
+            TypeSerializer* serializer = getTypeSerializer(key);
+            if (serializer != nullptr) {
+                return serializer;
+            }
+        }
+        return nullptr;
+    }
+
     // Static helper methods for BackendStateType enum
     static unsigned char getCode(BackendStateType type)
     {
@@ -157,8 +181,8 @@ public:
     static std::string commonOptionsKeyToString(CommonOptionsKeys key)
     {
         switch (key) {
-            case CommonOptionsKeys::KEYED_STATE_TYPE: return "KEYED_STATE_TYPE";
-            case CommonOptionsKeys::OPERATOR_STATE_DISTRIBUTION_MODE: return "OPERATOR_STATE_DISTRIBUTION_MODE";
+            case CommonOptionsKeys::KEYED_STATE_TYPE: return KEYED_STATE_TYPE;
+            case CommonOptionsKeys::OPERATOR_STATE_DISTRIBUTION_MODE: return OPERATOR_STATE_DISTRIBUTION_MODE;
             default: return "";
         }
     }
@@ -166,9 +190,9 @@ public:
     static std::string commonSerializerKeyToString(CommonSerializerKeys key)
     {
         switch (key) {
-            case CommonSerializerKeys::KEY_SERIALIZER: return "KEY_SERIALIZER";
-            case CommonSerializerKeys::NAMESPACE_SERIALIZER: return "NAMESPACE_SERIALIZER";
-            case CommonSerializerKeys::VALUE_SERIALIZER: return "VALUE_SERIALIZER";
+            case CommonSerializerKeys::KEY_SERIALIZER: return COMMON_KEY_SERIALIZER_KEY;
+            case CommonSerializerKeys::NAMESPACE_SERIALIZER: return COMMON_NAMESPACE_SERIALIZER_KEY;
+            case CommonSerializerKeys::VALUE_SERIALIZER: return COMMON_VALUE_SERIALIZER_KEY;
             default: return "";
         }
     }

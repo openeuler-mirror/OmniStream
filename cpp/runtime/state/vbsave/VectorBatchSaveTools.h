@@ -23,6 +23,7 @@
 #include "core/typeutils/TypeSerializer.h"
 #include "core/utils/ByteView.h"
 #include "table/data/RowData.h"
+#include "table/data/util/ComboIdUtil.h"
 #include "table/data/vectorbatch/VectorBatchStorageInfo.h"
 
 namespace omnistream {
@@ -44,13 +45,13 @@ public:
     static omnistream::ComboId parseComboId(ByteView value)
     {
         if (value.data() == nullptr || value.size() < sizeof(int64_t)) {
-            INFO_RELEASE("Error:VectorBatchSaveTools::parseComboId invalid comboId bytes, size=" << value.size());
+            INFO_RELEASE("Error: VectorBatchSaveTools::parseComboId -> invalid comboId bytes, size=" << value.size());
             throw std::runtime_error(
-                "VectorBatchSaveTools: comboId value must contain at least 8 bytes, actual size=" +
+                "VectorBatchSaveTools::parseComboId comboId value must contain at least 8 bytes, actual size=" +
                 std::to_string(value.size()));
         }
         DataInputDeserializer input(value.data(), static_cast<int>(value.size()), 0);
-        return input.readLong();
+        return ComboIdUtil::readComboId(input);
     }
 
     // 使用指定 serializer 将 RowData 同步序列化为 std::vector<int8_t>。

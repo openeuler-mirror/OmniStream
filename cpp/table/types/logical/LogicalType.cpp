@@ -179,6 +179,18 @@ LogicalType* LogicalType::flinkTypeToOmniType(const std::string& flinkType)
     return BasicLogicalType::getTypeBy(DataTypeId::OMNI_INVALID, options);
 }
 
+bool LogicalType::isSharedLogicalType(const LogicalType* logicalType)
+{
+    return logicalType == nullptr || logicalType == BasicLogicalType::BOOLEAN ||
+           logicalType == BasicLogicalType::INTEGER || logicalType == BasicLogicalType::BIGINT ||
+           logicalType == BasicLogicalType::VARCHAR || logicalType == BasicLogicalType::DOUBLE ||
+           logicalType == BasicLogicalType::DATE || logicalType == BasicLogicalType::TIME_WITHOUT_TIME_ZONE ||
+           logicalType == BasicLogicalType::TIMESTAMP_WITHOUT_TIME_ZONE ||
+           logicalType == BasicLogicalType::TIMESTAMP_WITH_TIME_ZONE ||
+           logicalType == BasicLogicalType::TIMESTAMP_WITH_LOCAL_TIME_ZONE ||
+           logicalType == BasicLogicalType::TIMESTAMP || logicalType == BasicLogicalType::INVALID_TYPE;
+}
+
 void LogicalType::buildNameToIdMap()
 {
     static std::once_flag flag;

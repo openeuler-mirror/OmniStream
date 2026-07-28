@@ -13,6 +13,7 @@
 #include "runtime/state/heap/HeapSnapshotStateData.h"
 #include "runtime/state/heap/HeapVectorBatchStateAccessor.h"
 #include "streaming/runtime/streamrecord/StreamElement.h"
+#include "table/data/util/VectorBatchUtil.h"
 #include "table/data/RowData.h"
 #include "table/data/RowKind.h"
 #include "table/data/vectorbatch/VectorBatch.h"
@@ -20,8 +21,12 @@
 
 namespace {
 
-constexpr int64_t kBatchId = 42;
+constexpr int32_t kKeyGroup = 3;
+constexpr uint32_t kSequenceNumber = 42;
 constexpr int32_t kSerializedVectorBatchBufferBytes = 64 * 1024;
+const omnistream::VectorBatchId kBatchId = omnistream::VectorBatchUtil::getVectorBatchId(kKeyGroup, kSequenceNumber);
+const omnistream::VectorBatchId kMissingBatchId =
+    omnistream::VectorBatchUtil::getVectorBatchId(kKeyGroup, kSequenceNumber + 1);
 
 std::vector<int8_t> bytes(std::initializer_list<int8_t> values)
 {
@@ -102,7 +107,7 @@ TEST_F(HeapVectorBatchStateAccessorTest, GetSerializedBatchReturnsFalseForMissin
 
     ByteView value;
 
-    EXPECT_FALSE(accessor.getSerializedBatch(404, &value));
+    EXPECT_FALSE(accessor.getSerializedBatch(kMissingBatchId, &value));
     EXPECT_FALSE(nullStateAccessor.getSerializedBatch(kBatchId, &value));
 }
 
@@ -137,7 +142,7 @@ TEST_F(HeapVectorBatchStateAccessorTest, GetRowReturnsNullForMissingBatch)
     std::shared_ptr<HeapSnapshotStateData> stateData = makeStateDataWithBatch(kBatchId, serializeVectorBatch(1));
     HeapVectorBatchStateAccessor accessor(stateData, optionsWithCacheBytes(64 * 1024));
 
-    std::unique_ptr<RowData> row = accessor.getRow(404, 0);
+    std::unique_ptr<RowData> row = accessor.getRow(kMissingBatchId, 0);
 
     EXPECT_EQ(row, nullptr);
 }

@@ -80,12 +80,15 @@ TEST(VectorBatchRestoreUtilTest, SliceVectorBatchReturnsSubBatch)
 TEST(VectorBatchRestoreUtilTest, AppendRowToVectorBatchReturnsValidComboId)
 {
     VbBatchState vbState;
+    constexpr int32_t keyGroupId = 3;
     auto columnTypes = makeLongColumnTypes(1);
     auto valueBytes = serializeBinaryRow(1, {42L});
 
-    int64_t comboId = VectorBatchRestoreUtil::appendRowToVectorBatch(vbState, valueBytes, columnTypes, 1024);
-    EXPECT_GE(comboId, 0);
+    ComboId comboId =
+        VectorBatchRestoreUtil::appendRowToVectorBatch(vbState, valueBytes, columnTypes, 1024, keyGroupId);
+    EXPECT_NE(comboId, INVALID_COMBO_ID);
     EXPECT_EQ(vbState.currentRowId, 1);
+    EXPECT_EQ(vbState.currentKeyGroupId, keyGroupId);
     EXPECT_NE(vbState.currentBatch, nullptr);
 
     // 清理
@@ -95,14 +98,16 @@ TEST(VectorBatchRestoreUtilTest, AppendRowToVectorBatchReturnsValidComboId)
 TEST(VectorBatchRestoreUtilTest, AppendRowToVectorBatchCreatesBatchIfNull)
 {
     VbBatchState vbState;
+    constexpr int32_t keyGroupId = 3;
     EXPECT_EQ(vbState.currentBatch, nullptr);
     EXPECT_EQ(vbState.currentRowId, 0);
 
     auto columnTypes = makeLongColumnTypes(2);
     auto valueBytes = serializeBinaryRow(2, {100L, 200L});
 
-    int64_t comboId = VectorBatchRestoreUtil::appendRowToVectorBatch(vbState, valueBytes, columnTypes, 1024);
-    EXPECT_GE(comboId, 0);
+    ComboId comboId =
+        VectorBatchRestoreUtil::appendRowToVectorBatch(vbState, valueBytes, columnTypes, 1024, keyGroupId);
+    EXPECT_NE(comboId, INVALID_COMBO_ID);
     EXPECT_NE(vbState.currentBatch, nullptr);
     EXPECT_EQ(vbState.currentRowId, 1);
 
@@ -112,15 +117,16 @@ TEST(VectorBatchRestoreUtilTest, AppendRowToVectorBatchCreatesBatchIfNull)
 TEST(VectorBatchRestoreUtilTest, AppendRowToVectorBatchIncrementsRowId)
 {
     VbBatchState vbState;
+    constexpr int32_t keyGroupId = 3;
     auto columnTypes = makeLongColumnTypes(1);
 
     auto bytes1 = serializeBinaryRow(1, {10L});
     auto bytes2 = serializeBinaryRow(1, {20L});
     auto bytes3 = serializeBinaryRow(1, {30L});
 
-    int64_t combo1 = VectorBatchRestoreUtil::appendRowToVectorBatch(vbState, bytes1, columnTypes, 1024);
-    int64_t combo2 = VectorBatchRestoreUtil::appendRowToVectorBatch(vbState, bytes2, columnTypes, 1024);
-    int64_t combo3 = VectorBatchRestoreUtil::appendRowToVectorBatch(vbState, bytes3, columnTypes, 1024);
+    ComboId combo1 = VectorBatchRestoreUtil::appendRowToVectorBatch(vbState, bytes1, columnTypes, 1024, keyGroupId);
+    ComboId combo2 = VectorBatchRestoreUtil::appendRowToVectorBatch(vbState, bytes2, columnTypes, 1024, keyGroupId);
+    ComboId combo3 = VectorBatchRestoreUtil::appendRowToVectorBatch(vbState, bytes3, columnTypes, 1024, keyGroupId);
 
     EXPECT_EQ(vbState.currentRowId, 3);
     // comboId 递增（rowId 部分增加）
@@ -133,21 +139,24 @@ TEST(VectorBatchRestoreUtilTest, AppendRowToVectorBatchIncrementsRowId)
 TEST(VectorBatchRestoreUtilTest, AppendRowReturnsNegativeForEmptyValueBytes)
 {
     VbBatchState vbState;
+    constexpr int32_t keyGroupId = 3;
     auto columnTypes = makeLongColumnTypes(1);
     std::vector<int8_t> emptyBytes;
 
-    int64_t comboId = VectorBatchRestoreUtil::appendRowToVectorBatch(vbState, emptyBytes, columnTypes, 1024);
-    EXPECT_LT(comboId, 0);
+    ComboId comboId =
+        VectorBatchRestoreUtil::appendRowToVectorBatch(vbState, emptyBytes, columnTypes, 1024, keyGroupId);
+    EXPECT_EQ(comboId, INVALID_COMBO_ID);
 }
 
 TEST(VectorBatchRestoreUtilTest, AppendRowReturnsNegativeForZeroColumnTypes)
 {
     VbBatchState vbState;
+    constexpr int32_t keyGroupId = 3;
     std::vector<omniruntime::type::DataTypeId> emptyTypes;
     auto valueBytes = serializeBinaryRow(1, {42L});
 
-    int64_t comboId = VectorBatchRestoreUtil::appendRowToVectorBatch(vbState, valueBytes, emptyTypes, 1024);
-    EXPECT_LT(comboId, 0);
+    ComboId comboId = VectorBatchRestoreUtil::appendRowToVectorBatch(vbState, valueBytes, emptyTypes, 1024, keyGroupId);
+    EXPECT_EQ(comboId, INVALID_COMBO_ID);
 }
 
 // ============================================================================
@@ -199,13 +208,15 @@ TEST(VectorBatchRestoreUtilTest, PopulateVectorBatchFromRowFillsMultipleColumns)
 TEST(VectorBatchRestoreUtilTest, AppendMultipleRowsThenSliceTailBatch)
 {
     VbBatchState vbState;
+    constexpr int32_t keyGroupId = 3;
     auto columnTypes = makeLongColumnTypes(1);
-    int batchSize = 3;
+    int batchSize = 5;
 
     for (int64_t val = 0; val < 5; val++) {
         auto valueBytes = serializeBinaryRow(1, {val});
-        int64_t comboId = VectorBatchRestoreUtil::appendRowToVectorBatch(vbState, valueBytes, columnTypes, batchSize);
-        EXPECT_GE(comboId, 0);
+        ComboId comboId =
+            VectorBatchRestoreUtil::appendRowToVectorBatch(vbState, valueBytes, columnTypes, batchSize, keyGroupId);
+        EXPECT_NE(comboId, INVALID_COMBO_ID);
     }
 
     // appendRowToVectorBatch 不自动满批 flush；全部 5 行都在同一个 batch 中
