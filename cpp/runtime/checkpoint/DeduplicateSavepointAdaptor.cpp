@@ -12,6 +12,7 @@
 #include <iomanip>
 #include <sstream>
 #include <stdexcept>
+#include <unordered_map>
 
 #include "DeduplicateSavepointAdaptor.h"
 
@@ -54,6 +55,7 @@ void DeduplicateSavepointAdaptor::validateForSave(const std::vector<std::shared_
     // 由 CompatibleFullSnapshotAsyncWriter 在 adaptor->save() 返回后单独写入。
     StateMetaInfoValidator validator{metaInfos};
     validator.requireKeyedValueStateWithVB(DEDUPLICATE_STATE_NAME);
+    validator.requirePriorityQueueStates();
     validator.requireNoMoreStates();
 }
 
@@ -122,6 +124,21 @@ VectorBatchSavePlan DeduplicateSavepointAdaptor::buildDeduplicateSavePlan(FullSn
             continue;
         }
 
+        // PRIORITY_QUEUE 状态（如 _timer_state/*）
+        // 由 VectorBatchSaveFlow 按 PQ 透传路径直接输出 key/value 字节。
+        // 使用 OmniStream 原生的 StateMetaInfoSnapshot（含 "stateSerializer"）写入 targetMetaInfos，
+        // 确保 mappedKvStateId 与 targetMetaInfos 索引一致。
+        if (omniMeta->getBackendStateType() == StateMetaInfoSnapshot::BackendStateType::PRIORITY_QUEUE) {
+            plan.targetMetaInfos.push_back(omniMeta);
+            plan.mainStateIds.push_back(static_cast<int>(i));
+            VectorBatchSavePlan::StateContextSpec spec;
+            spec.sourceKvStateId = static_cast<int>(i);
+            spec.logicalStateName = stateName;
+            spec.stateType = VectorBatchStateType::PQ;
+            plan.stateContextSpecs.push_back(std::move(spec));
+            continue;
+        }
+
         TypeSerializer* omniNsSer = omniMeta->getTypeSerializer("namespaceSerializer");
         TypeSerializer* flinkValueSer = getRecordStateSerializer();
         if (omniNsSer == nullptr || flinkValueSer == nullptr) {
@@ -165,18 +182,24 @@ std::vector<VectorBatchSaveStateContext> DeduplicateSavepointAdaptor::buildSaveS
         }
         auto& ctx = contexts[spec.sourceKvStateId];
         ctx.writable = true;
-        ctx.stateType = VectorBatchStateType::KV_WITH_VB;
+        ctx.stateType = spec.stateType;
         auto mapIt = plan.kvStateIdMapping.find(spec.sourceKvStateId);
         ctx.mappedKvStateId = (mapIt != plan.kvStateIdMapping.end()) ? mapIt->second : spec.sourceKvStateId;
         ctx.logicalStateName = spec.logicalStateName;
         ctx.valueSerializer = spec.valueSerializer;
-        ctx.vbAccessor = snapshotResources.createVectorBatchStateAccessor(spec.logicalStateName, spec.accessorOptions);
-        if (ctx.vbAccessor == nullptr) {
-            INFO_RELEASE(
-                "Error:DeduplicateSavepointAdaptor: failed to create VB accessor for state '" << spec.logicalStateName
-                                                                                              << "'");
-            throw std::runtime_error(
-                "DeduplicateSavepointAdaptor: failed to create VB accessor for state '" + spec.logicalStateName + "'");
+        // 仅 KV_WITH_VB / KV_LIST_WITH_VB 状态需要 VB accessor
+        if (spec.stateType == VectorBatchStateType::KV_WITH_VB ||
+            spec.stateType == VectorBatchStateType::KV_LIST_WITH_VB) {
+            ctx.vbAccessor =
+                snapshotResources.createVectorBatchStateAccessor(spec.logicalStateName, spec.accessorOptions);
+            if (ctx.vbAccessor == nullptr) {
+                INFO_RELEASE(
+                    "Error:DeduplicateSavepointAdaptor: failed to create VB accessor for state '"
+                    << spec.logicalStateName << "'");
+                throw std::runtime_error(
+                    "DeduplicateSavepointAdaptor: failed to create VB accessor for state '" + spec.logicalStateName +
+                    "'");
+            }
         }
     }
     return contexts;

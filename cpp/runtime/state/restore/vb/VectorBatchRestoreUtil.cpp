@@ -159,7 +159,9 @@ StateMetaInfoSnapshot VectorBatchRestoreUtil::buildOmniMainMetaInfo(
 {
     TypeSerializer* nsSerializer = flinkMetaInfo.getTypeSerializer("NAMESPACE_SERIALIZER");
     if (nsSerializer == nullptr) {
-        nsSerializer = VoidSerializer::INSTANCE;
+        INFO_RELEASE("VectorBatchRestoreUtil: NAMESPACE_SERIALIZER not found for state=" << flinkMetaInfo.getName());
+        throw std::runtime_error(
+            "VectorBatchRestoreUtil: NAMESPACE_SERIALIZER not found for state=" + flinkMetaInfo.getName());
     }
 
     auto stateTypeString = flinkMetaInfo.getOption(StateMetaInfoSnapshot::CommonOptionsKeys::KEYED_STATE_TYPE);
