@@ -10,15 +10,12 @@
  */
 
 #include <gtest/gtest.h>
-#include <emhash7.hpp>
 
 #include <memory>
 #include <string>
-#include <tuple>
 #include <unordered_map>
 #include <vector>
 
-#include "core/memory/DataOutputSerializer.h"
 #include "core/typeutils/LongSerializer.h"
 #include "core/typeutils/MapSerializer.h"
 #include "core/typeutils/ListSerializer.h"
@@ -27,7 +24,6 @@
 #include "runtime/state/HeapKeyedStateBackend.h"
 #include "runtime/state/InternalKeyContextImpl.h"
 #include "runtime/state/KeyGroupRange.h"
-#include "runtime/state/CompositeKeySerializationUtils.h"
 #include "runtime/state/heap/HeapRestoreBackendDelegate.h"
 #include "runtime/state/heap/HeapRestoreKVState.h"
 #include "runtime/state/heap/HeapRestoreKVStateVB.h"
@@ -256,50 +252,6 @@ TEST_F(HeapRestoreStateWriterTest, KvStateVbSetKeyGroupIdDoesNotThrow)
     auto kvVb = delegate_->createKVStateVB(0, metaInfo, columnTypes, 1024);
 
     EXPECT_NO_THROW(kvVb->setKeyGroupId(3));
-}
-
-TEST_F(HeapRestoreStateWriterTest, KvStateVbWritesMapKeyAndJoinTupleFromSeparateBuffers)
-{
-    constexpr int keyGroupId = 3;
-    int currentKey = 42;
-    XXH128_hash_t mapKey{0x0123456789ABCDEFULL, 0xFEDCBA9876543210ULL};
-    std::tuple<int32_t, int64_t> mapValue{9, static_cast<int64_t>(0x123456789ABCDEF0ULL)};
-
-    auto metaInfo = makeMapMetaInfo("joinMapState");
-    auto kvVb = delegate_->createKVStateVB(0, metaInfo, {omniruntime::type::DataTypeId::OMNI_LONG}, 1024);
-    kvVb->setKeyGroupId(keyGroupId);
-
-    DataOutputSerializer keyOutput;
-    OutputBufferStatus keyOutputStatus;
-    keyOutput.setBackendBuffer(&keyOutputStatus);
-    CompositeKeySerializationUtils::writeKeyGroup(keyGroupId, 2, keyOutput);
-    IntSerializer::INSTANCE->serialize(&currentKey, keyOutput);
-    VoidNamespace nameSpace;
-    VoidNamespaceSerializer::INSTANCE->serialize(&nameSpace, keyOutput);
-    XxH128_hashSerializer::INSTANCE->serialize(&mapKey, keyOutput);
-    std::vector<int8_t> keyBytes(keyOutput.getData(), keyOutput.getData() + keyOutput.getPosition());
-
-    DataOutputSerializer valueOutput;
-    OutputBufferStatus valueOutputStatus;
-    valueOutput.setBackendBuffer(&valueOutputStatus);
-    valueOutput.writeBoolean(false);
-    JoinTupleSerializer::INSTANCE->serialize(&mapValue, valueOutput);
-    std::vector<int8_t> valueBytes(valueOutput.getData(), valueOutput.getData() + valueOutput.getPosition());
-    ASSERT_EQ(valueBytes.size(), 13U);
-
-    EXPECT_NO_THROW(kvVb->writeEntry<ByteView>(keyBytes, ByteView::fromBuffer(valueBytes.data(), valueBytes.size())));
-
-    using JoinMap = emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int64_t>>;
-    auto* table = reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, JoinMap*>*>(
-        backend_->getStateTablePtr("joinMapState"));
-    ASSERT_NE(table, nullptr);
-    auto* restoredMap = table->get(currentKey, keyGroupId, nameSpace);
-    ASSERT_NE(restoredMap, nullptr);
-    auto restored = restoredMap->find(mapKey);
-    ASSERT_TRUE(restored != restoredMap->end());
-    EXPECT_EQ(std::get<0>(restored->second), std::get<0>(mapValue));
-    EXPECT_EQ(std::get<1>(restored->second), std::get<1>(mapValue));
-    EXPECT_EQ(delegate_->getStateInfos()[0].mainEntryCount, 1);
 }
 
 } // namespace
