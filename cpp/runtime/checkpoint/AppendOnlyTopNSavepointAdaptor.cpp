@@ -23,6 +23,7 @@
 #include "runtime/state/restore/SavepointRestoreResultIterator.h"
 #include "core/memory/DataOutputSerializer.h"
 #include "core/memory/DataInputDeserializer.h"
+#include "core/utils/HashFunctor.h"
 #include "table/data/binary/BinaryRowData.h"
 #include "table/typeutils/BinaryRowDataSerializer.h"
 #include "core/typeutils/ListSerializer.h"
@@ -30,29 +31,6 @@
 #include "AppendOnlyTopNSavepointAdaptor.h"
 
 namespace omnistream {
-
-// [优化] 使用 FNV-1a 哈希算法
-struct VectorHash {
-    static constexpr size_t FNV_OFFSET_BASIS = 14695981039346656037ULL;
-    static constexpr size_t FNV_PRIME = 1099511628211ULL;
-
-    size_t operator()(const std::vector<int8_t>& v) const
-    {
-        return fnv1aHash(v.data(), v.size());
-    }
-
-    // 也可用于 ByteView 等其他类型
-    static size_t fnv1aHash(const int8_t* data, size_t size)
-    {
-        size_t h = FNV_OFFSET_BASIS;
-        const uint8_t* p = reinterpret_cast<const uint8_t*>(data);
-        for (size_t i = 0; i < size; ++i) {
-            h ^= static_cast<size_t>(p[i]);
-            h *= FNV_PRIME;
-        }
-        return h;
-    }
-};
 
 // ===== 构造 / 析构 =====
 
@@ -178,7 +156,7 @@ void AppendOnlyTopNSavepointAdaptor::convertKVRowData(
     std::vector<int64_t> comboIds = deserializeComboIdList(entry.value);
 
     std::vector<int8_t> flinkKey;
-    std::unordered_map<std::vector<int8_t>, std::vector<std::unique_ptr<RowData>>, VectorHash> sortKeyToRows;
+    std::unordered_map<std::vector<int8_t>, std::vector<std::unique_ptr<RowData>>, utils::Fnv1a64Hash> sortKeyToRows;
     for (int64_t comboId : comboIds) {
         std::unique_ptr<RowData> row = context.vbAccessor->getRow(comboId);
 

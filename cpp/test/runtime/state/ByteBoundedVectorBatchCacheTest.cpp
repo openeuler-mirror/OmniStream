@@ -111,3 +111,35 @@ TEST(ByteBoundedVectorBatchCacheTest, ClearDropsAllEntriesAndWeight)
     EXPECT_EQ(cache.maxBytes(), 256);
     EXPECT_TRUE(cache.canCache(256));
 }
+
+// 具有相同低 16 位的结构化 batchId 应独立寻址，并继续遵循 get 提升后的 LRU 淘汰顺序。
+TEST(ByteBoundedVectorBatchCacheTest, StructuredBatchIdsRemainIndependentUnderLruEviction)
+{
+    constexpr omnistream::VectorBatchId batchId1 = 0x0001000000010000ULL;
+    constexpr omnistream::VectorBatchId batchId2 = 0x0001000000020000ULL;
+    constexpr omnistream::VectorBatchId batchId3 = 0x0002000000010000ULL;
+    constexpr omnistream::VectorBatchId batchId4 = 0x0002000000020000ULL;
+    ByteBoundedVectorBatchCache cache(192);
+
+    auto batch1 = std::make_unique<omnistream::VectorBatch>(1);
+    auto batch2 = std::make_unique<omnistream::VectorBatch>(2);
+    auto batch3 = std::make_unique<omnistream::VectorBatch>(3);
+    auto batch4 = std::make_unique<omnistream::VectorBatch>(4);
+    auto* rawBatch1 = batch1.get();
+    auto* rawBatch2 = batch2.get();
+    auto* rawBatch3 = batch3.get();
+    auto* rawBatch4 = batch4.get();
+
+    ASSERT_EQ(cache.put(batchId1, std::move(batch1), 64), rawBatch1);
+    ASSERT_EQ(cache.put(batchId2, std::move(batch2), 64), rawBatch2);
+    ASSERT_EQ(cache.put(batchId3, std::move(batch3), 64), rawBatch3);
+    ASSERT_EQ(cache.get(batchId1), rawBatch1);
+
+    ASSERT_EQ(cache.put(batchId4, std::move(batch4), 64), rawBatch4);
+
+    EXPECT_EQ(cache.get(batchId1), rawBatch1);
+    EXPECT_EQ(cache.get(batchId2), nullptr);
+    EXPECT_EQ(cache.get(batchId3), rawBatch3);
+    EXPECT_EQ(cache.get(batchId4), rawBatch4);
+    EXPECT_EQ(cache.currentBytes(), 192);
+}
