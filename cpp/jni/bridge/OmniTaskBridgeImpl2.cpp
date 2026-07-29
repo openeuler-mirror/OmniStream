@@ -1344,7 +1344,7 @@ jobject OmniTaskBridgeImpl2::AcquireSavepointOutputStream(long checkpointId, Che
     }
     // CallObjectMethod 返回 local ref，仅在当前 JNI frame、当前线程有效。
     // CheckpointStateOutputStreamProxy 会把 provider 跨线程（async checkpoint thread）
-    // 持续使用，必须升级为 global ref；CloseSavepointOutputStream 中 DeleteGlobalRef 释放。
+    // 持续使用，必须升级为 global ref；仅由终态 Close/Abort 操作 DeleteGlobalRef 释放。
     jobject globalProvider = env->NewGlobalRef(localProvider);
     env->DeleteLocalRef(localProvider);
     return globalProvider;
@@ -1379,6 +1379,48 @@ std::shared_ptr<SnapshotResult<StreamStateHandle>> OmniTaskBridgeImpl2::CloseSav
     auto res = ConvertSnapshotResult(env, javaResult);
     env->DeleteGlobalRef(provider);
     return res;
+}
+
+void OmniTaskBridgeImpl2::AbortSavepointOutputStream(jobject provider)
+{
+    JNIEnv* env = nullptr;
+    const jint ret = g_OmniStreamJVM->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_8);
+    const jint attachRes =
+        ret == JNI_EDETACHED ? g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr) : JNI_OK;
+    if (attachRes != JNI_OK || env == nullptr) {
+        INFO_RELEASE("Error: Failed to attach C++ thread to JVM inside AbortSavepointOutputStream");
+        throw std::runtime_error("Failed to attach C++ thread to JVM inside AbortSavepointOutputStream");
+    }
+    jclass providerClass = env->GetObjectClass(provider);
+    if (providerClass == nullptr) {
+        if (env->ExceptionCheck()) {
+            env->ExceptionDescribe();
+            env->ExceptionClear();
+        }
+        env->DeleteGlobalRef(provider);
+        INFO_RELEASE("Error: Failed to get savepoint output provider class");
+        throw std::runtime_error("Failed to get savepoint output provider class");
+    }
+    jmethodID closeMethod = env->GetMethodID(providerClass, "close", "()V");
+    env->DeleteLocalRef(providerClass);
+    if (closeMethod == nullptr || env->ExceptionCheck()) {
+        env->ExceptionDescribe();
+        env->ExceptionClear();
+        env->DeleteGlobalRef(provider);
+        INFO_RELEASE("Error: Failed to get savepoint output provider close method");
+        throw std::runtime_error("Failed to get savepoint output provider close method");
+    }
+    env->CallVoidMethod(provider, closeMethod);
+    const bool closeFailed = env->ExceptionCheck();
+    if (closeFailed) {
+        env->ExceptionDescribe();
+        env->ExceptionClear();
+    }
+    env->DeleteGlobalRef(provider);
+    if (closeFailed) {
+        INFO_RELEASE("Error: Failed to close unfinalized savepoint output stream");
+        throw std::runtime_error("Failed to close unfinalized savepoint output stream");
+    }
 }
 
 void OmniTaskBridgeImpl2::WriteSavepointOutputStream(jobject provider, const int8_t* chunk, size_t offset, size_t len)
@@ -1694,7 +1736,8 @@ long OmniTaskBridgeImpl2::GetSavepointOutputStreamPos(jobject provider)
     if (env->ExceptionCheck()) {
         env->ExceptionDescribe();
         env->ExceptionClear();
-        env->DeleteGlobalRef(provider);
+        // Position lookup is non-terminal: the proxy retains provider so the
+        // writer can abort it exactly once during error cleanup.
         INFO_RELEASE("Error: Failed to call GetSavepointOutputStreamPos");
         throw std::runtime_error("Failed to call GetSavepointOutputStreamPos");
     }

@@ -30,7 +30,7 @@ void OmniTwoInputStreamTask::init()
         }
     }
     auto getPartitionerFunction = std::function<StreamPartitioner<IOReadableWritable>*(int)>(
-        [&inEdges, this](const int i) { return this->createPartitionerFromDesc(inEdges[i]); });
+        [&inEdges, this](const int i) { return this->createPartitionerFromDesc(inEdges[i], true); });
     auto description = nlohmann::json::parse(pod.getOperatorDescription().getDescription());
     createInputProcessor(inputList1, inputList2, description, getPartitionerFunction);
 }

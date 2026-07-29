@@ -1,16 +1,18 @@
 #pragma once
+#include "data/util/VectorBatchUtil.h"
+
 #include <set>
 #include <vector>
 
 /**
  * In-memory ordered TopN buffer.
- * Stores comboIds (long), sorted by Comparator.
+ * Stores comboIds as int64_t, matching the state backend representation.
  * Uses multiset so equal-sort rows can coexist.
  */
 template <typename Comparator>
 class SetTopNBuffer {
 public:
-    using Buffer = std::multiset<long, Comparator>;
+    using Buffer = std::multiset<int64_t, Comparator>;
 
     explicit SetTopNBuffer(Comparator cmp) : buffer_(cmp), bufferId(-99)
     {
@@ -25,7 +27,7 @@ public:
         return buffer_.end();
     }
 
-    inline bool AddElement(long id)
+    inline bool AddElement(int64_t id)
     {
         buffer_.insert(id);
         return true;
@@ -45,22 +47,22 @@ public:
         return (int)buffer_.size();
     }
 
-    inline long GetSmallestElement() const
+    inline int64_t GetSmallestElement() const
     {
         auto it = buffer_.end();
         --it;
         return *it;
     }
 
-    inline void LoadFromPlainVector(const std::vector<long>& plain)
+    inline void LoadFromPlainVector(const std::vector<int64_t>& plain)
     {
         buffer_.clear();
         buffer_.insert(plain.begin(), plain.end());
     }
 
-    inline std::vector<long>* ToPlainVector() const
+    inline std::vector<int64_t>* ToPlainVector() const
     {
-        return new std::vector<long>(buffer_.begin(), buffer_.end());
+        return new std::vector<int64_t>(buffer_.begin(), buffer_.end());
     }
     inline void SetBufferId(int id)
     {

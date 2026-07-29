@@ -34,14 +34,14 @@ RocksDBSnapshotStrategyBase::RocksDBSnapshotStrategyBase(
     UUID backendUID)
     : description_(std::move(description)),
       db_(db),
-      rocksDBResourceGuard_(rocksDBResourceGuard),
+      rocksDBResourceGuard_(std::move(rocksDBResourceGuard)),
       kvStateInformation_(kvStateInformation),
       keyGroupRange_(std::move(keyGroupRange)),
       keyGroupPrefixBytes_(keyGroupPrefixBytes),
       localRecoveryConfig_(std::move(localRecoveryConfig)),
       instanceBasePath_(std::move(instanceBasePath)),
       backendUID_(std::move(backendUID)),
-      keySerializer_(keySerializer)
+      keySerializer_(std::move(keySerializer))
 {
     // 替换UUID中的破折号
     std::string uid = this->backendUID_.ToString();
@@ -208,23 +208,23 @@ RocksDBSnapshotStrategyBase::RocksDBSnapshotOperation::RocksDBSnapshotOperation(
       checkpointStreamFactory(checkpointStreamFactory),
       stateMetaInfoSnapshots(std::move(stateMetaInfoSnapshots)),
       localBackupDirectory(std::move(localBackupDirectory)),
-      keySerializer(keySerializer)
+      keySerializer(std::move(keySerializer))
 {
     tmpResourcesRegistry = std::make_shared<CloseableRegistry>();
 }
 
 std::shared_ptr<KeyedStateHandle> RocksDBSnapshotStrategyBase::RocksDBSnapshotOperation::getLocalSnapshot(
-    RocksDBSnapshotStrategyBase* parent_,
+    const std::shared_ptr<RocksDBSnapshotStrategyBase>& strategy,
     std::shared_ptr<StreamStateHandle> localStreamStateHandle,
     std::vector<HandleAndLocalPath> sharedState)
 {
     auto directoryStateHandle = localBackupDirectory->completeSnapshotAndGetHandle();
     if (directoryStateHandle && localStreamStateHandle) {
         auto stateHandle = std::make_shared<IncrementalLocalKeyedStateHandle>(
-            parent_->backendUID_,
+            strategy->backendUID_,
             checkpointId,
             directoryStateHandle.get(),
-            parent_->keyGroupRange_,
+            strategy->keyGroupRange_,
             localStreamStateHandle,
             sharedState);
         return std::static_pointer_cast<KeyedStateHandle>(std::make_shared<BridgeKeyedStateHandle>(stateHandle));

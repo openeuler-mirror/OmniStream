@@ -81,10 +81,13 @@ public:
     static RocksdbListState<K, N, UV>* update(
         StateDescriptor* stateDesc, RocksdbStateTable<K, N, UV>* stateTable, RocksdbListState<K, N, UV>* existingState);
 
-    void addVectorBatch(omnistream::VectorBatch* vectorBatch) override;
-    omnistream::VectorBatch* getVectorBatch(int batchId) override;
-    long getVectorBatchesSize() override;
-    void clearVectors(int64_t currentTimestamp) override;
+    uint32_t getNextSequenceNumber(int32_t keyGroup) override;
+    void addVectorBatch(int32_t keyGroup, omnistream::VectorBatch* vectorBatch) override;
+    void addVectorBatches(const std::unordered_map<int32_t, omnistream::VectorBatch*>& vectorBatchByKeyGroup) override;
+    omnistream::VectorBatch* getVectorBatch(int32_t keyGroup, uint32_t sequenceNumber) override;
+    std::vector<omnistream::VectorBatch*> getVectorBatches(int32_t keyGroup) override;
+    void clearVectorBatches(int64_t currentTimestamp) override;
+    void clearVectorBatches(int32_t keyGroup, std::vector<uint32_t>& sequenceNumbersToDelete) override;
 
 private:
     RocksdbStateTable<K, N, UV>* stateTable;
@@ -154,27 +157,46 @@ RocksdbListState<K, N, UV>* RocksdbListState<K, N, UV>::update(
 }
 
 template <typename K, typename N, typename UV>
-void RocksdbListState<K, N, UV>::addVectorBatch(omnistream::VectorBatch* vectorBatch)
+uint32_t RocksdbListState<K, N, UV>::getNextSequenceNumber(int32_t keyGroup)
 {
-    stateTable->addVectorBatch(vectorBatch);
+    return stateTable->getNextSequenceNumber(keyGroup);
 }
 
 template <typename K, typename N, typename UV>
-omnistream::VectorBatch* RocksdbListState<K, N, UV>::getVectorBatch(int batchId)
+void RocksdbListState<K, N, UV>::addVectorBatch(int32_t keyGroup, omnistream::VectorBatch* vectorBatch)
 {
-    return stateTable->getVectorBatch(batchId);
+    stateTable->addVectorBatch(keyGroup, vectorBatch);
 }
 
 template <typename K, typename N, typename UV>
-long RocksdbListState<K, N, UV>::getVectorBatchesSize()
+void RocksdbListState<K, N, UV>::addVectorBatches(
+    const std::unordered_map<int32_t, omnistream::VectorBatch*>& vectorBatchByKeyGroup)
 {
-    return stateTable->getVectorBatchesSize();
+    stateTable->addVectorBatches(vectorBatchByKeyGroup);
 }
 
 template <typename K, typename N, typename UV>
-void RocksdbListState<K, N, UV>::clearVectors(int64_t currentTimestamp)
+omnistream::VectorBatch* RocksdbListState<K, N, UV>::getVectorBatch(int32_t keyGroup, uint32_t sequenceNumber)
 {
-    return stateTable->clearVectors(currentTimestamp);
+    return stateTable->getVectorBatch(keyGroup, sequenceNumber);
+}
+
+template <typename K, typename N, typename UV>
+std::vector<omnistream::VectorBatch*> RocksdbListState<K, N, UV>::getVectorBatches(int32_t keyGroup)
+{
+    return stateTable->getVectorBatches(keyGroup);
+}
+
+template <typename K, typename N, typename UV>
+void RocksdbListState<K, N, UV>::clearVectorBatches(int64_t currentTimestamp)
+{
+    return stateTable->clearVectorBatches(currentTimestamp);
+}
+
+template <typename K, typename N, typename UV>
+void RocksdbListState<K, N, UV>::clearVectorBatches(int32_t keyGroup, std::vector<uint32_t>& sequenceNumbersToDelete)
+{
+    return stateTable->clearVectorBatches(keyGroup, sequenceNumbersToDelete);
 }
 
 #endif // OMNISTREAM_ROCKSDBLISTSTATE_H

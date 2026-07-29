@@ -46,4 +46,13 @@ public:
             keySerializationDateDataOutputView.writeByte(extractByteAtPosition(keyGroup, i));
         }
     }
+
+    static int32_t readKeyGroup(const uint8_t* keyData, int32_t keyGroupPrefixBytes)
+    {
+        int32_t keyGroup = 0;
+        for (int32_t i = 0; i < keyGroupPrefixBytes; ++i) {
+            keyGroup = (keyGroup << BITS_PER_BYTE) | keyData[i];
+        }
+        return keyGroup;
+    }
 };

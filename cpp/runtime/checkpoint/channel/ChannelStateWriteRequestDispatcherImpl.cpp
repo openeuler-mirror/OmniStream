@@ -45,7 +45,7 @@ void ChannelStateWriteRequestDispatcherImpl::fail(const std::exception_ptr& caus
         writer = it->second;
     }
     if (writer) {
-        // writer->Fail(cause);
+        writer->Fail(cause);
         writer.reset();
     }
 }
@@ -182,7 +182,7 @@ void ChannelStateWriteRequestDispatcherImpl::failAndClearWriter(const std::excep
         writer = it->second;
     }
     if (writer) {
-        // writer->Fail(e);
+        writer->Fail(e);
         writer->Reset();
     } else {
         registeredSubtasks.clear();
@@ -198,7 +198,7 @@ void ChannelStateWriteRequestDispatcherImpl::failAndClearWriter(
         writer = it->second;
     }
     if (writer) {
-        // writer->Fail(jvid, idx, e);
+        writer->Fail(jvid, idx, e);
         writer->Reset();
     }
 }

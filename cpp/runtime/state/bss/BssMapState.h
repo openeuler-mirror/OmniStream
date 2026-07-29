@@ -138,29 +138,44 @@ public:
         return stateTable->entries(currentNamespace);
     };
 
-    void addVectorBatch(omnistream::VectorBatch* vectorBatch) override
+    void addVectorBatch(int32_t keyGroup, omnistream::VectorBatch* vectorBatch) override
     {
-        stateTable->addVectorBatch(vectorBatch);
+        stateTable->addVectorBatch(keyGroup, vectorBatch);
     };
 
-    omnistream::VectorBatch* getVectorBatch(int batchId) override
+    void addVectorBatches(const std::unordered_map<int32_t, omnistream::VectorBatch*>& vectorBatchByKeyGroup) override
     {
-        return stateTable->getVectorBatch(batchId);
+        stateTable->addVectorBatches(vectorBatchByKeyGroup);
     };
 
-    const std::vector<omnistream::VectorBatch*>& getVectorBatches()
+    omnistream::VectorBatch* getVectorBatch(int32_t keyGroup, uint32_t sequenceNumber) override
     {
-        return this->vectorBatches;
+        return stateTable->getVectorBatch(keyGroup, sequenceNumber);
     };
 
-    long getVectorBatchesSize() override
+    std::vector<omnistream::VectorBatch*> getVectorBatches(int32_t keyGroup) override
     {
-        return stateTable->GetVectorBatchesSize();
+        return stateTable->getVectorBatches(keyGroup);
     };
 
-    void CreateTable(ock::bss::BoostStateDBPtr& _dbPtr, const std::string& tableName)
+    uint32_t getNextSequenceNumber(int32_t keyGroup) override
     {
-        stateTable->createTable(_dbPtr, tableName);
+        return stateTable->getNextSequenceNumber(keyGroup);
+    };
+
+    void clearVectorBatches(int64_t currentTimestamp) override
+    {
+        stateTable->clearVectorBatches(currentTimestamp);
+    }
+
+    void clearVectorBatches(int32_t keyGroup, std::vector<uint32_t>& sequenceNumbersToDelete) override
+    {
+        stateTable->clearVectorBatches(keyGroup, sequenceNumbersToDelete);
+    }
+
+    void CreateTable(ock::bss::BoostStateDBPtr& _dbPtr)
+    {
+        stateTable->createTable(_dbPtr);
     };
 
 private:

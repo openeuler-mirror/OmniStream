@@ -66,10 +66,13 @@ public:
     {
         backendUidStr_ = backendUID_.ToString();
         backendUidStr_.erase(std::remove(backendUidStr_.begin(), backendUidStr_.end(), '-'), backendUidStr_.end());
-        instanceBasePath_ =
-            (std::filesystem::temp_directory_path() / ("omnistream-bss-" + backendUidStr_)).string();
+        instanceBasePath_ = (std::filesystem::temp_directory_path() / ("omnistream-bss-" + backendUidStr_)).string();
         // DB 惰性打开：链上无状态算子（Source/Calc/ConstraintEnforcer 等）也会创建 keyed backend，
         // 若在构造时就 Open，会造成大量空 DB 各占 fresh table 内存段并参与 checkpoint
+    }
+    omnistream::StateType getStateType() const noexcept override
+    {
+        return omnistream::StateType::BSS;
     }
 
     uintptr_t createOrUpdateInternalState(TypeSerializer* namespaceSerializer, StateDescriptor* stateDesc) override;
@@ -229,9 +232,8 @@ public:
         // 让下一次 snapshot 基于恢复后的状态重建策略
         checkpointStrategy_.reset();
         INFO_RELEASE(
-            "[BSS-CP-restore] restored from checkpoint " << first->GetCheckpointId()
-                                                         << ", handles=" << stateHandles.size()
-                                                         << ", rescaling=" << isRescaling);
+            "[BSS-CP-restore] restored from checkpoint "
+            << first->GetCheckpointId() << ", handles=" << stateHandles.size() << ", rescaling=" << isRescaling);
     }
 
     ock::bss::BoostStateDBPtr GetDb()
@@ -264,7 +266,8 @@ private:
         dbPtr_ = ock::bss::BoostStateDBFactory::Create();
         ock::bss::ConfigRef config = std::make_shared<ock::bss::Config>();
         config->Init(
-            static_cast<uint32_t>(startGroup_), static_cast<uint32_t>(endGroup_),
+            static_cast<uint32_t>(startGroup_),
+            static_cast<uint32_t>(endGroup_),
             static_cast<uint32_t>(maxParallelism_));
         config->mMemorySegmentSize = ock::bss::IO_SIZE_64M;
         config->SetTaskSlotFlag(ProcessLevelTaskSlotFlag());
@@ -282,8 +285,8 @@ private:
             THROW_LOGIC_EXCEPTION("BssKeyedStateBackend failed to open BoostStateDB");
         }
         INFO_RELEASE(
-            "[BSS] BoostStateDB opened, uid=" << backendUidStr_ << ", keyGroups=[" << startGroup_ << ","
-                                              << endGroup_ << "], memoryBudgetMB=" << (memoryBudgetBytes >> 20));
+            "[BSS] BoostStateDB opened, uid=" << backendUidStr_ << ", keyGroups=[" << startGroup_ << "," << endGroup_
+                                              << "], memoryBudgetMB=" << (memoryBudgetBytes >> 20));
     }
 
     static uint32_t ProcessLevelTaskSlotFlag()

@@ -40,6 +40,7 @@ public:
     MOCK_METHOD(std::vector<StateMetaInfoSnapshot>, readOperatorMetaData, (const std::string&), (override));
     MOCK_METHOD(jobject, AcquireSavepointOutputStream, (long, CheckpointOptions*), (override));
     MOCK_METHOD(std::shared_ptr<SnapshotResult<StreamStateHandle>>, CloseSavepointOutputStream, (jobject), (override));
+    MOCK_METHOD(void, AbortSavepointOutputStream, (jobject), (override));
     MOCK_METHOD(void, WriteSavepointOutputStream, (jobject, const int8_t*, size_t, size_t), (override));
     MOCK_METHOD(jobject, CreateSavepointOutputDirectBuffer, (void*, size_t), (override));
     MOCK_METHOD(void, ReleaseSavepointOutputDirectBuffer, (jobject), (override));

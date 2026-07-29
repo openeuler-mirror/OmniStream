@@ -10,8 +10,11 @@
  */
 
 #include "RecoveredChannelStateHandler.h"
+#include "runtime/buffer/MemoryBufferConsumer.h"
+#include "runtime/buffer/OriginalNetworkBufferRecycler.h"
 #include "event/SubtaskConnectionDescriptor.h"
 #include "io/network/api/serialization/EventSerializer.h"
+#include "core/include/omni_const.h"
 
 namespace omnistream {
 
@@ -48,7 +51,6 @@ void ResultSubpartitionRecoveredStateHandler::recover(
     BufferBuilder* bufferBuilder = bufferWithContext.context_;
     auto bufferConsumer = bufferBuilder->createBufferConsumerFromBeginning();
     bufferBuilder->finish();
-
     if (!bufferConsumer->isDataAvailable()) {
         return;
     }
@@ -57,15 +59,41 @@ void ResultSubpartitionRecoveredStateHandler::recover(
     if (channels.empty()) {
         throw std::runtime_error("No mapped channels found in recover()");
     }
-
+    auto buffer = bufferConsumer->buildForPeek();
+    int bufferSize = buffer->GetSize();
+    if (bufferSize > IO_SIZE_512M) {
+        INFO_RELEASE("Error: invalid buffer size:" << bufferSize);
+        return;
+    }
     try {
+        int cnt = 0;
         for (const auto& item : channels) {
             auto channelSelector =
                 std::make_shared<SubtaskConnectionDescriptor>(subpartitionInfo.getSubPartitionIdx(), oldSubtaskIndex);
             INFO_RELEASE("send recover buffer :" << item->getSubpartitionInfo().toString());
             item->addRecovered(EventSerializer::ToBufferConsumer(channelSelector, false));
+            if (cnt > 0) {
+                MemorySegment* memorySegment = reinterpret_cast<NetworkBuffer*>(buffer)->getMemorySegment();
+                uint8_t* newBufferAddress = (uint8_t*)malloc(bufferSize);
+                if (newBufferAddress == nullptr) {
+                    INFO_RELEASE("Error: malloc failed.");
+                    throw std::invalid_argument("malloc failed");
+                }
+                MemorySegment* newMemorySegment = new MemorySegment(newBufferAddress, bufferSize);
+                newMemorySegment->put(0, reinterpret_cast<uint8_t*>(memorySegment->getData()), 0, bufferSize);
+                ::datastream::NetworkBuffer* newNetworkBuffer = new ::datastream::NetworkBuffer(
+                    newMemorySegment,
+                    bufferSize,
+                    0,
+                    std::make_shared<OriginalNetworkBufferRecycler>(),
+                    ObjectBufferDataType::DATA_BUFFER,
+                    true);
+                bufferConsumer = std::make_shared<datastream::MemoryBufferConsumer>(newNetworkBuffer, bufferSize);
+            }
             item->addRecovered(bufferConsumer);
+            cnt++;
         }
+        buffer->RecycleBuffer();
     } catch (const std::exception& e) {
         INFO_RELEASE("ResultSubpartitionRecoveredStateHandler::recover exception:" << e.what());
     }
@@ -82,7 +110,8 @@ void ResultSubpartitionRecoveredStateHandler::close()
             checkpointedWriter->finishReadRecoveredState(notifyAndBlockOnCompletion_);
         }
     }
-    LOG("Close ResultSubpartitionRecoveredStateHandler, finishReadRecoveredState writers size:" << writers_.size());
+    INFO_RELEASE(
+        "Close ResultSubpartitionRecoveredStateHandler, finishReadRecoveredState writers size:" << writers_.size());
 }
 
 std::shared_ptr<CheckpointedResultSubpartition> ResultSubpartitionRecoveredStateHandler::getSubpartition(
@@ -213,9 +242,10 @@ void InputChannelRecoveredStateHandler::recover(
 void InputChannelRecoveredStateHandler::close()
 {
     for (const auto& inputGate : inputGates) {
-        inputGate->FinishReadRecoveredState();
+        inputGate->FinishInnerRecoveredState();
     }
-    LOG("Close InputChannelRecoveredStateHandler, finishReadRecoveredState inputGate size:" << inputGates.size());
+    INFO_RELEASE(
+        "Close InputChannelRecoveredStateHandler, FinishInnerRecoveredState inputGate size:" << inputGates.size());
 }
 
 std::shared_ptr<RecoveredInputChannel> InputChannelRecoveredStateHandler::getChannel(

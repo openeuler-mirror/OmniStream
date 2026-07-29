@@ -31,7 +31,7 @@ public:
 
 class CheckpointStateOutputStream : public FSDataOutputStream {
 public:
-    virtual std::shared_ptr<StreamStateHandle> CloseAndGetHandle() = 0;
+    virtual std::shared_ptr<StreamStateHandle> CloseAndGetHandle(char* dataStream) = 0;
     void Close() override = 0;
 };
 
