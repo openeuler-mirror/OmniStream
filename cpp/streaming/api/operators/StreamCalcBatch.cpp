@@ -128,18 +128,33 @@ void StreamCalcBatch::open()
                 ThrowUnsupportedCalcExpr(description_["condition"]);
             }
         }
-        // todo: ofConfig is empty now. Is it needed?
-        auto ofConfig = new omniruntime::op::OverflowConfig();
+        std::unordered_map<std::string, std::string> configMap;
+        configMap[omniruntime::config::QueryConfig::KPreferVectorizationExpression] = "true";
+        configMap[omniruntime::config::QueryConfig::KIsOverFlowASNull] = "false";
+        if (description_.contains("sessionTimezone") && !description_["sessionTimezone"].is_null()) {
+            auto tz = description_["sessionTimezone"].get<std::string>();
+            if (!tz.empty()) {
+                configMap[omniruntime::config::QueryConfig::kSessionTimezone] = tz;
+            }
+        }
+        omniruntime::config::QueryConfig queryConfig = [&]() {
+            try {
+                return omniruntime::config::QueryConfig(configMap);
+            } catch (const std::exception& e) {
+                LOG("Failed to create QueryConfig with session timezone, retrying without: "
+                    + std::string(e.what()));
+                configMap.erase(omniruntime::config::QueryConfig::kSessionTimezone);
+                return omniruntime::config::QueryConfig(configMap);
+            }
+        }();
         // This calls codegen and generates the functions
-        // preferVectorization=true: use OmniOperator's vectorized expression framework
-        bool preferVectorization = true;
         if (hasFilter) {
             exprEvaluator = new omniruntime::codegen::ExpressionEvaluator
-                    (filterCondition, projExprs, inputTypes_, ofConfig, preferVectorization);
+                    (filterCondition, projExprs, inputTypes_, queryConfig);
             exprEvaluator->FilterFuncGeneration();
         } else {
             exprEvaluator = new omniruntime::codegen::ExpressionEvaluator
-                    (projExprs, inputTypes_, ofConfig, preferVectorization);
+                    (projExprs, inputTypes_, queryConfig);
             exprEvaluator->ProjectFuncGeneration();
         }
     }
