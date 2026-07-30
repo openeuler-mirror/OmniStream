@@ -34,7 +34,16 @@ RdKafka::Producer* FlinkKafkaInternalProducer::getKafkaProducer()
 
 void FlinkKafkaInternalProducer::Flush()
 {
-    producer_->flush(timeout_);
+    const RdKafka::ErrorCode errorCode = producer_->flush(flushTimeout_);
+    if (errorCode != RdKafka::ERR_NO_ERROR) {
+        const int remainingMessages = producer_->outq_len();
+        const std::string errorMessage =
+            "Error: FlinkKafkaInternalProducer::Flush -> flush Kafka producer failed timeoutMs=" +
+            std::to_string(flushTimeout_) + " remainingMessages=" + std::to_string(remainingMessages) +
+            " error=" + RdKafka::err2str(errorCode);
+        INFO_RELEASE(errorMessage);
+        throw std::runtime_error("FAILED to flush Kafka producer");
+    }
     if (inTransaction_) {
         FlushNewPartitions();
     }
