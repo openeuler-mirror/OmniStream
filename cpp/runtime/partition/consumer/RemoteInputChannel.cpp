@@ -32,9 +32,9 @@ VectorBatchBuffer* CopyVectorBatchBufferForCheckpoint(VectorBatchBuffer* source)
 
     int offset = source->GetOffset();
     int bufferLength = source->GetSize();
-    auto objectSegment = std::make_shared<ObjectSegment>(bufferLength);
+    ObjectSegment* objectSegment = new ObjectSegment(bufferLength);
     objectSegment->put(0, oldObjectSegment, offset, bufferLength);
-    auto* copiedBuffer = new VectorBatchBuffer(objectSegment);
+    auto* copiedBuffer = new VectorBatchBuffer(objectSegment, std::make_shared<DeepCopiedObjectBufferRecycler>());
     copiedBuffer->SetSize(bufferLength);
     return copiedBuffer;
 }
@@ -89,21 +89,23 @@ void RemoteInputChannel::notifyRemoteDataAvailableForVectorBatch(
         // do data deserialization
         std::shared_ptr<ObjectSegment> objectSegment = this->DoDataDeserializationResult(buffer, bufferLength);
         auto vectorBatchBuffer = new VectorBatchBuffer(objectSegment);
+        if (isNeedExpansion && (sequenceNumber > lastSequenceNumber)) {
+            isNeedExpansion = false;
+        }
         if (vectorBatchBuffer != nullptr) {
             vectorBatchBuffer->SetSize(objectSegment->getSize());
             std::lock_guard<std::recursive_mutex> lock(queueMutex);
             this->dataQueue.push(vectorBatchBuffer);
             LOG("remote got an buffer  " << vectorBatchBuffer->ToDebugString(true));
+            if (isNeedPersistence_ || isNeedExpansion) {
+                auto* copy = CopyVectorBatchBufferForCheckpoint(vectorBatchBuffer);
+                if (copy != nullptr) {
+                    inflightBuffers_.push_back(copy);
+                }
+            }
         }
         auto bufferLength = vectorBatchBuffer->GetSize();
         insize += bufferLength;
-        if (isNeedExpansion && (sequenceNumber > lastSequenceNumber)) {
-            isNeedExpansion = false;
-        }
-        if (isNeedPersistence_ || isNeedExpansion) {
-            auto newVectorBatchBuffer = CopyVectorBatchBufferForCheckpoint(vectorBatchBuffer);
-            inflightBuffers_.push_back(newVectorBatchBuffer);
-        }
         if (!isNeedExpansion) {
             lastSequenceNumber = sequenceNumber;
         }

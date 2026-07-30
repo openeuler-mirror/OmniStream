@@ -70,6 +70,11 @@ public:
             if (prev == 1) {
                 recycler->recycle(this->GetObjectSegment());
                 isRecycled_.store(true);
+                // 后续需要结合 在writer->WriteInput后在异常捕获流程的buffers中移除该buffer 的逻辑
+                // // only for deepCopied
+                // if (std::dynamic_pointer_cast<DeepCopiedObjectBufferRecycler>(recycler)) {
+                //     delete this;
+                // }
             }
         }
     }
