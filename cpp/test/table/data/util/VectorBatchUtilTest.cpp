@@ -68,7 +68,7 @@ TEST(VectorBatchUtilTest, CopyDictionaryStringVectorAndFlatten)
         dictionaryValues->GetSize(),
         dictionaryValues->GetOffset());
     auto* input = new Vector<DictionaryContainer<std::string_view>>(
-        rowCount, dictionary, new NullsBuffer(rowCount, nullsBuffer), false, omniruntime::type::OMNI_CHAR);
+        rowCount, dictionary, new NullsBuffer(rowCount, nullsBuffer), false, omniruntime::type::OMNI_VARCHAR);
     input->SetNull(2);
     omnistream::VectorBatch vectorBatch(rowCount);
     vectorBatch.Append(input);
@@ -80,7 +80,7 @@ TEST(VectorBatchUtilTest, CopyDictionaryStringVectorAndFlatten)
     ASSERT_NE(result, nullptr);
     EXPECT_EQ(result->GetSize(), static_cast<int32_t>(positions.size()));
     EXPECT_EQ(result->GetEncoding(), omniruntime::vec::OMNI_FLAT);
-    EXPECT_EQ(result->GetTypeId(), omniruntime::type::OMNI_CHAR);
+    EXPECT_EQ(result->GetTypeId(), omniruntime::type::OMNI_VARCHAR);
     EXPECT_EQ(result->GetValue(0), "one");
     EXPECT_TRUE(result->IsNull(1));
     EXPECT_EQ(result->GetValue(2), "two");
