@@ -114,7 +114,7 @@ public:
         }
         EnsureCheckpointStrategy();
         auto runner = std::make_unique<SnapshotStrategyRunner<KeyedStateHandle, SnapshotResources>>(
-            checkpointStrategy_->getDescription(), checkpointStrategy_.get(), SnapshotExecutionType::ASYNCHRONOUS);
+            checkpointStrategy_->getDescription(), checkpointStrategy_, SnapshotExecutionType::ASYNCHRONOUS);
         return runner->snapshot(
             checkpointId, timestamp, streamFactory, checkpointOptions, omniTaskBridge_, this->keySerializer->toJson());
     }
@@ -316,7 +316,7 @@ private:
         if (checkpointStrategy_ != nullptr) {
             return;
         }
-        checkpointStrategy_ = std::make_unique<BssIncrementalSnapshotStrategy>(
+        checkpointStrategy_ = std::make_shared<BssIncrementalSnapshotStrategy>(
             dbPtr_,
             &kvStateInformation_,
             *this->context->getKeyGroupRange(),
@@ -337,7 +337,9 @@ private:
     std::string instanceBasePath_;
     std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge_;
     std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig_;
-    std::unique_ptr<BssIncrementalSnapshotStrategy> checkpointStrategy_;
+    // SnapshotStrategyRunner 接收 shared_ptr<SnapshotStrategy<...>>（与 RocksDB 侧一致），
+    // 故此处用 shared_ptr 持有，可隐式转换为基类 shared_ptr 传入
+    std::shared_ptr<BssIncrementalSnapshotStrategy> checkpointStrategy_;
     std::map<long, std::vector<HandleAndLocalPath>> restoredFiles_;
     long lastCompletedCheckpointId_ = -1;
     // pointer to StateTable<K, N, V>

@@ -232,8 +232,11 @@ public:
             auto batchSize =
                 omnistream::VectorBatchSerializationUtils::calculateVectorBatchSerializableSize(vectorBatch);
             std::vector<uint8_t> bufferStorage(batchSize);
-            auto serializedBatchInfo = omnistream::VectorBatchSerializationUtils::serializeVectorBatch(
-                vectorBatch, batchSize, bufferStorage.data());
+            // serializeVectorBatch 的 buffer 形参是 uint8_t*&（内部当游标前移），
+            // 必须传具名左值；返回的 SerializedBatchInfo.buffer 仍指向起始位置
+            auto* buffer = bufferStorage.data();
+            auto serializedBatchInfo =
+                omnistream::VectorBatchSerializationUtils::serializeVectorBatch(vectorBatch, batchSize, buffer);
             ock::bss::BinaryData priVal(serializedBatchInfo.buffer, serializedBatchInfo.size);
             if (dbTable->Put(keyHashCode, priKey, priVal) != ock::bss::BSS_OK) {
                 THROW_RUNTIME_ERROR("Failed to add VectorBatch to BSS for keyGroup " << keyGroup);
