@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
  *          http://license.coscl.org.cn/MulanPSL2
@@ -76,12 +76,25 @@ public:
     }
 
 private:
+    static inline void copyEncoded(uint8_t* destination, const void* source, size_t size);
     uint8_t* data_ = nullptr;
     int position_ = 0;
     int capacity_ = 0;
     OutputBufferStatus* outputBufferStatus = nullptr;
     ByteBuffer reusedWrapper;
 };
+
+inline void DataOutputSerializer::copyEncoded(uint8_t* destination, const void* source, size_t size)
+{
+    const errno_t errorCode = memcpy_s(destination, size, source, size);
+    if (errorCode != EOK) {
+        const std::string errorMessage =
+            "Error: DataOutputSerializer::copyEncoded -> memcpy_s failed size=" + std::to_string(size) +
+            " errorCode=" + std::to_string(errorCode);
+        INFO_RELEASE(errorMessage << " destination=" << static_cast<const void*>(destination) << " source=" << source);
+        throw std::runtime_error("memcpy_s failed");
+    }
+}
 
 inline DataOutputSerializer::DataOutputSerializer(int size)
 {
@@ -133,7 +146,8 @@ inline void DataOutputSerializer::setPositionUnsafe(int position)
 // flink buffer should be big endian. assume native byte order is little endian
 inline void DataOutputSerializer::writeIntUnsafe(uint32_t value, int pos)
 {
-    *reinterpret_cast<uint32_t*>(data_ + pos) = __builtin_bswap32(value);
+    const uint32_t encoded = __builtin_bswap32(value);
+    copyEncoded(data_ + pos, &encoded, sizeof(encoded));
 }
 
 inline int DataOutputSerializer::length() const
@@ -158,7 +172,8 @@ inline void DataOutputSerializer::writeShort(uint16_t value)
     if (data_ == nullptr) {
         throw std::runtime_error("Data buffer is null");
     }
-    *reinterpret_cast<uint16_t*>(data_ + position_) = __builtin_bswap16(value);
+    const uint16_t encoded = __builtin_bswap16(value);
+    copyEncoded(data_ + position_, &encoded, sizeof(encoded));
     position_ += 2;
 }
 
@@ -173,7 +188,8 @@ inline void DataOutputSerializer::writeInt(uint32_t value)
     if (data_ == nullptr) {
         throw std::runtime_error("Data buffer is null");
     }
-    *reinterpret_cast<uint32_t*>(data_ + position_) = __builtin_bswap32(value);
+    const uint32_t encoded = __builtin_bswap32(value);
+    copyEncoded(data_ + position_, &encoded, sizeof(encoded));
     position_ += 4;
 }
 
@@ -183,7 +199,8 @@ inline void DataOutputSerializer::writeLong(int64_t value)
     if (data_ == nullptr) {
         throw std::runtime_error("Data buffer is null");
     }
-    *reinterpret_cast<int64_t*>(data_ + position_) = __builtin_bswap64(value);
+    const uint64_t encoded = __builtin_bswap64(static_cast<uint64_t>(value));
+    copyEncoded(data_ + position_, &encoded, sizeof(encoded));
     position_ += 8;
 }
 
@@ -198,7 +215,8 @@ inline void DataOutputSerializer::writeRecordTimestamp(uint64_t value)
     if (data_ == nullptr) {
         throw std::runtime_error("Data buffer is null");
     }
-    *reinterpret_cast<uint64_t*>(data_ + position_) = __builtin_bswap64(value);
+    const uint64_t encoded = __builtin_bswap64(value);
+    copyEncoded(data_ + position_, &encoded, sizeof(encoded));
     position_ += 8;
 }
 
