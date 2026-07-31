@@ -317,6 +317,7 @@ HeapKeyedStateBackend<K>* HeapKeyedStateBackendBuilder<K>::build()
                 //  flink cp/native sp
                 auto firstHandle = *restoreStateHandles.begin();
                 if (!std::dynamic_pointer_cast<KeyGroupsSavepointStateHandle>(firstHandle)) {
+                    INFO_RELEASE("Error:Heap compatible restore does not support incremental/native state handles");
                     throw std::runtime_error(
                         "Heap compatible restore does not support incremental/native state handles");
                 }
@@ -330,6 +331,7 @@ HeapKeyedStateBackend<K>* HeapKeyedStateBackendBuilder<K>::build()
                 compatiblePreparedAdaptor->prepareForRestore(operatorDescription_);
             }
         } else if (taskType_ == 1) {
+            INFO_RELEASE("Error:Heap restore does not support current state handles");
             if (adaptorInfo_.type != FlinkSavepointAdaptorType::OmniIsCompatible && !validateRestoreStateHandles()) {
                 throw std::runtime_error("Heap restore does not support current state handles");
             }

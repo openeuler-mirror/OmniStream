@@ -237,6 +237,7 @@ private:
         } else if (taskType_ == 1) {
             // sql任务的情况下
             if (adaptorInfo_.type != FlinkSavepointAdaptorType::OmniIsCompatible && !validateRestoreStateHandles()) {
+                INFO_RELEASE("Error:RocksDB restore does not support current state handles");
                 throw std::runtime_error("RocksDB restore does not support current state handles");
             }
         }
