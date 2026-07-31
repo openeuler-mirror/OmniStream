@@ -19,7 +19,7 @@ mkdir -p $dependency_root
 export HOME=$project_root/3rdparty
 
 # Define the cpp_root and java_master_dir
-cpp_root="$project_root/cpp"
+cpp_root="$project_root/cpp/tnel"
 java_master_dir="$project_root/omni-flink-bundle"
 
 echo "Script directory: $script_dir"
