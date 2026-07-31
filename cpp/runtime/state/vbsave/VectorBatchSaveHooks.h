@@ -38,7 +38,10 @@ public:
 
     // 从主状态 value 中解析单个 comboId，供 Deduplicate、StreamingJoin 等单引用状态使用。
     virtual omnistream::ComboId parseVectorBatchReference(
-        ByteView value, const VectorBatchSaveStateContext& context, const VectorBatchSavePlan& plan) = 0;
+        ByteView value, const VectorBatchSaveStateContext& context, const VectorBatchSavePlan& plan)
+    {
+        return -1;
+    };
 
     // 将 source key 编码为 target Flink logical key，默认直接透传原 key。
     virtual std::vector<int8_t> encodeFlinkLogicalKey(
@@ -57,6 +60,7 @@ public:
         const VectorBatchSaveStateContext& context,
         const VectorBatchSavePlan& plan)
     {
+        return {};
     }
 
     // 执行单条 source entry 的完整 VB 转换流程。

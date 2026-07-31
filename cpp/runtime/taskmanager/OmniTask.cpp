@@ -303,7 +303,7 @@ void OmniTask::DoRunInvoke(long streamTaskAddress)
 {
     int count = 0;
     while (!flag.load()) {
-        INFO_RELEASE("find OmniTask still uninitialzed, tasm name : " << taskNameWithSubtask_);
+        INFO_RELEASE("find OmniTask still uninitialzed, task name : " << taskNameWithSubtask_);
         count++;
         if (count > 5) {
             break;
