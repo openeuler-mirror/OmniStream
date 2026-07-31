@@ -40,6 +40,7 @@
 #include "runtime/snapshot/RocksNativeFullSnapshotStrategy.h"
 #include "runtime/snapshot/RocksIncrementalSnapshotStrategy.h"
 #include "runtime/state/rocksdb/RocksDBStateUploader.h"
+#include "runtime/state/StateRestoreValidation.h"
 
 namespace fs = std::filesystem;
 template <typename K>
@@ -126,6 +127,12 @@ public:
         return *this;
     }
 
+    RocksDBKeyedStateBackendBuilder<K>& setTaskType(int taskType)
+    {
+        this->taskType_ = taskType;
+        return *this;
+    }
+
 private:
     const std::shared_ptr<CloseableRegistry> cancelStreamRegistry;
     static constexpr const char* DB_INSTANCE_DIR_STRING = "db";
@@ -149,6 +156,7 @@ private:
     int alternativeIdx_;
     FlinkSavepointAdaptorInfo adaptorInfo_;
     RestoreSavepointMode restoreMode_ = RestoreSavepointMode::OMNI_INTERNAL;
+    int taskType_ = 1;
     nlohmann::json operatorDescription_;
 
     static void checkAndCreateDirectory(const fs::path& directory)
@@ -175,6 +183,11 @@ private:
         } catch (const fs::filesystem_error& e) {
             throw std::runtime_error("Failed to prepare directories: " + std::string(e.what()));
         }
+    }
+
+    bool validateRestoreStateHandles()
+    {
+        return omnistream::validateRestoreStateHandles(restoreStateHandles, omniTaskBridge);
     }
 
     std::shared_ptr<RocksDBRestoreOperation> getRocksDBRestoreOperation(
@@ -221,7 +234,13 @@ private:
                     adaptorInfo_,
                     std::move(adaptor));
             }
+        } else if (taskType_ == 1) {
+            // sql任务的情况下
+            if (adaptorInfo_.type != FlinkSavepointAdaptorType::OmniIsCompatible && !validateRestoreStateHandles()) {
+                throw std::runtime_error("RocksDB restore does not support current state handles");
+            }
         }
+
         if (auto incrementalHandle = std::dynamic_pointer_cast<IncrementalKeyedStateHandle>(firstStateHandle)) {
             return std::make_shared<RocksDBIncrementalRestoreOperation<K>>(
                 operatorIdentifier,
