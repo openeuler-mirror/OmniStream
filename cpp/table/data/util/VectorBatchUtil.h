@@ -12,10 +12,12 @@
 #pragma once
 
 #include <cstdint>
+#include <limits>
 #include <numeric>
 #include <vector>
 #include "table/data/vectorbatch/VectorBatch.h"
 #include "OmniOperatorJIT/core/src/vector/unsafe_vector.h"
+#include "OmniOperatorJIT/core/src/vector/vector_helper.h"
 #include "table/data/vectorbatch/VectorBatchStorageInfo.h"
 
 namespace omnistream {
@@ -124,7 +126,7 @@ public:
             (vectorBatch->Get(vectorIndex)->GetTypeId() != omniruntime::type::OMNI_CHAR &&
              vectorBatch->Get(vectorIndex)->GetTypeId() != omniruntime::type::OMNI_VARCHAR)) {
             // The original vector is not varchar or it is varchar but flat
-            result = omniruntime::vec::VectorHelper::CopyPositionsVector(
+            result = omnistream::VectorBatchUtil::CopyPositionsVector(
                 vectorBatch->Get(vectorIndex), rowIds.data(), 0, static_cast<int32_t>(rowIds.size()));
         } else {
             // It is a varchar dictionary, copy it out
@@ -132,6 +134,96 @@ public:
                 vectorBatch->Get(vectorIndex), rowIds.data(), 0, static_cast<int32_t>(rowIds.size()));
         }
         return result;
+    }
+
+    // the main body of this function is copied from vector_helper.h in OmniOperator
+    static omniruntime::vec::BaseVector* CopyPositionsVector(
+        omniruntime::vec::BaseVector* vector, int* positions, int offset, int length)
+    {
+        if (vector->GetEncoding() == omniruntime::vec::OMNI_DICTIONARY) {
+            return omniruntime::vec::VectorHelper::CopyPositionsDictionaryVector(vector, positions, offset, length);
+        }
+        DataTypeId dataTypeId = vector->GetTypeId();
+        switch (dataTypeId) {
+            case omniruntime::type::OMNI_INT:
+            case omniruntime::type::OMNI_DATE32: {
+                return reinterpret_cast<omniruntime::vec::Vector<int32_t>*>(vector)->CopyPositions(
+                    positions, offset, length);
+            }
+            case omniruntime::type::OMNI_SHORT: {
+                return reinterpret_cast<omniruntime::vec::Vector<int16_t>*>(vector)->CopyPositions(
+                    positions, offset, length);
+            }
+            case omniruntime::type::OMNI_BYTE: {
+                return reinterpret_cast<omniruntime::vec::Vector<int8_t>*>(vector)->CopyPositions(
+                    positions, offset, length);
+            }
+            case omniruntime::type::OMNI_LONG:
+            case omniruntime::type::OMNI_TIMESTAMP:
+            case omniruntime::type::OMNI_DATE64:
+            case omniruntime::type::OMNI_DECIMAL64: {
+                return reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(vector)->CopyPositions(
+                    positions, offset, length);
+            }
+            case omniruntime::type::OMNI_DOUBLE: {
+                return reinterpret_cast<omniruntime::vec::Vector<double>*>(vector)->CopyPositions(
+                    positions, offset, length);
+            }
+            case omniruntime::type::OMNI_BOOLEAN: {
+                return reinterpret_cast<omniruntime::vec::Vector<bool>*>(vector)->CopyPositions(
+                    positions, offset, length);
+            }
+            case omniruntime::type::OMNI_VARCHAR:
+            case omniruntime::type::OMNI_CHAR: {
+                if (UNLIKELY((positions == nullptr) || (length < 0))) {
+                    std::string message("positions is null or the input length is incorrect: %d.", length);
+                    throw omniruntime::vec::OmniException("OPERATOR_RUNTIME_ERROR", message);
+                }
+                auto src = reinterpret_cast<
+                    omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(vector);
+                auto startPositions = positions + offset;
+
+                constexpr size_t maxStringContainerCapacity = static_cast<size_t>(std::numeric_limits<int>::max());
+                size_t totalBytes = 0;
+                for (int32_t i = 0; i < length; i++) {
+                    auto position = startPositions[i];
+                    if (!vector->IsNull(position)) {
+                        auto valueSize = src->GetValue(position).size();
+                        if (UNLIKELY(valueSize > maxStringContainerCapacity - totalBytes)) {
+                            throw omniruntime::vec::OmniException(
+                                "OPERATOR_RUNTIME_ERROR", "string container capacity exceeds the supported limit");
+                        }
+                        totalBytes += valueSize;
+                    }
+                }
+
+                auto dest = new omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>(
+                    length, static_cast<int>(totalBytes));
+                for (int32_t i = 0; i < length; i++) {
+                    auto position = startPositions[i];
+                    if (vector->IsNull(position)) {
+                        dest->SetNull(i);
+
+                    } else {
+                        auto value = src->GetValue(position);
+                        dest->SetValue(i, value);
+                    }
+                }
+                return dest;
+            }
+            case omniruntime::type::OMNI_DECIMAL128: {
+                return reinterpret_cast<omniruntime::vec::Vector<omniruntime::type::Decimal128>*>(vector)
+                    ->CopyPositions(positions, offset, length);
+            }
+            case omniruntime::type::OMNI_CONTAINER:
+                return reinterpret_cast<omniruntime::vec::ContainerVector*>(vector)->CopyPositions(
+                    positions, offset, length);
+            default: {
+                std::string omniExceptionInfo =
+                    "In function CopyPositionsVector, no such data type " + std::to_string(dataTypeId);
+                throw omniruntime::exception::OmniException("UNSUPPORTED_ERROR", omniExceptionInfo);
+            }
+        }
     }
 
     // To print VectorBatch, use VectorHelper::PrintVecBatch from OmniOperatorJIT/core/src/vector/vector_helper.h
