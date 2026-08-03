@@ -28,7 +28,10 @@ public:
     using KeyType = std::shared_ptr<RowData>;
 
     AbstractWindowAggProcessor(nlohmann::json description, Output* output);
-    ~AbstractWindowAggProcessor() = default;
+    ~AbstractWindowAggProcessor()
+    {
+        delete sliceAssigner;
+    };
     void open(
         AbstractKeyedStateBackend<KeyType>* state,
         const nlohmann::json& config,

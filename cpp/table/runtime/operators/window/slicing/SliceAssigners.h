@@ -95,6 +95,10 @@ public:
 class AbstractSlicedSliceAssigner : public virtual SliceAssigner {
 public:
     AbstractSlicedSliceAssigner(SliceAssigner* innerAssigner, int sliceEndIndex);
+    ~AbstractSlicedSliceAssigner() override
+    {
+        delete innerAssigner;
+    };
     int64_t assignSliceEnd(omnistream::VectorBatch* element, int rowId, ClockService* clock) override;
     int64_t getWindowStart(int64_t windowEnd) override;
     IteratorBase* expiredSlices(int64_t windowEnd) override;
@@ -110,7 +114,10 @@ private:
 
 class AbstractSliceAssigner : public virtual SliceAssigner {
 public:
-    ~AbstractSliceAssigner() override = default;
+    ~AbstractSliceAssigner() override
+    {
+        delete shiftTimeZone;
+    }
     int64_t assignSliceEnd(omnistream::VectorBatch* element, int rowId, ClockService* clock) override;
     bool isEventTime() override;
     std::string getShiftTimeZoneId() const;
@@ -225,6 +232,12 @@ public:
           innerAssigner(innerAssigner)
     {
     }
+
+    ~WindowedSliceAssigner() override
+    {
+        delete innerAssigner;
+        delete reuseExpiredList;
+    };
 
     int64_t assignSliceEnd(omnistream::VectorBatch* element, int rowId, ClockService* clock)
     {
