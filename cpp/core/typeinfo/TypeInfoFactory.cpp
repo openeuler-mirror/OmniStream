@@ -237,9 +237,14 @@ TypeInformation* TypeInfoFactory::createDataStreamTypeInfo(const json& serialize
             typeInformation = new PojoTypeInfo(clazz, pojoFields);
         }
     } else if (serializerName == TYPE_NAME_MAP_SERIALIZER) {
-        auto keyTypeInfo = createDataStreamTypeInfo(serializerInfo["keySerializer"]);
-        auto valueTypeInfo = createDataStreamTypeInfo(serializerInfo["valueSerializer"]);
-        typeInformation = new MapTypeInfo(keyTypeInfo, valueTypeInfo);
+        if (serializerInfo.contains("keySerializer") && serializerInfo.contains("valueSerializer")) {
+            auto keyTypeInfo = createDataStreamTypeInfo(serializerInfo["keySerializer"]);
+            auto valueTypeInfo = createDataStreamTypeInfo(serializerInfo["valueSerializer"]);
+            typeInformation = new MapTypeInfo(keyTypeInfo, valueTypeInfo);
+        } else {
+            ERROR_RELEASE("Error:Unsupport map serializer format.");
+            throw std::runtime_error("Unsupport map serializer format.");
+        }
     } else if (serializerName == TYPE_NAME_LIST_SERIALIZER) {
         auto elementTypeInfo = createDataStreamTypeInfo(serializerInfo["elementSerializer"]);
         typeInformation = new ListTypeInfo(elementTypeInfo);
