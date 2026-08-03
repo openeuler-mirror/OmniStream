@@ -602,7 +602,6 @@ long OmniTask::changeLocalInputChannelToOriginal(ResultPartitionIDPOD partitionI
                 omniShuffleEnv->getSingleInputGateFactory();
             shared_ptr<OmniLocalInputChannel> originalInputChannel = singleInputGateFactory->createOriginalInputChannel(
                 singleInputGate, channel->getChannelIndex(), partitionId);
-            originalInputChannel->SetForwardResumeToJava(singleInputGate->GetForwardResumeToJava());
             inputChannelMap[irp] = originalInputChannel;
             singleInputGate->changeLocalInputChannelToOriginal(channel->getChannelIndex(), originalInputChannel);
             return reinterpret_cast<long>(originalInputChannel.get());

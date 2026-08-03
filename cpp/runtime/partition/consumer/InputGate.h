@@ -62,6 +62,7 @@ public:
     virtual std::shared_ptr<CompletableFutureV2<void>> getStateConsumedFuture() = 0;
     virtual std::vector<bool> getStateConsumedFuture1() = 0;
     virtual void FinishReadRecoveredState() = 0;
+    virtual void FinishInnerRecoveredState() {};
 
 protected:
     AvailabilityHelper availabilityHelper;

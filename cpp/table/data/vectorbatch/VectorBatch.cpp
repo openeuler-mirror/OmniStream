@@ -34,7 +34,7 @@ std::string FormatDateLikeJava(int32_t daysSinceEpoch)
 {
     return omniruntime::type::util::ToIso8601(daysSinceEpoch);
 }
-}  // namespace
+} // namespace
 
 namespace omnistream {
 VectorBatch::VectorBatch(size_t rowCnt)
@@ -67,6 +67,7 @@ VectorBatch::VectorBatch(omniruntime::vec::VectorBatch* baseVecBatch, int64_t* t
     this->timestamps = timestamps;
     this->maxTimestamp = INT64_MIN;
 }
+// todo: 这个函数看是否可以删掉
 int64_t VectorBatch::setMaxTimestamp(int colIdx)
 {
     omniruntime::vec::Vector<int64_t>* col = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(this->Get(colIdx));
@@ -130,37 +131,6 @@ RowData* VectorBatch::extractRowData(int rowIndex)
     return outRow;
 }
 
-std::string removeTrailingZeros(std::string num)
-{
-    size_t dot_pos = num.find('.');
-    if (dot_pos == std::string::npos) {
-        return num;
-    }
-
-    std::string integer_part = num.substr(0, dot_pos);
-    std::string decimal_part = num.substr(dot_pos + 1);
-
-    // 去除小数部分末尾的零
-    size_t last_non_zero = decimal_part.find_last_not_of('0');
-    if (last_non_zero != std::string::npos) {
-        decimal_part = decimal_part.substr(0, last_non_zero + 1);
-    } else {
-        decimal_part.clear();
-    }
-
-    // 处理整数部分为空的情况（如输入是 ".500" → 转为 "0.500"）
-    if (integer_part.empty()) {
-        integer_part = "0";
-    }
-
-    // 组合结果
-    if (decimal_part.empty()) {
-        return integer_part;
-    } else {
-        return integer_part + "." + decimal_part;
-    }
-}
-
 std::string VectorBatch::TransformTimeWithTimeZone(
     int vectorID, int rowID, const std::string& tzStr, int precision) const
 {
@@ -197,20 +167,20 @@ std::string VectorBatch::TransformTimeWithTimeZone(
 
 std::string VectorBatch::TransformOnlyTime(int vectorID, int rowID, int precision) const
 {
-    auto millis = reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(vectors[vectorID])->GetValue(rowID);
+    auto millis = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(vectors[vectorID])->GetValue(rowID);
     int64_t totalSeconds = millis / 1000;
     int milliseconds = millis % 1000;
     if (milliseconds < 0) {
-        milliseconds += 1000; //保证毫秒非负数
+        milliseconds += 1000; // 保证毫秒非负数
         totalSeconds -= 1;
     }
-    int hours = totalSeconds / 3600; //取出小时数、分钟数和秒数
+    int hours = totalSeconds / 3600; // 取出小时数、分钟数和秒数
     int minutes = (totalSeconds % 3600) / 60;
     int seconds = totalSeconds % 60;
 
     // 检测越界值（hours >= 24 会产生非法的 "24:00:00.000" 及以上输出）
     while (hours >= 24) {
-        hours -= 24; //将hour限定在0-23之间
+        hours -= 24; // 将hour限定在0-23之间
     }
 
     char buf[32];
@@ -218,21 +188,19 @@ std::string VectorBatch::TransformOnlyTime(int vectorID, int rowID, int precisio
 
     std::ostringstream oss;
     oss << buf << ".";
-    
+
     if (precision <= 3) {
         // precision <= 3时，补齐到3位（毫秒精度）
-        oss << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
+        oss << std::setw(3) << std::setfill('0') // 强制3位宽度，不足补零
             << milliseconds;
     } else if (precision <= 9) {
         // 3 < precision <= 9时，输出毫秒部分并补0到precision位数
-        oss << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
-            << milliseconds
-            << std::string(precision - 3, '0');
+        oss << std::setw(3) << std::setfill('0') // 强制3位宽度，不足补零
+            << milliseconds << std::string(precision - 3, '0');
     } else {
         // precision > 9时，截断到9位
-        oss << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
-            << milliseconds
-            << std::string(6, '0');  // 补0到9位
+        oss << std::setw(3) << std::setfill('0')    // 强制3位宽度，不足补零
+            << milliseconds << std::string(6, '0'); // 补0到9位
     }
 
     std::string result = oss.str();
@@ -394,7 +362,7 @@ void VectorBatch::WriteToFileInternal(
         case omniruntime::type::DataTypeId::OMNI_CHAR: WriteString(file, vectorID, rowID); break;
         case omniruntime::type::DataTypeId::OMNI_DOUBLE:
             file << FormatDoubleLikeJava(
-                reinterpret_cast<omniruntime::vec::Vector<double> *>(vectors[vectorID])->GetValue(rowID));
+                reinterpret_cast<omniruntime::vec::Vector<double>*>(vectors[vectorID])->GetValue(rowID));
             break;
         case omniruntime::type::DataTypeId::OMNI_DATE32:
         case omniruntime::type::DataTypeId::OMNI_INT:
@@ -407,7 +375,7 @@ void VectorBatch::WriteToFileInternal(
             break;
         case omniruntime::type::DataTypeId::OMNI_BOOLEAN:
             file << std::boolalpha
-                << reinterpret_cast<omniruntime::vec::Vector<bool>*>(vectors[vectorID])->GetValue(rowID);
+                 << reinterpret_cast<omniruntime::vec::Vector<bool>*>(vectors[vectorID])->GetValue(rowID);
             break;
         case omniruntime::type::DataTypeId::OMNI_DECIMAL64: {
             auto valueStr = transformDecimal64(vectorID, rowID, decimalInfo);
@@ -476,9 +444,9 @@ void VectorBatch::convertToJson(
             case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
             case omniruntime::type::DataTypeId::OMNI_LONG: {
                 if (inputTypes[colIndex].substr(0, 9) == "TIMESTAMP") {
-                    auto result = TransformTime(colIndex, rowIndex);
+                    auto result = RemoveTrailingZeros(TransformTime(colIndex, rowIndex));
                     j[inputFields[colIndex]] = result;
-                } else if(inputTypes[colIndex].substr(0, 22) == "TIME_WITHOUT_TIME_ZONE") {
+                } else if (inputTypes[colIndex].substr(0, 22) == "TIME_WITHOUT_TIME_ZONE") {
                     auto result = TransformOnlyTime(colIndex, rowIndex);
                     j[inputFields[colIndex]] = result;
                 } else {
@@ -658,5 +626,36 @@ omnistream::VectorBatch* VectorBatch::CreateVectorBatch(int rowCount, const std:
         }
     }
     return vectorBatch;
+}
+
+std::string VectorBatch::RemoveTrailingZeros(std::string num)
+{
+    size_t dot_pos = num.find('.');
+    if (dot_pos == std::string::npos) {
+        return num;
+    }
+
+    std::string integer_part = num.substr(0, dot_pos);
+    std::string decimal_part = num.substr(dot_pos + 1);
+
+    // 去除小数部分末尾的零
+    size_t last_non_zero = decimal_part.find_last_not_of('0');
+    if (last_non_zero != std::string::npos) {
+        decimal_part = decimal_part.substr(0, last_non_zero + 1);
+    } else {
+        decimal_part.clear();
+    }
+
+    // 处理整数部分为空的情况（如输入是 ".500" → 转为 "0.500"）
+    if (integer_part.empty()) {
+        integer_part = "0";
+    }
+
+    // 组合结果
+    if (decimal_part.empty()) {
+        return integer_part;
+    } else {
+        return integer_part + "." + decimal_part;
+    }
 }
 } // namespace omnistream

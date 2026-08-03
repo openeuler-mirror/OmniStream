@@ -20,6 +20,7 @@ template <typename K>
 class OuterInputSideHasNoUniqueKey : public JoinRecordStateView<K> {
 public:
     // This records <count, numAssociate, comboID>
+    // Uses int64_t as the template type but not omnistream::ComboId to keep compatibility with existing code.
     using UV = std::tuple<int32_t, int32_t, int64_t>;
     using MAP_STATE_TYPE = MapState<XXH128_hash_t, UV>;
     using MAP_TYPE = emhash7::HashMap<XXH128_hash_t, UV>;
@@ -31,40 +32,36 @@ public:
         recordStateDesc->setKeyValueBackendTypeId(
             BackendDataType::XXHASH128_BK, BackendDataType::TUPLE_INT32_INT32_INT64);
         this->recordStateVB = ctx->template getMapState<XXH128_hash_t, UV>(recordStateDesc);
-        if (auto* backend = dynamic_cast<RocksdbMapState<K, VoidNamespace, XXH128_hash_t, UV>*>(recordStateVB)) {
-            INFO_RELEASE("OuterInputSideHasNoUniqueKey backend is rocksdb");
-            this->backendType_ = omnistream::StateType::ROCKSDB;
-        } else {
-            INFO_RELEASE("OuterInputSideHasNoUniqueKey backend is mem");
-            this->backendType_ = omnistream::StateType::HEAP;
-        }
+        this->stateType_ = ctx->getStateType();
+        omnistream::checkStateType(this->stateType_, "OuterInputSideHasNoUniqueKey");
     }
 
     ~OuterInputSideHasNoUniqueKey() override = default;
 
-    omnistream::VectorBatch* getVectorBatch(int batchId)
+    omnistream::VectorBatch* getVectorBatch(int32_t keyGroup, uint32_t sequenceNumber) override
     {
-        if (this->cachedVb.end() != this->cachedVb.find((batchId))) {
-            return this->cachedVb[batchId];
+        auto vectorBatchId = VectorBatchUtil::getVectorBatchId(keyGroup, sequenceNumber);
+        if (this->cachedVb.end() != this->cachedVb.find(vectorBatchId)) {
+            return this->cachedVb[vectorBatchId];
         }
-        auto vb = recordStateVB->getVectorBatch(batchId);
+        auto vb = recordStateVB->getVectorBatch(keyGroup, sequenceNumber);
         this->delVb.insert(vb);
-        this->cachedVb.emplace(batchId, vb);
+        this->cachedVb.emplace(vectorBatchId, vb);
         return vb;
     }
 
-    void addVectorBatch(omnistream::VectorBatch* vectorBatch) override
+    void addVectorBatch(int32_t keyGroup, omnistream::VectorBatch* vectorBatch) override
     {
         this->delVb.insert(vectorBatch);
-        recordStateVB->addVectorBatch(vectorBatch);
+        recordStateVB->addVectorBatch(keyGroup, vectorBatch);
     };
-    virtual long getVectorBatchesSize()
+    virtual uint32_t getNextSequenceNumber(int32_t keyGroup)
     {
-        return recordStateVB->getVectorBatchesSize();
+        return recordStateVB->getNextSequenceNumber(keyGroup);
     };
-    int getCurrentBatchId() const override
+    uint32_t getCurrentBatchId(int32_t keyGroup) const override
     {
-        return recordStateVB->getVectorBatchesSize();
+        return recordStateVB->getNextSequenceNumber(keyGroup);
     };
 
     MAP_TYPE* getRecords()
@@ -72,9 +69,14 @@ public:
         return recordStateVB->entries();
     }
 
-    [[nodiscard]] std::vector<omnistream::VectorBatch*> getVectorBatches() const override
+    void addVectorBatches(const std::unordered_map<int32_t, omnistream::VectorBatch*>& vectorBatchByKeyGroup) override
     {
-        return recordStateVB->getVectorBatches();
+        recordStateVB->addVectorBatches(vectorBatchByKeyGroup);
+    }
+
+    [[nodiscard]] std::vector<omnistream::VectorBatch*> getVectorBatches(int32_t keyGroup) override
+    {
+        return recordStateVB->getVectorBatches(keyGroup);
     }
 
     [[nodiscard]] MAP_STATE_TYPE* getState() const
@@ -82,11 +84,23 @@ public:
         return recordStateVB;
     };
 
-    void addOrRectractRecord(
+    /**
+     *
+     * @param input
+     * @param keySelector
+     * @param otherIsOuter
+     * @param backend
+     * @param maxParallelism
+     * @param filterNulls
+     * @param numAssociates
+     * @return true if the ownership of the input VectorBatch is owned by the state
+     */
+    bool addOrRectractRecord(
         omnistream::VectorBatch* input,
         KeySelector<K>* keySelector,
         bool otherIsOuter,
         KeyedStateBackend<K>* backend,
+        int32_t maxParallelism,
         bool filterNulls,
         const std::vector<int32_t>& numAssociates) override;
 
@@ -102,36 +116,75 @@ private:
         std::vector<K>& keys,
         std::unordered_map<std::pair<K, XXH128_hash_t>, UV>& result);
 
-    void ProcessRockDBRecordsInBatch(
-        omnistream::VectorBatch* input,
-        KeySelector<K>* keySelector,
-        bool filterNulls,
-        int batchId,
-        const std::vector<int32_t>& numAssociates);
+    void ProcessRockDBRecordsInBatch(omnistream::VectorBatch* input, const std::vector<int32_t>& numAssociates);
 };
 
 template <typename K>
-void OuterInputSideHasNoUniqueKey<K>::addOrRectractRecord(
+bool OuterInputSideHasNoUniqueKey<K>::addOrRectractRecord(
     omnistream::VectorBatch* input,
     KeySelector<K>* keySelector,
     bool otherIsOuter,
     KeyedStateBackend<K>* backend,
+    int32_t maxParallelism,
     bool filterNulls,
     const std::vector<int32_t>& numAssociates)
 {
-    int32_t batchId = getCurrentBatchId(); // vector<vb*>.size(); this need to be called before addVectorBatch(input)
-    this->addVectorBatch(input);
-    // compress a row into a xxhash128 value.
-    if (this->backendType_ == omnistream::StateType::ROCKSDB) {
-        ProcessRockDBRecordsInBatch(input, keySelector, filterNulls, batchId, numAssociates);
-        return;
-    }
-    std::vector<XXH128_hash_t> xxh128Hashes = input->getXXH128s();
-    for (int i = 0; i < input->GetRowCount(); i++) {
+    auto rowCount = input->GetRowCount();
+    this->reuseComboIds_.resize(rowCount, omnistream::INVALID_COMBO_ID);
+    this->reuseKeys_.resize(rowCount);
+    for (int i = 0; i < rowCount; ++i) {
         if (filterNulls && keySelector->isAnyKeyNull(input, i)) {
             continue;
         }
         auto key = keySelector->getKey(input, i);
+        this->reuseKeys_[i] = key;
+
+        auto keyGroup = KeyGroupRangeAssignment<K>::assignToKeyGroup(key, maxParallelism);
+        auto& oldRowIds = this->reuseOldRowIdsByKeyGroup_[keyGroup];
+        auto newRowId = static_cast<int32_t>(oldRowIds.size());
+        auto comboId = VectorBatchUtil::getComboId(keyGroup, recordStateVB->getNextSequenceNumber(keyGroup), newRowId);
+        this->reuseComboIds_[i] = comboId;
+
+        oldRowIds.push_back(i);
+    }
+
+    bool shouldSplitVectorBatch = this->reuseOldRowIdsByKeyGroup_.size() > 1 ||
+                                  (this->reuseOldRowIdsByKeyGroup_.size() == 1 &&
+                                   this->reuseOldRowIdsByKeyGroup_.begin()->second.size() != rowCount);
+
+    for (auto& [keyGroup, oldRowIds] : this->reuseOldRowIdsByKeyGroup_) {
+        omnistream::VectorBatch* splitBatch = nullptr;
+        if (shouldSplitVectorBatch) {
+            splitBatch = VectorBatchUtil::buildNewVectorBatchByRowIds(input, oldRowIds);
+        } else {
+            splitBatch = input;
+        }
+        this->reuseVectorBatchByKeyGroup_[keyGroup] = splitBatch;
+    }
+    this->addVectorBatches(this->reuseVectorBatchByKeyGroup_);
+    bool stateOwnsInput = this->stateType_ == omnistream::StateType::HEAP && !shouldSplitVectorBatch &&
+                          !this->reuseVectorBatchByKeyGroup_.empty();
+
+    if (this->stateType_ != omnistream::StateType::HEAP && shouldSplitVectorBatch) {
+        for (const auto& [keyGroup, vectorBatch] : this->reuseVectorBatchByKeyGroup_) {
+            delete vectorBatch;
+        }
+    }
+    // compress a row into a xxhash128 value.
+    if (this->stateType_ == omnistream::StateType::ROCKSDB) {
+        ProcessRockDBRecordsInBatch(input, numAssociates);
+        this->reuseKeys_.clear();
+        this->reuseComboIds_.clear();
+        this->reuseVectorBatchByKeyGroup_.clear();
+        this->reuseOldRowIdsByKeyGroup_.clear();
+        return false;
+    }
+    std::vector<XXH128_hash_t> xxh128Hashes = input->getXXH128s();
+    for (int i = 0; i < input->GetRowCount(); i++) {
+        if (this->reuseComboIds_[i] == omnistream::INVALID_COMBO_ID) {
+            continue;
+        }
+        auto key = this->reuseKeys_[i];
         backend->setCurrentKey(key);
         XXH128_hash_t ukey = xxh128Hashes[i];
         bool isAcc = RowDataUtil::isAccumulateMsg(input->getRowKind(i));
@@ -141,7 +194,7 @@ void OuterInputSideHasNoUniqueKey<K>::addOrRectractRecord(
         recordStateVB->updateOrCreate(
             ukey,
             /* default value */
-            UV{1, numAssociates[i], VectorBatchUtil::getComboId(batchId, i)},
+            UV{1, numAssociates[i], static_cast<int64_t>(this->reuseComboIds_[i])},
             [delta, isAcc, &numAssociates, i](UV& val) -> std::optional<UV> {
                 int newCount = std::get<0>(val) + delta;
                 if (newCount != 0) {
@@ -154,22 +207,24 @@ void OuterInputSideHasNoUniqueKey<K>::addOrRectractRecord(
             delete key;
         }
     }
+
+    this->reuseKeys_.clear();
+    this->reuseComboIds_.clear();
+    this->reuseVectorBatchByKeyGroup_.clear();
+    this->reuseOldRowIdsByKeyGroup_.clear();
+    return stateOwnsInput;
 }
 
 template <typename K>
 void OuterInputSideHasNoUniqueKey<K>::ProcessRockDBRecordsInBatch(
-    omnistream::VectorBatch* input,
-    KeySelector<K>* keySelector,
-    bool filterNulls,
-    int batchId,
-    const std::vector<int32_t>& numAssociates)
+    omnistream::VectorBatch* input, const std::vector<int32_t>& numAssociates)
 {
     std::vector<XXH128_hash_t> xxh128Hashes = input->getXXH128s();
     std::unordered_map<std::pair<K, XXH128_hash_t>, UV> rockdbRecords;
     std::vector<K> keys;
     std::vector<int> deltas;
     for (int i = 0; i < input->GetRowCount(); i++) {
-        if (filterNulls && keySelector->isAnyKeyNull(input, i)) {
+        if (this->reuseComboIds_[i] == omnistream::INVALID_COMBO_ID) {
             if constexpr (std::is_pointer_v<K>) {
                 keys.push_back(nullptr);
             } else {
@@ -179,7 +234,7 @@ void OuterInputSideHasNoUniqueKey<K>::ProcessRockDBRecordsInBatch(
             deltas.push_back(0);
             continue;
         }
-        auto key = keySelector->getKey(input, i);
+        auto key = this->reuseKeys_[i];
         keys.push_back(key);
         int delta = RowDataUtil::isAccumulateMsg(input->getRowKind(i)) ? +1 : -1;
         deltas.push_back(delta);
@@ -202,7 +257,7 @@ void OuterInputSideHasNoUniqueKey<K>::ProcessRockDBRecordsInBatch(
         }
         auto keyAndUkey = std::make_pair(keys[i], xxh128Hashes[i]);
         auto recordIter = rockdbRecords.find(keyAndUkey);
-        UV val{0, numAssociates[i], VectorBatchUtil::getComboId(batchId, i)};
+        UV val{0, numAssociates[i], static_cast<int64_t>(this->reuseComboIds_[i])};
         if (recordIter != rockdbRecords.end()) {
             val = recordIter->second;
         }
@@ -244,11 +299,9 @@ void OuterInputSideHasNoUniqueKey<K>::ProcessRockDBRecordsInBatch(
         }
     }
 
-    auto rockState = dynamic_cast<RocksdbMapState<K, VoidNamespace, XXH128_hash_t, UV>*>(recordStateVB);
-    if (rockState) {
-        rockState->putByBatch(addOrUpdateRecords);
-        rockState->removeByBatch(deleteRecords);
-    }
+    auto* rockState = static_cast<RocksdbMapState<K, VoidNamespace, XXH128_hash_t, UV>*>(recordStateVB);
+    rockState->putByBatch(addOrUpdateRecords);
+    rockState->removeByBatch(deleteRecords);
     // clean up
     for (int i = 0; i < keys.size(); i++) {
         if constexpr (std::is_pointer_v<K>) {
@@ -265,8 +318,8 @@ void OuterInputSideHasNoUniqueKey<K>::GetRockDBRecordsInBatch(
     std::vector<K>& keys,
     std::unordered_map<std::pair<K, XXH128_hash_t>, UV>& result)
 {
-    auto rockState = dynamic_cast<RocksdbMapState<K, VoidNamespace, XXH128_hash_t, UV>*>(recordStateVB);
-    if (rockState) {
+    auto* rockState = static_cast<RocksdbMapState<K, VoidNamespace, XXH128_hash_t, UV>*>(recordStateVB);
+    {
         std::unordered_map<K, std::unordered_set<XXH128_hash_t>> keyAndUkeysMap;
         for (int i = 0; i < keys.size(); i++) {
             auto joinKey = keys.at(i);

@@ -110,12 +110,11 @@ Object* Tuple2Serializer::GetBuffer()
 
 std::string Tuple2Serializer::toJson()
 {
-    // 输出格式必须与 OmniAdaptor:
-    //   - OmniStateSerializerHelper.convert() 的 fieldSerializers 解析（待加）
-    //   - OmniParseFactory.buildTypeInformationBy(TUPLE) 的字段类型重建（待加）
-    // 对齐。每个 fieldSerializer 自身递归调用 toJson()，作为 List<String> 形式的
-    // 内嵌 JSON 字符串（与 OmniSerializerJsonInfo 现有 keySerializer/valueSerializer
-    // 的存储约定一致：value 是 dump 后的字符串）。
+    // 输出格式必须与 OmniAdaptor 对齐：
+    //   - OmniStateSerializerHelper.convert() 解析 fieldSerializers
+    //   - OmniParseFactory.buildTypeInformationBy(TUPLE) 重建字段类型
+    // 每个 fieldSerializer 递归调用 toJson()，以 List<String> 形式存放内嵌 JSON 字符串；
+    // 这与 OmniSerializerJsonInfo 现有 keySerializer/valueSerializer 的存储约定一致。
     nlohmann::json jsonObj;
     jsonObj["type"] = static_cast<int>(SerializerType::TUPLE);
     // element_type: Java 端用作 Class.forName 还原 TupleN 的 raw class

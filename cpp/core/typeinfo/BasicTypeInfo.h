@@ -39,6 +39,8 @@ public:
             serializer = new LongSerializer();
         } else if (typeName == TYPE_NAME_DOUBLE_SERIALIZER) {
             serializer = new DoubleSerializer();
+        } else if (typeName == TYPE_NAME_INT_SERIALIZER) {
+            serializer = new IntSerializer();
         } else if (typeName == TYPE_NAME_VOID_SERIALIZER) {
             serializer = new VoidSerializer();
         }
@@ -62,6 +64,7 @@ public:
     thread_local static BasicTypeInfo* STRING_TYPE_INFO;
     thread_local static BasicTypeInfo* BIG_INT_TYPE_INFO;
     thread_local static BasicTypeInfo* LONG_TYPE_INFO;
+    thread_local static BasicTypeInfo* INT_TYPE_INFO;
     thread_local static BasicTypeInfo* DOUBLE_TYPE_INFO;
 
 private:

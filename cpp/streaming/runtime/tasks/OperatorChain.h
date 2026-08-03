@@ -192,6 +192,9 @@ public:
         return false;
     }
 
+    // 预检查：遍历链中所有算子，返回不支持 compatible savepoint 的原因列表（空串表示全部支持）。
+    std::string checkCompatibleSavepointSupport();
+
 protected:
     OperatorChainV2()
         : isClosed_(false),

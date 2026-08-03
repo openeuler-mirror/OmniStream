@@ -65,6 +65,7 @@ public:
 
     jobject AcquireSavepointOutputStream(long checkpointId, CheckpointOptions* checkpointOptions) override;
     std::shared_ptr<SnapshotResult<StreamStateHandle>> CloseSavepointOutputStream(jobject provider) override;
+    void AbortSavepointOutputStream(jobject provider) override;
     void WriteSavepointOutputStream(jobject provider, const int8_t* chunk, size_t offset, size_t len) override;
     jobject CreateSavepointOutputDirectBuffer(void* data, size_t capacity) override;
     void ReleaseSavepointOutputDirectBuffer(jobject directBuffer) override;

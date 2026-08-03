@@ -69,6 +69,11 @@ bool BufferConsumer::isRecycled() const
     return buffer == nullptr || buffer->IsRecycled();
 }
 
+bool BufferConsumer::isClose() const
+{
+    return isStop;
+}
+
 void BufferConsumer::close()
 {
     if (buffer == nullptr) {
@@ -77,7 +82,7 @@ void BufferConsumer::close()
     if (!buffer->IsRecycled()) {
         buffer->RecycleBuffer();
     }
-    buffer = nullptr;
+    isStop = true;
 }
 
 bool BufferConsumer::isBuffer() const

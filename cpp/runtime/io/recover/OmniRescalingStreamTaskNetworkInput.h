@@ -97,7 +97,7 @@ public:
     {
         std::vector<long> channelIds;
         for (const auto& item : inputGate->GetChannelInfos()) {
-            channelIds.emplace_back(item.getInputChannelIdx());
+            channelIds.emplace_back(item.getComplexId());
         }
         return new OmniAbstractStreamTaskNetworkInput(
             inputIndex, inputGate, taskType, inSerializer, channelIds, checkpointInterval);

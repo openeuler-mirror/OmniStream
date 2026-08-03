@@ -15,7 +15,8 @@
 
 enum class SavepointFormatType {
     CANONICAL,
-    NATIVE
+    NATIVE,
+    COMPATIBLE // FLINK格式
 };
 
 class SavepointType : public SnapshotType {

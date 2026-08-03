@@ -85,11 +85,15 @@ public:
 
     void finishReadRecoveredState();
 
+    void finishInnerRecoveredState();
+
     std::optional<omnistream::BufferAndAvailability> getNextRecoveredStateBuffer();
 
     omnistream::ObjectBufferDataType peekDataTypeUnsafe();
 
     bool isEndOfChannelStateEvent(Buffer* buffer);
+
+    bool isInnerRecoverEvent(Buffer* buffer);
 
     std::optional<BufferAndAvailability> getNextBuffer() override;
 
@@ -103,7 +107,9 @@ public:
     {
         throw std::invalid_argument("RecoveredInputChannel should never be blocked.");
     }
-
+    void TimeOutResumeConsumption() override
+    {
+    }
     void acknowledgeAllRecordsProcessed() override
     {
         throw std::invalid_argument("RecoveredInputChannel should not need acknowledge all records processed.");
@@ -135,7 +141,8 @@ public:
 
     std::shared_ptr<omnistream::Buffer> requestBufferBlocking();
 
-    void CheckpointStarted(const CheckpointBarrier& barrier) override
+    void CheckpointStarted(
+        const CheckpointBarrier& barrier, std::shared_ptr<ChannelStateWriter> channelStateWriter) override
     {
         throw std::invalid_argument("Checkpoint was declined (tasks not ready)");
     }
@@ -157,6 +164,17 @@ public:
     bool IsOmniChannel() const
     {
         return toOmniChannel_;
+    }
+    void SetPersistenceFlag(bool flag)
+    {
+    }
+
+    void AddInputData(long checkpointId, const omnistream::InputChannelInfo& info)
+    {
+    }
+    bool IsNeedPersistence()
+    {
+        return false;
     }
 
 private:

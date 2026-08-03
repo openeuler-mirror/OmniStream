@@ -79,6 +79,10 @@ void SubtaskCheckpointCoordinatorImpl::CancelAlignmentTimer()
 void SubtaskCheckpointCoordinatorImpl::PrepareInflightDataSnapshot(long checkpointId)
 {
     auto future = (*prepareInputSnapshot)(channelStateWriter, checkpointId);
+    if (future == nullptr) {
+        channelStateWriter->FinishInput(checkpointId);
+        return;
+    }
     future->ThenRun([this, checkpointId, future]() mutable {
         try {
             future->Get();
@@ -340,13 +344,43 @@ void SubtaskCheckpointCoordinatorImpl::checkpointState(
         InitInputsCheckpoint(metadata->GetCheckpointId(), options.get());
     }
 
+    // 预检查：对于 compatible savepoint，提前检查链中所有算子是否支持该格式。
+    // 必须在 PrepareSnapshotPreBarrier / broadcastEvent 等有副作用的操作之前执行，
+    // 避免预检查失败时已产生不可逆的算子状态变更。
+    if (options->GetCheckpointType()->IsSavepoint()) {
+        auto savepointType = dynamic_cast<SavepointType*>(options->GetCheckpointType());
+        if (savepointType && savepointType->getFormatType() == SavepointFormatType::COMPATIBLE) {
+            std::string unsupportedReasons = operatorChain->checkCompatibleSavepointSupport();
+            if (!unsupportedReasons.empty()) {
+                INFO_RELEASE(
+                    "Error:SubtaskCheckpointCoordinatorImpl::checkpointState pre-check FAILED: "
+                    "task="
+                    << taskName << ", cp=" << metadata->GetCheckpointId() << ", reasons=[" << unsupportedReasons
+                    << "]");
+                auto* runtimeEnv = dynamic_cast<omnistream::RuntimeEnvironmentV2*>(env.get());
+                if (runtimeEnv != nullptr && runtimeEnv->omniTask() != nullptr) {
+                    std::runtime_error wrapped("Compatible savepoint is not supported: " + unsupportedReasons);
+                    runtimeEnv->omniTask()->declineCheckpoint(
+                        metadata->GetCheckpointId(), CheckpointFailureReason::CHECKPOINT_DECLINED, &wrapped);
+                } else {
+                    INFO_RELEASE(
+                        "Error:SubtaskCheckpointCoordinatorImpl::checkpointState pre-check FAILED "
+                        "but cannot declineCheckpoint: runtimeEnv or omniTask is null, "
+                        "task="
+                        << taskName << ", cp=" << metadata->GetCheckpointId());
+                }
+                return;
+            }
+        }
+    }
+
     operatorChain->PrepareSnapshotPreBarrier(metadata->GetCheckpointId());
 
     CheckpointBarrier* checkpointBarrier =
         new CheckpointBarrier(metadata->GetCheckpointId(), metadata->GetTimestamp(), options);
 
-    operatorChain->broadcastEvent(
-        std::shared_ptr<omnistream::AbstractEvent>(checkpointBarrier), options->IsUnalignedCheckpoint());
+    bool isPriorityEvent = options->IsUnalignedCheckpoint();
+    operatorChain->broadcastEvent(std::shared_ptr<omnistream::AbstractEvent>(checkpointBarrier), isPriorityEvent);
 
     if (options->NeedsChannelState()) {
         channelStateWriter->FinishOutput(metadata->GetCheckpointId());

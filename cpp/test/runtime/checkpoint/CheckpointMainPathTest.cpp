@@ -430,6 +430,12 @@ public:
     {
         resumed = true;
     }
+    void TimeOutResumeConsumption(const omnistream::InputChannelInfo& channelInfo)
+    {
+    }
+    void notifyDataAvailable()
+    {
+    }
     void ConvertToPriorityEvent(int, int) override
     {
         prioritized = true;

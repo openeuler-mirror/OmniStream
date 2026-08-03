@@ -2,6 +2,7 @@
 
 void* VoidNamespaceSerializer::deserialize(DataInputView& source)
 {
+    source.readByte();
     return static_cast<void*>(new VoidNamespace());
 }
 

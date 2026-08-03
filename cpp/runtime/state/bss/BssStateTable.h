@@ -13,6 +13,9 @@
 #define OMNISTREAM_BSSSTATETABLE_H
 #ifdef WITH_OMNISTATESTORE
 
+#include <unordered_map>
+#include <vector>
+
 #include "typeutils/LongSerializer.h"
 #include "memory/DataInputDeserializer.h"
 #include "utils/VectorBatchSerializationUtils.h"
@@ -21,6 +24,8 @@
 #include "boost_state_db.h"
 #include "table_description.h"
 #include "state/HashCode.h"
+#include "data/util/SequenceNumberHelper.h"
+#include "state/bss/BssKeyGroupUtils.h"
 
 template <typename K, typename N, typename S>
 class BssStateTable {
@@ -31,18 +36,19 @@ public:
         TypeSerializer* keySerializer)
         : keyContext(keyContext),
           metaInfo(metaInfo),
-          keySerializer(keySerializer) {};
+          keySerializer(keySerializer),
+          sequenceNumberHelper(keyContext->getNumberOfKeyGroups()) {};
 
     bool isEmpty()
     {
         return size == 0;
     }
 
-    void createTable(ock::bss::BoostStateDBPtr& _dbPtr)
+    void createTable(ock::bss::BoostStateDBPtr& _dbPtr, const std::string& tableName)
     {
         this->dbPtr = _dbPtr;
         auto tblDesc = std::make_shared<ock::bss::TableDescription>(
-            ock::bss::StateType::VALUE, "dbTable", -1, ock::bss::TableSerializer{}, dbPtr->GetConfig());
+            ock::bss::StateType::VALUE, tableName, -1, ock::bss::TableSerializer{}, dbPtr->GetConfig());
         dbTable = std::dynamic_pointer_cast<ock::bss::KVTable>(_dbPtr->GetTableOrCreate(tblDesc));
     };
 
@@ -163,47 +169,92 @@ public:
             getNamespaceSerializer()->serialize(&nameSpace, serializer);
         }
         ock::bss::BinaryData priBinaryData(serializer.getData(), static_cast<int32_t>(serializer.getPosition()));
-        keyHashCode = HashCode::Hash(serializer.getData(), static_cast<int32_t>(serializer.getPosition()));
+        // hash 低位对齐当前 key 的 Flink key group（BSS 按 hash % maxParallelism 推导分组）
+        keyHashCode = BssKeyGroupUtils::ForceKeyGroup(
+            HashCode::Hash(serializer.getData(), static_cast<int32_t>(serializer.getPosition())),
+            static_cast<uint32_t>(keyContext->getCurrentKeyGroupIndex()),
+            static_cast<uint32_t>(keyContext->getNumberOfKeyGroups()));
         return priBinaryData;
     }
 
-    long getVectorBatchesSize()
+    uint32_t getNextSequenceNumber(int32_t keyGroup)
     {
-        return vectorBatchId;
+        return sequenceNumberHelper.getNextSequenceNumber(keyGroup);
     }
 
-    void addVectorBatch(omnistream::VectorBatch* vectorBatch)
+    void addVectorBatch(int32_t keyGroup, omnistream::VectorBatch* vectorBatch)
     {
+        auto sequenceNumber = sequenceNumberHelper.getNextSequenceNumber(keyGroup);
         LOG("Bss state table addVectorBatch");
         DataOutputSerializer keyOutputSerializer;
         OutputBufferStatus outputBufferStatus;
         keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
+        keyOutputSerializer.writeShort(static_cast<uint16_t>(keyGroup));
         LongSerializer longSerializer;
-        longSerializer.serialize(&vectorBatchId, keyOutputSerializer);
+        long sequenceNumberForSerializer = sequenceNumber;
+        longSerializer.serialize(&sequenceNumberForSerializer, keyOutputSerializer);
         ock::bss::BinaryData priKey(
             keyOutputSerializer.getData(), static_cast<int32_t>(keyOutputSerializer.getPosition()));
-        uint32_t keyHashCode =
-            HashCode::Hash(keyOutputSerializer.getData(), static_cast<int32_t>(keyOutputSerializer.getPosition()));
+        // VectorBatch 数据与记录 key 无关，统一归入本 subtask 的起始 key group
+        uint32_t keyHashCode = BssKeyGroupUtils::ForceKeyGroup(
+            HashCode::Hash(keyOutputSerializer.getData(), static_cast<int32_t>(keyOutputSerializer.getPosition())),
+            static_cast<uint32_t>(keyContext->getKeyGroupRange()->getStartKeyGroup()),
+            static_cast<uint32_t>(keyContext->getNumberOfKeyGroups()));
         int batchSize = omnistream::VectorBatchSerializationUtils::calculateVectorBatchSerializableSize(vectorBatch);
-        uint8_t* buffer = new uint8_t[batchSize];
+        std::vector<uint8_t> bufferStorage(batchSize);
+        auto* buffer = bufferStorage.data();
         omnistream::SerializedBatchInfo serializedBatchInfo =
             omnistream::VectorBatchSerializationUtils::serializeVectorBatch(vectorBatch, batchSize, buffer);
         ock::bss::BinaryData priVal(serializedBatchInfo.buffer, serializedBatchInfo.size);
         auto res = dbTable->Put(keyHashCode, priKey, priVal);
         if (res != ock::bss::BSS_OK) {
             LOG("Warning: addVectorBatch failed");
+            return;
         }
-        vectorBatchId++;
+        sequenceNumberHelper.addNextSequenceNumber(keyGroup);
     }
 
-    omnistream::VectorBatch* getVectorBatch(long batchId)
+    void addVectorBatches(const std::unordered_map<int32_t, omnistream::VectorBatch*>& vectorBatchByKeyGroup)
+    {
+        DataOutputSerializer keyOutputSerializer;
+        OutputBufferStatus outputBufferStatus;
+        keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
+        LongSerializer longSerializer;
+        for (const auto& [keyGroup, vectorBatch] : vectorBatchByKeyGroup) {
+            keyOutputSerializer.clear();
+            auto sequenceNumber = sequenceNumberHelper.getNextSequenceNumber(keyGroup);
+            keyOutputSerializer.writeShort(static_cast<uint16_t>(keyGroup));
+            long sequenceNumberForSerializer = sequenceNumber;
+            longSerializer.serialize(&sequenceNumberForSerializer, keyOutputSerializer);
+            ock::bss::BinaryData priKey(
+                keyOutputSerializer.getData(), static_cast<int32_t>(keyOutputSerializer.getPosition()));
+            auto keyHashCode = HashCode::Hash(priKey.Data(), static_cast<int32_t>(priKey.Length()));
+            auto batchSize =
+                omnistream::VectorBatchSerializationUtils::calculateVectorBatchSerializableSize(vectorBatch);
+            std::vector<uint8_t> bufferStorage(batchSize);
+            // serializeVectorBatch 的 buffer 形参是 uint8_t*&（内部当游标前移），
+            // 必须传具名左值；返回的 SerializedBatchInfo.buffer 仍指向起始位置
+            auto* buffer = bufferStorage.data();
+            auto serializedBatchInfo =
+                omnistream::VectorBatchSerializationUtils::serializeVectorBatch(vectorBatch, batchSize, buffer);
+            ock::bss::BinaryData priVal(serializedBatchInfo.buffer, serializedBatchInfo.size);
+            if (dbTable->Put(keyHashCode, priKey, priVal) != ock::bss::BSS_OK) {
+                THROW_RUNTIME_ERROR("Failed to add VectorBatch to BSS for keyGroup " << keyGroup);
+            }
+            sequenceNumberHelper.addNextSequenceNumber(keyGroup);
+        }
+    }
+
+    omnistream::VectorBatch* getVectorBatch(int32_t keyGroup, uint32_t sequenceNumber)
     {
         LOG("Bss state table getVectorBatch");
         DataOutputSerializer keyOutputSerializer;
         OutputBufferStatus outputBufferStatus;
         keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
+        keyOutputSerializer.writeShort(static_cast<uint16_t>(keyGroup));
         LongSerializer longSerializer;
-        longSerializer.serialize(&batchId, keyOutputSerializer);
+        long sequenceNumberForSerializer = sequenceNumber;
+        longSerializer.serialize(&sequenceNumberForSerializer, keyOutputSerializer);
         uint32_t keyHashCode =
             HashCode::Hash(keyOutputSerializer.getData(), static_cast<int32_t>(keyOutputSerializer.getPosition()));
         ock::bss::BinaryData priKey(
@@ -213,10 +264,39 @@ public:
         auto res = dbTable->Get(keyHashCode, priKey, priVal);
         if (res != ock::bss::BSS_OK) {
             LOG("Warning: getVectorBatch failed");
+            return nullptr;
         }
         uint8_t* address = const_cast<uint8_t*>(priVal.Data() + sizeof(int8_t));
         auto batch = omnistream::VectorBatchDeserializationUtils::deserializeVectorBatch(address);
         return batch;
+    }
+
+    std::vector<omnistream::VectorBatch*> getVectorBatches(int32_t keyGroup)
+    {
+        NOT_IMPL_EXCEPTION;
+    }
+
+    void clearVectorBatches(int64_t currentTimestamp)
+    {
+        auto* keyGroupRange = keyContext->getKeyGroupRange();
+        for (int32_t keyGroup = keyGroupRange->getStartKeyGroup(); keyGroup <= keyGroupRange->getEndKeyGroup();
+             ++keyGroup) {
+            auto nextSequenceNumber = getNextSequenceNumber(keyGroup);
+            for (uint32_t sequenceNumber = 0; sequenceNumber < nextSequenceNumber; ++sequenceNumber) {
+                auto* vectorBatch = getVectorBatch(keyGroup, sequenceNumber);
+                if (vectorBatch != nullptr && vectorBatch->isEmpty(currentTimestamp)) {
+                    removeVectorBatch(keyGroup, sequenceNumber);
+                }
+                delete vectorBatch;
+            }
+        }
+    }
+
+    void clearVectorBatches(int32_t keyGroup, const std::vector<uint32_t>& sequenceNumbersToDelete)
+    {
+        for (auto sequenceNumber : sequenceNumbersToDelete) {
+            removeVectorBatch(keyGroup, sequenceNumber);
+        }
     }
 
     TypeSerializer* getNamespaceSerializer()
@@ -240,6 +320,21 @@ public:
     }
 
 protected:
+    void removeVectorBatch(int32_t keyGroup, uint32_t sequenceNumber)
+    {
+        DataOutputSerializer keyOutputSerializer;
+        OutputBufferStatus outputBufferStatus;
+        keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
+        keyOutputSerializer.writeShort(static_cast<uint16_t>(keyGroup));
+        LongSerializer longSerializer;
+        long sequenceNumberForSerializer = sequenceNumber;
+        longSerializer.serialize(&sequenceNumberForSerializer, keyOutputSerializer);
+        ock::bss::BinaryData priKey(
+            keyOutputSerializer.getData(), static_cast<uint32_t>(keyOutputSerializer.getPosition()));
+        auto keyHashCode = HashCode::Hash(priKey.Data(), static_cast<int32_t>(priKey.Length()));
+        dbTable->Remove(keyHashCode, priKey);
+    }
+
     InternalKeyContext<K>* keyContext;
     RegisteredKeyValueStateBackendMetaInfo* metaInfo;
     TypeSerializer* keySerializer;
@@ -247,7 +342,7 @@ protected:
     ock::bss::ConfigRef config;
     ock::bss::KVTableRef dbTable;
     int size = 0;
-    long vectorBatchId = 0;
+    omnistream::SequenceNumberHelper sequenceNumberHelper{}; // only used for VectorBatch storage
 };
 
 #endif // OMNISTREAM_BSSSTATETABLE_H

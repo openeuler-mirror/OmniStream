@@ -119,6 +119,7 @@ public:
     // Used by timeout->UC to convert a timeoutable aligned barrier into a priority event.
     void SetDataType(const ObjectBufferDataType& dataType);
     void close();
+    bool isClose() const;
     bool isRecycled() const;
     int getWrittenBytes();
     int getCurrentReaderPosition() const;
@@ -133,6 +134,7 @@ protected:
     Buffer* requireBuffer(const char* method) const;
 
     Buffer* buffer = nullptr;
+    bool isStop = false;
     CachedPositionMarker* writerPosition = nullptr;
     int currentReaderPosition;
 };
