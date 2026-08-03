@@ -42,6 +42,11 @@ public:
         }
     }
 
+    NetworkBuffer* GetNetWorkBuffer()
+    {
+        return parent_;
+    }
+
     bool IsRecycled() const override
     {
         return parent_->IsRecycled();
@@ -80,6 +85,16 @@ public:
     int GetMemorySegmentOffset() const
     {
         return memorySegmentOffset;
+    }
+
+    void SetBufferType(int type)
+    {
+        bufferType = type;
+    }
+
+    int GetBufferType() const
+    {
+        return bufferType;
     }
 
 private:

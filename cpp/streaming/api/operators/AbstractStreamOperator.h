@@ -29,6 +29,7 @@
 #include "runtime/metrics/groups/TaskMetricGroup.h"
 #include "streaming/runtime/tasks/omni/OmniStreamTask.h"
 #include "runtime/state/StateInitializationContextImpl.h"
+#include "runtime/checkpoint/FlinkSavepointAdaptorInfo.h"
 
 /**
  * K: such as Object*
@@ -134,14 +135,25 @@ public:
     void initializeState(StateInitializationContextImpl* context) override
     {
     }
+
+    FlinkSavepointAdaptorInfo getSavepointAdaptorInfo() const override
+    {
+        return flinkSavepointAdaptorInfo_;
+    }
+
+    nlohmann::json getOperatorDescription() const override
+    {
+        return desc;
+    }
+
     // KeySerializer should be retrieved from description.getStateKeySerializer(getUserCodeClassloader()),
     // but we're just passing it through this function for now
     void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override
     {
         LOG("abstractStreamOperator::initializeState");
         auto operatorID = this->GetOperatorID();
-        StreamOperatorStateContextImpl<K>* context =
-            initializer->streamOperatorStateContext<K>(keySerializer, this, processingTimeService, &operatorID);
+        StreamOperatorStateContextImpl<K>* context = initializer->streamOperatorStateContext<K>(
+            keySerializer, this, processingTimeService, &operatorID, flinkSavepointAdaptorInfo_, desc);
         stateHandler = new StreamOperatorStateHandler<K>(context);
         auto stateStore = stateHandler->getKeyedStateStore();
         if (runtimeContext != nullptr) {
@@ -248,6 +260,29 @@ public:
         stateHandler->notifyCheckpointAborted(checkpointId);
     }
 
+    // 设置具体 Adaptor 类型（或 OmniIsCompatible）。禁止用于表达 None —— None 必须走
+    // setFlinkSavepointUnsupported(reason) 携带可诊断原因。
+    void setFlinkSavepointAdaptor(FlinkSavepointAdaptorType type)
+    {
+        if (type == FlinkSavepointAdaptorType::None) {
+            INFO_RELEASE(
+                "Error: setFlinkSavepointAdaptor called with None, "
+                "use setFlinkSavepointUnsupported(reason) for unsupported operators");
+            throw std::invalid_argument("Use setFlinkSavepointUnsupported(reason) for unsupported operators");
+        }
+        flinkSavepointAdaptorInfo_ = {type, ""};
+    }
+
+    // 设置 None + 可诊断 reason，表达该算子不支持 compatible savepoint。
+    void setFlinkSavepointUnsupported(std::string reason)
+    {
+        if (reason.empty()) {
+            INFO_RELEASE("Error: Unsupported compatible savepoint adaptor reason must not be empty");
+            throw std::invalid_argument("Unsupported compatible savepoint adaptor reason must not be empty");
+        }
+        flinkSavepointAdaptorInfo_ = {FlinkSavepointAdaptorType::None, std::move(reason)};
+    }
+
 protected:
     // own  and  own the backend through stateHandler
     StreamOperatorStateHandler<K>* stateHandler = nullptr;
@@ -265,6 +300,8 @@ protected:
 
 private:
     ProcessingTimeService* processingTimeService = nullptr;
+    FlinkSavepointAdaptorInfo flinkSavepointAdaptorInfo_{
+        FlinkSavepointAdaptorType::None, "No compatible savepoint adaptor has been assigned"};
 
     void ProcessWatermark(Watermark* mark, int index)
     {

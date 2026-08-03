@@ -33,19 +33,34 @@ namespace omnistream::datastream {
 template <typename T, typename K>
 class KeyGroupStreamPartitioner : public StreamPartitioner<T> {
 public:
-    KeyGroupStreamPartitioner(nlohmann::json config, int targetId, int maxParallelism)
+    KeyGroupStreamPartitioner(nlohmann::json config, int targetId, int maxParallelism, bool recover = false)
         : config(config),
           targetId(targetId),
           maxParallelism(maxParallelism)
     {
         std::string udfObj = config["udf_obj"];
         std::string keySelectorPath = config["hash_path"];
-        std::string keySelectorName = config["hash_so"][std::to_string(targetId)];
-        std::string path = keySelectorPath + keySelectorName;
+        std::string udfSoPath = config["udf_so"];
 
-        nlohmann::json udfObjJson = nlohmann::json::parse(udfObj);
-        auto symbol = udfLoader.LoadKeySelectFunction(path);
-        keySelector = symbol(udfObjJson).release();
+        // 算子非对齐input buffer恢复取process算子的input 处理器
+        if (recover) {
+            nlohmann::json udfObjJson = nlohmann::json::parse(udfObj);
+            std::string keySoName = config["key_so"][0];
+            std::string keySoPath1 = keySelectorPath + keySoName;
+            auto* keySelectorSymbol1 = udfLoader.LoadKeySelectFunction(keySoPath1);
+            if (keySelectorSymbol1 == nullptr) {
+                INFO_RELEASE("Error:null pointer when load:" << keySoPath1);
+                throw std::out_of_range("null pointer when load " + keySoPath1);
+            }
+            keySelector = keySelectorSymbol1(udfObjJson).release();
+
+        } else {
+            std::string keySelectorName = config["hash_so"][std::to_string(targetId)];
+            std::string path = keySelectorPath + keySelectorName;
+            nlohmann::json udfObjJson = nlohmann::json::parse(udfObj);
+            auto symbol = udfLoader.LoadKeySelectFunction(path);
+            keySelector = symbol(udfObjJson).release();
+        }
         if (maxParallelism <= 0) {
             throw std::invalid_argument("Number of key-groups must be > 0!");
         }

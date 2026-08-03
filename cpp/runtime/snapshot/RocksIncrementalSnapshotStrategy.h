@@ -71,13 +71,13 @@ protected:
     class RocksDBIncrementalSnapshotOperation : public RocksDBSnapshotStrategyBase::RocksDBSnapshotOperation {
     public:
         RocksDBIncrementalSnapshotOperation(
-            RocksIncrementalSnapshotStrategy* parent,
+            std::shared_ptr<RocksIncrementalSnapshotStrategy> parent,
             long checkpointId,
             CheckpointStreamFactory* checkpointStreamFactory,
             std::shared_ptr<SnapshotDirectory> localBackupDirectory,
             std::shared_ptr<PreviousSnapshot> previousSnapshot,
             SnapshotType::SharingFilesStrategy sharingFilesStrategy,
-            std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots,
+            std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots,
             CheckpointOptions* checkpointOptions,
             std::shared_ptr<TypeSerializer> keySerializer);
 
@@ -96,7 +96,7 @@ protected:
             std::vector<fs::path>& sstFilePaths,
             std::vector<fs::path>& miscFilePaths);
 
-        RocksIncrementalSnapshotStrategy* parent_;
+        std::shared_ptr<RocksIncrementalSnapshotStrategy> parent_;
         std::shared_ptr<PreviousSnapshot> previousSnapshot_;
         SnapshotType::SharingFilesStrategy sharingFilesStrategy_;
         CheckpointOptions* checkpointOptions_;

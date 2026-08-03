@@ -106,38 +106,39 @@ TEST(HeapKeyedStateBackendTest, VectorBatchTest1)
     EXPECT_EQ(stateHandle, stateHandleAgain);
 
     context->setCurrentKey(keyRowData2);
-    int batchId0 = valueState->getVectorBatchesSize();
+    int32_t keyGroup = context->getCurrentKeyGroupIndex();
+    int batchId0 = valueState->getNextSequenceNumber(keyGroup);
     omnistream::VectorBatch* storedBatch0 = CreateTestVectorBatch(300);
-    valueState->addVectorBatch(storedBatch0);
+    valueState->addVectorBatch(keyGroup, storedBatch0);
     EXPECT_EQ(batchId0, 0);
-    EXPECT_EQ(valueState->getVectorBatchesSize(), 1);
-    EXPECT_EQ(valueState->getVectorBatch(batchId0), storedBatch0);
-    EXPECT_EQ(valueState->getVectorBatch(batchId0)->getTimestamp(0), 300);
-    EXPECT_EQ(valueState->getVectorBatch(batchId0)->getTimestamp(1), 301);
+    EXPECT_EQ(valueState->getNextSequenceNumber(keyGroup), 1);
+    EXPECT_EQ(valueState->getVectorBatch(keyGroup, batchId0), storedBatch0);
+    EXPECT_EQ(valueState->getVectorBatch(keyGroup, batchId0)->getTimestamp(0), 300);
+    EXPECT_EQ(valueState->getVectorBatch(keyGroup, batchId0)->getTimestamp(1), 301);
 
-    int batchId1 = valueState->getVectorBatchesSize();
+    int batchId1 = valueState->getNextSequenceNumber(keyGroup);
     omnistream::VectorBatch* storedBatch1 = CreateTestVectorBatch(400);
-    valueState->addVectorBatch(storedBatch1);
+    valueState->addVectorBatch(keyGroup, storedBatch1);
     EXPECT_EQ(batchId1, 1);
-    EXPECT_EQ(valueState->getVectorBatchesSize(), 2);
-    EXPECT_EQ(valueState->getVectorBatch(batchId1), storedBatch1);
-    EXPECT_EQ(valueState->getVectorBatch(batchId1)->getTimestamp(0), 400);
-    EXPECT_EQ(valueState->getVectorBatch(batchId1)->getTimestamp(1), 401);
+    EXPECT_EQ(valueState->getNextSequenceNumber(keyGroup), 2);
+    EXPECT_EQ(valueState->getVectorBatch(keyGroup, batchId1), storedBatch1);
+    EXPECT_EQ(valueState->getVectorBatch(keyGroup, batchId1)->getTimestamp(0), 400);
+    EXPECT_EQ(valueState->getVectorBatch(keyGroup, batchId1)->getTimestamp(1), 401);
 
     context->setCurrentKey(keyRowData1);
     valueState->clear();
     EXPECT_EQ(valueState->value(), nullptr);
     // clear() on one key does not affect the shared VectorBatch side table.
-    EXPECT_EQ(valueState->getVectorBatchesSize(), 2);
-    EXPECT_EQ(valueState->getVectorBatch(batchId0), storedBatch0);
-    EXPECT_EQ(valueState->getVectorBatch(batchId1), storedBatch1);
+    EXPECT_EQ(valueState->getNextSequenceNumber(keyGroup), 2);
+    EXPECT_EQ(valueState->getVectorBatch(keyGroup, batchId0), storedBatch0);
+    EXPECT_EQ(valueState->getVectorBatch(keyGroup, batchId1), storedBatch1);
 
     context->setCurrentKey(keyRowData2);
     valueState->clear();
     EXPECT_EQ(valueState->value(), nullptr);
-    EXPECT_EQ(valueState->getVectorBatchesSize(), 2);
-    EXPECT_EQ(valueState->getVectorBatch(batchId0), storedBatch0);
-    EXPECT_EQ(valueState->getVectorBatch(batchId1), storedBatch1);
+    EXPECT_EQ(valueState->getNextSequenceNumber(keyGroup), 2);
+    EXPECT_EQ(valueState->getVectorBatch(keyGroup, batchId0), storedBatch0);
+    EXPECT_EQ(valueState->getVectorBatch(keyGroup, batchId1), storedBatch1);
 
     delete keyRowData1;
     delete keyRowData2;
@@ -186,40 +187,41 @@ TEST(HeapKeyedStateBackendTest, VectorBatchMapStateTest)
     EXPECT_EQ(stateHandle, stateHandleAgain);
 
     context->setCurrentKey(keyRowData2);
-    int batchId0 = mapState->getVectorBatchesSize();
+    int32_t keyGroup = context->getCurrentKeyGroupIndex();
+    int batchId0 = mapState->getNextSequenceNumber(keyGroup);
     omnistream::VectorBatch* storedBatch0 = CreateTestVectorBatch(300);
-    mapState->addVectorBatch(storedBatch0);
+    mapState->addVectorBatch(keyGroup, storedBatch0);
     EXPECT_EQ(batchId0, 0);
-    EXPECT_EQ(mapState->getVectorBatchesSize(), 1);
-    EXPECT_EQ(mapState->getVectorBatch(batchId0), storedBatch0);
-    EXPECT_EQ(mapState->getVectorBatch(batchId0)->getTimestamp(0), 300);
-    EXPECT_EQ(mapState->getVectorBatch(batchId0)->getTimestamp(1), 301);
+    EXPECT_EQ(mapState->getNextSequenceNumber(keyGroup), 1);
+    EXPECT_EQ(mapState->getVectorBatch(keyGroup, batchId0), storedBatch0);
+    EXPECT_EQ(mapState->getVectorBatch(keyGroup, batchId0)->getTimestamp(0), 300);
+    EXPECT_EQ(mapState->getVectorBatch(keyGroup, batchId0)->getTimestamp(1), 301);
 
-    int batchId1 = mapState->getVectorBatchesSize();
+    int batchId1 = mapState->getNextSequenceNumber(keyGroup);
     omnistream::VectorBatch* storedBatch1 = CreateTestVectorBatch(400);
-    mapState->addVectorBatch(storedBatch1);
+    mapState->addVectorBatch(keyGroup, storedBatch1);
     EXPECT_EQ(batchId1, 1);
-    EXPECT_EQ(mapState->getVectorBatchesSize(), 2);
-    EXPECT_EQ(mapState->getVectorBatch(batchId1), storedBatch1);
-    EXPECT_EQ(mapState->getVectorBatch(batchId1)->getTimestamp(0), 400);
-    EXPECT_EQ(mapState->getVectorBatch(batchId1)->getTimestamp(1), 401);
+    EXPECT_EQ(mapState->getNextSequenceNumber(keyGroup), 2);
+    EXPECT_EQ(mapState->getVectorBatch(keyGroup, batchId1), storedBatch1);
+    EXPECT_EQ(mapState->getVectorBatch(keyGroup, batchId1)->getTimestamp(0), 400);
+    EXPECT_EQ(mapState->getVectorBatch(keyGroup, batchId1)->getTimestamp(1), 401);
 
     context->setCurrentKey(keyRowData1);
     mapState->clear();
     EXPECT_FALSE(mapState->contains(10));
     EXPECT_FALSE(mapState->contains(20));
     // clear() only removes the keyed map; the VectorBatch side table is shared and unchanged.
-    EXPECT_EQ(mapState->getVectorBatchesSize(), 2);
-    EXPECT_EQ(mapState->getVectorBatch(batchId0), storedBatch0);
-    EXPECT_EQ(mapState->getVectorBatch(batchId1), storedBatch1);
+    EXPECT_EQ(mapState->getNextSequenceNumber(keyGroup), 2);
+    EXPECT_EQ(mapState->getVectorBatch(keyGroup, batchId0), storedBatch0);
+    EXPECT_EQ(mapState->getVectorBatch(keyGroup, batchId1), storedBatch1);
 
     context->setCurrentKey(keyRowData2);
     EXPECT_EQ(mapState->get(10).value(), 3000);
     mapState->clear();
     EXPECT_FALSE(mapState->contains(10));
-    EXPECT_EQ(mapState->getVectorBatchesSize(), 2);
-    EXPECT_EQ(mapState->getVectorBatch(batchId0), storedBatch0);
-    EXPECT_EQ(mapState->getVectorBatch(batchId1), storedBatch1);
+    EXPECT_EQ(mapState->getNextSequenceNumber(keyGroup), 2);
+    EXPECT_EQ(mapState->getVectorBatch(keyGroup, batchId0), storedBatch0);
+    EXPECT_EQ(mapState->getVectorBatch(keyGroup, batchId1), storedBatch1);
 
     delete keyRowData1;
     delete keyRowData2;
@@ -274,31 +276,32 @@ TEST(HeapKeyedStateBackendTest, VectorBatchListStateTest)
     EXPECT_EQ(stateHandle, stateHandleAgain);
 
     context->setCurrentKey(keyRowData2);
-    int batchId0 = listState->getVectorBatchesSize();
+    int32_t keyGroup = context->getCurrentKeyGroupIndex();
+    int batchId0 = listState->getNextSequenceNumber(keyGroup);
     omnistream::VectorBatch* storedBatch0 = CreateTestVectorBatch(300);
-    listState->addVectorBatch(storedBatch0);
+    listState->addVectorBatch(keyGroup, storedBatch0);
     EXPECT_EQ(batchId0, 0);
-    EXPECT_EQ(listState->getVectorBatchesSize(), 1);
-    EXPECT_EQ(listState->getVectorBatch(batchId0), storedBatch0);
-    EXPECT_EQ(listState->getVectorBatch(batchId0)->getTimestamp(0), 300);
-    EXPECT_EQ(listState->getVectorBatch(batchId0)->getTimestamp(1), 301);
+    EXPECT_EQ(listState->getNextSequenceNumber(keyGroup), 1);
+    EXPECT_EQ(listState->getVectorBatch(keyGroup, batchId0), storedBatch0);
+    EXPECT_EQ(listState->getVectorBatch(keyGroup, batchId0)->getTimestamp(0), 300);
+    EXPECT_EQ(listState->getVectorBatch(keyGroup, batchId0)->getTimestamp(1), 301);
 
-    int batchId1 = listState->getVectorBatchesSize();
+    int batchId1 = listState->getNextSequenceNumber(keyGroup);
     omnistream::VectorBatch* storedBatch1 = CreateTestVectorBatch(400);
-    listState->addVectorBatch(storedBatch1);
+    listState->addVectorBatch(keyGroup, storedBatch1);
     EXPECT_EQ(batchId1, 1);
-    EXPECT_EQ(listState->getVectorBatchesSize(), 2);
-    EXPECT_EQ(listState->getVectorBatch(batchId1), storedBatch1);
-    EXPECT_EQ(listState->getVectorBatch(batchId1)->getTimestamp(0), 400);
-    EXPECT_EQ(listState->getVectorBatch(batchId1)->getTimestamp(1), 401);
+    EXPECT_EQ(listState->getNextSequenceNumber(keyGroup), 2);
+    EXPECT_EQ(listState->getVectorBatch(keyGroup, batchId1), storedBatch1);
+    EXPECT_EQ(listState->getVectorBatch(keyGroup, batchId1)->getTimestamp(0), 400);
+    EXPECT_EQ(listState->getVectorBatch(keyGroup, batchId1)->getTimestamp(1), 401);
 
     context->setCurrentKey(keyRowData1);
     listState->clear();
     EXPECT_EQ(listState->get(), nullptr);
     // clear() only removes the keyed list; the VectorBatch side table is shared and unchanged.
-    EXPECT_EQ(listState->getVectorBatchesSize(), 2);
-    EXPECT_EQ(listState->getVectorBatch(batchId0), storedBatch0);
-    EXPECT_EQ(listState->getVectorBatch(batchId1), storedBatch1);
+    EXPECT_EQ(listState->getNextSequenceNumber(keyGroup), 2);
+    EXPECT_EQ(listState->getVectorBatch(keyGroup, batchId0), storedBatch0);
+    EXPECT_EQ(listState->getVectorBatch(keyGroup, batchId1), storedBatch1);
 
     context->setCurrentKey(keyRowData2);
     listForKey2 = listState->get();
@@ -306,9 +309,9 @@ TEST(HeapKeyedStateBackendTest, VectorBatchListStateTest)
     EXPECT_EQ(listForKey2->size(), 1);
     listState->clear();
     EXPECT_EQ(listState->get(), nullptr);
-    EXPECT_EQ(listState->getVectorBatchesSize(), 2);
-    EXPECT_EQ(listState->getVectorBatch(batchId0), storedBatch0);
-    EXPECT_EQ(listState->getVectorBatch(batchId1), storedBatch1);
+    EXPECT_EQ(listState->getNextSequenceNumber(keyGroup), 2);
+    EXPECT_EQ(listState->getVectorBatch(keyGroup, batchId0), storedBatch0);
+    EXPECT_EQ(listState->getVectorBatch(keyGroup, batchId1), storedBatch1);
 
     delete keyRowData1;
     delete keyRowData2;
@@ -339,9 +342,10 @@ TEST(HeapKeyedStateBackendTest, VectorBatchSideTableMultiStateStability)
     }
 
     omnistream::VectorBatch* storedBatch = CreateTestVectorBatch(500);
-    states.front()->addVectorBatch(storedBatch);
-    EXPECT_EQ(states.front()->getVectorBatchesSize(), 1);
-    EXPECT_EQ(states.front()->getVectorBatch(0), storedBatch);
+    int32_t keyGroup = context->getCurrentKeyGroupIndex();
+    states.front()->addVectorBatch(keyGroup, storedBatch);
+    EXPECT_EQ(states.front()->getNextSequenceNumber(keyGroup), 1);
+    EXPECT_EQ(states.front()->getVectorBatch(keyGroup, 0), storedBatch);
 
     delete range;
     delete context;

@@ -11,6 +11,8 @@
 #include "AlternatingWaitingForFirstBarrierUnaligned.h"
 #include "AlternatingCollectingBarriersUnaligned.h"
 #include "AlternatingWaitingForFirstBarrier.h"
+#include "partition/consumer/IndexedInputGate.h"
+#include "streaming/runtime/io/checkpointing/AlternatingCollectingBarriers.h"
 
 AlternatingWaitingForFirstBarrierUnaligned::AlternatingWaitingForFirstBarrierUnaligned(
     bool alternating, ChannelState state)
@@ -22,6 +24,15 @@ AlternatingWaitingForFirstBarrierUnaligned::AlternatingWaitingForFirstBarrierUna
 BarrierHandlerState* AlternatingWaitingForFirstBarrierUnaligned::BarrierReceived(
     Controller* controller, InputChannelInfo channelInfo, CheckpointBarrier* barrier, bool markChannelBlocked)
 {
+    if (!barrier->IsCheckpoint()) {
+        state_.BlockChannel(channelInfo);
+        BarrierHandlerState* oldState = new AlternatingCollectingBarriers(std::move(state_));
+        BarrierHandlerState* newState = oldState->BarrierReceived(controller, channelInfo, barrier, markChannelBlocked);
+        if (newState != oldState) {
+            delete oldState;
+        }
+        return newState;
+    }
     LOG_DEBUG("AlternatingWaitingForFirstBarrierUnaligned::BarrierReceived");
     if (markChannelBlocked && !barrier->GetCheckpointOptions()->IsUnalignedCheckpoint()) {
         state_.BlockChannel(channelInfo);
@@ -30,7 +41,12 @@ BarrierHandlerState* AlternatingWaitingForFirstBarrierUnaligned::BarrierReceived
     CheckpointBarrier* unalignedBarrier = barrier->AsUnaligned();
     controller->InitInputsCheckpoint(*unalignedBarrier);
     for (auto* input : state_.getInputs()) {
-        input->CheckpointStarted(*unalignedBarrier);
+        omnistream::IndexedInputGate* inputGate = dynamic_cast<omnistream::IndexedInputGate*>(input);
+        if (inputGate) {
+            inputGate->CheckpointStarted(*unalignedBarrier);
+        } else {
+            input->CheckpointStarted(*unalignedBarrier);
+        }
     }
     controller->TriggerGlobalCheckpoint(*unalignedBarrier);
 

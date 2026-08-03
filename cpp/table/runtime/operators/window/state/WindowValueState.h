@@ -47,19 +47,24 @@ public:
         delete windowState;
     };
 
-    void addVectorBatch(omnistream::VectorBatch* batch)
+    void addVectorBatch(int32_t keyGroup, omnistream::VectorBatch* batch)
     {
-        windowState->addVectorBatch(batch);
+        windowState->addVectorBatch(keyGroup, batch);
     };
 
-    const std::vector<omnistream::VectorBatch*>& getVectorBatches()
+    void addVectorBatches(const std::unordered_map<int32_t, omnistream::VectorBatch*>& vectorBatchByKeyGroup)
     {
-        return windowState->getVectorBatches();
+        windowState->addVectorBatches(vectorBatchByKeyGroup);
+    }
+
+    std::vector<omnistream::VectorBatch*> getVectorBatches(int32_t keyGroup)
+    {
+        return windowState->getVectorBatches(keyGroup);
     };
 
-    int getCurrentBatchId()
+    uint32_t getCurrentBatchId(int32_t keyGroup)
     {
-        return windowState->getVectorBatchesSize();
+        return windowState->getNextSequenceNumber(keyGroup);
     };
 
     bool isFalconEnabled() const

@@ -70,7 +70,7 @@ void ChannelStatePendingResult::FinishResult(std::shared_ptr<StreamStateHandle> 
 
 void ChannelStatePendingResult::Fail(const std::exception_ptr& e)
 {
-    // result->Fail(e);
+    result->Fail(e);
 }
 
 bool ChannelStatePendingResult::IsDone() const

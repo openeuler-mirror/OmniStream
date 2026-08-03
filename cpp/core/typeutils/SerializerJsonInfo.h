@@ -37,6 +37,18 @@ enum class SerializerType {
 };
 
 struct SerializerJsonInfo {
+    // serializer JSON 和状态 snapshot 中使用的字段 key。
+    static constexpr const char* TYPE_KEY = "type";
+    static constexpr const char* ELEMENT_TYPE_KEY = "element_type";
+    static constexpr const char* KEY_SERIALIZER_KEY = "keySerializer";
+    static constexpr const char* NAMESPACE_SERIALIZER_KEY = "namespaceSerializer";
+    static constexpr const char* VALUE_SERIALIZER_KEY = "valueSerializer";
+    static constexpr const char* STATE_SERIALIZER_KEY = "stateSerializer";
+    static constexpr const char* LOGICAL_TYPE_KEY = "logicalType";
+    static constexpr const char* FIELDS_KEY = "fields";
+    static constexpr const char* FIELD_NAME_KEY = "fieldName";
+    static constexpr const char* FIELD_SERIALIZER_KEY = "fieldSerializer";
+
     // 基础类型及string只用type字段
     SerializerType type = SerializerType::UNKNOWN;
     // elementType pojo使用，类的全路径限定名 com.example.xxx
@@ -56,19 +68,19 @@ public:
     std::string toJson()
     {
         nlohmann::json jsonObj;
-        jsonObj["type"] = type;
-        jsonObj["element_type"] = elementType;
+        jsonObj[TYPE_KEY] = type;
+        jsonObj[ELEMENT_TYPE_KEY] = elementType;
         if (keySerializer != nullptr) {
-            jsonObj["keySerializer"] = keySerializer->toJson();
+            jsonObj[KEY_SERIALIZER_KEY] = keySerializer->toJson();
         }
         if (valueSerializer != nullptr) {
-            jsonObj["valueSerializer"] = valueSerializer->toJson();
+            jsonObj[VALUE_SERIALIZER_KEY] = valueSerializer->toJson();
         }
         if (namespaceSerializer != nullptr) {
-            jsonObj["namespaceSerializer"] = namespaceSerializer->toJson();
+            jsonObj[NAMESPACE_SERIALIZER_KEY] = namespaceSerializer->toJson();
         }
         if (logicalType != nullptr) {
-            jsonObj["logicalType"] = logicalType->toJson();
+            jsonObj[LOGICAL_TYPE_KEY] = logicalType->toJson();
         }
         if (fieldSerializers.size() != fieldNames.size()) {
             return jsonObj.dump();
@@ -85,11 +97,11 @@ public:
             if (fieldSerializer == nullptr) {
                 continue;
             }
-            fieldJson["fieldName"] = fieldName;
-            fieldJson["fieldSerializer"] = fieldSerializer->toJson();
+            fieldJson[FIELD_NAME_KEY] = fieldName;
+            fieldJson[FIELD_SERIALIZER_KEY] = fieldSerializer->toJson();
             fieldTypesJson.push_back(std::move(fieldJson));
         }
-        jsonObj["fields"] = fieldTypesJson.dump();
+        jsonObj[FIELDS_KEY] = fieldTypesJson.dump();
         return jsonObj.dump();
     };
 };

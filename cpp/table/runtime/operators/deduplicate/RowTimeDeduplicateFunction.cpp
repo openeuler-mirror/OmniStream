@@ -16,6 +16,9 @@
 
 #include "RowTimeDeduplicateFunction.h"
 #include "data/util/VectorBatchUtil.h"
+#include "runtime/state/heap/HeapValueState.h"
+#include "runtime/state/rocksdb/RocksdbValueState.h"
+#include "runtime/state/KeyGroupRangeAssignment.h"
 
 void RowTimeDeduplicateFunction::initOutputVector(
     omnistream::VectorBatch* out, omnistream::VectorBatch* inputVB, int rowCount)
@@ -46,10 +49,51 @@ void RowTimeDeduplicateFunction::initOutputVector(
 
 void RowTimeDeduplicateFunction::processBatch(omnistream::VectorBatch* inputVB, Context& ctx, TimestampedCollector& out)
 {
-    recordStateVB->addVectorBatch(inputVB);
-    delVb.insert(inputVB);
-    vectorBatchCacheMap.emplace(getCurrentBatchId() - 1, inputVB);
-    auto outputVectorBatch = ProcessUpdateRecord(inputVB, ctx);
+    auto inputVBGuard = std::unique_ptr<omnistream::VectorBatch>(inputVB);
+    auto rowCount = inputVBGuard->GetRowCount();
+    for (int i = 0; i < rowCount; ++i) {
+        auto key = groupByKeySelector->getKey(inputVBGuard.get(), i);
+        reuseKeys_.push_back(key);
+
+        auto keyGroup = KeyGroupRangeAssignment<RowData*>::assignToKeyGroup(key, maxParallelism_);
+        auto& oldRowIds = reuseOldRowIdsByKeyGroup_[keyGroup];
+        auto newRowId = static_cast<int32_t>(oldRowIds.size());
+        auto comboId = VectorBatchUtil::getComboId(keyGroup, recordStateVB->getNextSequenceNumber(keyGroup), newRowId);
+        reuseComboIds_.push_back(comboId);
+
+        oldRowIds.push_back(i);
+    }
+
+    bool shouldSplitVectorBatch =
+        reuseOldRowIdsByKeyGroup_.size() > 1 ||
+        (reuseOldRowIdsByKeyGroup_.size() == 1 && reuseOldRowIdsByKeyGroup_.begin()->second.size() != rowCount);
+
+    for (auto& [keyGroup, oldRowIds] : reuseOldRowIdsByKeyGroup_) {
+        omnistream::VectorBatch* splitBatch = nullptr;
+        if (shouldSplitVectorBatch) {
+            splitBatch = VectorBatchUtil::buildNewVectorBatchByRowIds(inputVBGuard.get(), oldRowIds);
+        } else {
+            splitBatch = inputVBGuard.get();
+        }
+        auto sequenceNumber = recordStateVB->getNextSequenceNumber(keyGroup);
+        auto vectorBatchId = VectorBatchUtil::getVectorBatchId(keyGroup, sequenceNumber);
+        reuseVectorBatchByKeyGroup_[keyGroup] = splitBatch;
+        vectorBatchCacheMap.emplace(vectorBatchId, splitBatch);
+        delVb.insert(splitBatch);
+    }
+
+    recordStateVB->addVectorBatches(reuseVectorBatchByKeyGroup_);
+
+    auto outputVectorBatch = ProcessUpdateRecord(inputVBGuard.get(), ctx);
+
+    if (!shouldSplitVectorBatch) {
+        inputVBGuard.release();
+    }
+
+    reuseOldRowIdsByKeyGroup_.clear();
+    reuseVectorBatchByKeyGroup_.clear();
+    reuseComboIds_.clear();
+    reuseKeys_.clear();
     freeDelBatch();
     out.collect(outputVectorBatch);
 }
@@ -72,21 +116,26 @@ bool RowTimeDeduplicateFunction::CompareRecord(
 void RowTimeDeduplicateFunction::open(const Configuration& config)
 {
     LOG("RowTimeDeduplicateFunction open");
-    std::string deduplicateStateName = "recordState";
+    std::string deduplicateStateName = "deduplicate-state";
     TypeSerializer* serializer = new LongSerializer();
+    // Uses int64_t as the template type but not omnistream::ComboId to keep compatibility with existing code.
     auto* recordStateDesc = new ValueStateDescriptor<int64_t>(deduplicateStateName, serializer);
 
-    this->recordStateVB =
-        static_cast<StreamingRuntimeContext<RowData*>*>(getRuntimeContext())->getState<int64_t>(recordStateDesc);
-    if (dynamic_cast<RocksdbValueState<RowData*, VoidNamespace, int64_t>*>(recordStateVB)) {
-        static_cast<RocksdbValueState<RowData*, VoidNamespace, int64_t>*>(this->recordStateVB)->setDefaultValue(-1);
-        INFO_RELEASE("RowTimeDeduplicateFunction backend is rocksdb");
-        backendType_ = omnistream::StateType::ROCKSDB;
+    auto* runtimeContext = static_cast<StreamingRuntimeContext<RowData*>*>(getRuntimeContext());
+    this->recordStateVB = runtimeContext->getState<int64_t>(recordStateDesc);
+    stateType_ = runtimeContext->getStateType();
+    omnistream::checkStateType(stateType_, "RowTimeDeduplicateFunction");
+    if (stateType_ == omnistream::StateType::ROCKSDB) {
+        static_cast<RocksdbValueState<RowData*, VoidNamespace, int64_t>*>(recordStateVB)
+            ->setDefaultValue(static_cast<int64_t>(INVALID_COMBO_ID));
+    } else if (stateType_ == omnistream::StateType::HEAP) {
+        static_cast<HeapValueState<RowData*, VoidNamespace, int64_t>*>(recordStateVB)
+            ->setDefaultValue(static_cast<int64_t>(INVALID_COMBO_ID));
     } else {
-        static_cast<HeapValueState<RowData*, VoidNamespace, int64_t>*>(this->recordStateVB)->setDefaultValue(-1);
-        INFO_RELEASE("RowTimeDeduplicateFunction backend is mem");
-        backendType_ = omnistream::StateType::HEAP;
+        THROW_LOGIC_EXCEPTION("RowTimeDeduplicateFunction only support heap and rocksdb state type");
     }
+
+    maxParallelism_ = runtimeContext->getMaxNumberOfSubtasks();
     LOG("RowTimeDeduplicateFunction open finish");
 }
 
@@ -105,7 +154,7 @@ std::vector<int32_t> RowTimeDeduplicateFunction::getKeyedTypes(
 void RowTimeDeduplicateFunction::freeDelBatch()
 {
     vectorBatchCacheMap.clear();
-    if (backendType_ == omnistream::StateType::HEAP) {
+    if (stateType_ == omnistream::StateType::HEAP) {
         delVb.clear();
         return;
     }
@@ -121,7 +170,7 @@ unordered_map<RowData*, int32_t> RowTimeDeduplicateFunction::GetNeededUpdateReco
     int rowCount = inputVB->GetRowCount();
     unordered_map<RowData*, int32_t> updatedRecord; // value is the rowId
     for (int i = 0; i < rowCount; i++) {
-        RowData* key = groupByKeySelector->getKey(inputVB, i);
+        RowData* key = reuseKeys_[i];
 
         auto itTmp = updatedRecord.find(key); // containskey
         if (itTmp == updatedRecord.end()) {
@@ -140,71 +189,72 @@ unordered_map<RowData*, int32_t> RowTimeDeduplicateFunction::GetNeededUpdateReco
 
 omnistream::VectorBatch* RowTimeDeduplicateFunction::ProcessUpdateRecord(omnistream::VectorBatch* inputVB, Context& ctx)
 {
-    std::vector<std::tuple<long, long, RowData*>> updatedRecords; //
+    std::vector<std::tuple<ComboId, ComboId, RowData*>> updatedRecords;
     updatedRecords.reserve(inputVB->GetRowCount() / 4);
     int outPutRowCount = 0;
 
     auto updateState = GetNeededUpdateRecord(inputVB);
-    INFO_RELEASE("state size : " << updateState.size());
-    int currentBatchId = getCurrentBatchId() - 1;
+    LOG("state size : " << updateState.size());
     omnistream::VectorBatch* outputVB = nullptr;
     for (auto it : updateState) {
         RowData* k = it.first;
         int currentRowId = it.second;
         ctx.setCurrentKey(k);
-        int64_t preCombineId = recordStateVB->value();
-        if (preCombineId == -1) {
-            long combineId = VectorBatchUtil::getComboId(currentBatchId, currentRowId);
-            updatedRecords.emplace_back(-99, combineId, k);
+        ComboId preComboId = static_cast<ComboId>(recordStateVB->value());
+        if (preComboId == INVALID_COMBO_ID) {
+            ComboId comboId = reuseComboIds_[currentRowId];
+            updatedRecords.emplace_back(-99, comboId, k);
             outPutRowCount++;
         } else {
-            int preBatchId = VectorBatchUtil::getBatchId(preCombineId);
-            int preRowId = VectorBatchUtil::getRowId(preCombineId);
-            omnistream::VectorBatch* previousVectorBatch = GetVectorBatchById(preBatchId);
+            int32_t preRowId = VectorBatchUtil::getRowId(preComboId);
+            omnistream::VectorBatch* previousVectorBatch = GetVectorBatchByComboId(preComboId);
             if (previousVectorBatch == nullptr) {
                 LOG("previousVectorBatch is nullptr..........why......");
+                delete k;
             } else {
                 bool isUpdated = CompareRecord(preRowId, currentRowId, previousVectorBatch, inputVB);
                 if (isUpdated) {
-                    long combineId = VectorBatchUtil::getComboId(currentBatchId, currentRowId);
-                    updatedRecords.emplace_back(preCombineId, combineId, k);
+                    ComboId comboId = reuseComboIds_[currentRowId];
+                    updatedRecords.emplace_back(preComboId, comboId, k);
                     if (generateUpdateBefore_) {
                         outPutRowCount += 2;
                     } else {
                         outPutRowCount++;
                     }
+                } else {
+                    delete k;
                 }
             }
         }
     }
 
     outputVB = new omnistream::VectorBatch(outPutRowCount);
-    INFO_RELEASE("outPutRowCount is " << outPutRowCount);
+    LOG("outPutRowCount is " << outPutRowCount);
     initOutputVector(outputVB, inputVB, outPutRowCount);
 
     int rowIndex = 0;
     for (int i = 0; i < updatedRecords.size(); i++) {
         auto record = updatedRecords[i];
-        long preCombineId = std::get<0>(record);
-        long curCombineId = std::get<1>(record);
+        ComboId preComboId = std::get<0>(record);
+        ComboId curComboId = std::get<1>(record);
         if (generateUpdateBefore_ || generateInsert_) {
-            if (preCombineId == -99) {
+            if (preComboId == -99) {
                 outputVB->setRowKind(rowIndex, RowKind::INSERT);
-                CopyTargetVectorBatchToOut(outputVB, curCombineId, rowIndex);
+                CopyTargetVectorBatchToOut(outputVB, curComboId, rowIndex);
                 rowIndex++;
             } else {
                 if (generateUpdateBefore_) {
                     outputVB->setRowKind(rowIndex, RowKind::UPDATE_BEFORE);
-                    CopyTargetVectorBatchToOut(outputVB, preCombineId, rowIndex);
+                    CopyTargetVectorBatchToOut(outputVB, preComboId, rowIndex);
                     rowIndex++;
                 }
                 outputVB->setRowKind(rowIndex, RowKind::UPDATE_AFTER);
-                CopyTargetVectorBatchToOut(outputVB, curCombineId, rowIndex);
+                CopyTargetVectorBatchToOut(outputVB, curComboId, rowIndex);
                 rowIndex++;
             }
         } else {
             outputVB->setRowKind(rowIndex, RowKind::UPDATE_AFTER);
-            CopyTargetVectorBatchToOut(outputVB, curCombineId, rowIndex);
+            CopyTargetVectorBatchToOut(outputVB, curComboId, rowIndex);
             rowIndex++;
         }
     }
@@ -214,43 +264,43 @@ omnistream::VectorBatch* RowTimeDeduplicateFunction::ProcessUpdateRecord(omnistr
     return outputVB;
 }
 
-omnistream::VectorBatch* RowTimeDeduplicateFunction::GetVectorBatchById(int32_t batchId)
+omnistream::VectorBatch* RowTimeDeduplicateFunction::GetVectorBatchByComboId(ComboId comboId)
 {
-    LOG("batchis is " << batchId);
-    auto it = vectorBatchCacheMap.find(batchId);
+    auto keyGroup = VectorBatchUtil::getKeyGroup(comboId);
+    auto sequenceNumber = VectorBatchUtil::getSequenceNumber(comboId);
+    auto vectorBatchId = VectorBatchUtil::getVectorBatchId(keyGroup, sequenceNumber);
+    auto it = vectorBatchCacheMap.find(vectorBatchId);
     if (it != vectorBatchCacheMap.end()) {
         return it->second;
     } else {
-        auto vb = recordStateVB->getVectorBatch(batchId);
-        vectorBatchCacheMap.emplace(batchId, vb);
+        auto vb = recordStateVB->getVectorBatch(keyGroup, sequenceNumber);
+        vectorBatchCacheMap.emplace(vectorBatchId, vb);
         delVb.insert(vb);
         return vb;
     }
 }
 
 void RowTimeDeduplicateFunction::UpdateStateBackend(
-    std::vector<std::tuple<long, long, RowData*>>& updateRecords, Context& ctx)
+    std::vector<std::tuple<ComboId, ComboId, RowData*>>& updateRecords, Context& ctx)
 {
-    if (backendType_ == omnistream::StateType::HEAP) {
+    if (stateType_ == omnistream::StateType::HEAP) {
         // mem backend
         for (auto record : updateRecords) {
-            long curCombineId = std::get<1>(record);
+            ComboId curComboId = std::get<1>(record);
             auto rowKey = std::get<2>(record);
             ctx.setCurrentKey(rowKey);
-            recordStateVB->update(curCombineId);
+            recordStateVB->update(static_cast<int64_t>(curComboId));
         }
     } else {
         // rocksdb backend
         std::unordered_map<RowData*, int64_t> pendingUpdates;
         for (auto record : updateRecords) {
-            long curCombineId = std::get<1>(record);
+            ComboId curComboId = std::get<1>(record);
             auto rowKey = std::get<2>(record);
-            pendingUpdates.emplace(rowKey, curCombineId);
+            pendingUpdates.emplace(rowKey, static_cast<int64_t>(curComboId));
         }
-        auto rocksdbStateBackend = dynamic_cast<RocksdbValueState<RowData*, VoidNamespace, int64_t>*>(recordStateVB);
-        if (rocksdbStateBackend) {
-            rocksdbStateBackend->updateByBatch(pendingUpdates);
-        }
+        auto* rocksdbStateBackend = static_cast<RocksdbValueState<RowData*, VoidNamespace, int64_t>*>(recordStateVB);
+        rocksdbStateBackend->updateByBatch(pendingUpdates);
     }
     // clear the keys
     for (auto record : updateRecords) {
@@ -260,12 +310,11 @@ void RowTimeDeduplicateFunction::UpdateStateBackend(
 }
 
 void RowTimeDeduplicateFunction::CopyTargetVectorBatchToOut(
-    omnistream::VectorBatch* outputVB, long comboID, int rowIndex)
+    omnistream::VectorBatch* outputVB, ComboId comboId, int rowIndex)
 {
-    LOG("comboID is, " << comboID);
-    int batchId = VectorBatchUtil::getBatchId(comboID);
-    int rowId = VectorBatchUtil::getRowId(comboID);
-    auto batch = GetVectorBatchById(batchId);
+    LOG("comboId is, " << comboId);
+    int32_t rowId = VectorBatchUtil::getRowId(comboId);
+    auto batch = GetVectorBatchByComboId(comboId);
     // set timestamp
     outputVB->setTimestamp(rowIndex, batch->getTimestamp(rowId));
     int colCount = batch->GetVectorCount();

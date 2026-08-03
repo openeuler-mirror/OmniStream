@@ -19,6 +19,7 @@
 #include "table/data/vectorbatch/VectorBatch.h"
 #include "OmniOperatorJIT/core/src/vector/large_string_container.h"
 #include <arm_sve.h>
+#include <memory>
 
 template <typename K>
 class StreamingJoinOperator : public AbstractStreamingJoinOperator<K> {
@@ -60,24 +61,16 @@ public:
     void processBatch1(StreamRecord* element) override
     {
         LOG("processBatch1(StreamRecord* element)");
-        processBatch(
-            reinterpret_cast<omnistream::VectorBatch*>(element->getValue()),
-            leftRecordStateView,
-            rightRecordStateView,
-            true,
-            false);
+        auto input = reinterpret_cast<omnistream::VectorBatch*>(element->getValue());
+        processBatch(input, leftRecordStateView, rightRecordStateView, true, false);
         delete element;
     };
 
     void processBatch2(StreamRecord* element) override
     {
         LOG("processBatch2(StreamRecord* element)");
-        processBatch(
-            reinterpret_cast<omnistream::VectorBatch*>(element->getValue()),
-            rightRecordStateView,
-            leftRecordStateView,
-            false,
-            false);
+        auto input = reinterpret_cast<omnistream::VectorBatch*>(element->getValue());
+        processBatch(input, rightRecordStateView, leftRecordStateView, false, false);
         delete element;
     };
 
@@ -118,6 +111,7 @@ protected:
     bool leftIsOuter;
     bool rightIsOuter;
     std::vector<bool> filterNullKeys;
+    int32_t maxParallelism = 0;
     JoinRecordStateView<K>* leftRecordStateView;
     JoinRecordStateView<K>* rightRecordStateView;
     void processElement(
@@ -219,17 +213,17 @@ private:
     void setTimestamp_raw(int start, int size, const int64_t* src, int64_t* dst, int rowIndex);
 
     void DealOneBatchInColumnVarchar(
-        long id,
+        ComboId comboId,
         int32_t icol,
         int& rowIndex,
         JoinRecordStateView<K>* otherSideStateView,
         omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*& outputCol);
     template <typename T, typename S>
     void DealOneBatchInColumn(
-        long id,
+        ComboId comboId,
         int32_t icol,
         int& rowIndex,
-        int& curbatchId,
+        ComboId& currentBatchCacheKey,
         JoinRecordStateView<K>* otherSideStateView,
         omniruntime::vec::Vector<S>*& inputCol,
         omniruntime::vec::Vector<T>*& outputCol);

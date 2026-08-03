@@ -26,6 +26,8 @@ public:
 
     LogicalType(bool isNullable, int typeId, const std::string& typeName);
 
+    virtual ~LogicalType() = default;
+
     int getTypeId() const;
 
     bool isNullable() const;
@@ -34,6 +36,10 @@ public:
     virtual nlohmann::json toJson() const;
 
     static omniruntime::type::DataTypeId flinkTypeToOmniTypeId(const std::string& flinkType);
+
+    static LogicalType* flinkTypeToOmniType(const std::string& flinkType);
+
+    static bool isSharedLogicalType(const LogicalType* logicalType);
 
     static std::unordered_map<std::string, omniruntime::type::DataTypeId> nameToIdMap;
     static void buildNameToIdMap();

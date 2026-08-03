@@ -30,6 +30,13 @@ KafkaSource::KafkaSource(nlohmann::json& opDescriptionJSON, bool isBatch) : isBa
 
     auto innerDeserializationSchema = DeserializationFactory::getDeserializationSchema(opDescriptionJSON);
     deserializationSchema = KafkaRecordDeserializationSchema::valueOnly(innerDeserializationSchema);
+
+    if (props.find("group.id") == props.end()) {
+        INFO_RELEASE("Offset commit on checkpoint is disabled because group.id is not specified");
+        if (props.find("commit.offsets.on.checkpoint") == props.end()) {
+            props.emplace("commit.offsets.on.checkpoint", "false");
+        }
+    }
 }
 
 SourceReader<KafkaPartitionSplit>* KafkaSource::createReader(SourceReaderContext* readerContext) const
@@ -44,7 +51,8 @@ SourceReader<KafkaPartitionSplit>* KafkaSource::createReader(SourceReaderContext
         new KafkaRecordEmitter(deserializationSchema);
     SingleThreadFetcherManager<RdKafka::Message, KafkaPartitionSplit>* kafkaSourceFetcherManager =
         new KafkaSourceFetcherManager(elementsQueue, splitReaderSupplier);
-    return new KafkaSourceReader(elementsQueue, kafkaSourceFetcherManager, recordEmitter, readerContext, isBatch);
+    return new KafkaSourceReader(
+        elementsQueue, kafkaSourceFetcherManager, recordEmitter, props, readerContext, isBatch);
 }
 
 KafkaPartitionSplitSerializer* KafkaSource::getSplitSerializer() const

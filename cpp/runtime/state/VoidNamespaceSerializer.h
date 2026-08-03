@@ -32,6 +32,7 @@ public:
 
     void deserialize(Object* buffer, DataInputView& source) override
     {
+        source.readByte();
     }
 
     void serialize(Object* buffer, DataOutputSerializer& target) override

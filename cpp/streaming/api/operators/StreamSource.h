@@ -101,6 +101,11 @@ public:
         this->userFunction->run(ctx);
     }
 
+    void stop(StopMode) override
+    {
+        cancel();
+    }
+
     void cancel()
     {
         this->userFunction->cancel();

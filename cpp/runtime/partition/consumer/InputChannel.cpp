@@ -51,6 +51,11 @@ int InputChannel::getChannelIndex() const
     return channelInfo.getInputChannelIdx();
 }
 
+int InputChannel::getGateIdx() const
+{
+    return channelInfo.getGateIdx();
+}
+
 InputChannelInfo InputChannel::getChannelInfo() const
 {
     return channelInfo;

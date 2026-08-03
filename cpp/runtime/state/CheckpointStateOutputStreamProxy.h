@@ -83,25 +83,41 @@ public:
 
     virtual ~CheckpointStateOutputStreamProxy()
     {
-        releaseDirectBuffer();
+        abortNoThrow();
     }
 
     std::shared_ptr<SnapshotResult<StreamStateHandle>> close()
     {
         flush();
-        if (provider_ != nullptr) {
-            try {
-                auto res = bridge_->CloseSavepointOutputStream(provider_);
-                provider_ = nullptr;
-                releaseDirectBuffer();
-                return res;
-            } catch (...) {
-                releaseDirectBuffer();
-                throw;
+        jobject provider = std::exchange(provider_, nullptr);
+        if (provider == nullptr) {
+            releaseDirectBuffer();
+            return nullptr;
+        }
+        try {
+            auto res = bridge_->CloseSavepointOutputStream(provider);
+            releaseDirectBuffer();
+            return res;
+        } catch (...) {
+            releaseDirectBuffer();
+            throw;
+        }
+    }
+
+    // Cleanup can run while another snapshot exception is unwinding and from the destructor.
+    // AbortSavepointOutputStream may fail in JNI; suppress that secondary error so it neither
+    // masks the original failure nor escapes the destructor and terminates the process.
+    void abortNoThrow() noexcept
+    {
+        jobject provider = std::exchange(provider_, nullptr);
+        try {
+            if (provider != nullptr) {
+                bridge_->AbortSavepointOutputStream(provider);
             }
+        } catch (...) {
+            INFO_RELEASE("Warning:CheckpointStateOutputStreamProxy::abortNoThrow failed to abort unfinalized stream");
         }
         releaseDirectBuffer();
-        return nullptr;
     }
 
     void writeMetadata(const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& snapshots, std::string keySerializer)

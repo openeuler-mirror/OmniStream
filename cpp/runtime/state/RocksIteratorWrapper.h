@@ -76,11 +76,19 @@ public:
     }
 
     /**
-     * 反向查找目标键
+     * 反向查找目标键（字节数组）
      */
     void seekForPrev(const std::vector<uint8_t>& target)
     {
         iterator->SeekForPrev(rocksdb::Slice(reinterpret_cast<const char*>(target.data()), target.size()));
+    }
+
+    /**
+     * 反向查找目标键
+     */
+    void seekForPrev(const rocksdb::Slice& target)
+    {
+        iterator->SeekForPrev(target);
     }
 
     /**

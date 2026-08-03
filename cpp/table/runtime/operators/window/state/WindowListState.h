@@ -8,8 +8,8 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_WINDOWLISTSTATE_H
-#define FLINK_TNEL_WINDOWLISTSTATE_H
+
+#pragma once
 
 #include <array>
 #include <tuple>
@@ -28,18 +28,20 @@ public:
     void clear(W window);
     std::vector<ValType>* get(W window);
     void add(W window, ValType value);
-    void addVectorBatch(omnistream::VectorBatch* batch);
-    const std::vector<omnistream::VectorBatch*>& getVectorBatches();
-    int getCurrentBatchId();
-    void clearVectors(int64_t currentTimestamp)
+
+    uint32_t getNextSequenceNumber(int32_t keyGroup);
+    void addVectorBatch(int32_t keyGroup, omnistream::VectorBatch* batch);
+    void addVectorBatches(const std::unordered_map<int32_t, omnistream::VectorBatch*>& vectorBatchByKeyGroup);
+    omnistream::VectorBatch* getVectorBatch(int32_t keyGroup, uint32_t sequenceNumber);
+    std::vector<omnistream::VectorBatch*> getVectorBatches(int32_t keyGroup);
+    void clearVectorBatches(int64_t currentTimestamp)
     {
-        windowState->clearVectors(currentTimestamp);
-    };
-    void clearVectors(std::vector<size_t>& indicesToDelete)
+        windowState->clearVectorBatches(currentTimestamp);
+    }
+    void clearVectorBatches(int32_t keyGroup, std::vector<uint32_t>& sequenceNumbersToDelete)
     {
-        windowState->clearVectors(indicesToDelete);
-    };
-    omnistream::VectorBatch* getVectorBatch(int batchId);
+        windowState->clearVectorBatches(keyGroup, sequenceNumbersToDelete);
+    }
 
 private:
     InternalListState<KeyType, W, ValType>* windowState;
@@ -73,27 +75,32 @@ void WindowListState<KeyType, W, ValType>::add(W window, ValType value)
 }
 
 template <typename KeyType, typename W, typename ValType>
-void WindowListState<KeyType, W, ValType>::addVectorBatch(omnistream::VectorBatch* batch)
+void WindowListState<KeyType, W, ValType>::addVectorBatch(int32_t keyGroup, omnistream::VectorBatch* batch)
 {
-    windowState->addVectorBatch(batch);
+    windowState->addVectorBatch(keyGroup, batch);
 }
 
 template <typename KeyType, typename W, typename ValType>
-const std::vector<omnistream::VectorBatch*>& WindowListState<KeyType, W, ValType>::getVectorBatches()
+void WindowListState<KeyType, W, ValType>::addVectorBatches(
+    const std::unordered_map<int32_t, omnistream::VectorBatch*>& vectorBatchByKeyGroup)
 {
-    return windowState->getVectorBatches();
+    windowState->addVectorBatches(vectorBatchByKeyGroup);
 }
 
 template <typename KeyType, typename W, typename ValType>
-omnistream::VectorBatch* WindowListState<KeyType, W, ValType>::getVectorBatch(int batchId)
+std::vector<omnistream::VectorBatch*> WindowListState<KeyType, W, ValType>::getVectorBatches(int32_t keyGroup)
 {
-    return windowState->getVectorBatch(batchId);
+    return windowState->getVectorBatches(keyGroup);
 }
 
 template <typename KeyType, typename W, typename ValType>
-int WindowListState<KeyType, W, ValType>::getCurrentBatchId()
+omnistream::VectorBatch* WindowListState<KeyType, W, ValType>::getVectorBatch(int32_t keyGroup, uint32_t sequenceNumber)
 {
-    return windowState->getVectorBatchesSize();
+    return windowState->getVectorBatch(keyGroup, sequenceNumber);
 }
 
-#endif // FLINK_TNEL_WINDOWLISTSTATE_H
+template <typename KeyType, typename W, typename ValType>
+uint32_t WindowListState<KeyType, W, ValType>::getNextSequenceNumber(int32_t keyGroup)
+{
+    return windowState->getNextSequenceNumber(keyGroup);
+}

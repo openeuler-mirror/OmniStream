@@ -9,8 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef FLINK_TNEL_HEAPLISTSTATE_H
-#define FLINK_TNEL_HEAPLISTSTATE_H
+#pragma once
 
 #include <vector>
 #include "core/typeutils/TypeSerializer.h"
@@ -71,26 +70,29 @@ public:
 
     void clear() override;
 
-    void addVectorBatch(omnistream::VectorBatch* vectorBatch) override;
-    omnistream::VectorBatch* getVectorBatch(int batchId) override;
-    long getVectorBatchesSize() override;
-    void clearVectors(int64_t currentTimestamp) override;
+    uint32_t getNextSequenceNumber(int32_t keyGroup) override;
+    void addVectorBatch(int32_t keyGroup, omnistream::VectorBatch* vectorBatch) override;
+    void addVectorBatches(const std::unordered_map<int32_t, omnistream::VectorBatch*>& vectorBatchByKeyGroup) override;
+    omnistream::VectorBatch* getVectorBatch(int32_t keyGroup, uint32_t sequenceNumber) override;
+    std::vector<omnistream::VectorBatch*> getVectorBatches(int32_t keyGroup) override;
+    void clearVectorBatches(int64_t currentTimestamp) override;
+    void clearVectorBatches(int32_t keyGroup, std::vector<uint32_t>& sequenceNumbersToDelete) override;
 
     static HeapListState<K, N, UV>* create(
         StateDescriptor* stateDesc,
         StateTable<K, N, std::vector<UV>*>* stateTable,
         TypeSerializer* keySerializer,
-        StateTable<int, VoidNamespace, omnistream::VectorBatch*>* vectorBatchStateTable);
+        StateTable<uint32_t, VoidNamespace, omnistream::VectorBatch*>* vectorBatchStateTable);
 
     static HeapListState<K, N, UV>* update(
         StateDescriptor* stateDesc,
         StateTable<K, N, std::vector<UV>*>* stateTable,
         HeapListState<K, N, UV>* existingState,
-        StateTable<int, VoidNamespace, omnistream::VectorBatch*>* vectorBatchStateTable);
+        StateTable<uint32_t, VoidNamespace, omnistream::VectorBatch*>* vectorBatchStateTable);
 
 private:
     StateTable<K, N, std::vector<UV>*>* stateTable;
-    StateTable<int, VoidNamespace, omnistream::VectorBatch*>* vectorBatchStateTable = nullptr;
+    StateTable<uint32_t, VoidNamespace, omnistream::VectorBatch*>* vectorBatchStateTable = nullptr;
     TypeSerializer* valueSerializer;
     TypeSerializer* namespaceSerializer;
     N currentNamespace;
@@ -119,55 +121,74 @@ void HeapListState<K, N, UV>::clear()
 }
 
 template <typename K, typename N, typename UV>
-void HeapListState<K, N, UV>::clearVectors(int64_t currentTimestamp)
+void HeapListState<K, N, UV>::clearVectorBatches(int64_t currentTimestamp)
 {
-    if (vectorBatchStateTable == nullptr) {
-        State::clearVectors(currentTimestamp);
-        return;
-    }
     VoidNamespace nameSpace;
-    auto* table =
-        static_cast<CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch*>*>(vectorBatchStateTable);
-    int keyGroup = table->getKeyGroupRange()->getStartKeyGroup();
-    const int batchCount = vectorBatchStateTable->size();
-    for (int batchId = 0; batchId < batchCount; ++batchId) {
-        omnistream::VectorBatch* batch = vectorBatchStateTable->get(batchId, keyGroup, nameSpace);
-        if (batch != nullptr && batch->isEmpty(currentTimestamp)) {
-            delete batch;
-            table->put(batchId, keyGroup, nameSpace, static_cast<omnistream::VectorBatch*>(nullptr));
+    auto* keyGroupRange = vectorBatchStateTable->getKeyContext()->getKeyGroupRange();
+    for (int32_t keyGroup = keyGroupRange->getStartKeyGroup(); keyGroup <= keyGroupRange->getEndKeyGroup();
+         ++keyGroup) {
+        auto nextSequenceNumber = this->getNextSequenceNumber(keyGroup);
+        for (uint32_t sequenceNumber = 0; sequenceNumber < nextSequenceNumber; ++sequenceNumber) {
+            vectorBatchStateTable->remove(sequenceNumber, keyGroup, nameSpace);
         }
     }
 }
 
 template <typename K, typename N, typename UV>
-void HeapListState<K, N, UV>::addVectorBatch(omnistream::VectorBatch* vectorBatch)
+void HeapListState<K, N, UV>::clearVectorBatches(int32_t keyGroup, std::vector<uint32_t>& sequenceNumbersToDelete)
 {
-    if (vectorBatchStateTable == nullptr) {
-        return;
-    }
     VoidNamespace nameSpace;
-    auto* table =
-        static_cast<CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch*>*>(vectorBatchStateTable);
-    int keyGroup = table->getKeyGroupRange()->getStartKeyGroup();
-    int batchId = vectorBatchStateTable->size();
-    table->put(batchId, keyGroup, nameSpace, vectorBatch);
+    for (auto sequenceNumber : sequenceNumbersToDelete) {
+        vectorBatchStateTable->remove(sequenceNumber, keyGroup, nameSpace);
+    }
 }
 
 template <typename K, typename N, typename UV>
-omnistream::VectorBatch* HeapListState<K, N, UV>::getVectorBatch(int batchId)
+uint32_t HeapListState<K, N, UV>::getNextSequenceNumber(int32_t keyGroup)
 {
-    if (vectorBatchStateTable == nullptr || batchId < 0 || batchId >= vectorBatchStateTable->size()) {
-        return nullptr;
-    }
-    VoidNamespace nameSpace;
-    int keyGroup = vectorBatchStateTable->getKeyGroupRange()->getStartKeyGroup();
-    return vectorBatchStateTable->get(batchId, keyGroup, nameSpace);
+    return vectorBatchStateTable->getNextSequenceNumber(keyGroup);
 }
 
 template <typename K, typename N, typename UV>
-long HeapListState<K, N, UV>::getVectorBatchesSize()
+void HeapListState<K, N, UV>::addVectorBatch(int32_t keyGroup, omnistream::VectorBatch* vectorBatch)
 {
-    return vectorBatchStateTable != nullptr ? vectorBatchStateTable->size() : 0;
+    VoidNamespace nameSpace;
+    auto sequenceNumber = vectorBatchStateTable->getNextSequenceNumber(keyGroup);
+    vectorBatchStateTable->put(sequenceNumber, keyGroup, nameSpace, vectorBatch);
+    vectorBatchStateTable->addNextSequenceNumber(keyGroup);
+}
+
+template <typename K, typename N, typename UV>
+void HeapListState<K, N, UV>::addVectorBatches(
+    const std::unordered_map<int32_t, omnistream::VectorBatch*>& vectorBatchByKeyGroup)
+{
+    VoidNamespace nameSpace;
+    for (const auto& [keyGroup, vectorBatch] : vectorBatchByKeyGroup) {
+        auto nextSequenceNumber = vectorBatchStateTable->getNextSequenceNumber(keyGroup);
+        vectorBatchStateTable->put(nextSequenceNumber, keyGroup, nameSpace, vectorBatch);
+        vectorBatchStateTable->addNextSequenceNumber(keyGroup);
+    }
+}
+
+template <typename K, typename N, typename UV>
+omnistream::VectorBatch* HeapListState<K, N, UV>::getVectorBatch(int32_t keyGroup, uint32_t sequenceNumber)
+{
+    VoidNamespace nameSpace;
+    return vectorBatchStateTable->get(sequenceNumber, keyGroup, nameSpace);
+}
+
+template <typename K, typename N, typename UV>
+std::vector<omnistream::VectorBatch*> HeapListState<K, N, UV>::getVectorBatches(int32_t keyGroup)
+{
+    VoidNamespace nameSpace;
+    auto nextSequenceNumber = getNextSequenceNumber(keyGroup);
+    std::vector<omnistream::VectorBatch*> vectorBatches;
+    vectorBatches.reserve(nextSequenceNumber);
+    for (uint32_t sequenceNumber = 0; sequenceNumber < nextSequenceNumber; ++sequenceNumber) {
+        auto vectorBatch = vectorBatchStateTable->get(sequenceNumber, keyGroup, nameSpace);
+        vectorBatches.push_back(vectorBatch);
+    }
+    return vectorBatches;
 }
 
 template <typename K, typename N, typename UV>
@@ -234,11 +255,11 @@ HeapListState<K, N, UV>* HeapListState<K, N, UV>::create(
     StateDescriptor* stateDesc,
     StateTable<K, N, std::vector<UV>*>* stateTable,
     TypeSerializer* keySerializer,
-    StateTable<int, VoidNamespace, omnistream::VectorBatch*>* vectorBatchSideTable)
+    StateTable<uint32_t, VoidNamespace, omnistream::VectorBatch*>* vectorBatchStateTable)
 {
     auto* createdState =
         new HeapListState<K, N, UV>(stateTable, stateTable->getStateSerializer(), stateTable->getNamespaceSerializer());
-    createdState->vectorBatchStateTable = vectorBatchSideTable;
+    createdState->vectorBatchStateTable = vectorBatchStateTable;
     return createdState;
 }
 
@@ -247,12 +268,10 @@ HeapListState<K, N, UV>* HeapListState<K, N, UV>::update(
     StateDescriptor* stateDesc,
     StateTable<K, N, std::vector<UV>*>* stateTable,
     HeapListState<K, N, UV>* existingState,
-    StateTable<int, VoidNamespace, omnistream::VectorBatch*>* vectorBatchSideTable)
+    StateTable<uint32_t, VoidNamespace, omnistream::VectorBatch*>* vectorBatchStateTable)
 {
     existingState->setNamespaceSerializer(stateTable->getNamespaceSerializer());
     existingState->setValueSerializer(stateTable->getStateSerializer());
-    existingState->vectorBatchStateTable = vectorBatchSideTable;
+    existingState->vectorBatchStateTable = vectorBatchStateTable;
     return existingState;
 }
-
-#endif

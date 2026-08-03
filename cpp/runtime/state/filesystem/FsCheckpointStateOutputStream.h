@@ -34,7 +34,7 @@ public:
 
     void Close();
 
-    std::shared_ptr<StreamStateHandle> CloseAndGetHandle();
+    std::shared_ptr<StreamStateHandle> CloseAndGetHandle(char* dataStream);
 
     bool IsClosed();
 

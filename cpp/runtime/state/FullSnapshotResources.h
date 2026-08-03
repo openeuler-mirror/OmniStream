@@ -11,10 +11,15 @@
 
 #ifndef OMNISTREAM_FULLSNAPSHOTRESOURCES
 #define OMNISTREAM_FULLSNAPSHOTRESOURCES
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "KeyGroupRange.h"
 #include "state/KeyGroupRange.h"
 #include "state/KeyValueStateIterator.h"
 #include "state/SnapshotResources.h"
+#include "state/VectorBatchStateAccessor.h"
 class FullSnapshotResources : public SnapshotResources {
 public:
     virtual const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& getMetaInfoSnapshots() = 0;
@@ -28,6 +33,11 @@ public:
     virtual int getKeyGroupPrefixBytes() const
     {
         return 1;
+    }
+    virtual std::shared_ptr<VectorBatchStateAccessor> createVectorBatchStateAccessor(
+        const std::string& /*logicalStateName*/, const VectorBatchAccessorOptions& /*options*/)
+    {
+        return nullptr;
     }
     virtual void cleanup() = 0;
 };

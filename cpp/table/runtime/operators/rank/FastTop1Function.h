@@ -67,8 +67,8 @@ private:
 template <typename KeyType>
 void FastTop1Function<KeyType>::open(const Configuration& context)
 {
-    auto rankRowTypeInfo = InternalTypeInfo::ofRowType(TypeInfoFactory::createRowType(this->inputRowType));
-    std::string name = "rank";
+    auto rankRowTypeInfo = InternalTypeInfo::ofRowType(new omnistream::RowType(true, *this->inputTypeNames));
+    std::string name = "Top1-Rank-State";
     ValueStateDescriptor<RowData*>* recordStateDesc = new ValueStateDescriptor<RowData*>(name, rankRowTypeInfo);
     recordStateDesc->SetStateSerializer(rankRowTypeInfo->getTypeSerializer());
     this->stateStore = static_cast<StreamingRuntimeContext<KeyType>*>(this->getRuntimeContext())
