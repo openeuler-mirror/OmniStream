@@ -237,7 +237,7 @@ TypeInformation* TypeInfoFactory::createDataStreamTypeInfo(const json& serialize
             typeInformation = new PojoTypeInfo(clazz, pojoFields);
         }
     } else if (serializerName == TYPE_NAME_MAP_SERIALIZER) {
-        if (serializerInfo.contains("keySerializer")) {
+        if (serializerInfo.contains("keySerializer") && serializerInfo.contains("valueSerializer")) {
             auto keyTypeInfo = createDataStreamTypeInfo(serializerInfo["keySerializer"]);
             auto valueTypeInfo = createDataStreamTypeInfo(serializerInfo["valueSerializer"]);
             typeInformation = new MapTypeInfo(keyTypeInfo, valueTypeInfo);
