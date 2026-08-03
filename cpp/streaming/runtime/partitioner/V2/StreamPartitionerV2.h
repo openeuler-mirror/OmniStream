@@ -70,7 +70,11 @@ public:
         long timestamp = streamRecord->getTimestamp();
 
         size_t row_cnt = vectorBatch->GetRowCount();
-
+        if (row_cnt == 1) {
+            auto channel = selectRowChannel(vectorBatch, 0);
+            result[channel] = streamRecord;
+            return result;
+        }
         for (size_t i = 0; i < row_cnt; i++) {
             auto channel = selectRowChannel(vectorBatch, i);
             intermediateResult[channel].push_back(i);

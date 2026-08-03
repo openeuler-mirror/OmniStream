@@ -57,28 +57,6 @@ public:
     std::vector<VectorBatchSaveStateContext> buildSaveStateContexts(
         FullSnapshotResources& snapshotResources, const VectorBatchSavePlan& plan) override;
 
-    omnistream::ComboId parseVectorBatchReference(
-        ByteView value, const VectorBatchSaveStateContext& context, const VectorBatchSavePlan& plan) override
-    {
-        (void)value;
-        (void)context;
-        (void)plan;
-        return -1;
-    }
-
-    std::vector<int8_t> encodeFlinkLogicalValue(
-        const KeyValueStateIterator::CurrentEntry& entry,
-        RowData& row,
-        const VectorBatchSaveStateContext& context,
-        const VectorBatchSavePlan& plan) override
-    {
-        (void)entry;
-        (void)row;
-        (void)context;
-        (void)plan;
-        return {};
-    }
-
     void convertKVRowData(
         const KeyValueStateIterator::CurrentEntry& entry,
         const VectorBatchSaveStateContext& context,

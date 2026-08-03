@@ -230,8 +230,8 @@ function build_cpp_gccopt() {
 function build_with_mode() {
     # Build command with debug flags and additional arguments
 
-    echo Build  with "$@"
-    echo Build  with mode "$1"
+    echo "$(date)" Build with "$@"
+    echo "$(date)" with mode "$1"
     mode=$1
     cpp_build_dir=$2
     build_type=$3
@@ -261,6 +261,7 @@ function build_with_mode() {
       exit 1
     }
 
+    echo "$(date)" Finish build with "$@"
 }
 
 # Function to run unit test under  mode

@@ -328,6 +328,7 @@ AbstractKeyedStateBackend<K>* StreamTaskStateInitializerImpl::keyedStatedBackend
         HeapKeyedStateBackendBuilder<K> builder(keySerializer, maxParallelism, keyGroupRange);
         builder.setFlinkSavepointAdaptorInfo(adaptorInfo)
             .setRestoreSavepointMode(restoreMode)
+            .setTaskType(env->taskConfiguration().GetTaskType())
             .setOperatorDescription(operatorDescription);
         auto taskStateManager = env == nullptr ? nullptr : env->getTaskStateManager();
         if (taskStateManager == nullptr) {

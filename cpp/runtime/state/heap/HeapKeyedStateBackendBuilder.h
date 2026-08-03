@@ -18,6 +18,7 @@
 #include "runtime/state/KeyGroupRange.h"
 #include "runtime/state/HeapKeyedStateBackend.h"
 #include "runtime/state/KeyedStateHandle.h"
+#include "runtime/state/KeyGroupsSavepointStateHandle.h"
 #include "runtime/state/restore/FullSnapshotRestoreOperation.h"
 #include "runtime/state/bridge/OmniTaskBridge.h"
 #include "runtime/state/CompositeKeySerializationUtils.h"
@@ -38,6 +39,7 @@
 #include "table/utils/VectorBatchDeserializationUtils.h"
 #include "table/typeutils/SortedVectorLong.h"
 #include "core/utils/MathUtils.h"
+#include "runtime/state/StateRestoreValidation.h"
 
 template <typename K>
 class HeapKeyedStateBackendBuilder {
@@ -77,6 +79,19 @@ public:
         return *this;
     }
 
+    HeapKeyedStateBackendBuilder& setTaskType(int taskType)
+    {
+        this->taskType_ = taskType;
+        return *this;
+    }
+
+    bool validateRestoreStateHandles()
+    {
+        std::vector<std::shared_ptr<KeyedStateHandle>> handleVec(
+            restoreStateHandles.begin(), restoreStateHandles.end());
+        return omnistream::validateRestoreStateHandles(handleVec, omniTaskBridge);
+    }
+
     HeapKeyedStateBackend<K>* build();
 
 protected:
@@ -87,6 +102,7 @@ protected:
     std::set<std::shared_ptr<KeyedStateHandle>> restoreStateHandles;
     FlinkSavepointAdaptorInfo adaptorInfo_;
     RestoreSavepointMode restoreMode_ = RestoreSavepointMode::OMNI_INTERNAL;
+    int taskType_ = 1;
     nlohmann::json operatorDescription_;
 
 private:
@@ -283,25 +299,42 @@ template <typename K>
 HeapKeyedStateBackend<K>* HeapKeyedStateBackendBuilder<K>::build()
 {
     std::unique_ptr<omnistream::OperatorSavepointAdaptor> compatiblePreparedAdaptor;
-    if (!restoreStateHandles.empty() && restoreMode_ == RestoreSavepointMode::FLINK_COMPATIBLE) {
-        if (adaptorInfo_.type == FlinkSavepointAdaptorType::None) {
-            INFO_RELEASE("Error:Heap compatible restore is unsupported: " << adaptorInfo_.reason);
-            throw std::runtime_error("Heap compatible restore is not supported: " + adaptorInfo_.reason);
-        }
-        if (adaptorInfo_.type != FlinkSavepointAdaptorType::OmniIsCompatible) {
-            if (omniTaskBridge == nullptr) {
-                INFO_RELEASE(
-                    "Error:Heap compatible restore missing OmniTaskBridge, adaptorType="
-                    << static_cast<int>(adaptorInfo_.type) << ", reason=" << adaptorInfo_.reason
-                    << ", stateHandleCount=" << restoreStateHandles.size());
-                throw std::invalid_argument("Heap compatible restore requires OmniTaskBridge when state handles exist");
+    if (!restoreStateHandles.empty()) {
+        if (restoreMode_ == RestoreSavepointMode::FLINK_COMPATIBLE) {
+            if (adaptorInfo_.type == FlinkSavepointAdaptorType::None) {
+                INFO_RELEASE("Error:Heap compatible restore is unsupported: " << adaptorInfo_.reason);
+                throw std::runtime_error("Heap compatible restore is not supported: " + adaptorInfo_.reason);
             }
-            compatiblePreparedAdaptor = omnistream::OperatorSavepointAdaptorFactory::createAdaptor(adaptorInfo_.type);
-            if (compatiblePreparedAdaptor == nullptr) {
-                INFO_RELEASE("Error:Heap compatible restore adaptor factory returned null: " << adaptorInfo_.reason);
-                throw std::runtime_error("Heap compatible restore adaptor factory returned null");
+            if (adaptorInfo_.type != FlinkSavepointAdaptorType::OmniIsCompatible) {
+                if (omniTaskBridge == nullptr) {
+                    INFO_RELEASE(
+                        "Error:Heap compatible restore missing OmniTaskBridge, adaptorType="
+                        << static_cast<int>(adaptorInfo_.type) << ", reason=" << adaptorInfo_.reason
+                        << ", stateHandleCount=" << restoreStateHandles.size());
+                    throw std::invalid_argument(
+                        "Heap compatible restore requires OmniTaskBridge when state handles exist");
+                }
+                //  flink cp/native sp
+                auto firstHandle = *restoreStateHandles.begin();
+                if (!std::dynamic_pointer_cast<KeyGroupsSavepointStateHandle>(firstHandle)) {
+                    INFO_RELEASE("Error:Heap compatible restore does not support incremental/native state handles");
+                    throw std::runtime_error(
+                        "Heap compatible restore does not support incremental/native state handles");
+                }
+                compatiblePreparedAdaptor =
+                    omnistream::OperatorSavepointAdaptorFactory::createAdaptor(adaptorInfo_.type);
+                if (compatiblePreparedAdaptor == nullptr) {
+                    INFO_RELEASE(
+                        "Error:Heap compatible restore adaptor factory returned null: " << adaptorInfo_.reason);
+                    throw std::runtime_error("Heap compatible restore adaptor factory returned null");
+                }
+                compatiblePreparedAdaptor->prepareForRestore(operatorDescription_);
             }
-            compatiblePreparedAdaptor->prepareForRestore(operatorDescription_);
+        } else if (taskType_ == 1) {
+            if (adaptorInfo_.type != FlinkSavepointAdaptorType::OmniIsCompatible && !validateRestoreStateHandles()) {
+                INFO_RELEASE("Error:Heap restore does not support current state handles");
+                throw std::runtime_error("Heap restore does not support current state handles");
+            }
         }
     }
 

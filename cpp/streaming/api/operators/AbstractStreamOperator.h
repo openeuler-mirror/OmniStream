@@ -11,9 +11,10 @@
 
 #pragma once
 
+#include <cstdint>
+#include <memory>
 #include <nlohmann/json.hpp>
 #include "StreamOperator.h"
-#include "AbstractStreamOperator.h"
 #include "StreamOperatorStateHandler.h"
 #include "Output.h"
 #include "StreamingRuntimeContext.h"
@@ -25,11 +26,20 @@
 #include "KeyContext.h"
 #include "streaming/runtime/tasks/ProcessingTimeService.h"
 #include "core/api/common/eventtime/IndexedCombinedWatermarkStatus.h"
-#include "table/typeutils/RowDataSerializer.h"
 #include "runtime/metrics/groups/TaskMetricGroup.h"
-#include "streaming/runtime/tasks/omni/OmniStreamTask.h"
 #include "runtime/state/StateInitializationContextImpl.h"
 #include "runtime/checkpoint/FlinkSavepointAdaptorInfo.h"
+
+class Object;
+class RowData;
+
+template <typename K>
+class StreamingRuntimeContext;
+
+namespace omnistream {
+class OmniStreamTask;
+class VectorBatch;
+} // namespace omnistream
 
 /**
  * K: such as Object*
@@ -55,23 +65,9 @@ public:
         this->runtimeContext = nullptr;
     }
 
-    ~AbstractStreamOperator() override
-    {
-        LOG("AbstractStreamOperator::~AbstractStreamOperator()");
-        // delete output; ?
-        delete stateHandler;
-        delete runtimeContext;
-        delete combinedWatermark;
-    };
+    ~AbstractStreamOperator() override;
 
-    void setup()
-    {
-        LOG("AbstractStreamOperator::setup()" << "new StreamingRuntimeContext<K>");
-        this->runtimeContext = new StreamingRuntimeContext<K>(nullptr, nullptr);
-        constexpr int inputsCount = 2;
-        combinedWatermark = new omnistream::IndexedCombinedWatermarkStatus(inputsCount);
-        // Flink intialize stateKeySelector here
-    }
+    void setup();
 
     void SetOpName(std::string operatorName)
     {
@@ -83,14 +79,7 @@ public:
         return this->opName;
     }
 
-    void setup(std::shared_ptr<omnistream::OmniStreamTask> task)
-    {
-        this->setup();
-        if (task != nullptr) {
-            this->metrics = task->env()->taskMetricGroup();
-        }
-        // Flink intialize stateKeySelector here
-    }
+    void setup(std::shared_ptr<omnistream::OmniStreamTask> task);
 
     std::shared_ptr<omnistream::TaskMetricGroup> GetMectrics() override
     {
@@ -108,29 +97,15 @@ public:
         return output;
     }
 
-    void setCurrentKey(K key) override
-    {
-        stateHandler->setCurrentKey(key);
-    };
+    void setCurrentKey(K key) override;
 
-    K getCurrentKey() override
-    {
-        return stateHandler->getCurrentKey();
-    };
+    K getCurrentKey() override;
 
     void open() override {};
 
-    void close() override
-    {
-        if (stateHandler != nullptr) {
-            stateHandler->dispose();
-        }
-    };
+    void close() override;
 
-    TypeSerializer* GetOperatorKeySerializer()
-    {
-        return new BinaryRowDataSerializer(1);
-    };
+    TypeSerializer* GetOperatorKeySerializer();
 
     void initializeState(StateInitializationContextImpl* context) override
     {
@@ -148,35 +123,15 @@ public:
 
     // KeySerializer should be retrieved from description.getStateKeySerializer(getUserCodeClassloader()),
     // but we're just passing it through this function for now
-    void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override
-    {
-        LOG("abstractStreamOperator::initializeState");
-        auto operatorID = this->GetOperatorID();
-        StreamOperatorStateContextImpl<K>* context = initializer->streamOperatorStateContext<K>(
-            keySerializer, this, processingTimeService, &operatorID, flinkSavepointAdaptorInfo_, desc);
-        stateHandler = new StreamOperatorStateHandler<K>(context);
-        auto stateStore = stateHandler->getKeyedStateStore();
-        if (runtimeContext != nullptr) {
-            runtimeContext->setKeyedStateStore(stateStore);
-            runtimeContext->setEnvironment(initializer->getEnvironment());
-        }
-        timeServiceManager = context->getInternalTimeServiceManager();
-        stateHandler->initializeOperatorState(this);
-    }
+    void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override;
     StreamingRuntimeContext<K>* getRuntimeContext() const
     {
         return runtimeContext;
     }
 
-    AbstractKeyedStateBackend<K>* getKeyedStateBackend() const
-    {
-        return stateHandler->getKeyedStateBackend();
-    }
+    AbstractKeyedStateBackend<K>* getKeyedStateBackend() const;
 
-    OperatorStateBackend* getOperatorStateBackend()
-    {
-        return stateHandler->getOperatorStateBackend();
-    }
+    OperatorStateBackend* getOperatorStateBackend();
 
     std::string getTypeName() override
     {
@@ -236,29 +191,11 @@ public:
         long timestamp,
         CheckpointOptions* checkpointOptions,
         CheckpointStreamFactory* storageLocation,
-        const std::shared_ptr<OmniTaskBridge>& bridge) override
-    {
-        return stateHandler->SnapshotState(
-            this,
-            timeServiceManager,
-            GetOpName(),
-            checkpointId,
-            timestamp,
-            checkpointOptions,
-            storageLocation,
-            false,
-            bridge);
-    }
+        const std::shared_ptr<OmniTaskBridge>& bridge) override;
 
-    void notifyCheckpointComplete(long checkpointId) override
-    {
-        stateHandler->notifyCheckpointComplete(checkpointId);
-    }
+    void notifyCheckpointComplete(long checkpointId) override;
 
-    void notifyCheckpointAborted(long checkpointId) override
-    {
-        stateHandler->notifyCheckpointAborted(checkpointId);
-    }
+    void notifyCheckpointAborted(long checkpointId) override;
 
     // 设置具体 Adaptor 类型（或 OmniIsCompatible）。禁止用于表达 None —— None 必须走
     // setFlinkSavepointUnsupported(reason) 携带可诊断原因。
@@ -312,3 +249,11 @@ private:
         }
     }
 };
+
+extern template class AbstractStreamOperator<int32_t>;
+extern template class AbstractStreamOperator<int64_t>;
+extern template class AbstractStreamOperator<void*>;
+extern template class AbstractStreamOperator<Object*>;
+extern template class AbstractStreamOperator<RowData*>;
+extern template class AbstractStreamOperator<std::shared_ptr<RowData>>;
+extern template class AbstractStreamOperator<omnistream::VectorBatch*>;
