@@ -580,7 +580,7 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
             delete static_cast<K*>(rawKey);
             delete static_cast<VoidNamespace*>(rawNs);
             delete static_cast<int*>(rawVal);
-        } else if (dataId == BackendDataType::BIGINT_BK) {
+        } else if (dataId == BackendDataType::BIGINT_BK || dataId == BackendDataType::EXTERNAL_BIGINT_BK) {
             void* rawVal = info.valueSerializer->deserialize(valInput);
             auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, int64_t>*>(stateTablePtr);
             table->put(
@@ -676,7 +676,9 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
             auto* table =
                 reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<int, int>*>*>(stateTablePtr);
             table->put(*static_cast<K*>(rawKey), keyGroupId, *static_cast<VoidNamespace*>(rawNs), mapVal);
-        } else if (mapKeyId == BackendDataType::BIGINT_BK && mapValId == BackendDataType::BIGINT_BK) {
+        } else if (
+            (mapKeyId == BackendDataType::BIGINT_BK && mapValId == BackendDataType::BIGINT_BK) ||
+            (mapKeyId == BackendDataType::EXTERNAL_BIGINT_BK && mapValId == BackendDataType::EXTERNAL_BIGINT_BK)) {
             auto* mapVal = deserializeEmhashMap<int64_t, int64_t>(mapKeySer, mapValSer, valInput);
             auto* table =
                 reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<int64_t, int64_t>*>*>(

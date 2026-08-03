@@ -41,6 +41,8 @@ public:
     static LogicalType* createLogicalType(const std::string type);
 
     static omnistream::RowType* createRowType(const std::vector<omniruntime::type::DataTypeId>* inputRowType);
+
+    static LogicalType* createDataType(const nlohmann::json& logicalTypeJson);
 };
 
 #endif

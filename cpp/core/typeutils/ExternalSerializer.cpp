@@ -8,7 +8,8 @@ ExternalSerializer::ExternalSerializer(LogicalType* dateType, TypeSerializer* in
 {
 }
 
-BackendDataType ExternalSerializer::getBackendId() const {
+BackendDataType ExternalSerializer::getBackendId() const
+{
     BackendDataType internalBackendId = internalSerializer->getBackendId();
     switch (internalBackendId) {
         case BackendDataType::BIGINT_BK: return BackendDataType::EXTERNAL_BIGINT_BK;
@@ -31,7 +32,7 @@ LogicalType* ExternalSerializer::getDataType()
 void* ExternalSerializer::deserialize(DataInputView& source)
 {
     INFO_RELEASE("ExternalSerializer deserialize call 1");
-    internalSerializer->deserialize(source);
+    return internalSerializer->deserialize(source);
 }
 
 void ExternalSerializer::serialize(void* record, DataOutputSerializer& target)

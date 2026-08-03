@@ -11,6 +11,8 @@
 #ifndef OMNISTREAM_SERIALIZERJSONINFO_H
 #define OMNISTREAM_SERIALIZERJSONINFO_H
 
+#include <optional>
+
 #include "table/types/logical/LogicalType.h"
 
 #include "TypeSerializer.h"
@@ -34,6 +36,27 @@ enum class SerializerType {
     BYTE_PRIMITIVE_ARRAY = 14, /* use fields [type, valueSerializer] */
     ROW = 15,                  /* use fields [type, logicalType] */
     BINARY_ROW = 16,           /* use fields [type, fieldNames] */
+    EXTERNAL = 17,             /* use fields [type, logicalType, valueSerializer, serializerAttributes] */
+};
+
+struct SerializerAttributes {
+    // SerializerAttributes JSON 使用的字段 key。
+    static constexpr const char* EXTERNAL_IS_INTERNAL_INPUT_KEY = "externalIsInternalInput";
+    static constexpr const char* DATA_TYPE_CONVERSION_CLASS_NAME_KEY = "dataTypeConversionClassName";
+
+    std::optional<bool> externalIsInternalInput;
+    std::string dataTypeConversionClassName = "";
+
+    nlohmann::json toJson() const
+    {
+        nlohmann::json jsonObj;
+        if (externalIsInternalInput.has_value()) {
+            jsonObj[EXTERNAL_IS_INTERNAL_INPUT_KEY] = externalIsInternalInput.value();
+        }
+        jsonObj[DATA_TYPE_CONVERSION_CLASS_NAME_KEY] = dataTypeConversionClassName;
+
+        return jsonObj;
+    }
 };
 
 struct SerializerJsonInfo {
@@ -48,6 +71,7 @@ struct SerializerJsonInfo {
     static constexpr const char* FIELDS_KEY = "fields";
     static constexpr const char* FIELD_NAME_KEY = "fieldName";
     static constexpr const char* FIELD_SERIALIZER_KEY = "fieldSerializer";
+    static constexpr const char* SERIALIZER_ATTRIBUTES_KEY = "serializerAttributes";
 
     // 基础类型及string只用type字段
     SerializerType type = SerializerType::UNKNOWN;
@@ -63,6 +87,7 @@ struct SerializerJsonInfo {
     std::vector<TypeSerializer*> fieldSerializers;
     std::vector<std::string> fieldNames;
     LogicalType* logicalType;
+    SerializerAttributes* serializerAttributes;
 
 public:
     std::string toJson()
@@ -81,6 +106,9 @@ public:
         }
         if (logicalType != nullptr) {
             jsonObj[LOGICAL_TYPE_KEY] = logicalType->toJson();
+        }
+        if (serializerAttributes != nullptr) {
+            jsonObj[SERIALIZER_ATTRIBUTES_KEY] = serializerAttributes->toJson();
         }
         if (fieldSerializers.size() != fieldNames.size()) {
             return jsonObj.dump();

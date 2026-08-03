@@ -156,7 +156,10 @@ void SharedDistinctCountContainerFunction::open(StateDataViewStore* store)
     for (auto& group : groups_) {
         group.distinctMapView = reinterpret_cast<KeyedStateMapViewWithKeysNullable<VoidNamespace, long, long>*>(
             perKeyViewStore->getStateMapView<VoidNamespace, long, long>(
-                group.stateName, true, ExternalSerializer::of(BasicLogicalType::BIGINT), ExternalSerializer::of(BasicLogicalType::BIGINT)));
+                group.stateName,
+                true,
+                ExternalSerializer::of(BasicLogicalType::BIGINT),
+                ExternalSerializer::of(BasicLogicalType::BIGINT)));
     }
 }
 

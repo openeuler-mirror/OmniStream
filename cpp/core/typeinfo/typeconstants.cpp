@@ -90,3 +90,5 @@ const char* TYPE_NAME_TIME_WINDOW_CLASS =
     "com.huawei.omniruntime.flink.runtime.api.state.serializer.model.info.entity.TimeWindow";
 const char* TYPE_NAME_TIME_WINDOW_CLASS_LINE =
     "com_huawei_omniruntime_flink_runtime_api_state_serializer_model_info_entity_TimeWindow";
+
+const char* TYPE_NAME_EXTERNAL_SERIALIZER = "org.apache.flink.table.runtime.typeutils.ExternalSerializer";
