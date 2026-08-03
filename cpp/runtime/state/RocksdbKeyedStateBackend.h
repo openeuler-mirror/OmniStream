@@ -232,6 +232,9 @@ public:
                         (keyId == BackendDataType::OBJECT_BK && valueId == BackendDataType::OBJECT_BK)) {
                         delete reinterpret_cast<RocksdbMapStateTable<K, VoidNamespace, Object*, Object*>*>(
                             stateTablePtr);
+                    } else if (keyId == BackendDataType::EXTERNAL_BIGINT_BK && valueId == BackendDataType::EXTERNAL_BIGINT_BK) {
+                        delete reinterpret_cast<RocksdbMapStateTable<K, VoidNamespace, int64_t, int64_t>*>(
+                            stateTablePtr);
                     } else {
                         GErrorLog(
                             "Unhandled MAP state type in dispose: keyId=" + std::to_string((int)keyId) +
@@ -255,6 +258,8 @@ public:
                         delete reinterpret_cast<RocksdbStateTable<K, VoidNamespace, int64_t>*>(stateTablePtr);
                     } else if (dataId == BackendDataType::OBJECT_BK || dataId == BackendDataType::POJO_BK) {
                         delete reinterpret_cast<RocksdbStateTable<K, VoidNamespace, Object*>*>(stateTablePtr);
+                    } else if (dataId == BackendDataType::EXTERNAL_BIGINT_BK) {
+                        delete reinterpret_cast<RocksdbStateTable<K, VoidNamespace, int64_t>*>(stateTablePtr);
                     } else {
                         GErrorLog("Unhandled VALUE state type in dispose: dataId=" + std::to_string((int)dataId));
                     }
@@ -521,6 +526,9 @@ uintptr_t RocksdbKeyedStateBackend<K>::GetMapState(TypeSerializer* namespaceSeri
     } else if (keyId == BackendDataType::OBJECT_BK && valueId == BackendDataType::OBJECT_BK) {
         return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, Object*, Object*>(
             namespaceSerializer, stateDesc);
+    } else if (keyId == BackendDataType::EXTERNAL_BIGINT_BK && valueId == BackendDataType::EXTERNAL_BIGINT_BK) {
+        return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, int64_t, int64_t>(
+            namespaceSerializer, stateDesc);
     }
     NOT_IMPL_EXCEPTION;
 }
@@ -546,6 +554,8 @@ uintptr_t RocksdbKeyedStateBackend<K>::GetValueState(TypeSerializer* namespaceSe
     } else if (dataId == BackendDataType::SET_LONG) {
         return (uintptr_t)createOrUpdateInternalValueState<VoidNamespace, std::vector<long>*>(
             namespaceSerializer, stateDesc);
+    } else if (dataId == BackendDataType::EXTERNAL_BIGINT_BK) {
+        return (uintptr_t)createOrUpdateInternalValueState<VoidNamespace, int64_t>(namespaceSerializer, stateDesc);
     } else {
         NOT_IMPL_EXCEPTION;
     }
