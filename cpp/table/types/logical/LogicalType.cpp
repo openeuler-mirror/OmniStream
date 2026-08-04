@@ -249,7 +249,7 @@ BasicLogicalType* BasicLogicalType::TIMESTAMP_WITH_LOCAL_TIME_ZONE = new Timesta
 BasicLogicalType* BasicLogicalType::TIMESTAMP = new TimestampWithLocalTimeZoneType(true);
 BasicLogicalType* BasicLogicalType::INVALID_TYPE = new BasicLogicalType(true, DataTypeId::OMNI_INVALID, "UNRESOLVED");
 
-BasicLogicalType* BasicLogicalType::getTypeBy(DataTypeId typeId, const nlohmann::json& element)
+BasicLogicalType* BasicLogicalType::getTypeBy(DataTypeId typeId, const nlohmann::json& options)
 {
     BasicLogicalType* type = nullptr;
     switch (typeId) {
@@ -265,11 +265,6 @@ BasicLogicalType* BasicLogicalType::getTypeBy(DataTypeId typeId, const nlohmann:
             type = BasicLogicalType::BIGINT;
             break;
         }
-        case DataTypeId::OMNI_VARCHAR: {
-            int length = element.value("length", std::numeric_limits<int>::max());
-            type = new VarCharType(true, length);
-            break;
-        }
         case DataTypeId::OMNI_DOUBLE: {
             type = BasicLogicalType::DOUBLE;
             break;
@@ -278,32 +273,77 @@ BasicLogicalType* BasicLogicalType::getTypeBy(DataTypeId typeId, const nlohmann:
             type = BasicLogicalType::DATE;
             break;
         }
+        case DataTypeId::OMNI_VARCHAR:
+        case DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE:
+        case DataTypeId::OMNI_TIMESTAMP:
+        case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+        case DataTypeId::OMNI_TIMESTAMP_WITH_TIME_ZONE:
+        case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE: {
+            type = getTypeBy(true, typeId, options);
+            break;
+        }
+            /*
+            case DataTypeId::OMNI_INVALID:
+                type = BasicLogicalType::INVALID_TYPE;
+                break;
+            */
+    }
+
+    return type;
+}
+
+BasicLogicalType* BasicLogicalType::getTypeBy(
+    std::optional<bool> nullable, DataTypeId typeId, const nlohmann::json& options)
+{
+    const bool isNullable = nullable.value_or(true);
+    BasicLogicalType* type = nullptr;
+    switch (typeId) {
+        case DataTypeId::OMNI_BOOLEAN: {
+            type = new BasicLogicalType(isNullable, DataTypeId::OMNI_BOOLEAN, "BOOLEAN");
+            break;
+        }
+        case DataTypeId::OMNI_INT: {
+            type = new BasicLogicalType(isNullable, DataTypeId::OMNI_INT, "INTEGER");
+            break;
+        }
+        case DataTypeId::OMNI_LONG: {
+            type = new BasicLogicalType(isNullable, DataTypeId::OMNI_LONG, "BIGINT");
+            break;
+        }
+        case DataTypeId::OMNI_VARCHAR: {
+            int length = options.value("length", std::numeric_limits<int>::max());
+            type = new VarCharType(isNullable, length);
+            break;
+        }
+        case DataTypeId::OMNI_DOUBLE: {
+            type = new BasicLogicalType(isNullable, DataTypeId::OMNI_DOUBLE, "DOUBLE");
+            break;
+        }
+        case DataTypeId::OMNI_DATE32: {
+            type = new BasicLogicalType(isNullable, DataTypeId::OMNI_DATE32, "DATE");
+            break;
+        }
         case DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE: {
-            int precision = element.value("precision", 0);
-            type = new TimeWithoutTimeZoneType(true, precision);
+            int precision = options.value("precision", 0);
+            type = new TimeWithoutTimeZoneType(isNullable, precision);
             break;
         }
         case DataTypeId::OMNI_TIMESTAMP:
         case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE: {
-            int precision = element.value("precision", 0);
-            type = new TimestampWithoutTimeZoneType(true, precision);
+            int precision = options.value("precision", 0);
+            type = new TimestampWithoutTimeZoneType(isNullable, precision);
             break;
         }
         case DataTypeId::OMNI_TIMESTAMP_WITH_TIME_ZONE: {
-            int precision = element.value("precision", 0);
-            type = new TimestampWithTimeZoneType(true, precision);
+            int precision = options.value("precision", 0);
+            type = new TimestampWithTimeZoneType(isNullable, precision);
             break;
         }
         case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE: {
-            int precision = element.value("precision", 0);
-            type = new TimestampWithLocalTimeZoneType(true, precision);
+            int precision = options.value("precision", 0);
+            type = new TimestampWithLocalTimeZoneType(isNullable, precision);
             break;
         }
-        /*
-        case DataTypeId::OMNI_INVALID:
-            type = BasicLogicalType::INVALID_TYPE;
-            break;
-        */
         default: THROW_LOGIC_EXCEPTION("Unsupported DataTypeId : " << typeId << " in inputRowType.");
     }
 

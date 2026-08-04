@@ -173,7 +173,8 @@ void HeapRestoreKVState<K>::writeValueEntry(const std::vector<int8_t>& keyBytes,
         stateInfo_.valueSerializer ? stateInfo_.valueSerializer->getBackendId() : BackendDataType::BIGINT_BK;
 
     switch (valueBackendType) {
-        case BackendDataType::BIGINT_BK: {
+        case BackendDataType::BIGINT_BK:
+        case BackendDataType::EXTERNAL_BIGINT_BK: {
             auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, int64_t>*>(stateInfo_.mainTablePtr);
             DataInputDeserializer valInput(value.data(), static_cast<int>(value.size()));
             std::unique_ptr<int64_t> rawVal(static_cast<int64_t*>(stateInfo_.valueSerializer->deserialize(valInput)));
@@ -316,7 +317,9 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
         } else {
             (*kvMap)[uk] = uv;
         }
-    } else if (mapKeyId == BackendDataType::BIGINT_BK && mapValId == BackendDataType::BIGINT_BK) {
+    } else if (
+        (mapKeyId == BackendDataType::BIGINT_BK && mapValId == BackendDataType::BIGINT_BK) ||
+        (mapKeyId == BackendDataType::EXTERNAL_BIGINT_BK && mapValId == BackendDataType::EXTERNAL_BIGINT_BK)) {
         using UK = int64_t;
         using UV = int64_t;
         auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<UK, UV>*>*>(
