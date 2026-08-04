@@ -27,8 +27,10 @@ public:
 
     void BlockChannel(InputChannelInfo channelInfo)
     {
-        inputs[channelInfo.getGateIdx()]->BlockConsumption(channelInfo);
-        blockedChannels.insert(channelInfo);
+        if (blockedChannels.count(channelInfo) == 0) {
+            inputs[channelInfo.getGateIdx()]->BlockConsumption(channelInfo);
+            blockedChannels.insert(channelInfo);
+        }
     }
 
     void ChannelFinished(InputChannelInfo channelInfo)
@@ -50,6 +52,14 @@ public:
     {
         for (auto& channelInfo : blockedChannels) {
             inputs[channelInfo.getGateIdx()]->ResumeConsumption(channelInfo);
+        }
+        blockedChannels.clear();
+    }
+
+    void TimeOutUnblockAllChannels()
+    {
+        for (auto& channelInfo : blockedChannels) {
+            inputs[channelInfo.getGateIdx()]->TimeOutResumeConsumption(channelInfo);
         }
         blockedChannels.clear();
     }

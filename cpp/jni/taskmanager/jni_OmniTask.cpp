@@ -59,16 +59,34 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Om
     JNIEnv*, jobject, jlong nativeTask, jlong streamTaskAddress)
 {
     auto task = reinterpret_cast<omnistream::OmniTask*>(nativeTask);
-    task->DoRunInvoke(streamTaskAddress);
-    return 1;
+    try {
+        task->DoRunInvoke(streamTaskAddress);
+    } catch (const std::exception& e) {
+        ERROR_RELEASE("std::exception during DoRunInvoke: " << e.what());
+        return 1;
+    } catch (...) {
+        ERROR_RELEASE("unknown error during DoRunInvoke");
+        return 1;
+    }
+
+    return 0;
 }
 
 JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_doRunRestoreNativeTask(
     JNIEnv*, jobject, jlong nativeTask, jlong streamTaskAddress)
 {
     auto task = reinterpret_cast<omnistream::OmniTask*>(nativeTask);
-    task->DoRunRestore(streamTaskAddress);
-    return 1;
+    try {
+        task->DoRunRestore(streamTaskAddress);
+    } catch (const std::exception& e) {
+        ERROR_RELEASE("std::exception during doRunRestore: " << e.what());
+        return 1;
+    } catch (...) {
+        ERROR_RELEASE("unknown error during doRunRestore");
+        return 1;
+    }
+
+    return 0;
 }
 
 JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_doDeleteNativeTask(

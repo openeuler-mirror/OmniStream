@@ -20,31 +20,38 @@ namespace omnistream {
 
 class JobInformationPOD {
 public:
+    static constexpr const char* RECOVERY_FORMAT_OMNI_INTERNAL = "OMNI_INTERNAL";
+    static constexpr const char* RECOVERY_FORMAT_FLINK_COMPATIBLE = "FLINK_COMPATIBLE";
+
     JobInformationPOD() = default;
     JobInformationPOD(const JobIDPOD& jobId, const std::string& jobName)
         : jobId(jobId),
           jobName(jobName),
-          autoWatermarkInterval(0)
+          autoWatermarkInterval(0),
+          recoverySavepointFormat(RECOVERY_FORMAT_OMNI_INTERNAL)
     {
     }
     JobInformationPOD(const JobIDPOD& jobId, const std::string& jobName, long autoWatermarkInterval)
         : jobId(jobId),
           jobName(jobName),
-          autoWatermarkInterval(autoWatermarkInterval)
+          autoWatermarkInterval(autoWatermarkInterval),
+          recoverySavepointFormat(RECOVERY_FORMAT_OMNI_INTERNAL)
     {
     }
 
     JobInformationPOD(const JobInformationPOD& other)
         : jobId(other.jobId),
           jobName(other.jobName),
-          autoWatermarkInterval(other.autoWatermarkInterval)
+          autoWatermarkInterval(other.autoWatermarkInterval),
+          recoverySavepointFormat(other.recoverySavepointFormat)
     {
     }
 
     JobInformationPOD(JobInformationPOD&& other) noexcept
         : jobId(std::move(other.jobId)),
           jobName(std::move(other.jobName)),
-          autoWatermarkInterval(other.autoWatermarkInterval)
+          autoWatermarkInterval(other.autoWatermarkInterval),
+          recoverySavepointFormat(std::move(other.recoverySavepointFormat))
     {
     }
 
@@ -61,6 +68,7 @@ public:
         jobId = other.jobId;
         jobName = other.jobName;
         autoWatermarkInterval = other.autoWatermarkInterval;
+        recoverySavepointFormat = other.recoverySavepointFormat;
         return *this;
     }
 
@@ -72,6 +80,7 @@ public:
         jobId = std::move(other.jobId);
         jobName = std::move(other.jobName);
         autoWatermarkInterval = other.autoWatermarkInterval;
+        recoverySavepointFormat = std::move(other.recoverySavepointFormat);
         return *this;
     }
 
@@ -103,18 +112,45 @@ public:
         this->autoWatermarkInterval = autoWatermarkInterval_;
     }
 
+    std::string getRecoverySavepointFormat() const
+    {
+        return recoverySavepointFormat;
+    }
+
+    void setRecoverySavepointFormat(const std::string& recoverySavepointFormat_)
+    {
+        this->recoverySavepointFormat = recoverySavepointFormat_;
+    }
+
+    bool isCompatibleRecoverySavepointFormat() const
+    {
+        return recoverySavepointFormat == RECOVERY_FORMAT_FLINK_COMPATIBLE;
+    }
+
+    void checkRecoverySavepointFormat() const
+    {
+        if (recoverySavepointFormat == RECOVERY_FORMAT_FLINK_COMPATIBLE ||
+            recoverySavepointFormat == RECOVERY_FORMAT_OMNI_INTERNAL)
+            return;
+
+        INFO_RELEASE("Unknown RecoverySavepointFormat: " + recoverySavepointFormat);
+        throw std::runtime_error("Unknown RecoverySavepointFormat: " + recoverySavepointFormat);
+    }
+
     std::string toString() const
     {
         return "JobInformationPOD{ jobId=" + jobId.toString() + ", jobName='" + jobName + '\'' +
-               ", autoWatermarkInterval'" + std::to_string(autoWatermarkInterval) + '\'' + '}';
+               ", autoWatermarkInterval='" + std::to_string(autoWatermarkInterval) + '\'' +
+               ", recoverySavepointFormat='" + recoverySavepointFormat + '\'' + '}';
     }
 
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(JobInformationPOD, jobId, jobName, autoWatermarkInterval)
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(JobInformationPOD, jobId, jobName, autoWatermarkInterval, recoverySavepointFormat)
 
 private:
     JobIDPOD jobId;
     std::string jobName;
     long autoWatermarkInterval;
+    std::string recoverySavepointFormat;
 };
 
 } // namespace omnistream

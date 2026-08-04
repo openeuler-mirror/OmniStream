@@ -71,12 +71,18 @@ public:
         auto* vectorBatch = new omnistream::VectorBatch(size);
         for (auto& type : typeVec) {
             switch (type) {
+                case (omniruntime::type::DataTypeId::OMNI_BOOLEAN): {
+                    auto vec = new omniruntime::vec::Vector<bool>(size);
+                    vectorBatch->Append(vec);
+                    break;
+                }
                 case (omniruntime::type::DataTypeId::OMNI_INT):
                 case (omniruntime::type::DataTypeId::OMNI_DATE32): {
                     auto vec = new omniruntime::vec::Vector<int32_t>(size);
                     vectorBatch->Append(vec);
                     break;
                 }
+                case (omniruntime::type::DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE):
                 case (omniruntime::type::DataTypeId::OMNI_LONG):
                 case (omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE):
                 case (omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE):

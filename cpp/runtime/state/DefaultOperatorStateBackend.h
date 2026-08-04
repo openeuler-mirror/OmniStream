@@ -19,6 +19,7 @@
 #include <stdexcept>
 #include <future>
 #include <typeinfo>
+#include <utility>
 
 #include "core/typeutils/TypeSerializer.h"
 #include "core/api/common/state/ListState.h"
@@ -45,19 +46,19 @@ public:
         bool asynchronousSnapshots,
         std::shared_ptr<TaskStateManagerBridge> bridge,
         std::shared_ptr<OmniTaskBridge> omniTaskBridge,
-        DefaultOperatorStateBackendSnapshotStrategy* snapshotStrategy,
+        std::shared_ptr<DefaultOperatorStateBackendSnapshotStrategy> snapshotStrategy,
         std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredOperatorStates,
         std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredBroadcastStates,
         std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> accessedStatesByName,
         std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> accessedBroadcastStatesByName)
         : asynchronousSnapshots_(asynchronousSnapshots),
-          bridge_(bridge),
-          omniTaskBridge_(omniTaskBridge),
-          snapshotStrategy_(snapshotStrategy),
-          registeredOperatorStates_(registeredOperatorStates),
-          registeredBroadcastStates_(registeredBroadcastStates),
-          accessedStatesByName_(accessedStatesByName),
-          accessedBroadcastStatesByName_(accessedBroadcastStatesByName)
+          bridge_(std::move(bridge)),
+          omniTaskBridge_(std::move(omniTaskBridge)),
+          snapshotStrategy_(std::move(snapshotStrategy)),
+          registeredOperatorStates_(std::move(registeredOperatorStates)),
+          registeredBroadcastStates_(std::move(registeredBroadcastStates)),
+          accessedStatesByName_(std::move(accessedStatesByName)),
+          accessedBroadcastStatesByName_(std::move(accessedBroadcastStatesByName))
     {
     }
 
@@ -154,10 +155,6 @@ public:
         CheckpointStreamFactory* streamFactory,
         CheckpointOptions* checkpointOptions) override
     {
-        if (registeredOperatorStates_->empty() && registeredBroadcastStates_->empty()) {
-            return nullptr;
-        }
-
         auto snapshotStrategyRunner = std::make_unique<SnapshotStrategyRunner<OperatorStateHandle, SnapshotResources>>(
             "DefaultOperatorStateBackend snapshot",
             snapshotStrategy_,
@@ -171,7 +168,7 @@ private:
     bool asynchronousSnapshots_;
     std::shared_ptr<TaskStateManagerBridge> bridge_;
     std::shared_ptr<OmniTaskBridge> omniTaskBridge_;
-    DefaultOperatorStateBackendSnapshotStrategy* snapshotStrategy_;
+    std::shared_ptr<DefaultOperatorStateBackendSnapshotStrategy> snapshotStrategy_;
     std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredOperatorStates_;
     std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> registeredBroadcastStates_;
     std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<State>>> accessedStatesByName_;
@@ -191,14 +188,6 @@ private:
         std::shared_ptr<PartitionableListState<S>> resultState = nullptr;
         auto* operatorStateSerializer = stateDescriptor->getStateSerializer();
         auto registeredIterator = registeredOperatorStates_->find(name);
-
-        // 打印当前 registeredOperatorStates_ 中所有的 key，以及本次查询的 name
-        std::string registeredKeys;
-        for (auto& entry : *registeredOperatorStates_) {
-            if (!registeredKeys.empty()) registeredKeys += ", ";
-            registeredKeys += entry.first;
-        }
-
         if (registeredIterator == registeredOperatorStates_->end()) {
             auto stateMetaInfo =
                 std::make_shared<RegisteredOperatorStateBackendMetaInfo>(name, mode, operatorStateSerializer);

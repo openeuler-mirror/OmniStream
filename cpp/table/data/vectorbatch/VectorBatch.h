@@ -112,6 +112,7 @@ public:
         std::vector<std::string> inputFields) const;
 
     std::string TransformTime(int vectorID, int rowID, int precision = 3) const;
+    std::string TransformOnlyTime(int vectorID, int rowID, int precision = 3) const;
     std::string TransformTimeWithTimeZone(int vectorID, int rowID, const std::string& tzStr, int precision = 3) const;
     std::string transformDecimal128(
         int vectorID, int rowID, std::vector<std::pair<int32_t, int32_t>>& decimalInfo) const;
@@ -145,6 +146,8 @@ public:
         omniruntime::vec::BaseVector* input, const int* positions, int offset, int length);
 
     static omnistream::VectorBatch* CreateVectorBatch(int rowCnt, const std::vector<DataTypeId>& dataTypes);
+
+    static std::string RemoveTrailingZeros(std::string num);
 
 private:
     int64_t* timestamps;

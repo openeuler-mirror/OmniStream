@@ -70,7 +70,9 @@ enum class DataInputStatus : int {
      * Indicator that the input has reached the end_ of data and control events. The input is about
      * to close.
      */
-    END_OF_INPUT
+    END_OF_INPUT,
+
+    INNER_RECOVER
 };
 
 class DataInputStatusHelper {
@@ -85,6 +87,7 @@ public:
             case DataInputStatus::STOPPED: return 3;
             case DataInputStatus::END_OF_DATA: return 4;
             case DataInputStatus::END_OF_INPUT: return 5;
+            case DataInputStatus::INNER_RECOVER: return 6;
         }
         return -2; // unknow
     }

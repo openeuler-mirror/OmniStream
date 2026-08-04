@@ -19,9 +19,12 @@
 #include <vector>
 #include <filesystem>
 #include <iostream>
+#include <utility>
 
+#include "common.h"
 #include "runtime/state/RegisteredStateMetaInfoBase.h"
 #include "runtime/state/rocksdb/RocksDbOperationUtils.h"
+#include "runtime/state/rocksdb/RocksDbStringAppendOperator.h"
 #include "runtime/state/metainfo/StateMetaInfoSnapshot.h"
 #include "runtime/state/RocksDbKvStateInfo.h"
 
@@ -55,8 +58,12 @@ public:
         const std::vector<StateMetaInfoSnapshot>& stateMetaInfoSnapshots,
         const fs::path& restoreSourcePath)
     {
+        if (columnFamilyDescriptors.size() != stateMetaInfoSnapshots.size()) {
+            throw std::invalid_argument(
+                "RocksDbHandle::openDB descriptor count " + std::to_string(columnFamilyDescriptors.size()) +
+                " does not match snapshot count " + std::to_string(stateMetaInfoSnapshots.size()));
+        }
         this->columnFamilyDescriptors = columnFamilyDescriptors;
-        this->columnFamilyHandles.resize(columnFamilyDescriptors.size() + 1);
         restoreInstanceDirectoryFromPath(restoreSourcePath);
         loadDb();
 
@@ -103,8 +110,24 @@ public:
             std::shared_ptr<RegisteredStateMetaInfoBase> stateMetaInfo =
                 RegisteredStateMetaInfoBase::fromMetaInfoSnapshot(stateMetaInfoSnapshot);
             if (columnFamilyHandle == nullptr) {
+                auto columnFamilyDescriptor =
+                    RocksDbOperationUtils::createColumnFamilyDescriptor(stateMetaInfo, columnFamilyOptionsFactory);
+
+                // LIST state uses Merge operations; ensure merge_operator is set when opening an
+                // existing DB, otherwise RocksDB will reject the column family with "Invalid argument:
+                // merge_operator_ must be set."
+                auto stateTypeString =
+                    stateMetaInfoSnapshot.getOption(StateMetaInfoSnapshot::CommonOptionsKeys::KEYED_STATE_TYPE);
+                if (stateTypeString == "LIST") {
+                    columnFamilyDescriptor.options.merge_operator.reset(new RocksDbStringAppendOperator(','));
+                }
+
+                columnFamilyHandle = RocksDbOperationUtils::createColumnFamily(columnFamilyDescriptor, db);
+                PendingColumnFamilyHandleGuard pendingColumnFamilyHandle(db, columnFamilyHandle, dbPath);
+                columnFamilyHandles.push_back(columnFamilyHandle);
+                pendingColumnFamilyHandle.release();
                 registeredStateMetaInfoEntry =
-                    RocksDbOperationUtils::createStateInfo(stateMetaInfo, db, columnFamilyOptionsFactory);
+                    std::make_shared<RocksDbKvStateInfo>(columnFamilyHandle, std::move(stateMetaInfo));
             } else {
                 registeredStateMetaInfoEntry =
                     std::make_shared<RocksDbKvStateInfo>(columnFamilyHandle, std::move(stateMetaInfo));
@@ -113,6 +136,48 @@ public:
                 kvStateInformation, stateMetaInfoSnapshot.getName(), registeredStateMetaInfoEntry);
         }
         return registeredStateMetaInfoEntry;
+    }
+
+    void closeOpenDbNoThrow() noexcept
+    {
+        if (db == nullptr) {
+            defaultColumnFamilyHandle = nullptr;
+            columnFamilyHandles.clear();
+            return;
+        }
+
+        size_t stateHandleIndex = 0;
+        for (auto* stateColumnFamilyHandle : columnFamilyHandles) {
+            if (stateColumnFamilyHandle != nullptr) {
+                const auto status = db->DestroyColumnFamilyHandle(stateColumnFamilyHandle);
+                if (!status.ok()) {
+                    INFO_RELEASE(
+                        "Error:RocksDbHandle::closeOpenDbNoThrow failed to destroy state column family handle, dbPath="
+                        << dbPath << ", stateHandleIndex=" << stateHandleIndex << ", status=" << status.ToString());
+                }
+            }
+            ++stateHandleIndex;
+        }
+        columnFamilyHandles.clear();
+
+        if (defaultColumnFamilyHandle != nullptr) {
+            const auto status = db->DestroyColumnFamilyHandle(defaultColumnFamilyHandle);
+            if (!status.ok()) {
+                INFO_RELEASE(
+                    "Error:RocksDbHandle::closeOpenDbNoThrow failed to destroy default column family handle, dbPath="
+                    << dbPath << ", status=" << status.ToString());
+            }
+            defaultColumnFamilyHandle = nullptr;
+        }
+
+        const auto status = db->Close();
+        if (!status.ok()) {
+            INFO_RELEASE(
+                "Error:RocksDbHandle::closeOpenDbNoThrow failed to close DB, dbPath=" << dbPath << ", status="
+                                                                                      << status.ToString());
+        }
+        delete db;
+        db = nullptr;
     }
 
     void restoreInstanceDirectoryFromPath(const fs::path& source)
@@ -169,24 +234,73 @@ public:
     }
 
 private:
+    class PendingColumnFamilyHandleGuard {
+    public:
+        PendingColumnFamilyHandleGuard(
+            rocksdb::DB* db, rocksdb::ColumnFamilyHandle* columnFamilyHandle, const std::string& dbPath)
+            : db(db),
+              columnFamilyHandle(columnFamilyHandle),
+              dbPath(dbPath)
+        {
+        }
+
+        ~PendingColumnFamilyHandleGuard() noexcept
+        {
+            if (db == nullptr || columnFamilyHandle == nullptr) {
+                return;
+            }
+            const auto status = db->DestroyColumnFamilyHandle(columnFamilyHandle);
+            if (!status.ok()) {
+                INFO_RELEASE(
+                    "Error:RocksDbHandle pending state column family cleanup failed, dbPath=" << dbPath << ", status="
+                                                                                              << status.ToString());
+            }
+        }
+
+        PendingColumnFamilyHandleGuard(const PendingColumnFamilyHandleGuard&) = delete;
+        PendingColumnFamilyHandleGuard& operator=(const PendingColumnFamilyHandleGuard&) = delete;
+        PendingColumnFamilyHandleGuard(PendingColumnFamilyHandleGuard&& other) noexcept
+            : db(std::exchange(other.db, nullptr)),
+              columnFamilyHandle(std::exchange(other.columnFamilyHandle, nullptr)),
+              dbPath(other.dbPath)
+        {
+        }
+        PendingColumnFamilyHandleGuard& operator=(PendingColumnFamilyHandleGuard&&) = delete;
+
+        void release() noexcept
+        {
+            columnFamilyHandle = nullptr;
+        }
+
+    private:
+        rocksdb::DB* db;
+        rocksdb::ColumnFamilyHandle* columnFamilyHandle;
+        const std::string& dbPath;
+    };
+
     std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation;
     const std::string dbPath;
     std::shared_ptr<rocksdb::DBOptions> dbOptions;
     const std::function<rocksdb::ColumnFamilyOptions(const std::string&)> columnFamilyOptionsFactory;
     std::vector<rocksdb::ColumnFamilyHandle*> columnFamilyHandles;
     std::vector<rocksdb::ColumnFamilyDescriptor> columnFamilyDescriptors;
-    rocksdb::DB* db;
-    rocksdb::ColumnFamilyHandle* defaultColumnFamilyHandle;
+    rocksdb::DB* db = nullptr;
+    rocksdb::ColumnFamilyHandle* defaultColumnFamilyHandle = nullptr;
     const std::string SST_FILE_SUFFIX = ".sst";
     std::string::size_type SST_SUFFIX_LENGTH = 4;
     void loadDb()
     {
         rocksdb::ColumnFamilyOptions columnFamilyOptions =
             RocksDbOperationUtils::createColumnFamilyOptions(columnFamilyOptionsFactory, "default");
-        db = RocksDbOperationUtils::openDB(
-            dbPath, columnFamilyDescriptors, columnFamilyHandles, columnFamilyOptions, *dbOptions);
-        defaultColumnFamilyHandle = columnFamilyHandles[0];
-        columnFamilyHandles.erase(columnFamilyHandles.begin());
+        std::vector<rocksdb::ColumnFamilyHandle*> openedColumnFamilyHandles;
+        auto* openedDb = RocksDbOperationUtils::openDB(
+            dbPath, columnFamilyDescriptors, openedColumnFamilyHandles, columnFamilyOptions, *dbOptions);
+        auto* openedDefaultColumnFamilyHandle = openedColumnFamilyHandles.front();
+        openedColumnFamilyHandles.erase(openedColumnFamilyHandles.begin());
+
+        db = openedDb;
+        defaultColumnFamilyHandle = openedDefaultColumnFamilyHandle;
+        columnFamilyHandles.swap(openedColumnFamilyHandles);
     }
 
     bool endsWithSst(const std::string& str)

@@ -57,7 +57,8 @@ LocalMemoryBufferPool::LocalMemoryBufferPool(
         //                availabilityHelper_->resetAvailable();
         //            }
         //            checkConsistentAvailability();
-        checkAndUpdateAvailability();
+        auto toNotify = checkAndUpdateAvailability();
+        mayNotifyAvailable(toNotify);
     }
     LOG("LocalObjectBufferPool constructor end");
 }
@@ -314,7 +315,8 @@ MemorySegment* LocalMemoryBufferPool::requestMemorySegment(int targetChannel)
             }
         }
 
-        checkAndUpdateAvailability();
+        auto toNotify = checkAndUpdateAvailability();
+        mayNotifyAvailable(toNotify);
 
         /*if (!checkAvailability()) {
             availabilityHelper_->resetUnavailable();

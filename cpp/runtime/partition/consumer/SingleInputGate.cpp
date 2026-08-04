@@ -235,10 +235,10 @@ void SingleInputGate::convertRecoveredInputChannels()
             LOG("after instance of RemoteRecoveredInputChannel, to convert to normal channel!");
         } else if (auto local2 = std::dynamic_pointer_cast<OmniLocalInputChannel>(inputChannel)) {
             LOG("after instance of OmniLocalInputChannel!");
-        } else if (auto local1 = std::dynamic_pointer_cast<LocalInputChannel>(inputChannel)) {
-            LOG("after instance of LocalInputChannel!");
         } else if (auto remote1 = std::dynamic_pointer_cast<RemoteInputChannel>(inputChannel)) {
             LOG("after instance of RemoteInputChannel!");
+        } else if (auto local1 = std::dynamic_pointer_cast<LocalInputChannel>(inputChannel)) {
+            LOG("after instance of LocalInputChannel!");
         } else {
             LOG("after unKnown channel type!");
         }
@@ -259,6 +259,16 @@ void SingleInputGate::FinishReadRecoveredState()
     for (auto& channel : channels) {
         if (auto recoveredChannel = std::dynamic_pointer_cast<RecoveredInputChannel>(channel)) {
             recoveredChannel->finishReadRecoveredState();
+        }
+    }
+}
+
+void SingleInputGate::FinishInnerRecoveredState()
+{
+    INFO_RELEASE("single input gate FinishInnerRecoveredState!");
+    for (auto& channel : channels) {
+        if (auto recoveredChannel = std::dynamic_pointer_cast<RecoveredInputChannel>(channel)) {
+            recoveredChannel->finishInnerRecoveredState();
         }
     }
 }
@@ -808,6 +818,14 @@ void SingleInputGate::ResumeConsumption(const InputChannelInfo& channelInfo)
     // is safe to not synchronize the requestLock here. We will refactor the code to not
     // rely on this assumption in the future.
     channels[channelInfo.getInputChannelIdx()]->resumeConsumption();
+}
+
+void SingleInputGate::TimeOutResumeConsumption(const InputChannelInfo& channelInfo)
+{
+    if (IsFinished()) {
+        throw std::runtime_error("Input gate is already finished.");
+    }
+    channels[channelInfo.getInputChannelIdx()]->TimeOutResumeConsumption();
 }
 
 void SingleInputGate::acknowledgeAllRecordsProcessed(const InputChannelInfo& channelInfo)

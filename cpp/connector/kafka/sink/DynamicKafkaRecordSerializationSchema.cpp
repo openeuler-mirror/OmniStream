@@ -50,7 +50,7 @@ void DynamicKafkaRecordSerializationSchema::RowToJson(RowData* row)
             strftime(timeBuffer, sizeof(timeBuffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
             oss << timeBuffer << "." << std::setw(3) << std::setfill('0') // 强制3位宽度，不足补零
                 << milliseconds;
-            j[inputFields_[i]] = oss.str();
+            j[inputFields_[i]] = omnistream::VectorBatch::RemoveTrailingZeros(oss.str());
         } else if (inputTypes_[i] == "INTEGER") {
             j[inputFields_[i]] = *row->getInt(i);
         } else if (inputTypes_[i] == "DOUBLE") {

@@ -85,8 +85,7 @@ omnistream::RowType::RowType(bool isNull, const std::vector<std::string>& typeNa
     fields_.reserve(typeName.size());
     int idx = 0;
     for (const auto& name : typeName) {
-        auto typeId = LogicalType::flinkTypeToOmniTypeId(name);
-        auto logicalType = BasicLogicalType::getTypeBy(typeId, nlohmann::json::object());
+        auto logicalType = LogicalType::flinkTypeToOmniType(name);
         fields_.emplace_back("f" + std::to_string(idx++), logicalType, "");
     }
 }

@@ -21,13 +21,17 @@
 #include <cstdint>
 #include <memory>
 #include "runtime/generated/function/WindowAggsHandleFunction.h"
+#include "table/typeutils/InternalTypeInfo.h"
 
 class AbstractWindowAggProcessor : public SlicingWindowProcessor<std::shared_ptr<RowData>, int64_t> {
 public:
     using KeyType = std::shared_ptr<RowData>;
 
     AbstractWindowAggProcessor(nlohmann::json description, Output* output);
-    ~AbstractWindowAggProcessor() = default;
+    ~AbstractWindowAggProcessor()
+    {
+        delete sliceAssigner;
+    };
     void open(
         AbstractKeyedStateBackend<KeyType>* state,
         const nlohmann::json& config,
@@ -66,6 +70,7 @@ protected:
     Output* output;
 
     int accumulatorArity_ = 0;
+    std::vector<std::string> accTypes_;
     AbstractKeyedStateBackend<KeyType>* stateBackend = nullptr;
     std::unique_ptr<JoinedRowData> resultRow = std::make_unique<JoinedRowData>();
     omnistream::VectorBatch* resultBatch = nullptr;

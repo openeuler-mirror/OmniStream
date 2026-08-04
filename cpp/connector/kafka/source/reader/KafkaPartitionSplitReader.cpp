@@ -31,6 +31,15 @@ KafkaPartitionSplitReader::KafkaPartitionSplitReader(
     std::unordered_map<std::string, std::string> consumerProps = props;
     consumerProps["client.id"] = createConsumerClientId(props);
 
+    bool commitOffsetsOnCheckpoint = true;
+    auto it = props.find("commit.offsets.on.checkpoint");
+    if (it != props.end() && it->second == "false") {
+        commitOffsetsOnCheckpoint = false;
+    }
+    if (commitOffsetsOnCheckpoint) {
+        consumerProps["enable.auto.commit"] = "false";
+    }
+
     std::string errstr;
     consumer = new RdKafkaConsumer(consumerProps);
     // std::this_thread::sleep_for(std::chrono::seconds(2));

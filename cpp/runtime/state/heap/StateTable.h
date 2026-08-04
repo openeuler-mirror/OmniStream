@@ -8,8 +8,8 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_STATETABLE_H
-#define FLINK_TNEL_STATETABLE_H
+
+#pragma once
 
 #include <vector>
 #include <type_traits>
@@ -23,6 +23,7 @@
 #include "../InternalKeyContext.h"
 #include "../KeyGroupRange.h"
 #include "../RegisteredKeyValueStateBackendMetaInfo.h"
+#include "data/util/SequenceNumberHelper.h"
 #include "table/data/binary/BinaryRowData.h"
 /* S is the value used in the State,
  * like RowData* for HeapValueState,
@@ -75,7 +76,12 @@ public:
     void remove(const N& nameSpace)
     {
         remove(keyContext->getCurrentKey(), keyContext->getCurrentKeyGroupIndex(), nameSpace);
-    };
+    }
+
+    void remove(const K& key, int keyGroupIndex, const N& nameSpace)
+    {
+        getMapForKeyGroup(keyGroupIndex)->remove(key, nameSpace);
+    }
 
     S removeAndGetOld(const N& nameSpace)
     {
@@ -178,6 +184,10 @@ public:
         return keyContext;
     }
 
+    uint32_t getNextSequenceNumber(int32_t keyGroup);
+    void addNextSequenceNumber(int32_t keyGroup);
+    void updateNextSequenceNumber(int32_t keyGroup, uint32_t nextSequenceNumber);
+
     class StateEntryIterator : public InternalKvState<K, N, S>::StateIncrementalVisitor {
     public:
         S nextEntries() override;
@@ -205,6 +215,7 @@ protected:
     KeyGroupRange* keyGroupRange;
     std::vector<StateMap<K, N, S>*> keyGroupedStateMaps;
     RegisteredKeyValueStateBackendMetaInfo* metaInfo;
+    omnistream::SequenceNumberHelper sequenceNumberHelper_{}; // only used for VectorBatch storage
 
     // Abstract Functions
     virtual StateMap<K, N, S>* createStateMap() = 0;
@@ -212,11 +223,6 @@ protected:
     bool containsKey(const K& key, int keyGroupIndex, const N& nameSpace)
     {
         return getMapForKeyGroup(keyGroupIndex)->containsKey(key, nameSpace);
-    };
-
-    void remove(const K& key, int keyGroupIndex, const N& nameSpace)
-    {
-        getMapForKeyGroup(keyGroupIndex)->remove(key, nameSpace);
     };
 
     S removeAndGetOld(const K& key, int keyGroupIndex, const N& nameSpace)
@@ -242,6 +248,7 @@ StateTable<K, N, S>::StateTable(
     this->keySerializer = keySerializer;
     this->keyGroupRange = keyContext->getKeyGroupRange();
     keyGroupedStateMaps = {};
+    sequenceNumberHelper_ = omnistream::SequenceNumberHelper(this->keyContext->getNumberOfKeyGroups());
 }
 
 template <typename K, typename N, typename S>
@@ -385,4 +392,20 @@ void StateTable<K, N, S>::transform(const N& nameSpace, T value, StateTransforma
     getMapForKeyGroup(keyGroup).transform(key, nameSpace, value, transformation);
 }
 
-#endif // FLINK_TNEL_STATETABLE_H
+template <typename K, typename N, typename S>
+uint32_t StateTable<K, N, S>::getNextSequenceNumber(int32_t keyGroup)
+{
+    return sequenceNumberHelper_.getNextSequenceNumber(keyGroup);
+}
+
+template <typename K, typename N, typename S>
+void StateTable<K, N, S>::addNextSequenceNumber(int32_t keyGroup)
+{
+    sequenceNumberHelper_.addNextSequenceNumber(keyGroup);
+}
+
+template <typename K, typename N, typename S>
+void StateTable<K, N, S>::updateNextSequenceNumber(int32_t keyGroup, uint32_t nextSequenceNumber)
+{
+    sequenceNumberHelper_.updateNextSequenceNumber(keyGroup, nextSequenceNumber);
+}

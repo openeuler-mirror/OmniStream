@@ -9,8 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef FLINK_TNEL_ABSTRACTSTREAMINGJOINOPERATOR_H
-#define FLINK_TNEL_ABSTRACTSTREAMINGJOINOPERATOR_H
+#pragma once
 
 #include "table/data/RowData.h"
 #include "table/runtime/operators/join/JoinRecordStateView.h"
@@ -96,7 +95,7 @@ public:
     void of(omnistream::VectorBatch* input, bool inputIsLeft, otherViewT* otherSideStateView);
 
     template <typename otherViewT>
-    bool needHandleInputSide(otherViewT* otherSideStateView, std::unique_ptr<std::vector<int64_t>>& vecs);
+    bool needHandleInputSide(otherViewT* otherSideStateView, std::unique_ptr<std::vector<omnistream::ComboId>>& vecs);
 
 protected:
     std::string leftInputSpec;
@@ -126,12 +125,12 @@ protected:
 
     // matchedLists[i] = nullptr is no match has been found for i-th row from inputVB
     // matchedLists[i] = vector<int64_t>* is a list of matched rows for i-th row from inputVB
-    std::vector<std::unique_ptr<std::vector<int64_t>>> matchedLists;
+    std::vector<std::unique_ptr<std::vector<omnistream::ComboId>>> matchedLists;
     // number of matched records
     std::vector<int32_t> matchedCount;
     int32_t matchedCountTot;
     // Null-padded entries that need to be inserted/deleted
-    std::vector<int64_t> deleteRecords;
+    std::vector<omnistream::ComboId> deleteRecords;
     // Kinds for those null-padded entries based on accumulate(0) or retract(1)
     std::vector<int8_t> deleteKinds;
 
@@ -142,9 +141,9 @@ protected:
     std::set<int> getColRefs(nlohmann::json& config);
 
     template <typename otherViewT>
-    std::unique_ptr<std::vector<int64_t>> filterRecords(
+    std::unique_ptr<std::vector<omnistream::ComboId>> filterRecords(
         omnistream::VectorBatch* inputBatch,
-        std::vector<int64_t>* matchedRecords,
+        std::vector<omnistream::ComboId>* matchedRecords,
         int inputRowId,
         otherViewT* otherSideStateView,
         bool inputIsLeft);
@@ -267,14 +266,13 @@ void AbstractStreamingJoinOperator<K>::of(
         auto key = keySelector->getKey(input, i);
         this->setCurrentKey(key);
         deleteKeys.push_back(key);
-        std::unique_ptr<std::vector<int64_t>> vecs = std::make_unique<std::vector<int64_t>>();
+        auto vecs = std::make_unique<std::vector<omnistream::ComboId>>();
         if constexpr (std::is_same_v<InputSideHasNoUniqueKey<K>, otherViewT>) {
             if (!needHandleInputSide(otherSideStateView, vecs)) {
                 continue;
             }
         } else if constexpr (std::is_same_v<OuterInputSideHasNoUniqueKey<K>, otherViewT>) {
-            emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int32_t, int64_t>>* matchedMap =
-                static_cast<OuterInputSideHasNoUniqueKey<K>*>(otherSideStateView)->getRecords();
+            auto* matchedMap = static_cast<OuterInputSideHasNoUniqueKey<K>*>(otherSideStateView)->getRecords();
             if (matchedMap == nullptr) {
                 continue;
             }
@@ -282,12 +280,12 @@ void AbstractStreamingJoinOperator<K>::of(
                 // Keep track of records that found their first match and need their NULL entry deleted/inserted
                 if (RowDataUtil::isAccumulateMsg(input->getRowKind(i))) {
                     if (std::get<1>(it->second) == 0) {
-                        deleteRecords.push_back(std::get<2>(it->second));
+                        deleteRecords.push_back(static_cast<ComboId>(std::get<2>(it->second)));
                         deleteKinds.push_back(static_cast<int8_t>(0));
                     }
                 } else {
                     if (std::get<1>(it->second) == 1) {
-                        deleteRecords.push_back(std::get<2>(it->second));
+                        deleteRecords.push_back(static_cast<ComboId>(std::get<2>(it->second)));
                         deleteKinds.push_back(static_cast<int8_t>(1));
                     }
                 }
@@ -296,7 +294,7 @@ void AbstractStreamingJoinOperator<K>::of(
                                               : std::get<1>(it->second) - 1;
                 it->second = {std::get<0>(it->second), newNumAssociate, std::get<2>(it->second)};
                 for (int j = 0; j < std::get<0>(it->second); j++) {
-                    vecs->push_back(std::get<2>(it->second));
+                    vecs->push_back(static_cast<ComboId>(std::get<2>(it->second)));
                 }
             }
         }
@@ -330,16 +328,15 @@ void AbstractStreamingJoinOperator<K>::of(
 template <typename K>
 template <typename otherViewT>
 bool AbstractStreamingJoinOperator<K>::needHandleInputSide(
-    otherViewT* otherSideStateView, std::unique_ptr<std::vector<int64_t>>& vecs)
+    otherViewT* otherSideStateView, std::unique_ptr<std::vector<omnistream::ComboId>>& vecs)
 {
-    emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int64_t>>* matchedMap =
-        static_cast<InputSideHasNoUniqueKey<K>*>(otherSideStateView)->getRecords();
+    auto* matchedMap = static_cast<InputSideHasNoUniqueKey<K>*>(otherSideStateView)->getRecords();
     if (matchedMap == nullptr) {
         return false;
     }
     for (auto it = matchedMap->begin(); it != matchedMap->end(); it++) {
         for (int j = 0; j < std::get<0>(it->second); j++) {
-            vecs->push_back(std::get<1>(it->second));
+            vecs->push_back(static_cast<ComboId>(std::get<1>(it->second)));
         }
     }
 
@@ -405,14 +402,15 @@ std::set<int> AbstractStreamingJoinOperator<K>::getColRefs(nlohmann::json& confi
 
 template <typename K>
 template <typename otherViewT>
-std::unique_ptr<std::vector<int64_t>> AbstractStreamingJoinOperator<K>::filterRecords(
+std::unique_ptr<std::vector<omnistream::ComboId>> AbstractStreamingJoinOperator<K>::filterRecords(
     omnistream::VectorBatch* inputBatch,
-    std::vector<int64_t>* matchedRecords,
+    std::vector<omnistream::ComboId>* matchedRecords,
     int inputRowId,
     otherViewT* otherSideStateView,
     bool inputIsLeft)
 {
-    std::unique_ptr<std::vector<int64_t>> filteredRecords = std::make_unique<std::vector<int64_t>>();
+    std::unique_ptr<std::vector<omnistream::ComboId>> filteredRecords =
+        std::make_unique<std::vector<omnistream::ComboId>>();
     int leftArity = leftInputTypes.size();
     int rightArity = rightInputTypes.size();
     std::vector<int64_t> vals(leftArity + rightArity);
@@ -427,37 +425,23 @@ std::unique_ptr<std::vector<int64_t>> AbstractStreamingJoinOperator<K>::filterRe
             joinCondition[col](vector, inputRowId, col, vals.data(), reinterpret_cast<bool*>(nulls.data()));
         }
     }
-
-    int num = (*matchedRecords).size();
-    uint32_t* batchIDdst = new uint32_t[num];
-    uint32_t* rowIDdst = new uint32_t[num];
-
-    int processNum = svcntw();
-    int half = svcntd();
-    for (int i = 0; i < num; i += processNum) {
-        svbool_t pg = svwhilelt_b64(i, num);
-        svbool_t pg2 = svwhilelt_b64(i + half, num);
-        svbool_t pg3 = svwhilelt_b32(i, num);
-        svuint64_t comboID = svld1(pg, reinterpret_cast<uint64_t*>((*matchedRecords).data()) + i);
-        svuint64_t comboID2 = svld1(pg2, reinterpret_cast<uint64_t*>((*matchedRecords).data()) + i + half);
-
-        svuint32_t rowID = svuzp1(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
-        svuint32_t batchID = svuzp2(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
-
-        svst1_u32(pg3, rowIDdst + i, rowID);
-        svst1_u32(pg3, batchIDdst + i, batchID);
-    }
+    auto num = matchedRecords->size();
+    auto keyGroups = std::vector<int32_t>(num);
+    auto sequenceNumbers = std::vector<uint32_t>(num);
+    auto rowIds = std::vector<int32_t>(num);
+    VectorBatchUtil::decodeComboIds(*matchedRecords, keyGroups, sequenceNumbers, rowIds);
 
     // for the otherSide
     for (int i = 0; i < num; i++) {
-        int32_t othersideRowId = rowIDdst[i];
-        int32_t othersideBatchId = batchIDdst[i];
+        auto otherSideKeyGroup = keyGroups[i];
+        auto othersideSequenceNumber = sequenceNumbers[i];
+        auto othersideRowId = rowIds[i];
 
         for (auto col : colRefsForNonEquiCondition) {
             bool isLeftColumn = col < leftArity;
             if ((inputIsLeft && !isLeftColumn) || (!inputIsLeft && isLeftColumn)) {
-                auto vector =
-                    otherSideStateView->getVectorBatch(othersideBatchId)->Get(inputIsLeft ? col - leftArity : col);
+                auto vector = otherSideStateView->getVectorBatch(otherSideKeyGroup, othersideSequenceNumber)
+                                  ->Get(inputIsLeft ? col - leftArity : col);
                 joinCondition[col](vector, othersideRowId, col, vals.data(), reinterpret_cast<bool*>(nulls.data()));
             }
         }
@@ -467,12 +451,8 @@ std::unique_ptr<std::vector<int64_t>> AbstractStreamingJoinOperator<K>::filterRe
             vals.data(), reinterpret_cast<bool*>(nulls.data()), nullptr, &resultBool, nullptr, (int64_t)(&context));
 
         if (result) {
-            filteredRecords->push_back((*matchedRecords)[i]);
+            filteredRecords->push_back(matchedRecords->at(i));
         }
     }
-    delete[] rowIDdst;
-    delete[] batchIDdst;
     return filteredRecords;
 }
-
-#endif // FLINK_TNEL_ABSTRACTSTREAMINGJOINOPERATOR_H
