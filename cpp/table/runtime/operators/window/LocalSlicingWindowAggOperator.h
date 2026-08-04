@@ -141,7 +141,7 @@ private:
     std::vector<int32_t> keyedTypes;
     KeySelector<std::shared_ptr<RowData>>* keySelector;
     std::vector<int32_t> keyedIndex;
-    SliceAssigner* sliceAssigner;
+    SliceAssigner* sliceAssigner = nullptr;
     long currentWatermark = 0;
     long nextTriggerWatermark = 0;
     long windowInterval = 0;

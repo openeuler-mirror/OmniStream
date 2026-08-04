@@ -52,6 +52,7 @@ private:
     std::atomic<bool> closed_;
     std::string errstr;
     int timeout_ = 1000;
+    int flushTimeout_ = 30 * 1000;
     int pollTimeout_ = 60 * 60 * 1000;
 };
 

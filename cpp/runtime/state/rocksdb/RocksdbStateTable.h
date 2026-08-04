@@ -121,14 +121,18 @@ public:
         if (it2 != kvStateInformation->end() && it2->second->columnFamilyHandle_) {
             VBTable = it2->second->columnFamilyHandle_;
 
+            auto start = std::chrono::high_resolution_clock::now();
             restoreNextSequenceNumberByKeyGroup();
-            INFO_RELEASE("rocksdbStateTable createTable" << " cfName=" << cfName);
+            auto end = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+            INFO_RELEASE("restoreNextSequenceNumberByKeyGroup costs " << duration << " ms.");
         } else {
             s = db->CreateColumnFamily(familyOptions, cfName + "vb", &VBTable);
             if (it2 != kvStateInformation->end()) {
                 it2->second->setColumnFamilyHandle(VBTable);
             }
         }
+        INFO_RELEASE("rocksdbStateTable createTable" << " cfName=" << cfName);
     }
 
     int getHashCode(K key)

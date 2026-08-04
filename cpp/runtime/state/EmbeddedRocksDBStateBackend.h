@@ -109,11 +109,13 @@ public:
             alternativeIdx);
 
         bool incrementalCheckpointing = enableIncrementalCheckpointing == TernaryBoolean::TRUE ? true : false;
+        int taskType = env->taskConfiguration().GetTaskType();
         builder.setEnableIncrementalCheckpointing(incrementalCheckpointing)
             .setNumberOfTransferringThreads(numberOfTransferThreads)
             .setWriteBatchSize(writeBatchSize)
             .setFlinkSavepointAdaptorInfo(adaptorInfo)
             .setRestoreSavepointMode(restoreMode)
+            .setTaskType(taskType)
             .setOperatorDescription(operatorDescription);
 
         return builder.build();
