@@ -22,12 +22,8 @@
 #include "runtime/state/restore/vb/VectorBatchRestoreFlow.h"
 #include "runtime/state/restore/vb/VectorBatchRestoreUtil.h"
 #include "table/typeutils/RowDataSerializer.h"
-#include "table/typeutils/SortedVectorLong.h"
 
 namespace omnistream {
-namespace {
-
-} // namespace
 
 void WindowJoinSavepointAdaptor::prepareForSave(const nlohmann::json& operatorDescription)
 {
@@ -41,8 +37,9 @@ void WindowJoinSavepointAdaptor::prepareForRestore(const nlohmann::json& operato
     inputSideByKvStateId_.clear();
 
     if (leftColumnTypes_.empty() || rightColumnTypes_.empty()) {
-        throw std::runtime_error(
+        ERROR_RELEASE(
             "WindowJoinSavepointAdaptor: cannot parse leftColumnTypes or rightColumnTypes from operatorDescription.");
+        throw std::runtime_error("error occurred in WindowJoinSavepointAdaptor::prepareForRestore");
     }
 }
 
@@ -66,32 +63,36 @@ void WindowJoinSavepointAdaptor::validateForRestore(
 
         // namespace serializer must be LongSerializer
         if (namespaceSerializer == nullptr || namespaceSerializer->getBackendId() != BackendDataType::BIGINT_BK) {
-            throw std::runtime_error(
+            ERROR_RELEASE(
                 "WindowJoinSavepointAdaptor: state '" + std::string(stateName) +
                 "' must use a BIGINT window namespace serializer");
+            throw std::runtime_error("error occured on WindowJoinSavepointAdaptor::validateForRestore");
         }
 
         // value serializer must be ListSerializer
         auto* listSerializer = dynamic_cast<ListSerializer*>(valueSerializer);
         if (listSerializer == nullptr) {
-            throw std::runtime_error(
+            ERROR_RELEASE(
                 "WindowJoinSavepointAdaptor: state '" + std::string(stateName) +
                 "' must use the List serializer as value serializer");
+            throw std::runtime_error("error occured on WindowJoinSavepointAdaptor::validateForRestore");
         }
 
         // element serializer must be RowDataSerializer
         RowDataSerializer* rowSerializer = dynamic_cast<RowDataSerializer*>(listSerializer->getElementSerializer());
         if (rowSerializer == nullptr) {
-            throw std::runtime_error(
+            ERROR_RELEASE(
                 "WindowJoinSavepointAdaptor: state '" + std::string(stateName) +
                 "' must use the RowData serializer as ListState element serializer");
+            throw std::runtime_error("error occured on WindowJoinSavepointAdaptor::validateForRestore");
         }
         std::vector<omniruntime::type::DataTypeId>& columnTypes =
             stateName == LEFT_RECORDS_STATE_NAME ? leftColumnTypes_ : rightColumnTypes_;
         if (columnTypes.size() != rowSerializer->getArity()) {
-            throw std::runtime_error(
-                "WindowJoinSavepointAdaptor: the column type scheme not match the element serializer on state '" +
+            ERROR_RELEASE(
+                "WindowJoinSavepointAdaptor: the column type schema does not match the element serializer on state '" +
                 std::string(stateName) + "'.");
+            throw std::runtime_error("error occured on WindowJoinSavepointAdaptor::validateForRestore");
         }
     }
 }
@@ -135,32 +136,35 @@ StateMetaInfoSnapshot WindowJoinSavepointAdaptor::buildOmniMainMetaInfo(
     } else if (flinkMetaInfo.getName() == RIGHT_RECORDS_STATE_NAME) {
         inputSideByKvStateId_[kvStateId] = InputSide::RIGHT;
     } else {
-        throw std::runtime_error(
+        ERROR_RELEASE(
             "WindowJoinSavepointAdaptor: cannot build Omni metadata for unexpected state '" + flinkMetaInfo.getName() +
             "'");
+        throw std::runtime_error("error occured on WindowJoinSavepointAdaptor::buildOmniMainMetaInfo");
     }
 
-    return VectorBatchRestoreUtil::buildOmniMainMetaInfo(flinkMetaInfo, mainValueSerializer_);
+    return VectorBatchRestoreUtil::buildOmniMainMetaInfo(flinkMetaInfo, &mainValueSerializer());
 }
 
 void WindowJoinSavepointAdaptor::retrieveKVRowData(
     const std::vector<int8_t>& keyBytes, const std::vector<int8_t>& valueBytes, int kvStateId, RestoreKVStateVB* writer)
 {
     if (writer == nullptr) {
-        throw std::runtime_error("WindowJoinSavepointAdaptor: null VectorBatch restore writer");
+        ERROR_RELEASE("WindowJoinSavepointAdaptor: null VectorBatch restore writer");
+        throw std::runtime_error("error occured on WindowJoinSavepointAdaptor::retrieveKVRowData");
     }
     if (keyBytes.empty()) {
-        throw std::runtime_error(
+        ERROR_RELEASE(
             "WindowJoinSavepointAdaptor: empty serialized key for state '" + std::string(stateNameFor(kvStateId)) +
             "'");
+        throw std::runtime_error("error occured on WindowJoinSavepointAdaptor::retrieveKVRowData");
     }
 
     // window join operator state backend type is Key:List<Value>
-    // try get list from valueBytes
+    // try to get the list from valueBytes
     std::vector<std::vector<int8_t>> rows;
     deserializeRows(valueBytes, rows);
 
-    // append row value to vb table and collect all comboId of the list
+    // append row value to vb table and collect all comboId in the list
     std::vector<uint64_t> comboIds;
     comboIds.reserve(rows.size());
     const auto& types = columnTypesFor(kvStateId);
@@ -169,9 +173,10 @@ void WindowJoinSavepointAdaptor::retrieveKVRowData(
         // append single value of the list
         uint64_t comboId = writer->appendRowToVectorBatch(rowView);
         if (comboId == omnistream::INVALID_COMBO_ID) {
-            throw std::runtime_error(
+            ERROR_RELEASE(
                 "WindowJoinSavepointAdaptor: failed to restore RowData for state '" +
                 std::string(stateNameFor(kvStateId)) + "'");
+            throw std::runtime_error("error occured on WindowJoinSavepointAdaptor::retrieveKVRowData");
         }
         comboIds.push_back(comboId);
     }
@@ -184,7 +189,7 @@ void WindowJoinSavepointAdaptor::retrieveKVRowData(
 
 int WindowJoinSavepointAdaptor::batchSize(int kvStateId) const
 {
-    (void)columnTypesFor(kvStateId);
+    (void)kvStateId;
     return VB_RESTORE_BATCH_SIZE;
 }
 
@@ -198,29 +203,32 @@ void WindowJoinSavepointAdaptor::deserializeRows(
 {
     rows.clear();
     if (valueBytes.size() < sizeof(int32_t)) {
-        throw std::runtime_error(
-            "WindowJoinSavepointAdaptor deserializeRows: invalid value bytes size: " +
-            std::to_string(valueBytes.size()));
+        ERROR_RELEASE("WindowJoinSavepointAdaptor: invalid value bytes size: " + std::to_string(valueBytes.size()));
+        throw std::runtime_error("error occured on WindowJoinSavepointAdaptor::deserializeRows");
     }
     DataInputDeserializer input(
         reinterpret_cast<const uint8_t*>(valueBytes.data()), static_cast<int>(valueBytes.size()));
 
     // deserialize each row
-    while (true) {
-        if (input.Available() <= 0) {
-            throw std::runtime_error(
-                "WindowJoinSavepointAdaptor deserializeRows: except a new rowData but input is empty");
-        }
+    while (input.Available() > 0) {
         auto rowStart = input.getPosition();
+
+        if (input.Available() < sizeof(int32_t)) {
+            ERROR_RELEASE(
+                "WindowJoinSavepointAdaptor: The available input is insufficient to read an int32_t, "
+                "input.Available: " +
+                std::to_string(input.Available()));
+            throw std::runtime_error("error occured on WindowJoinSavepointAdaptor::deserializeRows");
+        }
 
         // get row data length
         int32_t rowLength = input.readInt();
         if (rowLength <= 0 || rowLength > input.Available()) {
-            throw std::runtime_error(
-                "WindowJoinSavepointAdaptor deserializeRows: row length invalid or available input is short than row "
-                "length: "
+            ERROR_RELEASE(
+                "WindowJoinSavepointAdaptor: row length invalid or available input is shorter than row length: "
                 "rowLength: " +
                 std::to_string(rowLength) + ", input.Available: " + std::to_string(input.Available()));
+            throw std::runtime_error("error occured on WindowJoinSavepointAdaptor::deserializeRows");
         }
 
         input.setPosition(input.getPosition() + rowLength);
@@ -235,9 +243,14 @@ void WindowJoinSavepointAdaptor::deserializeRows(
 
         uint8_t delimiter = input.readByte();
         if (delimiter != ',') {
-            throw std::runtime_error(
-                "WindowJoinSavepointAdaptor deserializeRows: delimiter invalid: " +
-                std::string(1, static_cast<char>(delimiter)));
+            ERROR_RELEASE(
+                "WindowJoinSavepointAdaptor: delimiter invalid: " + std::string(1, static_cast<char>(delimiter)));
+            throw std::runtime_error("error occured on WindowJoinSavepointAdaptor::deserializeRows");
+        }
+        // The delimiter must be followed by a new row
+        if (input.Available() <= 0) {
+            ERROR_RELEASE("WindowJoinSavepointAdaptor: expected a new row, but the input is empty");
+            throw std::runtime_error("error occured on WindowJoinSavepointAdaptor::deserializeRows");
         }
     }
 }
@@ -246,8 +259,8 @@ const std::vector<omniruntime::type::DataTypeId>& WindowJoinSavepointAdaptor::co
 {
     auto it = inputSideByKvStateId_.find(kvStateId);
     if (it == inputSideByKvStateId_.end()) {
-        throw std::runtime_error(
-            "WindowJoinSavepointAdaptor: no input-side mapping for kvStateId=" + std::to_string(kvStateId));
+        ERROR_RELEASE("WindowJoinSavepointAdaptor: no input-side mapping for kvStateId=" + std::to_string(kvStateId));
+        throw std::runtime_error("error occured on WindowJoinSavepointAdaptor::columnTypesFor");
     }
     return it->second == InputSide::LEFT ? leftColumnTypes_ : rightColumnTypes_;
 }
@@ -256,14 +269,18 @@ const char* WindowJoinSavepointAdaptor::stateNameFor(int kvStateId) const
 {
     auto it = inputSideByKvStateId_.find(kvStateId);
     if (it == inputSideByKvStateId_.end()) {
-        throw std::runtime_error(
-            "WindowJoinSavepointAdaptor: no state name for kvStateId=" + std::to_string(kvStateId));
+        ERROR_RELEASE("WindowJoinSavepointAdaptor: no state name for kvStateId=" + std::to_string(kvStateId));
+        throw std::runtime_error("error occured on WindowJoinSavepointAdaptor::stateNameFor");
     }
     return it->second == InputSide::LEFT ? LEFT_RECORDS_STATE_NAME : RIGHT_RECORDS_STATE_NAME;
 }
 
-// ListSerializer will manage the LongSerializer life cycle so we can't use the LongSerializer::INSTANCE as the
-// parameter.
-TypeSerializer* WindowJoinSavepointAdaptor::mainValueSerializer_ = new ListSerializer(new LongSerializer());
+TypeSerializer& WindowJoinSavepointAdaptor::mainValueSerializer()
+{
+    // ListSerializer will manage the LongSerializer lifecycle so we don't use the LongSerializer::INSTANCE as the
+    // parameter.
+    static ListSerializer serializer{new LongSerializer()};
+    return serializer;
+}
 
 } // namespace omnistream

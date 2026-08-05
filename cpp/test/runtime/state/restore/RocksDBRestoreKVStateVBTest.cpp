@@ -133,7 +133,7 @@ TEST_F(RocksDBRestoreKVStateVBTest, ComboIdListIsWrittenUsingFlinkListEncoding)
     }
 
     DataOutputSerializer expectedOutput;
-    OutputBufferStatus expectedOutputStatus;
+    OutputBufferStatus expectedOutputStatus{};
     expectedOutput.setBackendBuffer(&expectedOutputStatus);
     LongSerializer longSerializer;
     for (size_t i = 0; i < comboIds.size(); ++i) {

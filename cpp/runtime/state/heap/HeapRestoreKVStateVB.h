@@ -110,8 +110,9 @@ template <typename K>
 void HeapRestoreKVStateVB<K>::writeLongEntry(const std::vector<int8_t>& keyBytes, int64_t value)
 {
     ensureMainTableReady();
-    auto [rawKey, rawNs] = deserializeKey(keyBytes);
-    DeserializedKeyGuard keyGuard(rawKey, rawNs, stateInfo_.namespaceSerializer->getBackendId());
+    auto keyGuard = deserializeKey(keyBytes);
+    auto rawKey = keyGuard.getRawKey();
+    auto rawNs = keyGuard.getRawNamespace();
 
     auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, int64_t>*>(stateInfo_.mainTablePtr);
     table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), value);
@@ -124,26 +125,30 @@ void HeapRestoreKVStateVB<K>::writeComboIdList(
     const std::vector<int8_t>& keyBytes, const std::vector<omnistream::ComboId>& comboIds)
 {
     if (stateInfo_.stateType != StateDescriptor::Type::LIST) {
-        throw std::runtime_error(
-            "HeapRestoreKVStateVB: comboId list requires LIST state for '" + stateInfo_.stateName + "'");
+        ERROR_RELEASE("HeapRestoreKVStateVB: comboId list requires LIST state for '" + stateInfo_.stateName + "'");
+        throw std::runtime_error("error occured on HeapRestoreKVStateVB<K>::writeComboIdList");
     }
     if (stateInfo_.namespaceSerializer == nullptr ||
         stateInfo_.namespaceSerializer->getBackendId() != BackendDataType::BIGINT_BK) {
-        throw std::runtime_error(
+        ERROR_RELEASE(
             "HeapRestoreKVStateVB: comboId list requires BIGINT namespace for '" + stateInfo_.stateName + "'");
+        throw std::runtime_error("error occured on HeapRestoreKVStateVB<K>::writeComboIdList");
     }
     if (stateInfo_.mainStateDesc == nullptr) {
-        throw std::runtime_error("HeapRestoreKVStateVB: mainStateDesc is null for '" + stateInfo_.stateName + "'");
+        ERROR_RELEASE("HeapRestoreKVStateVB: mainStateDesc is null for '" + stateInfo_.stateName + "'");
+        throw std::runtime_error("error occured on HeapRestoreKVStateVB<K>::writeComboIdList");
     }
     if (stateInfo_.mainTablePtr == 0) {
         stateInfo_.mainTablePtr = delegate_.getBackend()->getStateTablePtr(stateInfo_.mainStateDesc->getName());
     }
     if (stateInfo_.mainTablePtr == 0) {
-        throw std::runtime_error("HeapRestoreKVStateVB: main table not found for '" + stateInfo_.stateName + "'");
+        ERROR_RELEASE("HeapRestoreKVStateVB: main table not found for '" + stateInfo_.stateName + "'");
+        throw std::runtime_error("error occured on HeapRestoreKVStateVB<K>::writeComboIdList");
     }
 
-    auto [rawKey, rawNs] = deserializeKey(keyBytes);
-    DeserializedKeyGuard keyGuard(rawKey, rawNs, stateInfo_.namespaceSerializer->getBackendId());
+    auto keyGuard = deserializeKey(keyBytes);
+    auto rawKey = keyGuard.getRawKey();
+    auto rawNs = keyGuard.getRawNamespace();
 
     auto* table = reinterpret_cast<CopyOnWriteStateTable<K, int64_t, std::vector<int64_t>*>*>(stateInfo_.mainTablePtr);
     auto values = std::make_unique<std::vector<int64_t>>(comboIds.begin(), comboIds.end());

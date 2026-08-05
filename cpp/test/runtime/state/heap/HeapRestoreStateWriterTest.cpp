@@ -139,7 +139,7 @@ protected:
     std::vector<int8_t> makeWindowKeyBytes(int key, int64_t windowNamespace)
     {
         DataOutputSerializer output;
-        OutputBufferStatus outputStatus;
+        OutputBufferStatus outputStatus{};
         output.setBackendBuffer(&outputStatus);
         output.writeShort(0);
         keySerializer_->serialize(&key, output);

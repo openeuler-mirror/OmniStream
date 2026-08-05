@@ -67,8 +67,7 @@ private:
 
     const std::vector<omniruntime::type::DataTypeId>& columnTypesFor(int kvStateId) const;
     const char* stateNameFor(int kvStateId) const;
-
-    static TypeSerializer* mainValueSerializer_;
+    TypeSerializer& mainValueSerializer();
 
     std::vector<omniruntime::type::DataTypeId> leftColumnTypes_;
     std::vector<omniruntime::type::DataTypeId> rightColumnTypes_;

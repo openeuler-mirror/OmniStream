@@ -44,7 +44,7 @@ std::vector<int8_t> copyOutput(DataOutputSerializer& output)
 std::vector<int8_t> makeSerializedRow(const std::vector<uint8_t>& payload)
 {
     DataOutputSerializer output;
-    OutputBufferStatus outputStatus;
+    OutputBufferStatus outputStatus{};
     output.setBackendBuffer(&outputStatus);
     output.writeInt(static_cast<uint32_t>(payload.size()));
     if (!payload.empty()) {
