@@ -20,7 +20,7 @@
 #include "core/typeutils/TypeSerializer.h"
 #include "table/types/logical/LogicalType.h"
 #include "table/data/JoinedRowData.h"
-#include "table/typeutils/BinaryRowDataSerializer.h"
+#include "table/typeutils/RowDataSerializer.h"
 #include "table/runtime/operators/window/WindowOperator.h"
 #include "streaming/api/operators/AbstractStreamOperator.h"
 
@@ -52,6 +52,8 @@ public:
         }
         WindowOperator<K, W>::open();
         reuseOutput_ = std::make_unique<JoinedRowData>();
+        resultRowSerializer_ =
+            std::make_unique<RowDataSerializer>(new omnistream::RowType(true, WindowOperator<K, W>::outputTypes));
     }
 
     void setCurrentKey(K key) override
@@ -86,9 +88,8 @@ private:
         reuseResultRows_.clear();
         reuseOutput_->replace(key, aggResult.get());
         reuseOutput_->setRowKind(rowKind);
-        auto resultRow = std::unique_ptr<BinaryRowData>(
-            BinaryRowDataSerializer::joinedRowToBinaryRow(reuseOutput_.get(), outputTypeIds));
-        reuseResultRows_.push_back(resultRow.get());
+        auto* resultRow = resultRowSerializer_->toBinaryRow(reuseOutput_.get());
+        reuseResultRows_.push_back(resultRow);
         auto resultBatch = createOutputBatch(reuseResultRows_);
         collectOutputBatch(collector.get(), resultBatch);
     }
@@ -104,4 +105,5 @@ private:
     std::unique_ptr<JoinedRowData> reuseOutput_{};
     std::vector<RowData*> reuseResultRows_;
     std::vector<int32_t> outputTypeIds;
+    std::unique_ptr<RowDataSerializer> resultRowSerializer_;
 };

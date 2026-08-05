@@ -33,7 +33,7 @@ void WindowOperator<K, W>::open()
     triggerContext_->open();
 
     // init windowState
-    accSerializer_ = std::make_unique<BinaryRowDataSerializer>(accumulatorArity);
+    accSerializer_ = std::make_unique<RowDataSerializer>(new omnistream::RowType(true, accTypes_));
     std::string aggName = "window-aggs";
     auto* valueStateDescriptor = new ValueStateDescriptor<RowData*>(aggName, accSerializer_.get());
     using S = InternalValueState<K, W, RowData*>;
