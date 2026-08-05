@@ -119,7 +119,12 @@ TypeInformation* TypeInfoFactory::createInternalTypeInfo(const json& rowType)
         string typeName = element["type"];
         const auto typeId = LogicalType::flinkTypeToOmniTypeId(typeName);
         LOG("type Id: " << typeId);
-        auto logicalType = BasicLogicalType::getTypeBy(typeId, element);
+        // Map "isNull" key to "nullable" for getTypeBy() compatibility
+        json options = element;
+        if (element.contains("isNull") && !element.contains("nullable")) {
+            options["nullable"] = element["isNull"];
+        }
+        auto logicalType = BasicLogicalType::getTypeBy(typeId, options);
         fields.emplace_back("f" + std::to_string(fieldIndex++), logicalType);
     }
     omnistream::RowType type(true, fields);
@@ -152,7 +157,7 @@ TypeInformation* TypeInfoFactory::createInternalTypeInfoOfRow(const json& fields
         const json& fieldType = field["fieldType"];
         string type = fieldType["type"];
         const auto typeId = LogicalType::flinkTypeToOmniTypeId(type);
-        auto logicalType = BasicLogicalType::getTypeBy(typeId, json::object());
+        auto logicalType = BasicLogicalType::getTypeBy(typeId, fieldType);
         rowFields.emplace_back(name, logicalType, description);
     }
     omnistream::RowType rowType(true, rowFields);
