@@ -16,6 +16,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "core/memory/DataOutputSerializer.h"
 #include "core/typeutils/LongSerializer.h"
 #include "core/typeutils/MapSerializer.h"
 #include "core/typeutils/ListSerializer.h"
@@ -116,6 +117,37 @@ protected:
             options,
             std::unordered_map<std::string, std::shared_ptr<TypeSerializerSnapshot>>{},
             serializers);
+    }
+
+    StateMetaInfoSnapshot makeWindowListMetaInfo(const std::string& name = "windowListState")
+    {
+        std::unordered_map<std::string, std::string> options;
+        options[StateMetaInfoSnapshot::KEYED_STATE_TYPE] = "LIST";
+
+        std::unordered_map<std::string, TypeSerializer*> serializers;
+        serializers[StateMetaInfoSnapshot::COMMON_NAMESPACE_SERIALIZER_KEY] = new LongSerializer();
+        serializers[StateMetaInfoSnapshot::COMMON_VALUE_SERIALIZER_KEY] = new ListSerializer(new LongSerializer());
+
+        return StateMetaInfoSnapshot(
+            name,
+            StateMetaInfoSnapshot::BackendStateType::KEY_VALUE,
+            options,
+            std::unordered_map<std::string, std::shared_ptr<TypeSerializerSnapshot>>{},
+            serializers);
+    }
+
+    std::vector<int8_t> makeWindowKeyBytes(int key, int64_t windowNamespace)
+    {
+        DataOutputSerializer output;
+        OutputBufferStatus outputStatus;
+        output.setBackendBuffer(&outputStatus);
+        output.writeShort(0);
+        keySerializer_->serialize(&key, output);
+        LongSerializer namespaceSerializer;
+        namespaceSerializer.serialize(&windowNamespace, output);
+        return std::vector<int8_t>(
+            reinterpret_cast<int8_t*>(output.getData()),
+            reinterpret_cast<int8_t*>(output.getData() + output.getPosition()));
     }
 
     std::unique_ptr<KeyGroupRange> range_;
@@ -252,6 +284,40 @@ TEST_F(HeapRestoreStateWriterTest, KvStateVbSetKeyGroupIdDoesNotThrow)
     auto kvVb = delegate_->createKVStateVB(0, metaInfo, columnTypes, 1024);
 
     EXPECT_NO_THROW(kvVb->setKeyGroupId(3));
+}
+
+TEST_F(HeapRestoreStateWriterTest, KvStateVbWritesComboIdListWithWindowNamespace)
+{
+    constexpr int keyGroupId = 3;
+    constexpr int key = 42;
+    constexpr int64_t windowNamespace = 1700000000000L;
+    const std::vector<ComboId> comboIds{11, 22, 33};
+    auto metaInfo = makeWindowListMetaInfo();
+    auto kvVb = delegate_->createKVStateVB(0, metaInfo, {omniruntime::type::DataTypeId::OMNI_LONG}, 1024);
+    kvVb->setKeyGroupId(keyGroupId);
+
+    EXPECT_NO_THROW(kvVb->writeComboIdList(makeWindowKeyBytes(key, windowNamespace), comboIds));
+
+    auto* table = reinterpret_cast<CopyOnWriteStateTable<int, int64_t, std::vector<int64_t>*>*>(
+        backend_->getStateTablePtr("windowListState"));
+    ASSERT_NE(table, nullptr);
+    auto* restored = table->get(key, keyGroupId, windowNamespace);
+    ASSERT_NE(restored, nullptr);
+    EXPECT_EQ(*restored, (std::vector<int64_t>{11, 22, 33}));
+    ASSERT_EQ(delegate_->getStateInfos().size(), 1U);
+    EXPECT_EQ(delegate_->getStateInfos()[0].mainEntryCount, 1);
+}
+
+TEST_F(HeapRestoreStateWriterTest, KvStateVbRejectsComboIdListForNonWindowListState)
+{
+    auto valueMeta = makeKvMetaInfo("valueState");
+    auto valueWriter = delegate_->createKVStateVB(0, valueMeta, {omniruntime::type::DataTypeId::OMNI_LONG}, 1024);
+    EXPECT_THROW(valueWriter->writeComboIdList({0, 0}, {1}), std::runtime_error);
+
+    auto voidNamespaceMeta = makeListMetaInfo("voidNamespaceListState");
+    auto listWriter =
+        delegate_->createKVStateVB(1, voidNamespaceMeta, {omniruntime::type::DataTypeId::OMNI_LONG}, 1024);
+    EXPECT_THROW(listWriter->writeComboIdList({0, 0}, {1}), std::runtime_error);
 }
 
 } // namespace

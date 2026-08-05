@@ -76,7 +76,8 @@ protected:
     struct DeserializedKeyGuard {
         void* rawKey;
         void* rawNs;
-        DeserializedKeyGuard(void* k, void* n) : rawKey(k), rawNs(n)
+        BackendDataType namespaceType;
+        DeserializedKeyGuard(void* k, void* n, BackendDataType nsType) : rawKey(k), rawNs(n), namespaceType(nsType)
         {
         }
         ~DeserializedKeyGuard()
@@ -86,7 +87,12 @@ protected:
                 (*static_cast<Object**>(rawKey))->putRefCount();
             }
             delete static_cast<K*>(rawKey);
-            delete static_cast<VoidNamespace*>(rawNs);
+            // window operator use Long as the namespace type instead of the VoidNamespace.
+            if (namespaceType == BackendDataType::BIGINT_BK) {
+                delete static_cast<int64_t*>(rawNs);
+            } else {
+                delete static_cast<VoidNamespace*>(rawNs);
+            }
         }
         DeserializedKeyGuard(const DeserializedKeyGuard&) = delete;
         DeserializedKeyGuard& operator=(const DeserializedKeyGuard&) = delete;
@@ -167,7 +173,7 @@ void HeapRestoreKVState<K>::writeValueEntry(const std::vector<int8_t>& keyBytes,
 {
     ensureMainTableReady();
     auto [rawKey, rawNs] = deserializeKey(keyBytes);
-    DeserializedKeyGuard keyGuard(rawKey, rawNs);
+    DeserializedKeyGuard keyGuard(rawKey, rawNs, stateInfo_.namespaceSerializer->getBackendId());
 
     BackendDataType valueBackendType =
         stateInfo_.valueSerializer ? stateInfo_.valueSerializer->getBackendId() : BackendDataType::BIGINT_BK;
@@ -238,7 +244,7 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
         static_cast<int>(keyBytes.size()),
         delegate_.getKeyGroupPrefixBytes());
     auto [rawKey, rawNs] = deserializeKey(keyInput);
-    DeserializedKeyGuard keyGuard(rawKey, rawNs);
+    DeserializedKeyGuard keyGuard(rawKey, rawNs, stateInfo_.namespaceSerializer->getBackendId());
 
     auto* mapKeySer = stateInfo_.mapKeySerializer;
     auto* mapValSer = stateInfo_.mapValueSerializer;
@@ -488,7 +494,7 @@ void HeapRestoreKVState<K>::writeListEntry(const std::vector<int8_t>& keyBytes, 
 {
     ensureMainTableReady();
     auto [rawKey, rawNs] = deserializeKey(keyBytes);
-    DeserializedKeyGuard keyGuard(rawKey, rawNs);
+    DeserializedKeyGuard keyGuard(rawKey, rawNs, stateInfo_.namespaceSerializer->getBackendId());
 
     auto* listSer = dynamic_cast<ListSerializer*>(stateInfo_.valueSerializer);
     TypeSerializer* elemSer = listSer ? listSer->getElementSerializer() : nullptr;

@@ -567,9 +567,8 @@ StreamOperator* StreamOperatorFactory::CreateWindowInnerJoinOp(
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
     auto op = new InnerJoinOperator<std::shared_ptr<RowData>>(opDescriptionJSON, chainOutput, nullptr, nullptr);
     op->setup(std::move(task));
-    // SP-INTEROP: WindowJoin 的 compatible Adaptor 尚未实现（工厂对该类型返回 nullptr），
-    // 设 None + reason 以在 compatible 保存/恢复时 fail fast。
-    op->setFlinkSavepointUnsupported("WindowJoin compatible savepoint adaptor not yet implemented");
+    op->setDescription(opDescriptionJSON);
+    op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::WindowJoinAdaptor);
     LOG("Operator WindowJoinOperator address " + std::to_string(reinterpret_cast<long>(op)));
     return static_cast<TwoInputStreamOperator*>(op);
 }

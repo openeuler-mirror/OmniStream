@@ -18,6 +18,8 @@
 
 #include <rocksdb/db.h>
 
+#include "core/memory/DataOutputSerializer.h"
+#include "core/typeutils/LongSerializer.h"
 #include "core/utils/ByteView.h"
 #include "runtime/state/restore/RocksDBRestoreKVStateVB.h"
 
@@ -106,6 +108,53 @@ TEST_F(RocksDBRestoreKVStateVBTest, ByteViewEntryIsWrittenToMainColumnFamily)
     ASSERT_TRUE(status.ok()) << status.ToString();
     ASSERT_EQ(restoredValue.size(), value.size());
     EXPECT_EQ(std::vector<int8_t>(restoredValue.begin(), restoredValue.end()), value);
+    EXPECT_EQ(mainEntryCount, 1);
+    EXPECT_EQ(vbBatchCount, 0);
+}
+
+TEST_F(RocksDBRestoreKVStateVBTest, ComboIdListIsWrittenUsingFlinkListEncoding)
+{
+    int64_t mainEntryCount = 0;
+    int64_t vbBatchCount = 0;
+    omnistream::RocksDBWriterContext context;
+    context.db = db_;
+    context.writeBatchSize = 2 * 1024 * 1024;
+    context.keyGroupPrefixBytes = 1;
+    context.mainEntryCount = &mainEntryCount;
+    context.vbBatchCount = &vbBatchCount;
+
+    const std::vector<int8_t> key{4, 3, 2, 1};
+    const std::vector<omnistream::ComboId> comboIds{11, 22, 33};
+    {
+        omnistream::RocksDBRestoreKVStateVB<int> writer(
+            context, mainCf_, vbCf_, 0, {omniruntime::type::DataTypeId::OMNI_LONG}, 1024);
+        writer.writeComboIdList(key, comboIds);
+        writer.flush();
+    }
+
+    DataOutputSerializer expectedOutput;
+    OutputBufferStatus expectedOutputStatus;
+    expectedOutput.setBackendBuffer(&expectedOutputStatus);
+    LongSerializer longSerializer;
+    for (size_t i = 0; i < comboIds.size(); ++i) {
+        if (i != 0) {
+            expectedOutput.write(',');
+        }
+        int64_t comboId = comboIds[i];
+        longSerializer.serialize(&comboId, expectedOutput);
+    }
+    const std::vector<int8_t> expectedValue(
+        reinterpret_cast<int8_t*>(expectedOutput.getData()),
+        reinterpret_cast<int8_t*>(expectedOutput.getData() + expectedOutput.getPosition()));
+
+    std::string restoredValue;
+    auto status = db_->Get(
+        rocksdb::ReadOptions(),
+        mainCf_,
+        rocksdb::Slice(reinterpret_cast<const char*>(key.data()), key.size()),
+        &restoredValue);
+    ASSERT_TRUE(status.ok()) << status.ToString();
+    EXPECT_EQ(std::vector<int8_t>(restoredValue.begin(), restoredValue.end()), expectedValue);
     EXPECT_EQ(mainEntryCount, 1);
     EXPECT_EQ(vbBatchCount, 0);
 }

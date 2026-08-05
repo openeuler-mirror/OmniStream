@@ -1,5 +1,10 @@
 #include <gtest/gtest.h>
+
+#include <memory>
+
 #include "streaming/api/operators/StreamOperatorFactory.h"
+#include "streaming/api/operators/AbstractStreamOperator.h"
+#include "table/data/RowData.h"
 #include "core/graph/OperatorConfig.h"
 #include "streaming/runtime/tasks/WatermarkGaugeExposingOutput.h"
 #include "streaming/api/operators/OneInputStreamOperator.h"
@@ -66,4 +71,32 @@ TEST(StreamOperatorFactoryTest, CreateOperatorAndCollector_UnknownOperator)
 
     MockOutput output;
     EXPECT_EQ(MockStreamOperatorFactory::createOperatorAndCollector(id, description, &output), nullptr);
+}
+
+TEST(StreamOperatorFactoryTest, CreateWindowJoinConfiguresCompatibleSavepointAdaptor)
+{
+    const std::string id = "org.apache.flink.table.runtime.operators.join.window.WindowJoinOperator.InnerJoinOperator";
+    const std::string description = R"({
+        "leftInputTypes": ["INT", "BIGINT"],
+        "rightInputTypes": ["INT", "BIGINT"],
+        "leftJoinKey": [0],
+        "rightJoinKey": [0],
+        "leftWindowEndIndex": 1,
+        "rightWindowEndIndex": 1,
+        "nonEquiCondition": null
+    })";
+    MockOutput output;
+
+    auto* createdWindowJoin = MockStreamOperatorFactory::createOperatorAndCollector(id, description, &output);
+    ASSERT_NE(createdWindowJoin, nullptr);
+    // The factory test has no state initializer. open() initializes WindowJoin's collector before
+    // failing on the deliberately absent timer service, which also makes normal destruction safe.
+    EXPECT_THROW(createdWindowJoin->open(), std::logic_error);
+    std::unique_ptr<StreamOperator> windowJoin(createdWindowJoin);
+
+    auto* abstractOperator = dynamic_cast<AbstractStreamOperator<std::shared_ptr<RowData>>*>(windowJoin.get());
+    ASSERT_NE(abstractOperator, nullptr);
+    EXPECT_EQ(abstractOperator->getSavepointAdaptorInfo().type, FlinkSavepointAdaptorType::WindowJoinAdaptor);
+    EXPECT_TRUE(abstractOperator->getSavepointAdaptorInfo().reason.empty());
+    EXPECT_EQ(abstractOperator->getOperatorDescription(), nlohmann::json::parse(description));
 }

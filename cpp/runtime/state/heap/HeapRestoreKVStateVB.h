@@ -63,6 +63,9 @@ public:
 
     omnistream::ComboId appendRowToVectorBatch(const RowDataView& row) override;
 
+    void writeComboIdList(
+        const std::vector<int8_t>& keyBytes, const std::vector<omnistream::ComboId>& comboIds) override;
+
 protected:
     // 显式引入模板基类成员，避免 dependent-name 查找失败
     using HeapRestoreKVState<K>::stateInfo_;
@@ -108,11 +111,43 @@ void HeapRestoreKVStateVB<K>::writeLongEntry(const std::vector<int8_t>& keyBytes
 {
     ensureMainTableReady();
     auto [rawKey, rawNs] = deserializeKey(keyBytes);
-    DeserializedKeyGuard keyGuard(rawKey, rawNs);
+    DeserializedKeyGuard keyGuard(rawKey, rawNs, stateInfo_.namespaceSerializer->getBackendId());
 
     auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, int64_t>*>(stateInfo_.mainTablePtr);
     table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), value);
 
+    stateInfo_.mainEntryCount++;
+}
+
+template <typename K>
+void HeapRestoreKVStateVB<K>::writeComboIdList(
+    const std::vector<int8_t>& keyBytes, const std::vector<omnistream::ComboId>& comboIds)
+{
+    if (stateInfo_.stateType != StateDescriptor::Type::LIST) {
+        throw std::runtime_error(
+            "HeapRestoreKVStateVB: comboId list requires LIST state for '" + stateInfo_.stateName + "'");
+    }
+    if (stateInfo_.namespaceSerializer == nullptr ||
+        stateInfo_.namespaceSerializer->getBackendId() != BackendDataType::BIGINT_BK) {
+        throw std::runtime_error(
+            "HeapRestoreKVStateVB: comboId list requires BIGINT namespace for '" + stateInfo_.stateName + "'");
+    }
+    if (stateInfo_.mainStateDesc == nullptr) {
+        throw std::runtime_error("HeapRestoreKVStateVB: mainStateDesc is null for '" + stateInfo_.stateName + "'");
+    }
+    if (stateInfo_.mainTablePtr == 0) {
+        stateInfo_.mainTablePtr = delegate_.getBackend()->getStateTablePtr(stateInfo_.mainStateDesc->getName());
+    }
+    if (stateInfo_.mainTablePtr == 0) {
+        throw std::runtime_error("HeapRestoreKVStateVB: main table not found for '" + stateInfo_.stateName + "'");
+    }
+
+    auto [rawKey, rawNs] = deserializeKey(keyBytes);
+    DeserializedKeyGuard keyGuard(rawKey, rawNs, stateInfo_.namespaceSerializer->getBackendId());
+
+    auto* table = reinterpret_cast<CopyOnWriteStateTable<K, int64_t, std::vector<int64_t>*>*>(stateInfo_.mainTablePtr);
+    auto values = std::make_unique<std::vector<int64_t>>(comboIds.begin(), comboIds.end());
+    table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<int64_t*>(rawNs), values.release());
     stateInfo_.mainEntryCount++;
 }
 
