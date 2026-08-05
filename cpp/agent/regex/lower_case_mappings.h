@@ -6,7 +6,7 @@ struct CaseMapping {
     uint16_t to;
 };
 
-static constexpr CaseMapping CASE_MAPPINGS[] = {
+inline constexpr CaseMapping CASE_MAPPINGS[] = {
     { 65, 97 }, { 66, 98 }, { 67, 99 }, { 68, 100 }, { 69, 101 }, { 70, 102 },
     { 71, 103 }, { 72, 104 }, { 73, 105 }, { 74, 106 }, { 75, 107 }, { 76, 108 },
     { 77, 109 }, { 78, 110 }, { 79, 111 }, { 80, 112 }, { 81, 113 }, { 82, 114 },
