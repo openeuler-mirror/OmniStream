@@ -98,6 +98,11 @@ void AbstractWindowAggProcessor::open(
     this->stateBackend = keyedStateBackend;
     if (dynamic_cast<RocksdbKeyedStateBackend<AbstractWindowAggProcessor::KeyType>*>(keyedStateBackend) != nullptr) {
         backendType_ = omnistream::StateType::ROCKSDB;
+#ifdef WITH_OMNISTATESTORE
+    } else if (
+        dynamic_cast<BssKeyedStateBackend<AbstractWindowAggProcessor::KeyType>*>(keyedStateBackend) != nullptr) {
+        backendType_ = omnistream::StateType::BSS;
+#endif
     } else if (
         dynamic_cast<HeapKeyedStateBackend<AbstractWindowAggProcessor::KeyType>*>(keyedStateBackend) != nullptr) {
         backendType_ = omnistream::StateType::HEAP;
@@ -269,7 +274,8 @@ bool AbstractWindowAggProcessor::isWindowEmpty()
 
 bool AbstractWindowAggProcessor::shouldDeleteWindowStateValue() const
 {
-    return backendType_ == omnistream::StateType::ROCKSDB && !windowState->isFalconEnabled();
+    return backendType_ == omnistream::StateType::BSS ||
+        (backendType_ == omnistream::StateType::ROCKSDB && !windowState->isFalconEnabled());
 }
 
 omnistream::VectorBatch* AbstractWindowAggProcessor::createOutputBatch(

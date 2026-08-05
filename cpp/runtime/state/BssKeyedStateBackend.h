@@ -15,30 +15,35 @@
 
 #include <stdint-gcc.h>
 #include "AbstractKeyedStateBackend.h"
-#include "RegisteredKeyValueStateBackendMetaInfo.h"
 #include "state/bss/BssValueState.h"
 #include "state/bss/BssStateTable.h"
-#include "state/bss/BssIncrementalSnapshotStrategy.h"
 #include "table/runtime/operators/window/TimeWindow.h"
 #include "config.h"
 #include "boost_state_db.h"
 #include "bss_types.h"
 #include "state/bss/BssListState.h"
 #include "state/bss/BssMapState.h"
-#include "runtime/state/rocksdb/RocksDBStateDownloader.h"
-#include "runtime/state/SnapshotStrategyRunner.h"
-#include <atomic>
+#include "state/bss/BssIncrementalSnapshotStrategy.h"
+#include "api/common/state/MapStateDescriptor.h"
+#include "state/ockdb/OckDBCheckpointConfig.h"
 #include <random>
 #include <cstdint>
-#include <cstdlib>
+#include <stdexcept>
 #include <filesystem>
+#include <mutex>
+#include <algorithm>
+#include <atomic>
+#include <cstdlib>
 #include <map>
 #include <memory>
-#include <stdexcept>
 #include <unordered_map>
+#include "runtime/state/IncrementalRemoteKeyedStateHandle.h"
+#include "runtime/state/rocksdb/RocksDBStateUploader.h"
+#include "runtime/state/bridge/OmniTaskBridge.h"
+#include "runtime/state/LocalRecoveryConfig.h"
+#include "runtime/state/SnapshotStrategyRunner.h"
+#include "state/bss/BssExceptionUtils.h"
 
-// libockdbjni 导出的 BSS 日志初始化入口（幂等）。BSS 的 Logger 未初始化时所有日志被静默丢弃；
-// Java 插件路径由 EmbeddedOckStateBackend.createKeyedStateBackend 初始化，native 路径必须自行调用。
 extern "C" jlong Java_com_huawei_ock_bss_ockdb_OckDBLog_initial(
     JNIEnv* env, jclass clazz, jstring jlogPath, jint jloglevel, jint jsize, jint jcount);
 
@@ -57,6 +62,11 @@ public:
 template <typename K>
 class BssKeyedStateBackend : public AbstractKeyedStateBackend<K> {
 public:
+    enum class SnapshotStrategyType {
+        FULL,
+        INCREMENTAL
+    };
+
     BssKeyedStateBackend(
         TypeSerializer* keySerializer, InternalKeyContext<K>* context, int startGroup, int endGroup, int maxParallelism)
         : AbstractKeyedStateBackend<K>(keySerializer, context),
@@ -64,22 +74,81 @@ public:
           endGroup_(endGroup),
           maxParallelism_(maxParallelism)
     {
-        backendUidStr_ = backendUID_.ToString();
-        backendUidStr_.erase(std::remove(backendUidStr_.begin(), backendUidStr_.end(), '-'), backendUidStr_.end());
-        instanceBasePath_ = (std::filesystem::temp_directory_path() / ("omnistream-bss-" + backendUidStr_)).string();
-        // DB 惰性打开：链上无状态算子（Source/Calc/ConstraintEnforcer 等）也会创建 keyed backend，
-        // 若在构造时就 Open，会造成大量空 DB 各占 fresh table 内存段并参与 checkpoint
     }
+
     omnistream::StateType getStateType() const noexcept override
     {
         return omnistream::StateType::BSS;
     }
 
+    void setCheckpointConfig(const OckDBCheckpointConfig& cfg)
+    {
+        checkpointConfig_ = cfg;
+    }
+
+    const OckDBCheckpointConfig& getCheckpointConfig() const
+    {
+        return checkpointConfig_;
+    }
+
+    void setBoostStateDB(ock::bss::BoostStateDBPtr db)
+    {
+        sharedBoostStateDB_ = db;
+    }
+
+    void setBoostStateDBConfig(ock::bss::ConfigRef config)
+    {
+        boostStateDBConfig_ = std::move(config);
+    }
+
+    ock::bss::BoostStateDBPtr getBoostStateDB() const
+    {
+        return sharedBoostStateDB_;
+    }
+
+    void setSnapshotStrategy(SnapshotStrategyType strategy)
+    {
+        snapshotStrategy_ = strategy;
+    }
+
+    SnapshotStrategyType getSnapshotStrategy() const
+    {
+        return snapshotStrategy_;
+    }
+
     uintptr_t createOrUpdateInternalState(TypeSerializer* namespaceSerializer, StateDescriptor* stateDesc) override;
+
+    void setSnapshotBridge(
+        std::shared_ptr<omnistream::OmniTaskBridge> bridge,
+        std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig)
+    {
+        omniTaskBridge_ = std::move(bridge);
+        localRecoveryConfig_ = std::move(localRecoveryConfig);
+        InitBssNativeLogOnce(omniTaskBridge_, checkpointConfig_);
+    }
+
+    void setBackendUID(const UUID& backendUID)
+    {
+        backendUID_ = backendUID;
+        incrementalSnapshotStrategy_.reset();
+    }
+
+    void setRestoredCheckpointState(
+        long checkpointId, const std::vector<IncrementalRemoteKeyedStateHandle::HandleAndLocalPath>& sharedState)
+    {
+        lastCompletedCheckpointId_ = checkpointId;
+        restoredSharedState_[checkpointId] = sharedState;
+        incrementalSnapshotStrategy_.reset();
+    }
+
+    void setRestorePaths(std::vector<std::filesystem::path> restorePaths)
+    {
+        restorePaths_ = std::move(restorePaths);
+    }
 
     ~BssKeyedStateBackend() override
     {
-        BssKeyedStateBackend<K>::dispose();
+        dispose();
     }
 
     void dispose() override
@@ -87,275 +156,345 @@ public:
         if (disposed_) {
             return;
         }
-        AbstractKeyedStateBackend<K>::dispose();
-        if (dbPtr_ != nullptr) {
-            dbPtr_->Close();
-            ock::bss::BoostStateDBFactory::Destroy(dbPtr_);
-            dbPtr_ = nullptr;
-        }
-        if (!instanceBasePath_.empty()) {
-            std::error_code ec;
-            std::filesystem::remove_all(instanceBasePath_, ec);
-            if (ec) {
-                LOG("Warning: failed to clean BSS instance base path " << instanceBasePath_ << ": " << ec.message());
-            }
-        }
         disposed_ = true;
+        AbstractKeyedStateBackend<K>::dispose();
+        for (auto& entry : createdKvState) {
+            delete entry.second;
+        }
+        createdKvState.clear();
+        registeredKvStates.clear();
+        registeredMetaInfos_.clear();
+        checkpointMetaInfos_.clear();
+        incrementalSnapshotStrategy_.reset();
+        if (sharedBoostStateDB_ != nullptr) {
+            sharedBoostStateDB_->Close();
+            ock::bss::BoostStateDBFactory::Destroy(sharedBoostStateDB_);
+        }
+        for (const auto& restorePath : restorePaths_) {
+            std::error_code ec;
+            std::filesystem::remove_all(restorePath, ec);
+        }
+        restorePaths_.clear();
+        if (!fallbackDbBasePath_.empty()) {
+            std::error_code ec;
+            std::filesystem::remove_all(fallbackDbBasePath_, ec);
+            fallbackDbBasePath_.clear();
+        }
+        delete this->context;
+        this->context = nullptr;
     }
 
     std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>> snapshot(
         long checkpointId, long timestamp, CheckpointStreamFactory* streamFactory, CheckpointOptions* checkpointOptions)
+        override
     {
-        if (dbPtr_ == nullptr || kvStateInformation_.empty()) {
-            // 未注册任何 state 的 backend（无状态算子）不触发 BSS checkpoint，与 heap 的空快照行为一致
-            INFO_RELEASE("BssKeyedStateBackend: no states to snapshot, returning empty, checkpointId=" << checkpointId);
+        if (checkpointId < 0) {
+            throw std::invalid_argument("checkpointId must not be negative");
+        }
+        if (sharedBoostStateDB_ == nullptr) {
             return std::make_shared<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>>(
                 []() { return SnapshotResult<KeyedStateHandle>::Empty(); });
         }
-        EnsureCheckpointStrategy();
-        auto runner = std::make_unique<SnapshotStrategyRunner<KeyedStateHandle, SnapshotResources>>(
-            checkpointStrategy_->getDescription(), checkpointStrategy_, SnapshotExecutionType::ASYNCHRONOUS);
-        return runner->snapshot(
-            checkpointId, timestamp, streamFactory, checkpointOptions, omniTaskBridge_, this->keySerializer->toJson());
+        if (omniTaskBridge_ == nullptr) {
+            throw std::runtime_error("OmniStateStore checkpoint requires an OmniTaskBridge");
+        }
+
+        if (snapshotStrategy_ == SnapshotStrategyType::INCREMENTAL) {
+            if (checkpointMetaInfos_.empty()) {
+                return std::make_shared<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>>(
+                    []() { return SnapshotResult<KeyedStateHandle>::Empty(); });
+            }
+            ensureIncrementalSnapshotStrategy();
+            auto runner = std::make_unique<SnapshotStrategyRunner<KeyedStateHandle, SnapshotResources>>(
+                incrementalSnapshotStrategy_->getDescription(),
+                incrementalSnapshotStrategy_,
+                SnapshotExecutionType::ASYNCHRONOUS);
+            return runner->snapshot(
+                checkpointId,
+                timestamp,
+                streamFactory,
+                checkpointOptions,
+                omniTaskBridge_,
+                this->keySerializer->toJson());
+        }
+
+        namespace fs = std::filesystem;
+        fs::path checkpointPath(checkpointConfig_.getInstanceBasePath());
+        checkpointPath /= "bss-checkpoint-" + std::to_string(checkpointId);
+        std::error_code ec;
+        fs::remove_all(checkpointPath, ec);
+        ec.clear();
+        fs::create_directories(checkpointPath, ec);
+        if (ec) {
+            throw std::runtime_error("Failed to create OmniStateStore checkpoint directory: " + ec.message());
+        }
+
+        auto* coordinator = sharedBoostStateDB_->CreateSyncCheckpoint(checkpointPath.string(), checkpointId);
+        if (coordinator == nullptr) {
+            throw std::runtime_error("OmniStateStore failed to prepare checkpoint " + std::to_string(checkpointId));
+        }
+
+        auto db = sharedBoostStateDB_;
+        auto bridge = omniTaskBridge_;
+        auto localRecoveryConfig = localRecoveryConfig_;
+        auto keyRange = KeyGroupRange(startGroup_, endGroup_);
+        auto backendUID = backendUID_;
+        auto keySerializerJson = this->keySerializer->toJson();
+        auto snapshotType = snapshotStrategy_;
+        auto transferThreads = checkpointConfig_.getNumberOfTransferringThreads();
+        std::vector<std::shared_ptr<StateMetaInfoSnapshot>> metaSnapshots;
+        metaSnapshots.reserve(registeredMetaInfos_.size());
+        for (const auto& entry : registeredMetaInfos_) {
+            metaSnapshots.push_back(entry.second->snapshot());
+        }
+
+        return std::make_shared<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>>(
+            [db,
+             bridge,
+             localRecoveryConfig,
+             checkpointOptions,
+             checkpointId,
+             checkpointPath,
+             keyRange,
+             backendUID,
+             keySerializerJson,
+             snapshotType,
+             transferThreads,
+             metaSnapshots]() mutable {
+                try {
+                    // Until shared-state lineage is tracked by the adapter, use a full BSS snapshot for correctness.
+                    // The configured strategy is retained so incremental support can be enabled without format changes.
+                    (void)snapshotType;
+                    bss_adapter::CheckResult(
+                        db->CreateAsyncCheckpoint(static_cast<uint64_t>(checkpointId), false),
+                        "BoostStateDB::CreateAsyncCheckpoint");
+
+                    auto metaHandle = bridge->CallMaterializeMetaData(
+                        checkpointId, metaSnapshots, localRecoveryConfig, checkpointOptions, keySerializerJson);
+                    if (metaHandle == nullptr || metaHandle->GetJobManagerOwnedSnapshot() == nullptr) {
+                        throw std::runtime_error("Failed to materialize OmniStateStore checkpoint metadata");
+                    }
+
+                    std::vector<fs::path> files;
+                    for (const auto& item : fs::recursive_directory_iterator(checkpointPath)) {
+                        if (item.is_regular_file()) {
+                            files.push_back(item.path());
+                        }
+                    }
+                    RocksDBStateUploader uploader(std::max(1, transferThreads));
+                    auto privateState = uploader.callUploadFilesToCheckpointFs(bridge, files);
+                    long checkpointSize = metaHandle->GetStateSize();
+                    for (const auto& item : privateState) {
+                        checkpointSize += item.GetStateSize();
+                    }
+                    auto keyedHandle = std::make_shared<IncrementalRemoteKeyedStateHandle>(
+                        backendUID,
+                        keyRange,
+                        checkpointId,
+                        std::vector<IncrementalRemoteKeyedStateHandle::HandleAndLocalPath>{},
+                        std::move(privateState),
+                        metaHandle->GetJobManagerOwnedSnapshot(),
+                        checkpointSize);
+                    std::error_code cleanupError;
+                    fs::remove_all(checkpointPath, cleanupError);
+                    return SnapshotResult<KeyedStateHandle>::Of(keyedHandle);
+                } catch (...) {
+                    db->NotifyDBSnapshotAbort(static_cast<uint64_t>(checkpointId));
+                    std::error_code cleanupError;
+                    fs::remove_all(checkpointPath, cleanupError);
+                    throw;
+                }
+            });
     }
 
     std::shared_ptr<SavepointResources> savepoint() override
     {
-        // 返回 nullptr 会让上层 prepareCanonicalSavepoint 空指针解引用崩溃；
-        // 抛异常则由 snapshotState 的异常路径转为 checkpoint decline，作业可继续运行
-        THROW_LOGIC_EXCEPTION("BSS state backend does not support savepoint yet, please use checkpoint instead");
+        throw std::runtime_error(
+            "Canonical savepoints are not supported by the OmniStateStore native backend; use native format");
     }
 
-    void notifyCheckpointComplete(long completedCheckpointId) override
+    void notifyCheckpointComplete(long checkpointId) override
     {
-        if (checkpointStrategy_ != nullptr) {
-            checkpointStrategy_->notifyCheckpointComplete(completedCheckpointId);
+        if (checkpointId < 0) {
+            return;
+        }
+        if (incrementalSnapshotStrategy_ != nullptr) {
+            incrementalSnapshotStrategy_->notifyCheckpointComplete(checkpointId);
+        } else if (sharedBoostStateDB_ != nullptr) {
+            sharedBoostStateDB_->NotifyDBSnapshotComplete(static_cast<uint64_t>(checkpointId));
         }
     }
 
-    void notifyCheckpointAborted(long abortedCheckpointId) override
+    void notifyCheckpointAborted(long checkpointId) override
     {
-        INFO_RELEASE("BssKeyedStateBackend notifyCheckpointAborted, checkpointId=" << abortedCheckpointId);
-        if (checkpointStrategy_ != nullptr) {
-            checkpointStrategy_->notifyCheckpointAborted(abortedCheckpointId);
+        if (checkpointId < 0) {
+            return;
+        }
+        INFO_RELEASE("[BSS-CP-abort] checkpointId=" << checkpointId);
+        if (incrementalSnapshotStrategy_ != nullptr) {
+            incrementalSnapshotStrategy_->notifyCheckpointAborted(checkpointId);
+        } else if (sharedBoostStateDB_ != nullptr) {
+            sharedBoostStateDB_->NotifyDBSnapshotAbort(static_cast<uint64_t>(checkpointId));
         }
     }
 
-    void SetOmniTaskBridge(const std::shared_ptr<omnistream::OmniTaskBridge>& bridge)
-    {
-        omniTaskBridge_ = bridge;
-        InitBssNativeLogOnce(bridge);
-    }
+private:
+    int startGroup_;
+    int endGroup_;
+    int maxParallelism_;
+    OckDBCheckpointConfig checkpointConfig_;
+    ock::bss::BoostStateDBPtr sharedBoostStateDB_;
+    ock::bss::ConfigRef boostStateDBConfig_;
+    SnapshotStrategyType snapshotStrategy_ = SnapshotStrategyType::FULL;
+    emhash7::HashMap<std::string, uintptr_t> registeredKvStates;
+    emhash7::HashMap<std::string, State*> createdKvState;
+    emhash7::HashMap<std::string, RegisteredKeyValueStateBackendMetaInfo*> registeredMetaInfos_;
+    std::unordered_map<std::string, std::shared_ptr<RegisteredKeyValueStateBackendMetaInfo>> checkpointMetaInfos_;
+    std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge_;
+    std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig_;
+    UUID backendUID_ = UUID::randomUUID();
+    std::vector<std::filesystem::path> restorePaths_;
+    std::filesystem::path fallbackDbBasePath_;
+    bool disposed_ = false;
+    std::shared_ptr<BssIncrementalSnapshotStrategy> incrementalSnapshotStrategy_;
+    std::map<long, std::vector<IncrementalRemoteKeyedStateHandle::HandleAndLocalPath>> restoredSharedState_;
+    long lastCompletedCheckpointId_ = -1;
 
-    /**
-     * 初始化 BSS native 日志（进程级一次，幂等可重试）。
-     * 日志文件默认 /tmp/omnistream-bss-native.log，可用环境变量 OMNISTREAM_BSS_LOG_FILE 覆盖；
-     * 级别 INFO，单文件 20MB，保留 20 个，对齐 Java 插件 jni.log 的默认规格。
-     */
-    static void InitBssNativeLogOnce(const std::shared_ptr<omnistream::OmniTaskBridge>& bridge)
+public:
+    static void InitBssNativeLogOnce(
+        const std::shared_ptr<omnistream::OmniTaskBridge>& bridge, const OckDBCheckpointConfig& checkpointConfig)
     {
-        static std::atomic<bool> inited{false};
-        if (inited.load(std::memory_order_acquire) || bridge == nullptr) {
+        static std::atomic<bool> initialized{false};
+        if (initialized.load(std::memory_order_acquire) || bridge == nullptr) {
+            return;
+        }
+        static std::mutex initMutex;
+        std::lock_guard<std::mutex> lock(initMutex);
+        if (initialized.load(std::memory_order_relaxed)) {
             return;
         }
         JNIEnv* env = bridge->getJNIEnv();
         if (env == nullptr) {
             return;
         }
-        const char* pathEnv = std::getenv("OMNISTREAM_BSS_LOG_FILE");
-        std::string logPath = (pathEnv != nullptr && pathEnv[0] != '\0') ? pathEnv : "/tmp/omnistream-bss-native.log";
-        jstring jPath = env->NewStringUTF(logPath.c_str());
-        if (jPath == nullptr) {
-            return;
-        }
-        jlong handle = Java_com_huawei_ock_bss_ockdb_OckDBLog_initial(env, nullptr, jPath, 2, 20, 20);
-        env->DeleteLocalRef(jPath);
-        if (handle != 0) {
-            inited.store(true, std::memory_order_release);
-            INFO_RELEASE("[BSS] native log initialized, file=" << logPath);
-        } else {
-            INFO_RELEASE("[BSS] native log init failed, file=" << logPath << " (check directory exists)");
-        }
-    }
-
-    void SetLocalRecoveryConfig(const std::shared_ptr<LocalRecoveryConfig>& localRecoveryConfig)
-    {
-        localRecoveryConfig_ = localRecoveryConfig;
-    }
-
-    /**
-     * 从上一次 checkpoint 的增量句柄恢复：把远端文件下载到本地临时目录后交给 BSS Restore。
-     * 非 rescale 场景继承原 backendUID 与已上传文件清单，保证后续增量 checkpoint 正确去重。
-     */
-    void RestoreFromStateHandles(
-        const std::vector<std::shared_ptr<KeyedStateHandle>>& stateHandles,
-        const std::shared_ptr<omnistream::OmniTaskBridge>& bridge)
-    {
-        if (stateHandles.empty() || bridge == nullptr) {
-            return;
-        }
-        EnsureDbOpen();
-        namespace fs = std::filesystem;
-        auto first = std::dynamic_pointer_cast<IncrementalRemoteKeyedStateHandle>(stateHandles.front());
-        if (first == nullptr) {
-            THROW_LOGIC_EXCEPTION("BSS restore only supports IncrementalRemoteKeyedStateHandle currently");
-        }
-        bool isRescaling = stateHandles.size() > 1;
-        if (!isRescaling) {
-            isRescaling = !(first->GetKeyGroupRange() == *this->context->getKeyGroupRange());
-        }
-
-        RocksDBStateDownloader downloader(1);
-        std::vector<std::string> restorePaths;
-        restorePaths.reserve(stateHandles.size());
-        for (const auto& handle : stateHandles) {
-            auto remoteHandle = std::dynamic_pointer_cast<IncrementalRemoteKeyedStateHandle>(handle);
-            if (remoteHandle == nullptr) {
-                THROW_LOGIC_EXCEPTION("BSS restore only supports IncrementalRemoteKeyedStateHandle currently");
+        const char* configuredLogFile = std::getenv("OMNISTREAM_BSS_LOG_FILE");
+        std::string logFile =
+            (configuredLogFile != nullptr && configuredLogFile[0] != '\0')
+                ? configuredLogFile
+                : checkpointConfig.getJniLogDirectory();
+        std::filesystem::path logPath(logFile);
+        if (logPath.has_parent_path()) {
+            std::error_code ec;
+            std::filesystem::create_directories(logPath.parent_path(), ec);
+            if (ec) {
+                INFO_RELEASE("[BSS] native log directory creation failed: " << ec.message());
+                return;
             }
-            fs::path tmpRestorePath = fs::path(instanceBasePath_) / ("restore-" + UUID::randomUUID().ToString());
-            fs::create_directories(tmpRestorePath);
-            downloader.transferAllStateDataToDirectory(*remoteHandle, tmpRestorePath, bridge);
-            restorePaths.push_back(tmpRestorePath.string());
         }
-
-        std::unordered_map<std::string, std::string> lazyPathMapping;
-        if (dbPtr_->Restore(restorePaths, lazyPathMapping, false, false) != ock::bss::BSS_OK) {
-            THROW_LOGIC_EXCEPTION("BSS Restore from checkpoint failed");
+        jstring jLogPath = env->NewStringUTF(logFile.c_str());
+        if (jLogPath == nullptr) {
+            return;
         }
-
-        if (!isRescaling) {
-            backendUID_ = first->GetBackendIdentifier();
-            lastCompletedCheckpointId_ = first->GetCheckpointId();
-            restoredFiles_[first->GetCheckpointId()] = first->GetSharedState();
+        constexpr int64_t bytesPerMb = 1024 * 1024;
+        const jint logSizeMb = static_cast<jint>(
+            std::max<int64_t>(1, checkpointConfig.getJniLogSizeBytes() / bytesPerMb));
+        const jlong handle = Java_com_huawei_ock_bss_ockdb_OckDBLog_initial(
+            env,
+            nullptr,
+            jLogPath,
+            static_cast<jint>(checkpointConfig.getJniLogLevel()),
+            logSizeMb,
+            static_cast<jint>(checkpointConfig.getJniLogNum()));
+        env->DeleteLocalRef(jLogPath);
+        if (handle != 0) {
+            initialized.store(true, std::memory_order_release);
+            INFO_RELEASE("[BSS] native log initialized, file=" << logFile);
+        } else {
+            INFO_RELEASE("[BSS] native log initialization failed, file=" << logFile);
         }
-        // 让下一次 snapshot 基于恢复后的状态重建策略
-        checkpointStrategy_.reset();
-        INFO_RELEASE(
-            "[BSS-CP-restore] restored from checkpoint "
-            << first->GetCheckpointId() << ", handles=" << stateHandles.size() << ", rescaling=" << isRescaling);
-    }
-
-    ock::bss::BoostStateDBPtr GetDb()
-    {
-        return dbPtr_;
-    }
-
-    const std::unordered_map<std::string, std::shared_ptr<RegisteredKeyValueStateBackendMetaInfo>>&
-    GetKvStateInformation() const
-    {
-        return kvStateInformation_;
     }
 
 private:
-    /**
-     * 惰性打开 BoostStateDB：仅在首次注册 state 或恢复时调用。
-     * 同一进程内所有 DB 共享同一个 TaskSlotFlag，即共享同一个 DbGroup/内存池，
-     * 与 Java 插件按 task slot 分组的架构一致。此前每个 DB 用随机 flag，
-     * 形成 N 个孤立的 2G 默认小内存池，fresh table 同步快照申请内存时在
-     * MemManager::GetMemory 中永久自旋，task 线程卡死导致 checkpoint 全部超时。
-     */
-    void EnsureDbOpen()
+    void ensureIncrementalSnapshotStrategy()
     {
-        if (dbPtr_ != nullptr) {
+        if (incrementalSnapshotStrategy_ != nullptr) {
             return;
         }
-        std::string localSstPath = instanceBasePath_ + "/sst";
-        std::filesystem::create_directories(localSstPath);
-
-        dbPtr_ = ock::bss::BoostStateDBFactory::Create();
-        ock::bss::ConfigRef config = std::make_shared<ock::bss::Config>();
-        config->Init(
-            static_cast<uint32_t>(startGroup_),
-            static_cast<uint32_t>(endGroup_),
-            static_cast<uint32_t>(maxParallelism_));
-        config->mMemorySegmentSize = ock::bss::IO_SIZE_64M;
-        config->SetTaskSlotFlag(ProcessLevelTaskSlotFlag());
-        uint64_t memoryBudgetBytes = ReadMemoryBudgetBytes();
-        config->SetHeapAvailableSize(memoryBudgetBytes);
-        config->SetTotalDBSize(memoryBudgetBytes);
-        // LSM store 的本地落盘根目录：生产 JNI 路径与 BSS checkpoint LLT 均必须设置。
-        // 缺失时 FileCacheFactory 以空路径为根，首次落盘 slice/sst 文件即 native 崩溃
-        config->SetLocalPath(localSstPath);
-        config->SetBackendUID(backendUidStr_);
-        config->SetEnableLocalRecovery(false);
-        if (dbPtr_->Open(config) != ock::bss::BSS_OK) {
-            ock::bss::BoostStateDBFactory::Destroy(dbPtr_);
-            dbPtr_ = nullptr;
-            THROW_LOGIC_EXCEPTION("BssKeyedStateBackend failed to open BoostStateDB");
-        }
-        INFO_RELEASE(
-            "[BSS] BoostStateDB opened, uid=" << backendUidStr_ << ", keyGroups=[" << startGroup_ << "," << endGroup_
-                                              << "], memoryBudgetMB=" << (memoryBudgetBytes >> 20));
-    }
-
-    static uint32_t ProcessLevelTaskSlotFlag()
-    {
-        static const uint32_t flag = UUIDGenerator::generateUUID();
-        return flag;
-    }
-
-    /** BSS 共享内存池大小，环境变量 OMNISTREAM_BSS_MEMORY_MB 可调，默认 4096MB */
-    static uint64_t ReadMemoryBudgetBytes()
-    {
-        constexpr uint64_t defaultMb = 4096;
-        uint64_t mb = defaultMb;
-        const char* env = std::getenv("OMNISTREAM_BSS_MEMORY_MB");
-        if (env != nullptr && env[0] != '\0') {
-            char* end = nullptr;
-            unsigned long long parsed = std::strtoull(env, &end, 10);
-            if (end != env && parsed > 0) {
-                mb = parsed;
-            }
-        }
-        return mb << 20;
-    }
-
-    void EnsureCheckpointStrategy()
-    {
-        if (checkpointStrategy_ != nullptr) {
-            return;
-        }
-        checkpointStrategy_ = std::make_shared<BssIncrementalSnapshotStrategy>(
-            dbPtr_,
-            &kvStateInformation_,
-            *this->context->getKeyGroupRange(),
+        incrementalSnapshotStrategy_ = std::make_shared<BssIncrementalSnapshotStrategy>(
+            sharedBoostStateDB_,
+            &checkpointMetaInfos_,
+            KeyGroupRange(startGroup_, endGroup_),
             localRecoveryConfig_,
-            instanceBasePath_,
+            checkpointConfig_.getInstanceBasePath(),
             backendUID_,
-            restoredFiles_,
-            lastCompletedCheckpointId_);
+            restoredSharedState_,
+            lastCompletedCheckpointId_,
+            checkpointConfig_.getNumberOfTransferringThreads());
     }
 
-    int startGroup_;
-    int endGroup_;
-    int maxParallelism_;
-    ock::bss::BoostStateDBPtr dbPtr_ = nullptr;
-    bool disposed_ = false;
-    UUID backendUID_ = UUID::randomUUID();
-    std::string backendUidStr_;
-    std::string instanceBasePath_;
-    std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge_;
-    std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig_;
-    // SnapshotStrategyRunner 接收 shared_ptr<SnapshotStrategy<...>>（与 RocksDB 侧一致），
-    // 故此处用 shared_ptr 持有，可隐式转换为基类 shared_ptr 传入
-    std::shared_ptr<BssIncrementalSnapshotStrategy> checkpointStrategy_;
-    std::map<long, std::vector<HandleAndLocalPath>> restoredFiles_;
-    long lastCompletedCheckpointId_ = -1;
-    // pointer to StateTable<K, N, V>
-    emhash7::HashMap<std::string, uintptr_t> registeredKvStates;
-    // pointer to intervalKvState
-    emhash7::HashMap<std::string, uintptr_t> createdKvState;
-    // state name -> meta info, 为 checkpoint/savepoint 的元数据快照准备
-    std::unordered_map<std::string, std::shared_ptr<RegisteredKeyValueStateBackendMetaInfo>> kvStateInformation_;
+    void registerCheckpointMetaInfo(StateDescriptor* stateDesc, TypeSerializer* namespaceSerializer)
+    {
+        auto it = checkpointMetaInfos_.find(stateDesc->getName());
+        if (it != checkpointMetaInfos_.end()) {
+            it->second->setNamespaceSerializer(namespaceSerializer);
+            it->second->setStateSerializer(stateDesc->getStateSerializer());
+            return;
+        }
+        checkpointMetaInfos_.emplace(
+            stateDesc->getName(),
+            std::make_shared<RegisteredKeyValueStateBackendMetaInfo>(
+                stateDesc->getType(),
+                stateDesc->getName(),
+                namespaceSerializer,
+                stateDesc->getStateSerializer()));
+    }
+
+    ock::bss::BoostStateDBPtr getOrCreateBoostStateDB()
+    {
+        if (sharedBoostStateDB_ != nullptr) {
+            return sharedBoostStateDB_;
+        }
+        ock::bss::BoostStateDBPtr db = ock::bss::BoostStateDBFactory::Create();
+        if (db == nullptr) {
+            throw std::runtime_error("Failed to create OmniStateStore database");
+        }
+        ock::bss::ConfigRef config = boostStateDBConfig_;
+        if (config == nullptr) {
+            config = std::make_shared<ock::bss::Config>();
+            config->Init(
+                static_cast<uint32_t>(startGroup_),
+                static_cast<uint32_t>(endGroup_),
+                static_cast<uint32_t>(maxParallelism_));
+            config->mMemorySegmentSize = ock::bss::IO_SIZE_64M;
+            config->SetTaskSlotFlag(UUIDGenerator::generateUUID());
+            std::string backendUid = backendUID_.ToString();
+            backendUid.erase(std::remove(backendUid.begin(), backendUid.end(), '-'), backendUid.end());
+            fallbackDbBasePath_ = std::filesystem::temp_directory_path();
+            fallbackDbBasePath_ /= "omnistream-bss-" + backendUid;
+            std::filesystem::path localPath = fallbackDbBasePath_;
+            localPath /= "sst";
+            std::filesystem::create_directories(localPath);
+            config->SetLocalPath(localPath.string());
+            config->SetBackendUID(backendUid);
+        }
+        try {
+            bss_adapter::CheckResult(db->Open(config), "BoostStateDB::Open");
+        } catch (...) {
+            ock::bss::BoostStateDBFactory::Destroy(db);
+            throw;
+        }
+        sharedBoostStateDB_ = db;
+        INFO_RELEASE(
+            "[BSS] BoostStateDB lazily opened, uid=" << backendUID_.ToString() << ", keyGroups=[" << startGroup_
+                                                      << "," << endGroup_ << "]");
+        return sharedBoostStateDB_;
+    }
 
     uintptr_t GetMapState(TypeSerializer* namespaceSerializer, StateDescriptor* stateDesc);
 
     uintptr_t GetValueState(TypeSerializer* namespaceSerializer, StateDescriptor* stateDesc);
 
     uintptr_t GetListState(TypeSerializer* namespaceSerializer, StateDescriptor* stateDesc);
-
-    void registerKvStateInformation(StateDescriptor* stateDesc, TypeSerializer* namespaceSerializer);
 
     template <typename N, typename S>
     BssStateTable<K, N, S>* tryRegisterStateTable(TypeSerializer* namespaceSerializer, StateDescriptor* stateDesc);
@@ -396,10 +535,11 @@ BssListStateTable<K, N, S>* BssKeyedStateBackend<K>::tryRegisterListStateTable(
         stateTable->setMetaInfo(restoredKvMetaInfo);
         return stateTable;
     } else {
-        auto newMetaInfo =
-            new RegisteredKeyValueStateBackendMetaInfo(stateDesc->getName(), namespaceSerializer, newStateSerializer);
+        auto newMetaInfo = new RegisteredKeyValueStateBackendMetaInfo(
+            stateDesc->getType(), stateDesc->getName(), namespaceSerializer, newStateSerializer);
         auto stateTable = new BssListStateTable<K, N, S>(this->context, newMetaInfo, this->keySerializer);
         registeredKvStates[stateDesc->getName()] = reinterpret_cast<uintptr_t>(stateTable);
+        registeredMetaInfos_[stateDesc->getName()] = newMetaInfo;
         return stateTable;
     }
 }
@@ -425,18 +565,29 @@ template <typename N, typename UK, typename UV>
 BssMapState<K, N, UK, UV>* BssKeyedStateBackend<K>::createOrUpdateInternalMapState(
     TypeSerializer* namespaceSerializer, StateDescriptor* stateDesc)
 {
+    auto it = createdKvState.find(stateDesc->getName());
+    BssMapState<K, N, UK, UV>* existingState = nullptr;
+    if (it != createdKvState.end()) {
+        existingState = dynamic_cast<BssMapState<K, N, UK, UV>*>(it->second);
+        if (existingState == nullptr) {
+            const std::string message =
+                "State '" + stateDesc->getName() + "' was previously registered with an incompatible type";
+            ERROR_RELEASE(message);
+            throw std::runtime_error(message);
+        }
+    }
     BssMapStateTable<K, N, UK, UV>* stateTable = tryRegisterMapStateTable<N, UK, UV>(
         namespaceSerializer, reinterpret_cast<MapStateDescriptor<UK, UV>*>(stateDesc));
-    auto it = createdKvState.find(stateDesc->getName());
     BssMapState<K, N, UK, UV>* createdState;
     if (it == createdKvState.end()) {
         createdState = BssMapState<K, N, UK, UV>::create(stateDesc, stateTable, this->getKeySerializer());
     } else {
-        createdState = BssMapState<K, N, UK, UV>::update(
-            stateDesc, stateTable, reinterpret_cast<BssMapState<K, N, UK, UV>*>(it->second));
+        createdState = BssMapState<K, N, UK, UV>::update(stateDesc, stateTable, existingState);
     }
-    createdKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
-    createdState->CreateTable(dbPtr_, stateDesc->getName());
+    createdKvState[stateDesc->getName()] = createdState;
+
+    auto _dbPtr = getOrCreateBoostStateDB();
+    createdState->CreateTable(_dbPtr);
     return createdState;
 }
 
@@ -455,11 +606,12 @@ BssMapStateTable<K, N, UK, UV>* BssKeyedStateBackend<K>::tryRegisterMapStateTabl
         stateTable->setMetaInfo(restoredKvMetaInfo);
         return stateTable;
     } else {
-        auto newMetaInfo =
-            new RegisteredKeyValueStateBackendMetaInfo(stateDesc->getName(), namespaceSerializer, newStateSerializer);
+        auto newMetaInfo = new RegisteredKeyValueStateBackendMetaInfo(
+            stateDesc->getType(), stateDesc->getName(), namespaceSerializer, newStateSerializer);
         auto stateTable = new BssMapStateTable<K, N, UK, UV>(
             this->context, this->keySerializer, stateDesc->GetUserKeySerializer(), newMetaInfo);
         registeredKvStates[stateDesc->getName()] = reinterpret_cast<uintptr_t>(stateTable);
+        registeredMetaInfos_[stateDesc->getName()] = newMetaInfo;
         return stateTable;
     }
 }
@@ -469,7 +621,7 @@ uintptr_t BssKeyedStateBackend<K>::GetMapState(TypeSerializer* namespaceSerializ
 {
     auto keyId = stateDesc->getKeyDataId();
     auto valueId = stateDesc->getValueDataId();
-    STD_LOG("stateType_ is StateDescriptor::Type::MAP " << ", keyId " << keyId_ << " , value id " << valueId_);
+    STD_LOG("stateType_ is StateDescriptor::Type::MAP " << ", keyId " << keyId << " , value id " << valueId);
 
     if (namespaceSerializer->getBackendId() != BackendDataType::VOID_NAMESPACE_BK) {
         LOG("backendID: VOID_NAMESPACE_BK not support");
@@ -504,7 +656,9 @@ uintptr_t BssKeyedStateBackend<K>::GetMapState(TypeSerializer* namespaceSerializ
         return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, RowData*, std::vector<RowData*>*>(
             namespaceSerializer, stateDesc);
     }
-    return 0;
+    THROW_LOGIC_EXCEPTION(
+        "OmniStateStore does not support MapState key/value backend types " << static_cast<int>(keyId) << "/"
+                                                                            << static_cast<int>(valueId));
 }
 
 template <typename K>
@@ -512,17 +666,28 @@ template <typename N, typename V>
 BssListState<K, N, V>* BssKeyedStateBackend<K>::createOrUpdateInternalListState(
     TypeSerializer* namespaceSerializer, StateDescriptor* stateDesc)
 {
-    BssListStateTable<K, N, V>* stateTable = tryRegisterListStateTable<N, V>(namespaceSerializer, stateDesc);
     auto it = createdKvState.find(stateDesc->getName());
+    BssListState<K, N, V>* existingState = nullptr;
+    if (it != createdKvState.end()) {
+        existingState = dynamic_cast<BssListState<K, N, V>*>(it->second);
+        if (existingState == nullptr) {
+            const std::string message =
+                "State '" + stateDesc->getName() + "' was previously registered with an incompatible type";
+            ERROR_RELEASE(message);
+            throw std::runtime_error(message);
+        }
+    }
+    BssListStateTable<K, N, V>* stateTable = tryRegisterListStateTable<N, V>(namespaceSerializer, stateDesc);
     BssListState<K, N, V>* createdState;
     if (it == createdKvState.end()) {
         createdState = BssListState<K, N, V>::create(stateDesc, stateTable, this->getKeySerializer());
     } else {
-        createdState =
-            BssListState<K, N, V>::update(stateDesc, stateTable, reinterpret_cast<BssListState<K, N, V>*>(it->second));
+        createdState = BssListState<K, N, V>::update(stateDesc, stateTable, existingState);
     }
-    createdKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
-    createdState->CreateTable(dbPtr_, stateDesc->getName());
+    createdKvState[stateDesc->getName()] = createdState;
+
+    auto _dbPtr = getOrCreateBoostStateDB();
+    createdState->CreateTable(_dbPtr);
     return createdState;
 }
 
@@ -530,8 +695,7 @@ template <typename K>
 uintptr_t BssKeyedStateBackend<K>::createOrUpdateInternalState(
     TypeSerializer* namespaceSerializer, StateDescriptor* stateDesc)
 {
-    EnsureDbOpen();
-    registerKvStateInformation(stateDesc, namespaceSerializer);
+    registerCheckpointMetaInfo(stateDesc, namespaceSerializer);
     if (stateDesc->getType() == StateDescriptor::Type::MAP) {
         return this->GetMapState(namespaceSerializer, stateDesc);
     } else if (stateDesc->getType() == StateDescriptor::Type::VALUE) {
@@ -541,21 +705,6 @@ uintptr_t BssKeyedStateBackend<K>::createOrUpdateInternalState(
     } else {
         THROW_LOGIC_EXCEPTION("bss has not support this state yet");
     }
-}
-
-template <typename K>
-void BssKeyedStateBackend<K>::registerKvStateInformation(
-    StateDescriptor* stateDesc, TypeSerializer* namespaceSerializer)
-{
-    auto it = kvStateInformation_.find(stateDesc->getName());
-    if (it != kvStateInformation_.end()) {
-        it->second->setNamespaceSerializer(namespaceSerializer);
-        it->second->setStateSerializer(stateDesc->getStateSerializer());
-        return;
-    }
-    auto metaInfo = std::make_shared<RegisteredKeyValueStateBackendMetaInfo>(
-        stateDesc->getType(), stateDesc->getName(), namespaceSerializer, stateDesc->getStateSerializer());
-    kvStateInformation_.emplace(stateDesc->getName(), metaInfo);
 }
 
 template <typename K>
@@ -585,18 +734,28 @@ template <typename N, typename V>
 BssValueState<K, N, V>* BssKeyedStateBackend<K>::createOrUpdateInternalValueState(
     TypeSerializer* namespaceSerializer, StateDescriptor* stateDesc)
 {
+    auto it = createdKvState.find(stateDesc->getName());
+    BssValueState<K, N, V>* existingState = nullptr;
+    if (it != createdKvState.end()) {
+        existingState = dynamic_cast<BssValueState<K, N, V>*>(it->second);
+        if (existingState == nullptr) {
+            const std::string message =
+                "State '" + stateDesc->getName() + "' was previously registered with an incompatible type";
+            ERROR_RELEASE(message);
+            throw std::runtime_error(message);
+        }
+    }
     // For Value state, S is the same as V
     BssStateTable<K, N, V>* stateTable = tryRegisterStateTable<N, V>(namespaceSerializer, stateDesc);
-    auto it = createdKvState.find(stateDesc->getName());
     BssValueState<K, N, V>* createdState;
     if (it == createdKvState.end()) {
         createdState = BssValueState<K, N, V>::create(stateDesc, stateTable, this->getKeySerializer());
     } else {
-        createdState = BssValueState<K, N, V>::updateState(
-            stateDesc, stateTable, reinterpret_cast<BssValueState<K, N, V>*>(it->second));
+        createdState = BssValueState<K, N, V>::updateState(stateDesc, stateTable, existingState);
     }
-    createdKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
-    createdState->CreateTable(dbPtr_, stateDesc->getName());
+    createdKvState[stateDesc->getName()] = createdState;
+    auto _dbPtr = getOrCreateBoostStateDB();
+    createdState->CreateTable(_dbPtr);
     return createdState;
 }
 
@@ -615,10 +774,11 @@ BssStateTable<K, N, S>* BssKeyedStateBackend<K>::tryRegisterStateTable(
         stateTable->setMetaInfo(restoredKvMetaInfo);
         return stateTable;
     } else {
-        auto newMetaInfo =
-            new RegisteredKeyValueStateBackendMetaInfo(stateDesc->getName(), namespaceSerializer, newStateSerializer);
+        auto newMetaInfo = new RegisteredKeyValueStateBackendMetaInfo(
+            stateDesc->getType(), stateDesc->getName(), namespaceSerializer, newStateSerializer);
         auto stateTable = new BssStateTable<K, N, S>(this->context, newMetaInfo, this->keySerializer);
         registeredKvStates[stateDesc->getName()] = reinterpret_cast<uintptr_t>(stateTable);
+        registeredMetaInfos_[stateDesc->getName()] = newMetaInfo;
         return stateTable;
     }
 }

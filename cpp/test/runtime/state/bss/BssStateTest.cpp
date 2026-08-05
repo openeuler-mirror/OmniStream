@@ -58,7 +58,7 @@ void initialValueState(BssValueState<RowData*, VoidNamespace, RowData*>*& valueS
     config->SetEvictMinSize(IO_SIZE_1K);
     config->SetTaskSlotFlag(UUIDGenerator::generateUUID());
     nDB->Open(config);
-    valueState->CreateTable(nDB, "valueStateTable");
+    valueState->CreateTable(nDB);
 }
 
 void initialListState(BssListState<RowData*, int64_t, int64_t>*& listState)
@@ -70,7 +70,7 @@ void initialListState(BssListState<RowData*, int64_t, int64_t>*& listState)
     config->SetEvictMinSize(IO_SIZE_1K);
     config->SetTaskSlotFlag(UUIDGenerator::generateUUID());
     nDB->Open(config);
-    listState->CreateTable(nDB, "listStateTable");
+    listState->CreateTable(nDB);
 }
 
 void initialMapState(BssMapState<RowData*, int64_t, int64_t, int64_t>*& mapState)
@@ -82,7 +82,7 @@ void initialMapState(BssMapState<RowData*, int64_t, int64_t, int64_t>*& mapState
     config->SetEvictMinSize(IO_SIZE_1K);
     config->SetTaskSlotFlag(UUIDGenerator::generateUUID());
     nDB->Open(config);
-    mapState->CreateTable(nDB, "mapStateTable");
+    mapState->CreateTable(nDB);
 }
 
 TableRef CreateFromDB(StateType keyedStateType, std::string tableName, BoostStateDB* db)

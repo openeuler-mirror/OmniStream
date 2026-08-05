@@ -205,18 +205,29 @@ uintptr_t OmniTask::setupStreamTask(std::string streamClassName)
             LOG(">>>> rawStreamTask_ : " << rawStreamTask_);
             return rawStreamTask_;
         } else {
-            LOG(">>>> rawStreamTask_ : not exist ");
-            return 0;
+            throw std::invalid_argument("unsupported stream task class: " + streamClassName);
         }
+    } catch (const std::exception& e) {
+        INFO_RELEASE("error OmniTask::setupStreamTask failed: " << e.what());
+        invokable_.reset();
+        throw;
     } catch (...) {
-        LOG("Error: failed to create stream task..........................");
-        GErrorLog("Error: failed to create stream task..........................");
+        INFO_RELEASE("error OmniTask::setupStreamTask failed with unknown exception");
+        invokable_.reset();
+        throw std::runtime_error("OmniTask::setupStreamTask failed with unknown exception");
     }
-    return 0;
 }
 
 void OmniTask::DoRunRestore(long streamTaskAddress)
 {
+    if (streamTaskAddress == 0 || invokable_ == nullptr ||
+        reinterpret_cast<uintptr_t>(invokable_.get()) != static_cast<uintptr_t>(streamTaskAddress)) {
+        INFO_RELEASE(
+            "error OmniTask::DoRunRestore rejected invalid stream task, address=" << streamTaskAddress
+                                                                                  << ", invokable="
+                                                                                  << invokable_.get());
+        throw std::runtime_error("native stream task initialization failed before restore");
+    }
     INFO_RELEASE(" DoRunRestore starting: " << taskNameWithSubtask_);
 
     LOG_INFO_IMP("doRun.... ");
@@ -247,6 +258,13 @@ void OmniTask::DoRunRestore(long streamTaskAddress)
 
 void OmniTask::doRun(long streamTaskAddress)
 {
+    if (streamTaskAddress == 0 || invokable_ == nullptr ||
+        reinterpret_cast<uintptr_t>(invokable_.get()) != static_cast<uintptr_t>(streamTaskAddress)) {
+        INFO_RELEASE(
+            "error OmniTask::doRun rejected invalid stream task, address=" << streamTaskAddress << ", invokable="
+                                                                            << invokable_.get());
+        throw std::runtime_error("native stream task initialization failed before run");
+    }
     INFO_RELEASE(" OmniTask::doRun welcome to native");
     INFO_RELEASE("doRun starting, taskNameWithSubtask: " << taskNameWithSubtask_);
 
@@ -264,13 +282,13 @@ void OmniTask::doRun(long streamTaskAddress)
 
         this->invokable_->invoke();
     } catch (const PartitionNotFoundException& e) {
-        INFO_RELEASE("Error:PartitionNotFoundException causes the task to stop and will do cleanup");
+        INFO_RELEASE("error PartitionNotFoundException during restore or invoke: " << e.what());
         throw;
     } catch (const std::exception& e) {
-        INFO_RELEASE("Error:std::exception during restore or invoke" << e.what());
+        INFO_RELEASE("error std::exception during restore or invoke: " << e.what());
         throw;
     } catch (...) {
-        INFO_RELEASE("Error:unknown exception during restore or invoke, taskName=");
+        INFO_RELEASE("error unknown exception during restore or invoke, taskName=" << taskNameWithSubtask_);
         throw;
     }
 
@@ -301,14 +319,26 @@ void OmniTask::doRun(long streamTaskAddress)
 
 void OmniTask::DoRunInvoke(long streamTaskAddress)
 {
+    if (streamTaskAddress == 0 || invokable_ == nullptr ||
+        reinterpret_cast<uintptr_t>(invokable_.get()) != static_cast<uintptr_t>(streamTaskAddress)) {
+        INFO_RELEASE(
+            "error OmniTask::DoRunInvoke rejected invalid stream task, address=" << streamTaskAddress
+                                                                                  << ", invokable="
+                                                                                  << invokable_.get());
+        throw std::runtime_error("native stream task initialization failed before invoke");
+    }
     int count = 0;
     while (!flag.load()) {
-        INFO_RELEASE("find OmniTask still uninitialzed, task name : " << taskNameWithSubtask_);
+        INFO_RELEASE("find OmniTask still uninitialized, task name: " << taskNameWithSubtask_);
         count++;
         if (count > 5) {
             break;
         }
         sleep(5);
+    }
+    if (!flag.load()) {
+        INFO_RELEASE("error OmniTask::DoRunInvoke timed out waiting for restore, taskName=" << taskNameWithSubtask_);
+        throw std::runtime_error("native stream task restore did not complete before invoke");
     }
 
     try {

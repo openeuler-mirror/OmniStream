@@ -135,6 +135,11 @@ void GroupAggFunction::open(const Configuration& parameters)
     // This kind of specific template type should all be solved by an if-else based on stateDescription
     accState = static_cast<StreamingRuntimeContext<RowData*>*>(getRuntimeContext())->getState<RowData*>(accDesc);
 
+#ifdef WITH_OMNISTATESTORE
+    if (dynamic_cast<BssValueState<RowData*, VoidNamespace, RowData*>*>(accState)) {
+        this->backend = 1;
+    } else
+#endif
     if (dynamic_cast<RocksdbValueState<RowData*, VoidNamespace, RowData*>*>(accState)) {
         this->backend = 2;
     }

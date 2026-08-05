@@ -13,6 +13,9 @@
 
 #ifdef WITH_OMNISTATESTORE
 
+#include <limits>
+#include <type_traits>
+
 #include "runtime/state/internal/InternalValueState.h"
 #include "BssStateTable.h"
 #include "api/common/state/StateDescriptor.h"
@@ -94,9 +97,9 @@ public:
         delete stateTable;
     };
 
-    void CreateTable(ock::bss::BoostStateDBPtr& _dbPtr, const std::string& tableName)
+    void CreateTable(ock::bss::BoostStateDBPtr& _dbPtr)
     {
-        stateTable->createTable(_dbPtr, tableName);
+        stateTable->createTable(_dbPtr);
     }
 
     void clearVectors(int64_t currentTimestamp)

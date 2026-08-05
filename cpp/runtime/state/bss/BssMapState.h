@@ -12,10 +12,16 @@
 #pragma once
 #ifdef WITH_OMNISTATESTORE
 
+#include <limits>
+#include <optional>
+#include <type_traits>
+#include <vector>
+
 #include "api/common/state/MapState.h"
 #include "BssMapStateTable.h"
 #include "api/common/state/StateDescriptor.h"
 #include "state/internal/InternalKvState.h"
+#include "basictypes/java_util_HashMap.h"
 
 template <typename K, typename N, typename UK, typename UV>
 class BssMapState : public MapState<UK, UV>, public InternalKvState<K, N, emhash7::HashMap<UK, UV>*> {
@@ -32,7 +38,10 @@ public:
     {
     }
 
-    ~BssMapState() override = default;
+    ~BssMapState() override
+    {
+        delete stateTable;
+    }
 
     [[nodiscard]] TypeSerializer* getKeySerializer() const
     {
@@ -64,11 +73,12 @@ public:
         LOG("BSS MapState get");
         UV userValue = stateTable->get(currentNamespace, userKey);
         if constexpr (std::is_pointer_v<UV>) {
-            if (userValue == nullptr) {
+            if (userValue == nullptr && !stateTable->contains(currentNamespace, userKey)) {
                 return std::nullopt;
             }
         } else {
-            if (userValue == std::numeric_limits<UV>::max()) {
+            if (userValue == std::numeric_limits<UV>::max() &&
+                !stateTable->contains(currentNamespace, userKey)) {
                 return std::nullopt;
             }
         }
@@ -77,12 +87,28 @@ public:
 
     Object* Get(Object* userKey) override
     {
-        return nullptr;
+        if constexpr (std::is_same_v<UK, Object*> && std::is_same_v<UV, Object*>) {
+            return stateTable->get(currentNamespace, userKey);
+        } else {
+            THROW_LOGIC_EXCEPTION("type is not Object in BssMapState::Get()");
+        }
     };
 
     java_util_Iterator* iterator() override
     {
-        return nullptr;
+        if constexpr (std::is_same_v<UK, Object*> && std::is_same_v<UV, Object*>) {
+            auto* values = stateTable->entries(currentNamespace);
+            if (values == nullptr) {
+                HashMap::EMPTY_ITERATOR->getRefCount();
+                return HashMap::EMPTY_ITERATOR;
+            }
+            auto* wrapper = new HashMap(values, true);
+            auto* result = wrapper->iterator();
+            wrapper->putRefCount();
+            return result;
+        } else {
+            THROW_LOGIC_EXCEPTION("type is not Object in BssMapState::iterator()");
+        }
     };
 
     void put(const UK& userKey, const UV& userValue) override
@@ -99,7 +125,7 @@ public:
 
     bool contains(const UK& userKey) override
     {
-        return false;
+        return stateTable->contains(currentNamespace, userKey);
     };
 
     void update(const UK& key, const UV& value) override
@@ -112,7 +138,10 @@ public:
         this->currentNamespace = nameSpace;
     };
 
-    void clear() override {};
+    void clear() override
+    {
+        stateTable->clear(currentNamespace);
+    };
 
     static BssMapState<K, N, UK, UV>* create(
         StateDescriptor* stateDesc, BssMapStateTable<K, N, UK, UV>* stateTable, TypeSerializer* keySerializer)
@@ -173,9 +202,9 @@ public:
         stateTable->clearVectorBatches(keyGroup, sequenceNumbersToDelete);
     }
 
-    void CreateTable(ock::bss::BoostStateDBPtr& _dbPtr, const std::string& tableName)
+    void CreateTable(ock::bss::BoostStateDBPtr& _dbPtr)
     {
-        stateTable->createTable(_dbPtr, tableName);
+        stateTable->createTable(_dbPtr);
     };
 
 private:

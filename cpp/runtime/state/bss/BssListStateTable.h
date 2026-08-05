@@ -13,15 +13,27 @@
 #define OMNISTREAM_BSSLISTSTATETABLE_H
 #ifdef WITH_OMNISTATESTORE
 
+#include <cstdint>
+#include <limits>
+#include <stdexcept>
+#include <type_traits>
 #include <unordered_map>
 #include <vector>
 
 #include "config.h"
 #include "boost_state_table.h"
+#include "memory/DataInputDeserializer.h"
 #include "state/RegisteredKeyValueStateBackendMetaInfo.h"
 #include "state/InternalKeyContext.h"
+#include "state/HashCode.h"
 #include "state/bss/BssKeyGroupUtils.h"
 #include "boost_state_db.h"
+#include "state/bss/BssExceptionUtils.h"
+#include "table/data/vectorbatch/VectorBatch.h"
+#include "table_description.h"
+#include "typeutils/LongSerializer.h"
+#include "utils/VectorBatchDeserializationUtils.h"
+#include "utils/VectorBatchSerializationUtils.h"
 #include "data/util/SequenceNumberHelper.h"
 
 template <typename K, typename N, typename UV>
@@ -38,23 +50,32 @@ public:
     {
     }
 
+    ~BssListStateTable()
+    {
+        delete metaInfo;
+    }
+
     bool isEmpty()
     {
         return true;
     }
 
-    void createTable(ock::bss::BoostStateDBPtr& _dbPtr, const std::string& tableName)
+    void createTable(ock::bss::BoostStateDBPtr& _dbPtr)
     {
+        if (_dbPtr == nullptr) {
+            throw std::invalid_argument("OmniStateStore database must not be null");
+        }
         this->dbPtr = _dbPtr;
         auto tblDesc = std::make_shared<ock::bss::TableDescription>(
-            ock::bss::StateType::LIST, tableName, -1, ock::bss::TableSerializer{}, _dbPtr->GetConfig());
-        dbTable = std::dynamic_pointer_cast<ock::bss::KListTable>(_dbPtr->GetTableOrCreate(tblDesc));
+            ock::bss::StateType::LIST, metaInfo->getName(), -1, ock::bss::TableSerializer{}, _dbPtr->GetConfig());
+        dbTable = bss_adapter::CheckTable(
+            std::dynamic_pointer_cast<ock::bss::KListTable>(_dbPtr->GetTableOrCreate(tblDesc)), metaInfo->getName());
     };
 
     std::vector<UV>* get(N& nameSpace)
     {
         LOG("BSS ListState table Get");
-        if constexpr (is_same_v<N, long>) {
+        if constexpr (std::is_same_v<N, long>) {
             LOG("namespace is " << nameSpace);
         }
 
@@ -76,6 +97,8 @@ public:
             }
         }
         dbTable->CleanResource(getResult.resId);
+        bss_adapter::LogStateOperationSuccess(
+            "LIST", metaInfo->getName(), "get", keyHashCode, "elementCount=" + std::to_string(result->size()));
         return result;
     }
 
@@ -103,9 +126,9 @@ public:
         ock::bss::BinaryData priValue(
             valueOutputSerializer.getData(), static_cast<int32_t>(valueOutputSerializer.getPosition()));
         auto res = dbTable->Put(keyHashCode, priKey, priValue);
-        if (res != ock::bss::BSS_OK) {
-            LOG("Warning: put failed");
-        }
+        bss_adapter::CheckResult(res, "KListTable::Put(" + metaInfo->getName() + ")");
+        bss_adapter::LogStateOperationSuccess(
+            "LIST", metaInfo->getName(), "put", keyHashCode, "valueBytes=" + std::to_string(priValue.Length()));
     }
 
     // append data in bss list table
@@ -132,45 +155,21 @@ public:
         ock::bss::BinaryData priVal(
             valueOutputSerializer.getData(), static_cast<int32_t>(valueOutputSerializer.getPosition()));
         auto res = dbTable->Add(keyHashCode, priKey, priVal);
-        if (res != ock::bss::BSS_OK) {
-            LOG("Warning: add failed");
-        }
+        bss_adapter::CheckResult(res, "KListTable::Add(" + metaInfo->getName() + ")");
+        bss_adapter::LogStateOperationSuccess(
+            "LIST", metaInfo->getName(), "add", keyHashCode, "valueBytes=" + std::to_string(priVal.Length()));
     }
 
-    void addAll(N& nameSpace, const vector<UV>& values)
+    void addAll(N& nameSpace, const std::vector<UV>& values)
     {
         LOG("BSS ListState table addAll");
-        uint32_t keyHashCode;
-        OutputBufferStatus outputBufferStatus;
-        DataOutputSerializer serializer;
-        serializer.setBackendBuffer(&outputBufferStatus);
-        ock::bss::BinaryData priKey = GetPriBinaryData(nameSpace, keyHashCode, serializer);
-        TypeSerializer* vSerializer = getStateSerializer();
-        DataOutputSerializer valueOutputSerializer;
-        OutputBufferStatus valueOutputBufferStatus;
-        valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
-
-        bool first = true;
         for (const auto& item : values) {
-            if (first) {
-                first = false;
-            } else {
-                valueOutputSerializer.write((uint32_t)DELIMITER);
-            }
             if constexpr (std::is_pointer_v<UV>) {
                 if (item == nullptr) {
                     THROW_RUNTIME_ERROR("You cannot add null to a value list.");
                 }
-                vSerializer->serialize(item, valueOutputSerializer);
-            } else {
-                vSerializer->serialize((void*)&item, valueOutputSerializer);
             }
-        }
-        ock::bss::BinaryData priVal(
-            valueOutputSerializer.getData(), static_cast<int32_t>(valueOutputSerializer.getPosition()));
-        auto res = dbTable->Add(keyHashCode, priKey, priVal);
-        if (res != ock::bss::BSS_OK) {
-            LOG("Warning: add failed");
+            add(nameSpace, item);
         }
     }
 
@@ -182,7 +181,13 @@ public:
         DataOutputSerializer serializer;
         serializer.setBackendBuffer(&outputBufferStatus);
         ock::bss::BinaryData priKey = GetPriBinaryData(nameSpace, keyHashCode, serializer);
-        dbTable->Remove(keyHashCode, priKey);
+        auto res = dbTable->Remove(keyHashCode, priKey);
+        if (!bss_adapter::IsNotFound(res)) {
+            bss_adapter::CheckResult(res, "KListTable::Remove(" + metaInfo->getName() + ")");
+        }
+        bss_adapter::LogStateOperationSuccess(
+            "LIST", metaInfo->getName(), "clear", keyHashCode,
+            bss_adapter::IsNotFound(res) ? "removed=false" : "removed=true");
     }
 
     uint32_t getNextSequenceNumber(int32_t keyGroup)
@@ -202,23 +207,20 @@ public:
         long sequenceNumberForSerializer = sequenceNumber;
         longSerializer.serialize(&sequenceNumberForSerializer, keyOutputSerializer);
         ock::bss::BinaryData priKey(keyOutputSerializer.getData(), keyOutputSerializer.getPosition());
-        // VectorBatch 数据与记录 key 无关，统一归入本 subtask 的起始 key group
         uint32_t keyHashCode = BssKeyGroupUtils::ForceKeyGroup(
             HashCode::Hash(priKey.Data(), static_cast<int32_t>(priKey.Length())),
-            static_cast<uint32_t>(keyContext->getKeyGroupRange()->getStartKeyGroup()),
+            static_cast<uint32_t>(keyGroup),
             static_cast<uint32_t>(keyContext->getNumberOfKeyGroups()));
 
         int batchSize = omnistream::VectorBatchSerializationUtils::calculateVectorBatchSerializableSize(vectorBatch);
         std::vector<uint8_t> bufferStorage(batchSize);
-        auto* buffer = bufferStorage.data();
+        auto* serializationBuffer = bufferStorage.data();
         omnistream::SerializedBatchInfo serializedBatchInfo =
-            omnistream::VectorBatchSerializationUtils::serializeVectorBatch(vectorBatch, batchSize, buffer);
+            omnistream::VectorBatchSerializationUtils::serializeVectorBatch(
+                vectorBatch, batchSize, serializationBuffer);
         ock::bss::BinaryData priBatchVal(serializedBatchInfo.buffer, serializedBatchInfo.size);
         auto res = dbTable->Put(keyHashCode, priKey, priBatchVal);
-        if (res != ock::bss::BSS_OK) {
-            LOG("Warning: addVectorBatch failed");
-            return;
-        }
+        bss_adapter::CheckResult(res, "KListTable::PutVectorBatch(" + metaInfo->getName() + ")");
         sequenceNumberHelper.addNextSequenceNumber(keyGroup);
     }
 
@@ -235,7 +237,10 @@ public:
             long sequenceNumberForSerializer = sequenceNumber;
             longSerializer.serialize(&sequenceNumberForSerializer, keyOutputSerializer);
             ock::bss::BinaryData priKey(keyOutputSerializer.getData(), keyOutputSerializer.getPosition());
-            auto keyHashCode = HashCode::Hash(priKey.Data(), static_cast<int32_t>(priKey.Length()));
+            auto keyHashCode = BssKeyGroupUtils::ForceKeyGroup(
+                HashCode::Hash(priKey.Data(), static_cast<int32_t>(priKey.Length())),
+                static_cast<uint32_t>(keyGroup),
+                static_cast<uint32_t>(keyContext->getNumberOfKeyGroups()));
             auto batchSize =
                 omnistream::VectorBatchSerializationUtils::calculateVectorBatchSerializableSize(vectorBatch);
             std::vector<uint8_t> bufferStorage(batchSize);
@@ -265,17 +270,23 @@ public:
         ock::bss::BinaryData priKey(keyOutputSerializer.getData(), keyOutputSerializer.getPosition());
         uint32_t keyHashCode = BssKeyGroupUtils::ForceKeyGroup(
             HashCode::Hash(priKey.Data(), static_cast<int32_t>(priKey.Length())),
-            static_cast<uint32_t>(keyContext->getKeyGroupRange()->getStartKeyGroup()),
+            static_cast<uint32_t>(keyGroup),
             static_cast<uint32_t>(keyContext->getNumberOfKeyGroups()));
         auto getResult = dbTable->Get(keyHashCode, priKey);
         if (getResult.addresses.empty()) {
             dbTable->CleanResource(getResult.resId);
             return nullptr;
         }
-        auto address =
-            reinterpret_cast<uint8_t*>(reinterpret_cast<uint8_t*>(getResult.addresses.at(0)) + sizeof(int8_t));
-        auto batch = omnistream::VectorBatchDeserializationUtils::deserializeVectorBatch(address);
+        if (getResult.lengths.empty() || getResult.lengths.at(0) <= sizeof(int8_t)) {
+            dbTable->CleanResource(getResult.resId);
+            throw std::runtime_error("OmniStateStore returned an invalid VectorBatch list payload");
+        }
+        auto* begin = reinterpret_cast<const uint8_t*>(getResult.addresses.at(0));
+        std::vector<uint8_t> payload(begin, begin + getResult.lengths.at(0));
         dbTable->CleanResource(getResult.resId);
+        auto* deserializationBuffer = payload.data() + sizeof(int8_t);
+        auto batch =
+            omnistream::VectorBatchDeserializationUtils::deserializeVectorBatch(deserializationBuffer);
         return batch;
     }
 
@@ -332,10 +343,10 @@ public:
         auto currentKey = keyContext->getCurrentKey();
         // serialize key
 
-        if constexpr (is_same_v<long, K>) {
+        if constexpr (std::is_same_v<long, K>) {
             LOG("get current key is " << currentKey);
         }
-        if constexpr (is_same_v<N, long>) {
+        if constexpr (std::is_same_v<N, long>) {
             LOG("namespace is " << nameSpace);
         }
         if constexpr (std::is_same_v<K, int64_t> || std::is_same_v<K, int32_t>) {
@@ -354,7 +365,6 @@ public:
             getNamespaceSerializer()->serialize(&nameSpace, serializer);
         }
         ock::bss::BinaryData priBinaryData(serializer.getData(), static_cast<int32_t>(serializer.getPosition()));
-        // hash 低位对齐当前 key 的 Flink key group（BSS 按 hash % maxParallelism 推导分组）
         keyHashCode = BssKeyGroupUtils::ForceKeyGroup(
             HashCode::Hash(serializer.getData(), static_cast<int32_t>(serializer.getPosition())),
             static_cast<uint32_t>(keyContext->getCurrentKeyGroupIndex()),
@@ -373,7 +383,10 @@ private:
         long sequenceNumberForSerializer = sequenceNumber;
         longSerializer.serialize(&sequenceNumberForSerializer, keyOutputSerializer);
         ock::bss::BinaryData priKey(keyOutputSerializer.getData(), keyOutputSerializer.getPosition());
-        auto keyHashCode = HashCode::Hash(priKey.Data(), static_cast<int32_t>(priKey.Length()));
+        auto keyHashCode = BssKeyGroupUtils::ForceKeyGroup(
+            HashCode::Hash(priKey.Data(), static_cast<int32_t>(priKey.Length())),
+            static_cast<uint32_t>(keyGroup),
+            static_cast<uint32_t>(keyContext->getNumberOfKeyGroups()));
         dbTable->Remove(keyHashCode, priKey);
     }
 
