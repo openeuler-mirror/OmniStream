@@ -12,6 +12,7 @@
 #include "api/common/TaskInfoImpl.h"
 #include "streaming/api/operators/StreamOperatorStateHandler.h"
 #include "typeinfo/LongTypeInfo.h"
+#include "typeinfo/WindowTypeInfo.h"
 #include "test/core/operators/source/User.h"
 #include "basictypes/ReflectMacros.h"
 #include <nlohmann/json.hpp>
@@ -187,6 +188,35 @@ TEST(TypeInfoFactoryTest, CreateCommittableMessageInfoTest)
     TypeInformation* typeInfo = TypeInfoFactory::createCommittableMessageInfo();
     EXPECT_TRUE(typeInfo != nullptr);
     delete typeInfo;
+}
+
+TEST(TypeInfoFactoryTest, CreateTimeWindowTypeInfoTest)
+{
+    json serializerInfo = {
+        {"serializerName", TYPE_NAME_TIME_WINDOW_SERIALIZER}, {"serializerInstanceClazz", TYPE_NAME_TIME_WINDOW_CLASS}};
+
+    TypeInformation* typeInfo = TypeInfoFactory::createDataStreamTypeInfo(serializerInfo);
+    ASSERT_NE(typeInfo, nullptr);
+    auto* windowTypeInfo = dynamic_cast<WindowTypeInfo*>(typeInfo);
+    ASSERT_NE(windowTypeInfo, nullptr);
+    EXPECT_EQ(windowTypeInfo->getSerializerInstanceClazz(), TYPE_NAME_TIME_WINDOW_CLASS);
+    EXPECT_EQ(typeInfo->name(), "TimeWindow.Serializer");
+    EXPECT_EQ(typeInfo->getBackendId(), BackendDataType::TIME_WINDOW_BK);
+
+    TypeSerializer* serializer = typeInfo->createTypeSerializer();
+    ASSERT_NE(serializer, nullptr);
+    EXPECT_EQ(serializer->getBackendId(), BackendDataType::TIME_WINDOW_BK);
+    EXPECT_STREQ(serializer->getName(), "TimeWindow.Serializer");
+
+    delete serializer;
+    delete typeInfo;
+}
+
+TEST(TypeInfoFactoryTest, WindowTypeInfoRequiresSerializerInstanceClazzTest)
+{
+    json serializerInfo = {{"serializerName", TYPE_NAME_TIME_WINDOW_SERIALIZER}};
+
+    EXPECT_THROW(TypeInfoFactory::createDataStreamTypeInfo(serializerInfo), std::runtime_error);
 }
 
 TEST(TypeInfoFactoryTest, CreateBasicInternalTypeInfoTest)

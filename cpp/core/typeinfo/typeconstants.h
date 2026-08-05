@@ -54,6 +54,11 @@ extern const char* TYPE_NAME_TIMER_CLASS;
 extern const char* TYPE_NAME_TIMER_CLASS_LINE;
 extern const char* TYPE_NAME_TIMER_SERIALIZER;
 
+extern const char* TYPE_NAME_TIME_WINDOW;
+extern const char* TYPE_NAME_TIME_WINDOW_CLASS;
+extern const char* TYPE_NAME_TIME_WINDOW_CLASS_LINE;
+extern const char* TYPE_NAME_TIME_WINDOW_SERIALIZER;
+
 extern const char* TYPE_NAME_BYTE_PRIMITIVE_ARRAY_SERIALIZER;
 
 extern const char* TYPE_NAME_JOIN_TUPLE;
@@ -75,10 +80,6 @@ extern const char* TYPE_NAME_VECTOR_BATCH_CLASS_LINE;
 extern const char* TYPE_NAME_SORTED_VECTOR_LONG;
 extern const char* TYPE_NAME_SORTED_VECTOR_LONG_CLASS;
 extern const char* TYPE_NAME_SORTED_VECTOR_LONG_CLASS_LINE;
-
-extern const char* TYPE_NAME_TIME_WINDOW;
-extern const char* TYPE_NAME_TIME_WINDOW_CLASS;
-extern const char* TYPE_NAME_TIME_WINDOW_CLASS_LINE;
 
 extern const char* TYPE_NAME_EXTERNAL_SERIALIZER;
 
