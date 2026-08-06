@@ -35,6 +35,7 @@
 #include "runtime/state/VoidNamespace.h"
 #include "runtime/state/VoidNamespaceTypeInfo.h"
 #include "core/typeinfo/TimerTypeInfo.h"
+#include "core/typeinfo/WindowTypeInfo.h"
 
 TypeInformation* TypeInfoFactory::createTypeInfo(const char* name)
 {
@@ -336,6 +337,13 @@ TypeInformation* TypeInfoFactory::createDataStreamTypeInfo(const json& serialize
             internalTypeInfo->putRefCount();
             THROW_RUNTIME_ERROR("Failed to create ExternalTypeInfo");
         }
+    } else if (serializerName == TYPE_NAME_TIME_WINDOW_SERIALIZER) {
+        if (!serializerInfo.contains("serializerInstanceClazz") ||
+            !serializerInfo["serializerInstanceClazz"].is_string() ||
+            serializerInfo["serializerInstanceClazz"].empty()) {
+            THROW_RUNTIME_ERROR("serializerInstanceClazz is required for window serializer.");
+        }
+        typeInformation = new WindowTypeInfo(serializerInfo["serializerInstanceClazz"].get<std::string>());
     } else {
         THROW_RUNTIME_ERROR("invalid serializerName " + serializerName);
     }

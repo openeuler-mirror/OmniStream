@@ -52,6 +52,11 @@ const char* TYPE_NAME_TIMER_CLASS = "org.apache.flink.streaming.api.operators.Ti
 const char* TYPE_NAME_TIMER_CLASS_LINE = "org_apache_flink_streaming_api_operators_TimerHeapInternalTimer";
 const char* TYPE_NAME_TIMER_SERIALIZER = "org.apache.flink.streaming.api.operators.TimerSerializer";
 
+const char* TYPE_NAME_TIME_WINDOW = "TimeWindow";
+const char* TYPE_NAME_TIME_WINDOW_CLASS = "org.apache.flink.table.runtime.operators.window.TimeWindow";
+const char* TYPE_NAME_TIME_WINDOW_CLASS_LINE = "org_apache_flink_table_runtime_operators_window_TimeWindow";
+const char* TYPE_NAME_TIME_WINDOW_SERIALIZER = "org.apache.flink.table.runtime.operators.window.TimeWindow$Serializer";
+
 const char* TYPE_NAME_BYTE_PRIMITIVE_ARRAY_SERIALIZER =
     "org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer";
 
@@ -84,11 +89,5 @@ const char* TYPE_NAME_SORTED_VECTOR_LONG_CLASS =
     "com.huawei.omniruntime.flink.runtime.api.state.serializer.model.info.entity.SortedVectorLong";
 const char* TYPE_NAME_SORTED_VECTOR_LONG_CLASS_LINE =
     "com_huawei_omniruntime_flink_runtime_api_state_serializer_model_info_entity_SortedVectorLong";
-
-const char* TYPE_NAME_TIME_WINDOW = "TimeWindow";
-const char* TYPE_NAME_TIME_WINDOW_CLASS =
-    "com.huawei.omniruntime.flink.runtime.api.state.serializer.model.info.entity.TimeWindow";
-const char* TYPE_NAME_TIME_WINDOW_CLASS_LINE =
-    "com_huawei_omniruntime_flink_runtime_api_state_serializer_model_info_entity_TimeWindow";
 
 const char* TYPE_NAME_EXTERNAL_SERIALIZER = "org.apache.flink.table.runtime.typeutils.ExternalSerializer";
