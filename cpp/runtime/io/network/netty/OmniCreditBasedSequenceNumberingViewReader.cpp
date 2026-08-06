@@ -22,7 +22,7 @@ namespace omnistream {
           localNettyBufferPool_(localNettyBufferPool)
     {
         LOG_TRACE("create OmniCreditBasedSequenceNumberingViewReader "
-            << reinterpret_cast<long>(this))
+            << reinterpret_cast<long>(this));
         bufferSize = localNettyBufferPool->getNettyBufferSize();
     }
 
@@ -98,7 +98,7 @@ void OmniCreditBasedSequenceNumberingViewReader::getNextBufferInternal()
                     // serialize data
                     SerializeBufferAndBacklog(vectorBatchBuffer);
                 } else {
-                    LOG("buffer size is 0, so i need to return " << std::this_thread::get_id())
+                    LOG("buffer size is 0, so i need to return " << std::this_thread::get_id());
                     break;
                 }
                 // recycle buffer
@@ -121,7 +121,7 @@ void OmniCreditBasedSequenceNumberingViewReader::getNextBufferInternal()
                 networkBufferPendingRecycling.insert({reinterpret_cast<int64_t>(readableAddress), nBuffer});
                 serializedBatchQueue.push(serializedBatchInfoPtr);
             } else {
-                THROW_RUNTIME_ERROR("Unknown buffer type in getNextBufferInternal")
+                THROW_RUNTIME_ERROR("Unknown buffer type in getNextBufferInternal");
             }
 
         delete bufferAndLog;
@@ -148,7 +148,7 @@ void OmniCreditBasedSequenceNumberingViewReader::getNextBufferInternal()
                 int bufferLength = serializedBatchInfo->dataSize;
                 int bufferType = serializedBatchInfo->bufferType;
 
-                LOG("bufferAddress: " << dataAddress << " bufferLength: " << bufferLength)
+                LOG("bufferAddress: " << dataAddress << " bufferLength: " << bufferLength);
                 * reinterpret_cast<uint64_t *>(dataResultContainer + position) = memorySegmentAddress;
                 position += 8;
                 * reinterpret_cast<uint64_t *>(dataResultContainer + position) = dataAddress;
@@ -169,7 +169,7 @@ void OmniCreditBasedSequenceNumberingViewReader::getNextBufferInternal()
                                                                             bufferInfo)
     {
         if (!bufferInfo) {
-            INFO_RELEASE("buffer info in DoSerializeVectorBatch is null")
+            INFO_RELEASE("buffer info in DoSerializeVectorBatch is null");
             throw std::runtime_error("buffer info in DoSerializeVectorBatch is null");
         }
         VectorBatchSerializationUtils::serializeVectorBatch(
@@ -183,7 +183,7 @@ void OmniCreditBasedSequenceNumberingViewReader::getNextBufferInternal()
     {
         int vectorSize = VectorBatchSerializationUtils::calculateVectorBatchSerializableSize(element);
         if (!bufferInfo) {
-            INFO_RELEASE("buffer info in SerializeVectorBatch is null")
+            INFO_RELEASE("buffer info in SerializeVectorBatch is null");
             throw std::runtime_error("buffer info in SerializeVectorBatch is null");
         }
         if (vectorSize > bufferSize - bufferInfo->elementNumBytes) {
@@ -219,7 +219,7 @@ void OmniCreditBasedSequenceNumberingViewReader::getNextBufferInternal()
     bool OmniCreditBasedSequenceNumberingViewReader::DoSerializeWaterMark(long timestamp,
                                                                           std::shared_ptr<NettyBufferInfo> bufferInfo)
     {
-        LOG("START TO SERIALIZE WATERMARK <<< " << timestamp)
+        LOG("START TO SERIALIZE WATERMARK <<< " << timestamp);
         int dataSize = sizeof(int8_t) + sizeof(long);
         if (bufferInfo->Useable(dataSize)) {
             VectorBatchSerializationUtils::SerializWatermark(
@@ -304,7 +304,7 @@ void OmniCreditBasedSequenceNumberingViewReader::getNextBufferInternal()
                 std::make_shared<SerializedBatchInfo>(serializedBatchInfo);
         serializedBatchQueue.push(serializedBatchInfoPtr);
         INFO_RELEASE(">>>OmniCreditBasedSequenceNumberingViewReader push an event to queue type: "<< evenType
-            << "from subpartitionView for " << reinterpret_cast<long>(this))
+            << "from subpartitionView for " << reinterpret_cast<long>(this));
     }
 
     void OmniCreditBasedSequenceNumberingViewReader::SerializeVectorBatchBuffer(
@@ -363,7 +363,7 @@ void OmniCreditBasedSequenceNumberingViewReader::getNextBufferInternal()
     void OmniCreditBasedSequenceNumberingViewReader::DestroyNettyBufferPool()
     {
         INFO_RELEASE(
-            "------- destroyNettyBufferPool, delete nettyBufferPool = ")
+            "------- destroyNettyBufferPool, delete nettyBufferPool = ");
         if (localNettyBufferPool_) {
             if (currentInUseNettyMemorySegment)
             {

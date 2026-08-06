@@ -44,11 +44,11 @@ LocalObjectBufferPool::LocalObjectBufferPool(
       subpartitionBuffersBool_(numberOfSubpartitions,false)
 
 {
-    LOG_PART("Beginning of constructor")
+    LOG_PART("Beginning of constructor");
     LOG_PART(" numberOfRequiredObjectSegments_" << numberOfRequiredSegments_
         << " maxNumberOfMemorySegments_" << maxNumberOfObjectSegments_
         << " currentPoolSize_" << currentPoolSize_
-        << " maxBuffersPerChannel_" << maxBuffersPerChannel_)
+        << " maxBuffersPerChannel_" << maxBuffersPerChannel_);
 
     if (numberOfRequiredSegments_ <= 0) {
         throw std::invalid_argument(
@@ -81,12 +81,12 @@ LocalObjectBufferPool::LocalObjectBufferPool(
             availabilityHelper_->resetAvailable();
         }
     }
-    LOG("LocalObjectBufferPool constructor end")
+    LOG("LocalObjectBufferPool constructor end");
 }
 
 void LocalObjectBufferPool::postConstruct()
 {
-    LOG("LocalObjectBufferPool post constructor end")
+    LOG("LocalObjectBufferPool post constructor end");
     auto localPool = std::dynamic_pointer_cast<LocalObjectBufferPool>(shared_from_this());
     defaultBufferRecycler_ = std::make_shared<SubpartitionBufferRecycler>(UNKNOWN_CHANNEL, localPool);
     for (size_t i = 0; i < subpartitionBufferRecyclers_.size(); i++) {
@@ -179,7 +179,7 @@ void LocalObjectBufferPool::setMemoryBudget(uint64_t memoryBudget)
 bool LocalObjectBufferPool::shouldBeAvailable()
 {
     std::lock_guard<std::recursive_mutex> lock(memoryMutex);
-    LOG("shouldBeAvailable get lock")
+    LOG("shouldBeAvailable get lock");
     return availableMemory>0 && unavailableSubpartitionsCount_ == 0;
 }
 
@@ -212,7 +212,7 @@ std::shared_ptr<ObjectBuffer> LocalObjectBufferPool::requestObjectBuffer()
 
     ObjectBufferBuilder *LocalObjectBufferPool::requestObjectBufferBuilder()
     {
-        LOG(">>>")
+        LOG(">>>");
        return toObjectBufferBuilder(requestObjectSegment(UNKNOWN_CHANNEL, 0), UNKNOWN_CHANNEL);
     }
 
@@ -223,7 +223,7 @@ std::shared_ptr<ObjectBuffer> LocalObjectBufferPool::requestObjectBuffer()
 
     ObjectBufferBuilder * LocalObjectBufferPool::requestObjectBufferBuilderBlocking()
     {
-        LOG(">>>")
+        LOG(">>>");
         return toObjectBufferBuilder(requestObjectSegmentBlocking(0), UNKNOWN_CHANNEL);
     }
 
@@ -303,7 +303,7 @@ void LocalObjectBufferPool::recycle(Segment* segment, int channel)
         INFO_RELEASE("LocalObjectBufferPool recycled segment after destroy for channel " << channel
             << " from " << this << " and objectSegment = " << objectSegment
             << " request segment number = " << requestedSegmentCount
-            << " recycle segment number = " << recycledSegmentCount)
+            << " recycle segment number = " << recycledSegmentCount);
         delete objectSegment;
     }
 }
@@ -353,7 +353,7 @@ void LocalObjectBufferPool::recycleBytes(int64_t bytes, int channel)
            << returnedBytes << " for channel " << channel << " from " << this
            << " maxNumberOfObjectSegments_ = " << maxNumberOfObjectSegments_ << " numberOfRequiredSegments_ = " << numberOfRequiredSegments_
            << " maxBuffersPerChannel = " << maxBuffersPerChannel_ << " currentPoolMemoryBudget_ = " << currentPoolMemoryBudget_
-           << " request bytes = " << requestedBytes << " recycle bytes  = " << recycledBytes)
+           << " request bytes = " << requestedBytes << " recycle bytes  = " << recycledBytes);
         }
 
     }
@@ -525,7 +525,7 @@ void LocalObjectBufferPool::lazyDestroyMemory()
         << " maxBuffersPerChannel = " << maxBuffersPerChannel_
         << " currentPoolMemoryBudget_ = " << poolMemoryBudgetAtDestroy
         << " request bytes number = " << requestedBytesAtDestroy
-        << " recycle bytes number = " << recycledBytesAtDestroy)
+        << " recycle bytes number = " << recycledBytesAtDestroy);
 }
 
 void LocalObjectBufferPool::lazyDestroySegment()
@@ -547,7 +547,7 @@ void LocalObjectBufferPool::lazyDestroySegment()
     INFO_RELEASE("LocalObjectBufferPool::::::: lazy destroy segment --------------> from " << this
         << " request segment number = " << requestedSegmentsAtDestroy
         << " recycle segment number = " << recycledSegmentsAtDestroy
-        << " released cached segment number = " << releasedSegmentCount)
+        << " released cached segment number = " << releasedSegmentCount);
 }
 
 void LocalObjectBufferPool::lazyDestroy()
@@ -767,7 +767,7 @@ void LocalObjectBufferPool::chargeMemoryBlocking(int targetChannel,uint64_t byte
                << " maxNumberOfObjectSegments_ = " << maxNumberOfObjectSegments_ << " numberOfRequiredSegments_ = " << numberOfRequiredSegments_
              << " maxBuffersPerChannel = " << maxBuffersPerChannel_ << " currentPoolMemoryBudget_ = " << currentPoolMemoryBudget_
              << " request segment number = " << requestSegmentNumber << " recycle segment number = " << recycleSegmentNumber
-             << " requested bytes  = " << requestedBytes << " recycled bytes = " << recycledBytes)
+             << " requested bytes  = " << requestedBytes << " recycled bytes = " << recycledBytes);
         }
         if (cancelled_.load()) {
             // Deregister our waiter reservation (if any) so the global counter doesn't leak.

@@ -32,7 +32,7 @@ GlobalNettyBufferPool::GlobalNettyBufferPool(const NettyBufferConf& conf)
     INFO_RELEASE("GlobalNettyBufferPool created: totalBuffers=" << totalNumberOfBuffers_
         << ", initialAllocatedRegularBuffers=" << initialRegularBufferCount
         << ", availableBuffers=" << availableBuffers_.size()
-        << ", bufferSize=" << conf_.bufferSize)
+        << ", bufferSize=" << conf_.bufferSize);
 }
 
 GlobalNettyBufferPool::~GlobalNettyBufferPool()
@@ -90,7 +90,7 @@ std::shared_ptr<NettyMemorySegment> GlobalNettyBufferPool::allocateBigBuffer(int
         std::lock_guard<std::recursive_mutex> lock(bigBufferMutex_);
         activeBigBuffers_[address] = segment;
     }
-    LOG("GlobalNettyBufferPool::allocateBigBuffer size=" << allocSize)
+    LOG("GlobalNettyBufferPool::allocateBigBuffer size=" << allocSize);
     return segment;
 }
 
@@ -178,7 +178,7 @@ void GlobalNettyBufferPool::destroyLocalPool(std::shared_ptr<LocalNettyBufferPoo
             << " destroyedLocalBufferCount=" << destroyedLocalBufferCount_
             << " totalNumberOfBuffers=" << totalNumberOfBuffers_
             << " allocatedRegularBuffers=" << allocatedRegularBufferCount
-            << " availableBuffers=" << availableBufferCount)
+            << " availableBuffers=" << availableBufferCount);
         destroyedLocalBufferCount_ = 0;
         createdLocalPoolCount_ = 0;
     }

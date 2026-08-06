@@ -28,7 +28,7 @@ LocalNettyBufferPool::LocalNettyBufferPool(GlobalNettyBufferPool* globalPool,
     }
     LOG("LocalNettyBufferPool created: required=" << numberOfRequiredBuffers_
         << ", max=" << maxNumberOfBuffers_
-        << ", bigTotalMemorySize=" << bigTotalMemorySize_)
+        << ", bigTotalMemorySize=" << bigTotalMemorySize_);
 }
 
 LocalNettyBufferPool::~LocalNettyBufferPool()
@@ -84,7 +84,7 @@ std::shared_ptr<NettyMemorySegment> LocalNettyBufferPool::requestBuffer()
             }
             // Global is temporarily empty but we haven't reached our size yet —
             // wait for a buffer to become available (from local recycle or global)
-            INFO_RELEASE("OmniCredit Client is in back pressure state from global Netty Buffer pool is empty............")
+            INFO_RELEASE("OmniCredit Client is in back pressure state from global Netty Buffer pool is empty............");
             cv_.wait_for(lock, std::chrono::milliseconds(2000));
             continue;
         }
@@ -103,7 +103,7 @@ std::shared_ptr<NettyMemorySegment> LocalNettyBufferPool::requestBufferBlocking(
         }
         std::unique_lock<std::recursive_mutex> lock(mutex_);
         //wait here means LocalBufferPool has RequestedSizeReached,so it needs to wait from its own availableBuffers_
-        INFO_RELEASE("OmniCredit Client is in back pressure state from regular Netty Buffer request............")
+        INFO_RELEASE("OmniCredit Client is in back pressure state from regular Netty Buffer request............");
         cv_.wait_for(lock, std::chrono::milliseconds(2000));
     }
     return buffer;
@@ -127,7 +127,7 @@ std::shared_ptr<NettyMemorySegment> LocalNettyBufferPool::requestBigBuffer(int s
         if (isDestroyed_) {
             throw std::runtime_error("LocalNettyBufferPool destroyed while waiting for big buffer.");
         }
-        INFO_RELEASE("OmniCredit Client is in back pressure state from Big Netty Buffer request............")
+        INFO_RELEASE("OmniCredit Client is in back pressure state from Big Netty Buffer request............");
 
         bigCv_.wait_for(lock, std::chrono::milliseconds(2000));
     }
@@ -146,7 +146,7 @@ std::shared_ptr<NettyMemorySegment> LocalNettyBufferPool::requestBigBuffer(int s
 
     LOG("LocalNettyBufferPool::requestBigBuffer allocSize=" << allocSize
         << ", availableBigMemorySize=" << availableBigMemorySize_
-        << ", activeBigBufferCount=" << activeBigBufferCount_)
+        << ", activeBigBufferCount=" << activeBigBufferCount_);
 
     return buffer;
 }
@@ -333,7 +333,7 @@ void LocalNettyBufferPool::lazyDestroy()
             << " recycleBigBufferCount=" << recycleBigBufferCount_
             << " numberOfRequestedBuffers=" << numberOfRequestedBuffers_
             << " availableBuffers=" << availableBuffers_.size()
-            << " activeBigBufferCount=" << activeBigBufferCount_)
+            << " activeBigBufferCount=" << activeBigBufferCount_);
 
         // Return all available normal buffers to global
         while (!availableBuffers_.empty()) {

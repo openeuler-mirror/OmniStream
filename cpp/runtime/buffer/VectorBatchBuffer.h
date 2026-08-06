@@ -69,12 +69,12 @@ public:
 
     Buffer* RetainBuffer() override
     {
-        LOG_TRACE("retain ")
+        LOG_TRACE("retain ");
         std::lock_guard<std::mutex> lock(refCountMutex_);
         if (isRecycled_ || refCount <= 0) {
             throw std::runtime_error("RetainBuffer on a released VectorBatchBuffer");
         }
-        LOG_PART("RetainBuffer The buffer " << this << " refCount is incremented from " << refCount << " to " << (refCount + 1))
+        LOG_PART("RetainBuffer The buffer " << this << " refCount is incremented from " << refCount << " to " << (refCount + 1));
         ++refCount;
         return this;
     }

@@ -162,7 +162,7 @@ std::shared_ptr<AbstractEvent> EventSerializer::fromSerializedEvent(Buffer* buff
             isReadOnlySlicedNetworkBuffer = false;
             networkBuffer = dynamic_cast<datastream::NetworkBuffer*>(buffer);
             if (!networkBuffer) {
-                LOG_DEBUG("find a cast error!")
+                LOG_DEBUG("find a cast error!");
                 throw std::runtime_error("it is not netwokrk buffer, so it can not be converted to event.");
             }
         }

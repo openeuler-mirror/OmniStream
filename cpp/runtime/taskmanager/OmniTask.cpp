@@ -232,11 +232,11 @@ void OmniTask::DoRunRestore(long streamTaskAddress)
             partitionWriter->SetMetricGroup(metricGroup);
         }
         try {
-            INFO_RELEASE(" OmniTask::DoRunRestore Invokable restore before")
+            INFO_RELEASE(" OmniTask::DoRunRestore Invokable restore before");
             this->invokable_->restore();
-            INFO_RELEASE(" OmniTask::DoRunRestore Invokable restore after")
+            INFO_RELEASE(" OmniTask::DoRunRestore Invokable restore after");
             flag.store(true);
-            INFO_RELEASE("find OmniTask initialized, task name: " << taskNameWithSubtask_)
+            INFO_RELEASE("find OmniTask initialized, task name: " << taskNameWithSubtask_);
 
         // init remote fetcher here because, the channels have been created and restored
         if (remoteDataFetcherBridge_ != nullptr) {
@@ -414,7 +414,7 @@ void OmniTask::CloseAllInputGates()
                                              int bufferLength, int readIndex, int sequenceNumber, bool isBuffer,
                                              int bufferType)
     {
-        LOG("notifyRemoteDataAvailable")
+        LOG("notifyRemoteDataAvailable");
         auto inputGate = inputGates[inputGateIndex];
         auto channel = inputGate->getChannel(channelIndex);
         if (auto remoteChannel = std::dynamic_pointer_cast<RemoteInputChannel>(channel)) {
@@ -427,7 +427,7 @@ void OmniTask::CloseAllInputGates()
                     originalNetworkBufferRecycler_, isBuffer, bufferType);
             }
         } else {
-            LOG("Channel is not a RemoteInputChannel")
+            LOG("Channel is not a RemoteInputChannel");
         }
     }
 
@@ -460,7 +460,7 @@ long OmniTask::createNativeCreditBasedSequenceNumberingViewReader(
                 reader->requestSubpartitionView(resultPartitionManager, partitionId, subPartitionId);
                 break; // Exit loop if successful
             } catch (...) {
-                INFO_RELEASE("OmniTask 1 sleep time: " << std::to_string(200))
+                INFO_RELEASE("OmniTask 1 sleep time: " << std::to_string(200));
                 std::this_thread::sleep_for(std::chrono::milliseconds(200));
             }
             if (++retryCount >= 3) {
@@ -549,7 +549,7 @@ long OmniTask::createOmniLocalChannelReader(
             INFO_RELEASE("PartitionRequest[LOCAL] FAILED task=" << taskNameWithSubtask_
                 << " partitionId=" << partitionId.toString()
                 << " subPartitionId=" << subPartitionId
-                << " reason=shuffleEnv_cast_failed")
+                << " reason=shuffleEnv_cast_failed");
             return -1;
         }
         std::shared_ptr<ResultPartitionManager> resultPartitionManager = omniShuffleEnv->getResultPartitionManager();

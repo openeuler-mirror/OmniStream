@@ -73,9 +73,9 @@ std::shared_ptr<ShuffleEnvironment> OmniShuffleServiceFactory::createOmniShuffle
         std::shared_ptr<ResultPartitionManager> resultPartitionManager,
         std::shared_ptr<ConnectionManager> connectionManager)
     {
-        LOG_PART("networkObjectBufferPool will create")
+        LOG_PART("networkObjectBufferPool will create");
         LOG_PART(  " getNumNetworkBuffers  " << std::to_string(config->getNumNetworkBuffers())
-            << "  getNetworkBufferSize  "   <<   config->getNetworkBufferSize())
+            << "  getNetworkBufferSize  "   <<   config->getNetworkBufferSize());
         std::shared_ptr<datastream::NetworkMemoryBufferPool> networkMemoryBufferPool =
                std::make_shared<datastream::NetworkMemoryBufferPool> (
                        config->getNumNetworkBuffers(),

@@ -35,10 +35,10 @@ public:
 
     void RecycleBuffer() override
     {
-        LOG_TRACE("Calling RecycleBuffer() from ReadOnlySlicedVectorBatchBuffer")
+        LOG_TRACE("Calling RecycleBuffer() from ReadOnlySlicedVectorBatchBuffer");
         static_cast<LocalObjectBufferPool::SubpartitionBufferRecycler*>(GetRecycler().get())
             ->recycleBytes(byteToRecycle);
-        LOG_TRACE("ReadOnlySlicedVectorBatchBuffer bytesToRecycle = " << byteToRecycle)
+        LOG_TRACE("ReadOnlySlicedVectorBatchBuffer bytesToRecycle = " << byteToRecycle);
         parent_->RecycleBuffer();
     }
 

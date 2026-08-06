@@ -18,7 +18,7 @@ namespace omnistream {
         // Ensure the segment is of type ObjectSegment
         auto toRecycledSegment = dynamic_cast<MemorySegment*>(segment);
         if (toRecycledSegment) {
-            LOG_PART("EventDataBufferRecycler recycled " << toRecycledSegment->getData())
+            LOG_PART("EventDataBufferRecycler recycled " << toRecycledSegment->getData());
             // since memorysegment has a destructor that deletes the data, we do not need to delete it here
             delete toRecycledSegment;
         }

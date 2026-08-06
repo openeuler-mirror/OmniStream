@@ -302,14 +302,14 @@ BufferBuilder* BufferWritingResultPartition::appendUnicastDataForNewRecord(void*
             requestMemoryForVectorBatch(targetSubpartition,bytes);
             if (buffer == nullptr) {
                 buffer = requestNewUnicastBufferBuilder(targetSubpartition,bytes);
-                LOG_PART("Add bufferbuilder: " << buffer.get() << " to subparition" << targetSubpartition)
+                LOG_PART("Add bufferbuilder: " << buffer.get() << " to subparition" << targetSubpartition);
                 addToSubpartition(buffer, targetSubpartition, 0);
             }
             buffer->appendAndCommit(record);
         }else if (taskType == 2) {
             if (buffer == nullptr) {
                 buffer = requestNewUnicastBufferBuilder(targetSubpartition,0);
-                LOG_PART("Add bufferbuilder: " << buffer << " to subparition" << targetSubpartition)
+                LOG_PART("Add bufferbuilder: " << buffer << " to subparition" << targetSubpartition);
 
             auto streamRecord = reinterpret_cast<StreamRecord*>(record);
             auto value = reinterpret_cast<ByteBuffer*>(streamRecord->getValue());
@@ -434,7 +434,7 @@ void BufferWritingResultPartition::createBroadcastBufferConsumers(
         ensureUnicastMode();
         BufferBuilder *bufferBuilder = requestNewBufferBuilderFromPool(targetSubpartition,bytes);
         unicastBufferBuilders[targetSubpartition] = bufferBuilder;
-        LOG("set bufferBuilder to unicastBufferBuilders, targetSubpartition: "<< std::to_string(targetSubpartition))
+        LOG("set bufferBuilder to unicastBufferBuilders, targetSubpartition: "<< std::to_string(targetSubpartition));
         return bufferBuilder;
     }
 
@@ -457,7 +457,7 @@ BufferBuilder* BufferWritingResultPartition::requestNewBroadcastBufferBuilder()
         if (bufferPool == nullptr) {
             throw std::runtime_error("Result partition buffer pool is null.");
         }
-        LOG("bufferPool->requestObjectBufferBuilder will running")
+        LOG("bufferPool->requestObjectBufferBuilder will running");
         BufferBuilder *bufferBuilder = bufferPool->requestBufferBuilder(targetSubpartition,bytes);
         if (bufferBuilder) {
             return bufferBuilder;
@@ -465,7 +465,7 @@ BufferBuilder* BufferWritingResultPartition::requestNewBroadcastBufferBuilder()
         //todo backpressure start point....
         hardBackPressuredTimeMsPerSecond->MarkStart();
         try {
-            LOG("bufferPool->requestObjectBufferBuilderBlocking will running")
+            LOG("bufferPool->requestObjectBufferBuilderBlocking will running");
             bufferBuilder = bufferPool->requestBufferBuilderBlocking(targetSubpartition, bytes);
             hardBackPressuredTimeMsPerSecond->MarkEnd();
             return bufferBuilder;

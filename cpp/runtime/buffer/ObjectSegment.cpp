@@ -34,8 +34,8 @@ int ObjectSegment::putObject(int offset, StreamElement* record)
     //     reset();
     // }
 
-    LOG("objects address" << objects_[offset])
-    LOG("objects size()" << size)
+    LOG("objects address" << objects_[offset]);
+    LOG("objects size()" << size);
 
     objects_[offset] = record;
     sizeInBytes_ += calculateStoredObjectSizeInBytes(record);

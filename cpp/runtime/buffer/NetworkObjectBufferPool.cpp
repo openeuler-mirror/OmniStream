@@ -42,7 +42,7 @@ NetworkObjectBufferPool::NetworkObjectBufferPool(
         throw std::invalid_argument("The timeout for requesting exclusive buffers should be positive.");
     }
     LOG_INFO_IMP("numberOfSegmentsToAllocate: " << numberOfSegmentsToAllocate
-        << "  segmentSize  is  :" << segmentSize  << " requestSegmentsTimeout: " << requestSegmentsTimeout.count())
+        << "  segmentSize  is  :" << segmentSize  << " requestSegmentsTimeout: " << requestSegmentsTimeout.count());
     objectSegmentSize = segmentSize;
 
     try {
@@ -64,7 +64,7 @@ NetworkObjectBufferPool::NetworkObjectBufferPool(
 
     LOG("Allocated " << (((long)segmentSize * availableObjectSegments.size()) >> 20)
                      << " MB for network buffer pool (number of memory segments:"
-                     << availableObjectSegments.size() << ", bytes per segment: " << segmentSize << ").\n")
+                     << availableObjectSegments.size() << ", bytes per segment: " << segmentSize << ").\n");
 }
 
 NetworkObjectBufferPool::~NetworkObjectBufferPool()
@@ -139,8 +139,8 @@ ObjectSegment* NetworkObjectBufferPool::requestPureObjectSegment()
 ObjectSegment * NetworkObjectBufferPool::internalRequestObjectSegment()
 {
     std::lock_guard<std::recursive_mutex> lock(availableObjSegMutex);
-    LOG("availableObjectSegments size : " << std::to_string(availableObjectSegments.size()))
-    LOG("availableObjectSegments.empty() : " << std::to_string(availableObjectSegments.empty()))
+    LOG("availableObjectSegments size : " << std::to_string(availableObjectSegments.size()));
+    LOG("availableObjectSegments.empty() : " << std::to_string(availableObjectSegments.empty()));
     if (availableObjectSegments.empty()) {
         //create one
         return ObjectSegmentFactory::allocateUnpooledSegment(1);
@@ -159,7 +159,7 @@ void NetworkObjectBufferPool::revertRequiredBuffers(uint64_t memoryToRevert)
 
 void NetworkObjectBufferPool::internalRecycleObjectSegments(const std::vector<ObjectSegment*>& segments)
 {
-    LOG("internalRecycleObjectSegments running")
+    LOG("internalRecycleObjectSegments running");
     std::lock_guard<std::recursive_mutex> lock(availableObjSegMutex);
     for (const auto& segment : segments) {
         availableObjectSegments.push_back(segment);
@@ -176,7 +176,7 @@ void NetworkObjectBufferPool::destroy()
 
     {
         std::lock_guard<std::recursive_mutex> segLock(availableObjSegMutex);
-        LOG("destroy running")
+        LOG("destroy running");
         availableObjectSegments.clear();
     }
 
@@ -348,10 +348,10 @@ std::shared_ptr<BufferPool> NetworkObjectBufferPool::createBufferPool(
 {
     LOG_INFO_IMP("createBufferPool numRequiredBuffers : " << numRequiredBuffers
         << " maxUsedBuffers: " << maxUsedBuffers << " numSubpartitions: " << numSubpartitions
-        << " maxBuffersPerChannel: " << maxBuffersPerChannel)
+        << " maxBuffersPerChannel: " << maxBuffersPerChannel);
     auto res = internalCreateObjectBufferPool(
         numRequiredBuffers, maxUsedBuffers, numSubpartitions, maxBuffersPerChannel);
-    LOG("createBufferPool end")
+    LOG("createBufferPool end");
     return res;
 }
 
@@ -361,7 +361,7 @@ std::shared_ptr<BufferPool> NetworkObjectBufferPool::internalCreateObjectBufferP
     int numSubpartitions,
     int maxBuffersPerChannel)
 {
-    LOG("try to get lock ....")
+    LOG("try to get lock ....");
     std::lock_guard<std::recursive_mutex> lock(factoryLock);
     if (isDestroyed_) {
         throw std::runtime_error("Network buffer pool has already been destroyed.");
@@ -381,7 +381,7 @@ std::shared_ptr<BufferPool> NetworkObjectBufferPool::internalCreateObjectBufferP
     //update availableMemory,usedMemory
     availableMemory -= requiredMemory;
     usedMemory += requiredMemory;
-    LOG_PART("Before make shared new LocalObjectBufferPool")
+    LOG_PART("Before make shared new LocalObjectBufferPool");
 
     auto localObjectBufferPool = std::make_shared<LocalObjectBufferPool>(
         shared_from_this(), numRequiredBuffers, maxUsedBuffers, numSubpartitions, maxBuffersPerChannel);

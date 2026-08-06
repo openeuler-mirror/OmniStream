@@ -29,7 +29,7 @@ public:
 
         void RecycleBuffer() override {
             if (parent_ == nullptr) {
-                THROW_RUNTIME_ERROR("ReadOnlySlicedNetworkBuffer::RecycleBuffer() >>> parent_ is nullptr")
+                THROW_RUNTIME_ERROR("ReadOnlySlicedNetworkBuffer::RecycleBuffer() >>> parent_ is nullptr");
             }
             // Only drop our reference (mirror ReadOnlySlicedVectorBatchBuffer). The parent reclaims
             // itself in the single thread that drives its refCount to 0, so we must NOT read or delete

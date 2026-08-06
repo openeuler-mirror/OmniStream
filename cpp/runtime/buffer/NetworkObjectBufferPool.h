@@ -46,7 +46,7 @@ public:
     void recyclePooledObjectSegmentPhysicalOnly(ObjectSegment *segment);
     void recyclePooledObjectSegmentsPhysicalOnly(std::vector<ObjectSegment*>& segments);
     std::vector<MemorySegment*> requestUnpooledMemorySegments(int numberOfSegmentsToRequest) override {
-        THROW_LOGIC_EXCEPTION("error")
+        THROW_LOGIC_EXCEPTION("error");
     }
     void recycleUnpooledMemorySegments(const std::vector<MemorySegment*>& segments) override
     {
@@ -54,11 +54,11 @@ public:
     }
     std::vector<ObjectSegment *> requestUnpooledObjectSegments(int numberOfSegmentsToRequest) override
     {
-        THROW_LOGIC_EXCEPTION("error")
+        THROW_LOGIC_EXCEPTION("error");
     }
     void recycleUnpooledObjectSegments(const std::vector<ObjectSegment *> &segments)
     {
-        THROW_LOGIC_EXCEPTION("error")
+        THROW_LOGIC_EXCEPTION("error");
     }
     void destroy();
     bool isDestroyed() const;

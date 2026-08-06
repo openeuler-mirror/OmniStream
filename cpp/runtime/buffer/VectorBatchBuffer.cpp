@@ -52,10 +52,10 @@ void VectorBatchBuffer::recycleBuffer(bool selfDelete)
         if (isRecycled_) {
             throw std::runtime_error("Trying to recycle a VectorBatchBuffer that has already been recycled");
         }
-        LOG_PART("The buffer " << this << " refCount is decremented from " << refCount << " to " << (refCount - 1))
+        LOG_PART("The buffer " << this << " refCount is decremented from " << refCount << " to " << (refCount - 1));
         --refCount;
         if (refCount == 0) {
-            LOG_PART("VectorBatch Buffer recycled " << this)
+            LOG_PART("VectorBatch Buffer recycled " << this);
             isRecycled_ = true;
             segmentToRecycle = GetObjectSegment();
         }
