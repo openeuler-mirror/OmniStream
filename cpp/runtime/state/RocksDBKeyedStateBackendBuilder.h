@@ -31,12 +31,16 @@
 #include "runtime/state/restore/RocksDBRestoreOperation.h"
 #include "runtime/state/restore/RocksDBNoneRestoreOperation.h"
 #include "runtime/state/restore/RocksDBIncrementalRestoreOperation.h"
+#include "runtime/state/restore/RocksDBCompatibleFullRestoreOperation.h"
 #include "runtime/state/restore/RocksDBFullRestoreOperation.h"
 #include "runtime/state/restore/RocksDBHeapTimersFullRestoreOperation.h"
+#include "runtime/checkpoint/FlinkSavepointAdaptorInfo.h"
+#include "runtime/checkpoint/OperatorSavepointAdaptorFactory.h"
 #include "runtime/snapshot/RocksDBSnapshotStrategyBase.h"
 #include "runtime/snapshot/RocksNativeFullSnapshotStrategy.h"
 #include "runtime/snapshot/RocksIncrementalSnapshotStrategy.h"
 #include "runtime/state/rocksdb/RocksDBStateUploader.h"
+#include "runtime/state/StateRestoreValidation.h"
 
 namespace fs = std::filesystem;
 template <typename K>
@@ -105,6 +109,30 @@ public:
         return *this;
     }
 
+    RocksDBKeyedStateBackendBuilder<K>& setFlinkSavepointAdaptorInfo(const FlinkSavepointAdaptorInfo& adaptorInfo)
+    {
+        this->adaptorInfo_ = adaptorInfo;
+        return *this;
+    }
+
+    RocksDBKeyedStateBackendBuilder<K>& setRestoreSavepointMode(RestoreSavepointMode restoreMode)
+    {
+        this->restoreMode_ = restoreMode;
+        return *this;
+    }
+
+    RocksDBKeyedStateBackendBuilder<K>& setOperatorDescription(const nlohmann::json& operatorDescription)
+    {
+        this->operatorDescription_ = operatorDescription;
+        return *this;
+    }
+
+    RocksDBKeyedStateBackendBuilder<K>& setTaskType(int taskType)
+    {
+        this->taskType_ = taskType;
+        return *this;
+    }
+
 private:
     const std::shared_ptr<CloseableRegistry> cancelStreamRegistry;
     static constexpr const char* DB_INSTANCE_DIR_STRING = "db";
@@ -126,6 +154,10 @@ private:
     std::shared_ptr<OmniTaskBridge> omniTaskBridge;
     std::shared_ptr<OperatorID> operatorId_;
     int alternativeIdx_;
+    FlinkSavepointAdaptorInfo adaptorInfo_;
+    RestoreSavepointMode restoreMode_ = RestoreSavepointMode::OMNI_INTERNAL;
+    int taskType_ = 1;
+    nlohmann::json operatorDescription_;
 
     static void checkAndCreateDirectory(const fs::path& directory)
     {
@@ -153,6 +185,11 @@ private:
         }
     }
 
+    bool validateRestoreStateHandles()
+    {
+        return omnistream::validateRestoreStateHandles(restoreStateHandles, omniTaskBridge);
+    }
+
     std::shared_ptr<RocksDBRestoreOperation> getRocksDBRestoreOperation(
         int keyGroupPrefixBytes,
         std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
@@ -165,6 +202,46 @@ private:
                 kvStateInformation, instanceRocksDBPath, dbOptions, columnFamilyOptionsFactory);
         }
         std::shared_ptr<KeyedStateHandle> firstStateHandle = restoreStateHandles[0];
+        if (restoreMode_ == RestoreSavepointMode::FLINK_COMPATIBLE) {
+            if (adaptorInfo_.type == FlinkSavepointAdaptorType::None) {
+                INFO_RELEASE("Error:RocksDB compatible restore is unsupported: " << adaptorInfo_.reason);
+                throw std::runtime_error("RocksDB compatible restore is not supported: " + adaptorInfo_.reason);
+            }
+            if (adaptorInfo_.type != FlinkSavepointAdaptorType::OmniIsCompatible) {
+                if (std::dynamic_pointer_cast<IncrementalKeyedStateHandle>(firstStateHandle)) {
+                    INFO_RELEASE("Error:RocksDB compatible restore does not support incremental/native state handles");
+                    throw std::runtime_error(
+                        "RocksDB compatible full restore does not support incremental/native state handles");
+                }
+                auto adaptor = omnistream::OperatorSavepointAdaptorFactory::createAdaptor(adaptorInfo_.type);
+                if (adaptor == nullptr) {
+                    INFO_RELEASE(
+                        "Error:RocksDB compatible restore adaptor factory returned null: " << adaptorInfo_.reason);
+                    throw std::runtime_error("RocksDB compatible restore adaptor factory returned null");
+                }
+                adaptor->prepareForRestore(operatorDescription_);
+                return std::make_shared<RocksDBCompatibleFullRestoreOperation<K>>(
+                    keyGroupRange,
+                    keyGroupPrefixBytes,
+                    keySerializer,
+                    kvStateInformation,
+                    instanceRocksDBPath,
+                    dbOptions,
+                    columnFamilyOptionsFactory,
+                    restoreStateHandles,
+                    writeBatchSize,
+                    omniTaskBridge,
+                    adaptorInfo_,
+                    std::move(adaptor));
+            }
+        } else if (taskType_ == 1) {
+            // sql任务的情况下
+            if (adaptorInfo_.type != FlinkSavepointAdaptorType::OmniIsCompatible && !validateRestoreStateHandles()) {
+                INFO_RELEASE("Error:RocksDB restore does not support current state handles");
+                throw std::runtime_error("RocksDB restore does not support current state handles");
+            }
+        }
+
         if (auto incrementalHandle = std::dynamic_pointer_cast<IncrementalKeyedStateHandle>(firstStateHandle)) {
             return std::make_shared<RocksDBIncrementalRestoreOperation<K>>(
                 operatorIdentifier,
@@ -211,7 +288,7 @@ private:
         }
     }
 
-    RocksDBSnapshotStrategyBase* initializeSavepointAndCheckpointStrategies(
+    std::shared_ptr<RocksDBSnapshotStrategyBase> initializeSavepointAndCheckpointStrategies(
         std::shared_ptr<ResourceGuard> rocksDBResourceGuard,
         std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
         int keyGroupPrefixBytes,
@@ -220,12 +297,12 @@ private:
         std::map<long, std::vector<HandleAndLocalPath>> materializedSstFiles,
         long lastCompletedCheckpointId)
     {
-        RocksDBSnapshotStrategyBase* checkpointSnapshotStrategy;
+        std::shared_ptr<RocksDBSnapshotStrategyBase> checkpointSnapshotStrategy;
 
         auto stateUploader = std::make_shared<RocksDBStateUploader>(numberOfTransferingThreads);
 
         if (enableIncrementalCheckpointing) {
-            checkpointSnapshotStrategy = new RocksIncrementalSnapshotStrategy(
+            checkpointSnapshotStrategy = std::make_shared<RocksIncrementalSnapshotStrategy>(
                 db,
                 rocksDBResourceGuard,
                 keySerializer,
@@ -239,7 +316,7 @@ private:
                 stateUploader,
                 lastCompletedCheckpointId);
         } else {
-            checkpointSnapshotStrategy = new RocksNativeFullSnapshotStrategy(
+            checkpointSnapshotStrategy = std::make_shared<RocksNativeFullSnapshotStrategy>(
                 db,
                 rocksDBResourceGuard,
                 keySerializer,
@@ -318,14 +395,14 @@ RocksdbKeyedStateBackend<K>* RocksDBKeyedStateBackendBuilder<K>::build()
             keySerializer.get(),
             keyContext,
             db,
-            strategy,
+            std::move(strategy),
             keyGroupRange,
             kvStateInformation,
-            registeredPQStates,
-            rocksDBResourceGuard,
+            std::move(registeredPQStates),
+            std::move(rocksDBResourceGuard),
             keyGroupPrefixBytes,
-            writeBatchWrapper,
-            priorityQueueSetFactory,
+            std::move(writeBatchWrapper),
+            std::move(priorityQueueSetFactory),
             bridge,
             omniTaskBridge);
     } catch (const std::exception& e) {

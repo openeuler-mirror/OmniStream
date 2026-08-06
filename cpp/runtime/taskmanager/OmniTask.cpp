@@ -237,11 +237,11 @@ void OmniTask::DoRunRestore(long streamTaskAddress)
             remoteDataFetcherBridge_->InitCppRemoteInputChannel(this->inputGates);
         }
     } catch (const PartitionNotFoundException& e) {
-        GErrorLog("PartitionNotFoundException causes the task to stop and will do cleanup");
+        THROW_LOGIC_EXCEPTION("PartitionNotFoundException during restore: " << e.what());
     } catch (const std::exception& e) {
-        GErrorLog(std::string("std::exception during restore: ") + e.what());
+        THROW_RUNTIME_ERROR("std::exception during restore: " << e.what());
     } catch (...) {
-        GErrorLog("exception  during restore or invoke, and the task is stopped and will do cleanup");
+        THROW_RUNTIME_ERROR("unknown error during restore");
     }
 }
 
@@ -303,7 +303,7 @@ void OmniTask::DoRunInvoke(long streamTaskAddress)
 {
     int count = 0;
     while (!flag.load()) {
-        INFO_RELEASE("find OmniTask still uninitialzed, tasm name : " << taskNameWithSubtask_);
+        INFO_RELEASE("find OmniTask still uninitialzed, task name : " << taskNameWithSubtask_);
         count++;
         if (count > 5) {
             break;
@@ -316,11 +316,11 @@ void OmniTask::DoRunInvoke(long streamTaskAddress)
         LOG_INFO_IMP("Invokable Invoke");
         this->invokable_->invoke();
     } catch (const PartitionNotFoundException& e) {
-        GErrorLog("PartitionNotFoundException causes the task to stop and will do cleanup");
+        THROW_LOGIC_EXCEPTION("PartitionNotFoundException during invoke: " << e.what());
     } catch (const std::exception& e) {
-        GErrorLog(std::string("std::exception during restore or invoke: ") + e.what());
+        THROW_RUNTIME_ERROR("std::exception during invoke: " << e.what());
     } catch (...) {
-        GErrorLog("exception  during restore or invoke, and the task is stopped and will do cleanup");
+        THROW_RUNTIME_ERROR("unknown error during invoke");
     }
 
     // ----------------------------------------------------------------
@@ -602,7 +602,6 @@ long OmniTask::changeLocalInputChannelToOriginal(ResultPartitionIDPOD partitionI
                 omniShuffleEnv->getSingleInputGateFactory();
             shared_ptr<OmniLocalInputChannel> originalInputChannel = singleInputGateFactory->createOriginalInputChannel(
                 singleInputGate, channel->getChannelIndex(), partitionId);
-            originalInputChannel->SetForwardResumeToJava(singleInputGate->GetForwardResumeToJava());
             inputChannelMap[irp] = originalInputChannel;
             singleInputGate->changeLocalInputChannelToOriginal(channel->getChannelIndex(), originalInputChannel);
             return reinterpret_cast<long>(originalInputChannel.get());

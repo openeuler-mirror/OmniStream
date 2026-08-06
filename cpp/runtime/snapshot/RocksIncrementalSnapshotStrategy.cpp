@@ -74,13 +74,13 @@ std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>> RocksIncrementalSnapsh
     auto stateMetaInfoSnapshots = rocksdbSnapshotResources->stateMetaInfoSnapshots;
 
     return std::make_shared<RocksDBIncrementalSnapshotOperation>(
-        this,
+        std::static_pointer_cast<RocksIncrementalSnapshotStrategy>(retainForAsyncSnapshot()),
         checkpointId,
         checkpointStreamFactory,
-        snapshotDirectory,
-        previousSnapshot,
+        std::move(snapshotDirectory),
+        std::move(previousSnapshot),
         sharingStrategy,
-        stateMetaInfoSnapshots,
+        std::move(stateMetaInfoSnapshots),
         checkpointOptions,
         keySerializer_);
 }
@@ -136,19 +136,23 @@ std::shared_ptr<PreviousSnapshot> RocksIncrementalSnapshotStrategy::snapshotMeta
 
 // ================ RocksDBIncrementalSnapshotOperation ================
 RocksIncrementalSnapshotStrategy::RocksDBIncrementalSnapshotOperation::RocksDBIncrementalSnapshotOperation(
-    RocksIncrementalSnapshotStrategy* parent,
+    std::shared_ptr<RocksIncrementalSnapshotStrategy> parent,
     long checkpointId,
     CheckpointStreamFactory* checkpointStreamFactory,
     std::shared_ptr<SnapshotDirectory> localBackupDirectory,
     std::shared_ptr<PreviousSnapshot> previousSnapshot,
     SnapshotType::SharingFilesStrategy sharingFilesStrategy,
-    std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& stateMetaInfoSnapshots,
+    std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots,
     CheckpointOptions* checkpointOptions,
     std::shared_ptr<TypeSerializer> keySerializer)
     : RocksDBSnapshotOperation(
-          checkpointId, checkpointStreamFactory, localBackupDirectory, stateMetaInfoSnapshots, keySerializer),
-      parent_(parent),
-      previousSnapshot_(previousSnapshot),
+          checkpointId,
+          checkpointStreamFactory,
+          std::move(localBackupDirectory),
+          std::move(stateMetaInfoSnapshots),
+          std::move(keySerializer)),
+      parent_(std::move(parent)),
+      previousSnapshot_(std::move(previousSnapshot)),
       sharingFilesStrategy_(sharingFilesStrategy),
       checkpointOptions_(checkpointOptions)
 {
@@ -195,11 +199,11 @@ RocksIncrementalSnapshotStrategy::RocksDBIncrementalSnapshotOperation::get(
 
         completed = true;
         return result;
-    } catch (const std::exception& e) {
+    } catch (...) {
         if (!completed) {
             parent_->cleanupIncompleteSnapshot(localBackupDirectory);
         }
-        throw e;
+        throw;
     }
 }
 

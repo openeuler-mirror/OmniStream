@@ -51,7 +51,9 @@ public:
 
     void SetRemoteDataFetcherBridge(std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge);
     void resumeConsumption() override;
-    void CheckpointStarted(const CheckpointBarrier& barrier) override;
+    void TimeOutResumeConsumption() override;
+    void CheckpointStarted(
+        const CheckpointBarrier& barrier, std::shared_ptr<ChannelStateWriter> channelStateWriter) override;
     void CheckpointStopped(long checkpointId) override;
     std::vector<Buffer*> GetInflightBuffersUnsafe(long checkpointId);
 
@@ -60,18 +62,35 @@ public:
         lastBarrierId_ = 1;
     }
 
-    void SetForwardResumeToJava(bool forwardResumeToJava)
+    void SetPersistenceFlag(bool flag)
     {
-        forwardResumeToJava_ = forwardResumeToJava;
+        isNeedPersistence_ = flag;
     }
+
+    bool IsNeedPersistence()
+    {
+        if (startSize_ != 0) {
+            return outsize < startSize_;
+        }
+        return true;
+    }
+
+    void AddInputData(long checkpointId, const omnistream::InputChannelInfo& info);
 
 private:
     std::queue<Buffer*> dataQueue;
+    int lastSequenceNumber = 0;
     int expectSequenceNumber = 0;
     int initialCredit;
     std::recursive_mutex queueMutex;
     std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge;
     long lastBarrierId_ = -1;
-    bool forwardResumeToJava_ = true;
+    size_t insize = 0;
+    size_t outsize = 0;
+    size_t startSize_ = 0;
+    bool isNeedPersistence_ = false;
+    bool isUnlock = false;
+    bool isNeedExpansion = false;
+    std::vector<Buffer*> inflightBuffers_;
 };
 }; // namespace omnistream

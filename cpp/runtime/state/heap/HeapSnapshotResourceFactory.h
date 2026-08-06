@@ -73,31 +73,34 @@ public:
     {
     }
 
-    std::shared_ptr<HeapFullSnapshotResources> createSnapshotResources(long checkpointId)
+    std::shared_ptr<HeapFullSnapshotResources> createSnapshotResources(
+        long checkpointId, bool captureVectorBatchAccessorData = false)
     {
-        PreparedHeapSnapshotData preparedData = prepareSnapshotData(checkpointId);
+        PreparedHeapSnapshotData preparedData = prepareSnapshotData(checkpointId, captureVectorBatchAccessorData);
         return std::make_shared<HeapFullSnapshotResources>(
             std::move(preparedData.metaInfoSnapshots),
             std::move(preparedData.stateIterators),
             context_->getKeyGroupRange(),
             keySerializer_,
-            preparedData.keyGroupPrefixBytes);
+            preparedData.keyGroupPrefixBytes,
+            std::move(preparedData.snapshotStateDataByName));
     }
 
 private:
     struct PreparedHeapSnapshotData {
         std::vector<std::shared_ptr<StateMetaInfoSnapshot>> metaInfoSnapshots;
         std::vector<std::unique_ptr<SingleStateIterator>> stateIterators;
+        std::unordered_map<std::string, std::shared_ptr<HeapSnapshotStateData>> snapshotStateDataByName;
         int keyGroupPrefixBytes = 0;
     };
 
-    PreparedHeapSnapshotData prepareSnapshotData(long checkpointId)
+    PreparedHeapSnapshotData prepareSnapshotData(long checkpointId, bool captureVectorBatchAccessorData)
     {
         PreparedHeapSnapshotData preparedData;
         preparedData.keyGroupPrefixBytes =
             CompositeKeySerializationUtils::computeRequiredBytesInKeyGroupPrefix(context_->getNumberOfKeyGroups());
 
-        collectKeyValueStateSnapshots(preparedData, checkpointId);
+        collectKeyValueStateSnapshots(preparedData, checkpointId, captureVectorBatchAccessorData);
         collectPriorityQueueStateSnapshots(preparedData, checkpointId);
         return preparedData;
     }
@@ -153,7 +156,8 @@ private:
         }
     }
 
-    void collectKeyValueStateSnapshots(PreparedHeapSnapshotData& preparedData, long checkpointId)
+    void collectKeyValueStateSnapshots(
+        PreparedHeapSnapshotData& preparedData, long checkpointId, bool captureVectorBatchAccessorData)
     {
         int kvStateId = 0;
         for (const auto& pair : *registeredKvStates_) {
@@ -162,17 +166,24 @@ private:
             uintptr_t stateTablePtr = std::get<0>(pair.second);
             auto nsBackendId = std::get<2>(pair.second);
             // All vb state tables share the same type, handle uniformly before type dispatch
-            if (stateName.size() >= 2 && stateName.substr(stateName.size() - 2) == "vb") {
-                auto* vbTable = reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch*>*>(
-                    stateTablePtr);
+            if (stateName.size() >= 2 && stateName.compare(stateName.size() - 2, 2, "vb") == 0) {
+                auto* vbTable =
+                    reinterpret_cast<CopyOnWriteStateTable<uint32_t, VoidNamespace, omnistream::VectorBatch*>*>(
+                        stateTablePtr);
                 auto* vbMetaInfo = vbTable->getMetaInfo();
                 preparedData.metaInfoSnapshots.push_back(vbMetaInfo->snapshot());
-                preparedData.stateIterators.push_back(
-                    std::make_unique<HeapSingleStateIterator<int, VoidNamespace, omnistream::VectorBatch*>>(
+                auto iterator =
+                    std::make_unique<HeapSingleStateIterator<uint32_t, VoidNamespace, omnistream::VectorBatch*>>(
                         vbTable,
                         kvStateId,
                         preparedData.keyGroupPrefixBytes,
-                        HeapSingleStateIterator<int, VoidNamespace, omnistream::VectorBatch*>::VbDataTag{}));
+                        HeapSingleStateIterator<uint32_t, VoidNamespace, omnistream::VectorBatch*>::VbDataTag{},
+                        captureVectorBatchAccessorData);
+                if (captureVectorBatchAccessorData) {
+                    iterator->getSnapshotData()->stateName = stateName;
+                    preparedData.snapshotStateDataByName[stateName] = iterator->getSnapshotData();
+                }
+                preparedData.stateIterators.push_back(std::move(iterator));
                 kvStateId++;
                 continue;
             }
@@ -207,7 +218,7 @@ private:
                         preparedData.stateIterators.push_back(
                             std::make_unique<HeapSingleStateIterator<K, VoidNamespace, int>>(
                                 table, kvStateId, preparedData.keyGroupPrefixBytes));
-                    } else if (dataId == BackendDataType::BIGINT_BK) {
+                    } else if (dataId == BackendDataType::BIGINT_BK || dataId == BackendDataType::EXTERNAL_BIGINT_BK) {
                         auto* table =
                             reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, int64_t>*>(stateTablePtr);
                         preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
@@ -264,7 +275,10 @@ private:
                         preparedData.stateIterators.push_back(
                             std::make_unique<HeapSingleStateIterator<K, VoidNamespace, S>>(
                                 table, kvStateId, preparedData.keyGroupPrefixBytes));
-                    } else if (keyId == BackendDataType::BIGINT_BK && valueId == BackendDataType::BIGINT_BK) {
+                    } else if (
+                        keyId == BackendDataType::BIGINT_BK && valueId == BackendDataType::BIGINT_BK ||
+                        keyId == BackendDataType::EXTERNAL_BIGINT_BK &&
+                            valueId == BackendDataType::EXTERNAL_BIGINT_BK) {
                         using S = emhash7::HashMap<int64_t, int64_t>*;
                         auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S>*>(stateTablePtr);
                         preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());

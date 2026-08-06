@@ -15,7 +15,9 @@
 #include "runtime/state/InternalKeyContextImpl.h"
 #include "runtime/state/rocksdb/RocksdbStateTable.h"
 #include "state/VoidNamespaceSerializer.h"
+#include "core/api/common/state/MapState.h"
 #include "runtime/state/rocksdb/RocksdbValueState.h"
+#include "runtime/state/rocksdb/RocksdbMapState.h"
 #include "core/api/common/state/ValueStateDescriptor.h"
 #include "state/rocksdb/RocksDbStringAppendOperator.h"
 #include <cstdlib>
@@ -479,7 +481,7 @@ TEST(RocksDBTest, MergeTest)
 TEST(RocksDBTest, ListStateVectorBatchTest)
 {
     // Initialize the InternalKeyContext
-    auto* context = new InternalKeyContextImpl<RowData*>(new KeyGroupRange(0, 1), 1);
+    auto* context = new InternalKeyContextImpl<RowData*>(new KeyGroupRange(0, 1), 2);
     BinaryRowData* binaryRowData = BinaryRowData::createBinaryRowDataWithMem(1);
     binaryRowData->setLong(0, 100);
     context->setCurrentKey(binaryRowData);
@@ -516,15 +518,92 @@ TEST(RocksDBTest, ListStateVectorBatchTest)
     vValLeft->SetValue(0, 12);
     vValLeft->SetValue(1, 24);
     vbatchLeft->Append(vValLeft);
-    rocksdbListState->addVectorBatch(vbatchLeft);
+    auto keyGroup = context->getCurrentKeyGroupIndex();
+    auto sequenceNumber = rocksdbListState->getNextSequenceNumber(keyGroup);
+    ASSERT_EQ(0, sequenceNumber);
+    rocksdbListState->addVectorBatch(keyGroup, vbatchLeft);
+    ASSERT_EQ(1, rocksdbListState->getNextSequenceNumber(keyGroup));
 
     // verify getVectorBatch
-    ASSERT_EQ(0, rocksdbListState->getVectorBatch(0)->GetValueAt<int64_t>(0, 0));
-    ASSERT_EQ(1000, rocksdbListState->getVectorBatch(0)->GetValueAt<int64_t>(1, 0));
-    ASSERT_EQ(12, rocksdbListState->getVectorBatch(0)->GetValueAt<int64_t>(2, 0));
-    ASSERT_EQ(1, rocksdbListState->getVectorBatch(0)->GetValueAt<int64_t>(0, 1));
-    ASSERT_EQ(2000, rocksdbListState->getVectorBatch(0)->GetValueAt<int64_t>(1, 1));
-    ASSERT_EQ(24, rocksdbListState->getVectorBatch(0)->GetValueAt<int64_t>(2, 1));
+    auto vectorBatch = rocksdbListState->getVectorBatch(keyGroup, sequenceNumber);
+    ASSERT_EQ(0, vectorBatch->GetValueAt<int64_t>(0, 0));
+    ASSERT_EQ(1000, vectorBatch->GetValueAt<int64_t>(1, 0));
+    ASSERT_EQ(12, vectorBatch->GetValueAt<int64_t>(2, 0));
+    ASSERT_EQ(1, vectorBatch->GetValueAt<int64_t>(0, 1));
+    ASSERT_EQ(2000, vectorBatch->GetValueAt<int64_t>(1, 1));
+    ASSERT_EQ(24, vectorBatch->GetValueAt<int64_t>(2, 1));
+
+    vValLeft->SetValue(0, 120);
+    auto nextSequenceNumber = rocksdbListState->getNextSequenceNumber(keyGroup);
+    ASSERT_EQ(1, nextSequenceNumber);
+    rocksdbListState->addVectorBatch(keyGroup, vbatchLeft);
+    ASSERT_EQ(2, rocksdbListState->getNextSequenceNumber(keyGroup));
+    ASSERT_EQ(120, rocksdbListState->getVectorBatch(keyGroup, nextSequenceNumber)->GetValueAt<int64_t>(2, 0));
+
+    int32_t otherKeyGroup = keyGroup - 1;
+    auto otherSequenceNumber = rocksdbListState->getNextSequenceNumber(otherKeyGroup);
+    ASSERT_EQ(0, otherSequenceNumber);
+    vValLeft->SetValue(0, 999);
+    rocksdbListState->addVectorBatch(otherKeyGroup, vbatchLeft);
+    ASSERT_EQ(1, rocksdbListState->getNextSequenceNumber(otherKeyGroup));
+    ASSERT_EQ(2, rocksdbListState->getNextSequenceNumber(keyGroup));
+    ASSERT_EQ(999, rocksdbListState->getVectorBatch(otherKeyGroup, otherSequenceNumber)->GetValueAt<int64_t>(2, 0));
+    ASSERT_EQ(12, rocksdbListState->getVectorBatch(keyGroup, sequenceNumber)->GetValueAt<int64_t>(2, 0));
+    rocksDb->Close();
+}
+
+TEST(RocksDBTest, MapStateVectorBatchTest)
+{
+    auto* context = new InternalKeyContextImpl<RowData*>(new KeyGroupRange(0, 1), 2);
+    auto* binaryRowData = BinaryRowData::createBinaryRowDataWithMem(1);
+    binaryRowData->setLong(0, 100);
+    context->setCurrentKey(binaryRowData);
+    context->setCurrentKeyGroupIndex(1);
+
+    auto* voidNamespaceSerializer = new VoidNamespaceSerializer();
+    auto* longSerializer = new LongSerializer();
+    auto* keySerializer = new BinaryRowDataSerializer(1);
+    auto metaInfo =
+        std::make_unique<RegisteredKeyValueStateBackendMetaInfo>("metaInfo", voidNamespaceSerializer, longSerializer);
+    auto rocksdbMapStateTable = std::make_unique<RocksdbMapStateTable<RowData*, VoidNamespace, int64_t, int64_t>>(
+        context, std::move(metaInfo), keySerializer, longSerializer);
+    RocksdbMapState<RowData*, VoidNamespace, int64_t, int64_t> rocksdbMapState(
+        rocksdbMapStateTable.get(), keySerializer, longSerializer, voidNamespaceSerializer);
+
+    DB* rocksDb;
+    Options options;
+    options.create_if_missing = true;
+    const ::testing::TestInfo* const testInfo = ::testing::UnitTest::GetInstance()->current_test_info();
+    Status status = DB::Open(options, getRocksDbPath() + testInfo->name(), &rocksDb);
+    ASSERT_TRUE(status.ok());
+    auto* kvStateInformation = new std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>();
+    rocksdbMapState.createTable(rocksDb, "MapStateVectorBatchTest", kvStateInformation);
+
+    auto* vectorBatch = new omnistream::VectorBatch(1);
+    auto* values = new omniruntime::vec::Vector<int64_t>(1);
+    vectorBatch->Append(values);
+
+    int32_t keyGroup = context->getCurrentKeyGroupIndex();
+    ASSERT_EQ(0, rocksdbMapState.getNextSequenceNumber(keyGroup));
+    values->SetValue(0, 100);
+    rocksdbMapState.addVectorBatch(keyGroup, vectorBatch);
+    ASSERT_EQ(1, rocksdbMapState.getNextSequenceNumber(keyGroup));
+
+    values->SetValue(0, 200);
+    rocksdbMapState.addVectorBatch(keyGroup, vectorBatch);
+    ASSERT_EQ(2, rocksdbMapState.getNextSequenceNumber(keyGroup));
+
+    int32_t otherKeyGroup = keyGroup - 1;
+    ASSERT_EQ(0, rocksdbMapState.getNextSequenceNumber(otherKeyGroup));
+    values->SetValue(0, 999);
+    rocksdbMapState.addVectorBatch(otherKeyGroup, vectorBatch);
+    ASSERT_EQ(1, rocksdbMapState.getNextSequenceNumber(otherKeyGroup));
+    ASSERT_EQ(2, rocksdbMapState.getNextSequenceNumber(keyGroup));
+
+    ASSERT_EQ(100, rocksdbMapState.getVectorBatch(keyGroup, 0)->GetValueAt<int64_t>(0, 0));
+    ASSERT_EQ(200, rocksdbMapState.getVectorBatch(keyGroup, 1)->GetValueAt<int64_t>(0, 0));
+    ASSERT_EQ(999, rocksdbMapState.getVectorBatch(otherKeyGroup, 0)->GetValueAt<int64_t>(0, 0));
+    rocksdbMapStateTable.reset();
     rocksDb->Close();
 }
 
@@ -666,13 +745,16 @@ long readTotalTime[] = {0, 0, 0, 0, 0};
 long readRocksDBTime[] = {0, 0, 0, 0, 0};
 long desTime[] = {0, 0, 0, 0, 0};
 
-void addVectorBatch(DB* rocksDb, long vectorBatchId, omnistream::VectorBatch* vectorBatch, bool isSync)
+void addVectorBatch(
+    DB* rocksDb, int32_t keyGroup, uint32_t sequenceNumber, omnistream::VectorBatch* vectorBatch, bool isSync)
 {
     DataOutputSerializer keyOutputSerializer;
     OutputBufferStatus outputBufferStatus;
     keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
+    CompositeKeySerializationUtils::writeKeyGroup(keyGroup, 1, keyOutputSerializer);
     LongSerializer longSerializer;
-    longSerializer.serialize(&vectorBatchId, keyOutputSerializer);
+    int64_t sequenceNumberForSerializer = sequenceNumber;
+    longSerializer.serialize(&sequenceNumberForSerializer, keyOutputSerializer);
 
     ROCKSDB_NAMESPACE::Slice key(
         reinterpret_cast<const char*>(keyOutputSerializer.getData()), (int32_t)(keyOutputSerializer.getPosition()));
@@ -702,14 +784,16 @@ void addVectorBatch(DB* rocksDb, long vectorBatchId, omnistream::VectorBatch* ve
     }
 }
 
-omnistream::VectorBatch* getVectorBatch(DB* rocksDb, long batchId, int index)
+omnistream::VectorBatch* getVectorBatch(DB* rocksDb, int32_t keyGroup, uint32_t sequenceNumber, int index)
 {
     auto totalTimeStart = std::chrono::high_resolution_clock::now();
     DataOutputSerializer keyOutputSerializer;
     OutputBufferStatus outputBufferStatus;
     keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
+    CompositeKeySerializationUtils::writeKeyGroup(keyGroup, 1, keyOutputSerializer);
     LongSerializer longSerializer;
-    longSerializer.serialize(&batchId, keyOutputSerializer);
+    int64_t sequenceNumberForSerializer = sequenceNumber;
+    longSerializer.serialize(&sequenceNumberForSerializer, keyOutputSerializer);
 
     ROCKSDB_NAMESPACE::Slice key(
         reinterpret_cast<const char*>(keyOutputSerializer.getData()), (int32_t)(keyOutputSerializer.getPosition()));
@@ -722,7 +806,8 @@ omnistream::VectorBatch* getVectorBatch(DB* rocksDb, long batchId, int index)
         readRocksDBTime[index] +
         std::chrono::duration_cast<std::chrono::nanoseconds>(rocksDbReadEnd - rocksDbReadStart).count();
     if (!s.ok()) {
-        std::cout << "getVectorBatch 失败! batchId: " << batchId << std::endl;
+        std::cout << "getVectorBatch failed, keyGroup: " << keyGroup << ", sequenceNumber: " << sequenceNumber
+                  << std::endl;
         return nullptr;
     } else {
         uint8_t* address = reinterpret_cast<uint8_t*>(valueInTable.data()) + sizeof(int8_t);
@@ -890,7 +975,9 @@ TEST(RocksDBTest, CustomVectorBatchPerformanceTest)
         omnistream::VectorBatch* tmpBatch = newVectorBatch(vecBatchRows);
         auto newDataEnd = std::chrono::high_resolution_clock::now();
         newDataTime += std::chrono::duration_cast<std::chrono::nanoseconds>(newDataEnd - newDataStart).count();
-        addVectorBatch(rocksDb, i, tmpBatch, isFlush);
+        int32_t keyGroup = i % 2;
+        uint32_t sequenceNumber = static_cast<uint32_t>(i / 2);
+        addVectorBatch(rocksDb, keyGroup, sequenceNumber, tmpBatch, isFlush);
     }
     if (isFlush) {
         //        std::cout << "flush is true!" << std::endl;
@@ -900,9 +987,10 @@ TEST(RocksDBTest, CustomVectorBatchPerformanceTest)
     auto writeEnd = std::chrono::high_resolution_clock::now();
     writeTotalTime += std::chrono::duration_cast<std::chrono::nanoseconds>(writeEnd - writeStart).count();
     for (int i = 0; i < 10000; ++i) {
-        int batchId = std::rand() % vecBatchCount;
-        //        std::cout << "batchId: " << batchId << std::endl;
-        getVectorBatch(rocksDb, batchId, 0);
+        int vectorBatchIndex = std::rand() % vecBatchCount;
+        int32_t keyGroup = vectorBatchIndex % 2;
+        uint32_t sequenceNumber = static_cast<uint32_t>(vectorBatchIndex / 2);
+        getVectorBatch(rocksDb, keyGroup, sequenceNumber, 0);
     }
     std::cout << "VectorBatch" << vecBatchRows << "新建VectorBatch耗时: " << newDataTime / 1000000 << " 毫秒"
               << std::endl;
@@ -932,13 +1020,14 @@ TEST(RocksDBTest, VectorBatchPerformanceTest)
     assert(s.ok());
 
     int rowCounts[] = {1, 10, 100, 1000, 10000};
+    uint32_t sequenceNumber = 0;
     for (const auto& rowCount : rowCounts) {
         omnistream::VectorBatch* tmpBatch = newVectorBatch(rowCount);
-        addVectorBatch(rocksDb, rowCount, tmpBatch, false);
+        addVectorBatch(rocksDb, 0, sequenceNumber++, tmpBatch, false);
     }
     for (int i = 0; i < 10000; ++i) {
         for (int j = 0; j < 5; ++j) {
-            getVectorBatch(rocksDb, rowCounts[j], j);
+            getVectorBatch(rocksDb, 0, static_cast<uint32_t>(j), j);
         }
     }
     for (int i = 0; i < 5; ++i) {

@@ -30,7 +30,10 @@ struct BufferAndAvailability {
           sequenceNumber(sequenceNumber)
     {
     }
-
+    Buffer* GetBuffer()
+    {
+        return buffer;
+    }
     bool moreAvailable() const
     {
         return nextDataType != ObjectBufferDataType::NONE;

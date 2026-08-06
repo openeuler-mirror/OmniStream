@@ -13,12 +13,18 @@
 #include <emhash7.hpp>
 #include <set>
 #include <memory>
+#include <stdexcept>
+#include <utility>
 #include "runtime/state/KeyGroupRange.h"
 #include "runtime/state/HeapKeyedStateBackend.h"
 #include "runtime/state/KeyedStateHandle.h"
+#include "runtime/state/KeyGroupsSavepointStateHandle.h"
 #include "runtime/state/restore/FullSnapshotRestoreOperation.h"
 #include "runtime/state/bridge/OmniTaskBridge.h"
 #include "runtime/state/CompositeKeySerializationUtils.h"
+#include "runtime/checkpoint/FlinkSavepointAdaptorInfo.h"
+#include "runtime/checkpoint/OperatorSavepointAdaptorFactory.h"
+#include "runtime/state/heap/HeapCompatibleFullRestoreOperation.h"
 #include "core/typeutils/TypeSerializer.h"
 #include "core/typeutils/MapSerializer.h"
 #include "core/typeutils/ListSerializer.h"
@@ -33,6 +39,7 @@
 #include "table/utils/VectorBatchDeserializationUtils.h"
 #include "table/typeutils/SortedVectorLong.h"
 #include "core/utils/MathUtils.h"
+#include "runtime/state/StateRestoreValidation.h"
 
 template <typename K>
 class HeapKeyedStateBackendBuilder {
@@ -54,6 +61,37 @@ public:
         return *this;
     }
 
+    HeapKeyedStateBackendBuilder& setFlinkSavepointAdaptorInfo(const FlinkSavepointAdaptorInfo& info)
+    {
+        adaptorInfo_ = info;
+        return *this;
+    }
+
+    HeapKeyedStateBackendBuilder& setRestoreSavepointMode(RestoreSavepointMode mode)
+    {
+        restoreMode_ = mode;
+        return *this;
+    }
+
+    HeapKeyedStateBackendBuilder& setOperatorDescription(const nlohmann::json& operatorDescription)
+    {
+        operatorDescription_ = operatorDescription;
+        return *this;
+    }
+
+    HeapKeyedStateBackendBuilder& setTaskType(int taskType)
+    {
+        this->taskType_ = taskType;
+        return *this;
+    }
+
+    bool validateRestoreStateHandles()
+    {
+        std::vector<std::shared_ptr<KeyedStateHandle>> handleVec(
+            restoreStateHandles.begin(), restoreStateHandles.end());
+        return omnistream::validateRestoreStateHandles(handleVec, omniTaskBridge);
+    }
+
     HeapKeyedStateBackend<K>* build();
 
 protected:
@@ -62,6 +100,10 @@ protected:
     KeyGroupRange* keyGroupRange;
     std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge;
     std::set<std::shared_ptr<KeyedStateHandle>> restoreStateHandles;
+    FlinkSavepointAdaptorInfo adaptorInfo_;
+    RestoreSavepointMode restoreMode_ = RestoreSavepointMode::OMNI_INTERNAL;
+    int taskType_ = 1;
+    nlohmann::json operatorDescription_;
 
 private:
     /** Info collected per state during restore Phase 1, used in Phase 2 for deserialization. */
@@ -157,6 +199,7 @@ private:
     void restoreVbEntryToHeap(
         HeapKeyedStateBackend<K>* backend,
         const RestoreStateInfo& info,
+        int keyGroupPrefixBytes,
         const std::vector<int8_t>& keyBytes,
         const std::vector<int8_t>& valueBytes);
 
@@ -255,11 +298,70 @@ private:
 template <typename K>
 HeapKeyedStateBackend<K>* HeapKeyedStateBackendBuilder<K>::build()
 {
-    auto* keyContext = new InternalKeyContextImpl<K>(keyGroupRange, numberOfKeyGroups);
-    auto* backend = new HeapKeyedStateBackend<K>(keySerializer, keyContext);
+    std::unique_ptr<omnistream::OperatorSavepointAdaptor> compatiblePreparedAdaptor;
+    if (!restoreStateHandles.empty()) {
+        if (restoreMode_ == RestoreSavepointMode::FLINK_COMPATIBLE) {
+            if (adaptorInfo_.type == FlinkSavepointAdaptorType::None) {
+                INFO_RELEASE("Error:Heap compatible restore is unsupported: " << adaptorInfo_.reason);
+                throw std::runtime_error("Heap compatible restore is not supported: " + adaptorInfo_.reason);
+            }
+            if (adaptorInfo_.type != FlinkSavepointAdaptorType::OmniIsCompatible) {
+                if (omniTaskBridge == nullptr) {
+                    INFO_RELEASE(
+                        "Error:Heap compatible restore missing OmniTaskBridge, adaptorType="
+                        << static_cast<int>(adaptorInfo_.type) << ", reason=" << adaptorInfo_.reason
+                        << ", stateHandleCount=" << restoreStateHandles.size());
+                    throw std::invalid_argument(
+                        "Heap compatible restore requires OmniTaskBridge when state handles exist");
+                }
+                //  flink cp/native sp
+                auto firstHandle = *restoreStateHandles.begin();
+                if (!std::dynamic_pointer_cast<KeyGroupsSavepointStateHandle>(firstHandle)) {
+                    INFO_RELEASE("Error:Heap compatible restore does not support incremental/native state handles");
+                    throw std::runtime_error(
+                        "Heap compatible restore does not support incremental/native state handles");
+                }
+                compatiblePreparedAdaptor =
+                    omnistream::OperatorSavepointAdaptorFactory::createAdaptor(adaptorInfo_.type);
+                if (compatiblePreparedAdaptor == nullptr) {
+                    INFO_RELEASE(
+                        "Error:Heap compatible restore adaptor factory returned null: " << adaptorInfo_.reason);
+                    throw std::runtime_error("Heap compatible restore adaptor factory returned null");
+                }
+                compatiblePreparedAdaptor->prepareForRestore(operatorDescription_);
+            }
+        } else if (taskType_ == 1) {
+            if (adaptorInfo_.type != FlinkSavepointAdaptorType::OmniIsCompatible && !validateRestoreStateHandles()) {
+                INFO_RELEASE("Error:Heap restore does not support current state handles");
+                throw std::runtime_error("Heap restore does not support current state handles");
+            }
+        }
+    }
+
+    auto keyContext = std::make_unique<InternalKeyContextImpl<K>>(keyGroupRange, numberOfKeyGroups);
+    auto backend = std::make_unique<HeapKeyedStateBackend<K>>(keySerializer, keyContext.get());
 
     if (omniTaskBridge) {
         backend->setOmniTaskBridge(omniTaskBridge);
+    }
+
+    if (compatiblePreparedAdaptor != nullptr) {
+        std::vector<std::shared_ptr<KeyedStateHandle>> handleVec(
+            restoreStateHandles.begin(), restoreStateHandles.end());
+        auto keySerializerPtr = std::shared_ptr<TypeSerializer>(keySerializer, [](TypeSerializer*) {});
+        HeapCompatibleFullRestoreOperation<K> restoreOp(
+            backend.get(),
+            keyGroupRange,
+            handleVec,
+            keySerializerPtr,
+            numberOfKeyGroups,
+            omniTaskBridge,
+            adaptorInfo_,
+            std::move(compatiblePreparedAdaptor));
+        restoreOp.restore();
+        auto* builtBackend = backend.release();
+        keyContext.release();
+        return builtBackend;
     }
 
     // Restore from state handles if available
@@ -369,17 +471,20 @@ HeapKeyedStateBackend<K>* HeapKeyedStateBackendBuilder<K>::build()
                         continue; // State was skipped in Phase 1
                     }
                     if (info.stateName.size() >= 2 && info.stateName.substr(info.stateName.size() - 2) == "vb") {
-                        restoreVbEntryToHeap(backend, info, entry.getKey(), entry.getValue());
+                        restoreVbEntryToHeap(
+                            backend.get(), info, keyGroupPrefixBytes, entry.getKey(), entry.getValue());
                     } else {
                         restoreEntryToHeap(
-                            backend, info, keyGroupId, keyGroupPrefixBytes, entry.getKey(), entry.getValue());
+                            backend.get(), info, keyGroupId, keyGroupPrefixBytes, entry.getKey(), entry.getValue());
                     }
                 }
             }
         }
     }
 
-    return backend;
+    auto* builtBackend = backend.release();
+    keyContext.release();
+    return builtBackend;
 }
 
 template <typename K>
@@ -508,7 +613,7 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
             delete static_cast<K*>(rawKey);
             delete static_cast<VoidNamespace*>(rawNs);
             delete static_cast<int*>(rawVal);
-        } else if (dataId == BackendDataType::BIGINT_BK) {
+        } else if (dataId == BackendDataType::BIGINT_BK || dataId == BackendDataType::EXTERNAL_BIGINT_BK) {
             void* rawVal = info.valueSerializer->deserialize(valInput);
             auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, int64_t>*>(stateTablePtr);
             table->put(
@@ -604,7 +709,9 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
             auto* table =
                 reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<int, int>*>*>(stateTablePtr);
             table->put(*static_cast<K*>(rawKey), keyGroupId, *static_cast<VoidNamespace*>(rawNs), mapVal);
-        } else if (mapKeyId == BackendDataType::BIGINT_BK && mapValId == BackendDataType::BIGINT_BK) {
+        } else if (
+            (mapKeyId == BackendDataType::BIGINT_BK && mapValId == BackendDataType::BIGINT_BK) ||
+            (mapKeyId == BackendDataType::EXTERNAL_BIGINT_BK && mapValId == BackendDataType::EXTERNAL_BIGINT_BK)) {
             auto* mapVal = deserializeEmhashMap<int64_t, int64_t>(mapKeySer, mapValSer, valInput);
             auto* table =
                 reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<int64_t, int64_t>*>*>(
@@ -698,18 +805,30 @@ template <typename K>
 void HeapKeyedStateBackendBuilder<K>::restoreVbEntryToHeap(
     HeapKeyedStateBackend<K>* backend,
     const RestoreStateInfo& info,
+    int keyGroupPrefixBytes,
     const std::vector<int8_t>& keyBytes,
     const std::vector<int8_t>& valueBytes)
 {
-    // vb key format: [1 byte keyGroup] + [8 bytes batchId via LongSerializer]
-    int vbKeyGroup = keyBytes.empty() ? 0 : (static_cast<int>(keyBytes[0]) & 0xFF);
-    DataInputDeserializer keyInput(
-        reinterpret_cast<const uint8_t*>(keyBytes.data()), static_cast<int>(keyBytes.size()), 1);
+    // vb key format: [keyGroup] + [8 bytes sequenceNumber via LongSerializer]
+    const auto expectedKeySize = static_cast<size_t>(keyGroupPrefixBytes) + sizeof(int64_t);
+    if (keyGroupPrefixBytes <= 0 || keyBytes.size() != expectedKeySize) {
+        THROW_RUNTIME_ERROR(
+            "Invalid VectorBatch key size while restoring to heap: expected " << expectedKeySize << ", actual "
+                                                                              << keyBytes.size());
+    }
+    const auto* keyData = reinterpret_cast<const uint8_t*>(keyBytes.data());
+    int vbKeyGroup = CompositeKeySerializationUtils::readKeyGroup(keyData, keyGroupPrefixBytes);
+    DataInputDeserializer keyInput(keyData, static_cast<int>(keyBytes.size()), keyGroupPrefixBytes);
 
     LongSerializer longSerializer;
-    void* rawBatchId = longSerializer.deserialize(keyInput);
-    int64_t batchId = *static_cast<int64_t*>(rawBatchId);
-    delete static_cast<int64_t*>(rawBatchId);
+    void* rawSequenceNumber = longSerializer.deserialize(keyInput);
+    int64_t sequenceNumber = *static_cast<int64_t*>(rawSequenceNumber);
+    delete static_cast<int64_t*>(rawSequenceNumber);
+    if (sequenceNumber < 0 || sequenceNumber > static_cast<int64_t>(SequenceNumberHelper::MAX_SEQUENCE_NUMBER)) {
+        THROW_RUNTIME_ERROR("Invalid VectorBatch sequenceNumber while restoring: " << sequenceNumber);
+    }
+    auto sequenceNumberU32 = static_cast<uint32_t>(sequenceNumber);
+    auto nextSequenceNumber = sequenceNumberU32 + 1;
 
     // Deserialize VectorBatch from value bytes
     std::vector<uint8_t> valueBuf(valueBytes.size());
@@ -729,7 +848,8 @@ void HeapKeyedStateBackendBuilder<K>::restoreVbEntryToHeap(
     }
 
     auto* table =
-        reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, omnistream::VectorBatch*>*>(vbStateTablePtr);
+        reinterpret_cast<CopyOnWriteStateTable<uint32_t, VoidNamespace, omnistream::VectorBatch*>*>(vbStateTablePtr);
     VoidNamespace ns;
-    table->put(static_cast<int>(batchId), vbKeyGroup, ns, vectorBatch);
+    table->put(sequenceNumberU32, vbKeyGroup, ns, vectorBatch);
+    table->updateNextSequenceNumber(vbKeyGroup, nextSequenceNumber);
 }

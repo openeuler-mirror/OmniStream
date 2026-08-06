@@ -8,67 +8,78 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef FLINK_TNEL_VECTOR_BATCH_UTIL_H
-#define FLINK_TNEL_VECTOR_BATCH_UTIL_H
 
-#include "table/data/vectorbatch/VectorBatch.h"
-#include "OmniOperatorJIT/core/src/vector/unsafe_vector.h"
-#include <arm_sve.h>
+#pragma once
+
 #include <cstdint>
+#include <limits>
 #include <numeric>
 #include <vector>
+#include "table/data/vectorbatch/VectorBatch.h"
+#include "OmniOperatorJIT/core/src/vector/unsafe_vector.h"
+#include "OmniOperatorJIT/core/src/vector/vector_helper.h"
+#include "table/data/vectorbatch/VectorBatchStorageInfo.h"
 
+namespace omnistream {
 class VectorBatchUtil {
 public:
-    static inline int32_t getBatchId(int64_t id)
+    static inline int32_t getKeyGroup(ComboId comboId)
     {
-        uint64_t uid = static_cast<uint64_t>(id);
-        return (int32_t)(uid >> 32);
+        return static_cast<int32_t>((comboId >> 48) & UINT16_MAX);
     }
 
-    static inline int32_t getRowId(int64_t id)
+    static inline uint32_t getSequenceNumber(ComboId comboId)
     {
-        return (int32_t)id;
+        return static_cast<uint32_t>((comboId >> 16) & UINT32_MAX);
     }
 
-    static inline int64_t getComboId(int batchId, int rowId)
+    static inline int32_t getRowId(ComboId comboId)
     {
-        uint64_t ubatchId = static_cast<uint64_t>(batchId);
-        uint32_t urowId = static_cast<uint32_t>(rowId);
-        ubatchId = (ubatchId << 32) | urowId;
-        return static_cast<int64_t>(ubatchId);
+        return static_cast<int32_t>(comboId & UINT16_MAX);
     }
 
-    static void deComboIDSVE(uint64_t* src, uint32_t* batchIDdst, uint32_t* rowIDdst, int num)
+    static inline VectorBatchId getVectorBatchId(int32_t keyGroup, uint32_t sequenceNumber)
     {
-        int processNum = svcntw();
-        int half = svcntd();
-        for (int i = 0; i < num; i += processNum) {
-            svbool_t pg = svwhilelt_b64(i, num);
-            svbool_t pg2 = svwhilelt_b64(i + half, num);
-            svbool_t pg3 = svwhilelt_b32(i, num);
-            svuint64_t comboID = svld1(pg, src + i);
-            svuint64_t comboID2 = svld1(pg2, src + i + half);
-
-            svuint32_t rowID = svuzp1(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
-            svuint32_t batchID = svuzp2(svreinterpret_u32(comboID), svreinterpret_u32(comboID2));
-
-            svst1_u32(pg3, rowIDdst + i, rowID);
-            svst1_u32(pg3, batchIDdst + i, batchID);
+        if (keyGroup < 0 || keyGroup > UINT16_MAX) {
+            THROW_RUNTIME_ERROR("keyGroup out of range");
         }
+
+        auto ukeyGroup = static_cast<uint64_t>(keyGroup);
+        auto usequenceNumber = static_cast<uint64_t>(sequenceNumber);
+        return (ukeyGroup << 48) | (usequenceNumber << 16);
     }
 
-    static void getComboId_sve(int batchId, int rowCount, int64_t* result)
+    static inline VectorBatchId getVectorBatchId(ComboId comboId)
     {
-        int processNum = svcntd();
-        svint64_t batchData = svlsl_n_s64_x(svptrue_b64(), svdup_n_s64(batchId), 32);
-        for (int i = 0; i < rowCount; i += processNum) {
-            svbool_t pg = svwhilelt_b64(i, rowCount);
-            svint64_t rowData = svindex_s64(i, 1);
-            svint64_t comboIDs = svorr_z(pg, batchData, rowData);
-            svst1_s64(pg, result + i, comboIDs);
-        }
+        return (comboId >> 16) << 16;
     }
+
+    static inline ComboId getComboId(int32_t keyGroup, uint32_t sequenceNumber, int32_t rowId)
+    {
+        auto vectorBatchId = getVectorBatchId(keyGroup, sequenceNumber);
+
+        return getComboId(vectorBatchId, rowId);
+    }
+
+    static inline ComboId getComboId(omnistream::VectorBatchId vectorBatchId, int32_t rowId)
+    {
+        if ((vectorBatchId & UINT16_MAX) != 0) {
+            THROW_RUNTIME_ERROR("the rowId part of VectorBatchId should be 0");
+        }
+        if (rowId < 0 || rowId > UINT16_MAX) {
+            THROW_RUNTIME_ERROR("rowId out of range");
+        }
+
+        return vectorBatchId | static_cast<uint64_t>(rowId);
+    }
+
+    static void decodeComboIds(
+        const std::vector<ComboId>& comboIds,
+        std::vector<int32_t>& keyGroups,
+        std::vector<uint32_t>& sequenceNumbers,
+        std::vector<int32_t>& rowIds);
+
+    static void getComboId_sve(int32_t keyGroup, uint32_t sequenceNumber, int32_t rowCount, ComboId* result);
 
     // The caller takes ownership of the returned pointer
     static omnistream::VectorBatch* sliceVectorBatch(omnistream::VectorBatch* batch, int32_t offset, int32_t newRowCnt)
@@ -92,6 +103,127 @@ public:
             slicedBatch->setRowKind(j, batch->getRowKind(j + offset));
         }
         return slicedBatch;
+    }
+
+    // The caller takes ownership of the returned pointer
+    static omnistream::VectorBatch* buildNewVectorBatchByRowIds(
+        omnistream::VectorBatch* vectorBatch, std::vector<int32_t>& rowIds);
+
+    /**
+     * Copy selected elements from one vector in a VectorBatch into a new vector by row ids.
+     *
+     * @param vectorBatch Source VectorBatch that owns the vector to copy from.
+     * @param vectorIndex Index of the source vector inside vectorBatch.
+     * @param rowIds Row ids to copy from the source vector.
+     * @return A newly allocated vector containing the selected elements. The caller takes ownership of the returned
+     * pointer.
+     */
+    static omniruntime::vec::BaseVector* copyVectorByRowIds(
+        omnistream::VectorBatch* vectorBatch, int32_t vectorIndex, std::vector<int32_t>& rowIds)
+    {
+        omniruntime::vec::BaseVector* result = nullptr;
+        if (vectorBatch->Get(vectorIndex)->GetEncoding() == omniruntime::vec::OMNI_FLAT ||
+            (vectorBatch->Get(vectorIndex)->GetTypeId() != omniruntime::type::OMNI_CHAR &&
+             vectorBatch->Get(vectorIndex)->GetTypeId() != omniruntime::type::OMNI_VARCHAR)) {
+            // The original vector is not varchar or it is varchar but flat
+            result = omnistream::VectorBatchUtil::CopyPositionsVector(
+                vectorBatch->Get(vectorIndex), rowIds.data(), 0, static_cast<int32_t>(rowIds.size()));
+        } else {
+            // It is a varchar dictionary, copy it out
+            result = omnistream::VectorBatch::CopyPositionsAndFlatten(
+                vectorBatch->Get(vectorIndex), rowIds.data(), 0, static_cast<int32_t>(rowIds.size()));
+        }
+        return result;
+    }
+
+    // the main body of this function is copied from vector_helper.h in OmniOperator
+    static omniruntime::vec::BaseVector* CopyPositionsVector(
+        omniruntime::vec::BaseVector* vector, int* positions, int offset, int length)
+    {
+        if (vector->GetEncoding() == omniruntime::vec::OMNI_DICTIONARY) {
+            return omniruntime::vec::VectorHelper::CopyPositionsDictionaryVector(vector, positions, offset, length);
+        }
+        DataTypeId dataTypeId = vector->GetTypeId();
+        switch (dataTypeId) {
+            case omniruntime::type::OMNI_INT:
+            case omniruntime::type::OMNI_DATE32: {
+                return reinterpret_cast<omniruntime::vec::Vector<int32_t>*>(vector)->CopyPositions(
+                    positions, offset, length);
+            }
+            case omniruntime::type::OMNI_SHORT: {
+                return reinterpret_cast<omniruntime::vec::Vector<int16_t>*>(vector)->CopyPositions(
+                    positions, offset, length);
+            }
+            case omniruntime::type::OMNI_BYTE: {
+                return reinterpret_cast<omniruntime::vec::Vector<int8_t>*>(vector)->CopyPositions(
+                    positions, offset, length);
+            }
+            case omniruntime::type::OMNI_LONG:
+            case omniruntime::type::OMNI_TIMESTAMP:
+            case omniruntime::type::OMNI_DATE64:
+            case omniruntime::type::OMNI_DECIMAL64: {
+                return reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(vector)->CopyPositions(
+                    positions, offset, length);
+            }
+            case omniruntime::type::OMNI_DOUBLE: {
+                return reinterpret_cast<omniruntime::vec::Vector<double>*>(vector)->CopyPositions(
+                    positions, offset, length);
+            }
+            case omniruntime::type::OMNI_BOOLEAN: {
+                return reinterpret_cast<omniruntime::vec::Vector<bool>*>(vector)->CopyPositions(
+                    positions, offset, length);
+            }
+            case omniruntime::type::OMNI_VARCHAR:
+            case omniruntime::type::OMNI_CHAR: {
+                if (UNLIKELY((positions == nullptr) || (length < 0))) {
+                    std::string message("positions is null or the input length is incorrect: %d.", length);
+                    throw omniruntime::vec::OmniException("OPERATOR_RUNTIME_ERROR", message);
+                }
+                auto src = reinterpret_cast<
+                    omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(vector);
+                auto startPositions = positions + offset;
+
+                constexpr size_t maxStringContainerCapacity = static_cast<size_t>(std::numeric_limits<int>::max());
+                size_t totalBytes = 0;
+                for (int32_t i = 0; i < length; i++) {
+                    auto position = startPositions[i];
+                    if (!vector->IsNull(position)) {
+                        auto valueSize = src->GetValue(position).size();
+                        if (UNLIKELY(valueSize > maxStringContainerCapacity - totalBytes)) {
+                            throw omniruntime::vec::OmniException(
+                                "OPERATOR_RUNTIME_ERROR", "string container capacity exceeds the supported limit");
+                        }
+                        totalBytes += valueSize;
+                    }
+                }
+
+                auto dest = new omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>(
+                    length, static_cast<int>(totalBytes));
+                for (int32_t i = 0; i < length; i++) {
+                    auto position = startPositions[i];
+                    if (vector->IsNull(position)) {
+                        dest->SetNull(i);
+
+                    } else {
+                        auto value = src->GetValue(position);
+                        dest->SetValue(i, value);
+                    }
+                }
+                return dest;
+            }
+            case omniruntime::type::OMNI_DECIMAL128: {
+                return reinterpret_cast<omniruntime::vec::Vector<omniruntime::type::Decimal128>*>(vector)
+                    ->CopyPositions(positions, offset, length);
+            }
+            case omniruntime::type::OMNI_CONTAINER:
+                return reinterpret_cast<omniruntime::vec::ContainerVector*>(vector)->CopyPositions(
+                    positions, offset, length);
+            default: {
+                std::string omniExceptionInfo =
+                    "In function CopyPositionsVector, no such data type " + std::to_string(dataTypeId);
+                throw omniruntime::exception::OmniException("UNSUPPORTED_ERROR", omniExceptionInfo);
+            }
+        }
     }
 
     // To print VectorBatch, use VectorHelper::PrintVecBatch from OmniOperatorJIT/core/src/vector/vector_helper.h
@@ -196,5 +328,4 @@ public:
         return oss.str();
     }
 };
-
-#endif // FLINK_TNEL_VECTOR_BATCH_UTIL_H
+} // namespace omnistream

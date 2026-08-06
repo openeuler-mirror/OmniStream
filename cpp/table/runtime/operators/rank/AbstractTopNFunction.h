@@ -36,7 +36,8 @@ template <typename KeyType>
 class AbstractTopNFunction : public KeyedProcessFunction<KeyType, RowData*, RowData*> {
 public:
     explicit AbstractTopNFunction(const nlohmann::json& rankConfig)
-        : inputRowType(new std::vector<omniruntime::type::DataTypeId>())
+        : inputTypeNames(new std::vector<std::string>()),
+          inputRowType(new std::vector<omniruntime::type::DataTypeId>())
     {
         parseDescription(rankConfig);
     }
@@ -56,6 +57,7 @@ public:
                 delete row;
             }
         }
+        delete inputTypeNames;
         delete inputRowType;
     };
 
@@ -75,6 +77,7 @@ protected:
     RankRange* rankRange;
     bool outputRankNumber;
     bool generateUpdateBefore;
+    std::vector<std::string>* inputTypeNames;
     std::vector<omniruntime::type::DataTypeId>* inputRowType;
     std::vector<bool> sortNullsIsLast;
     std::vector<int> partitionKeyTypeIds;
@@ -169,6 +172,7 @@ void AbstractTopNFunction<KeyType>::parseDescription(const nlohmann::json& jsonS
 
     // Parse inputTypes as a vector of DataTypeId
     for (const auto& typeStr : jsonString.at("inputTypes").get<std::vector<std::string>>()) {
+        inputTypeNames->push_back(typeStr);
         inputRowType->push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
     }
 
