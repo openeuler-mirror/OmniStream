@@ -56,6 +56,10 @@ public:
             vbState, appendedRowBytes, appendedColumnTypes, 16, keyGroupId);
     }
 
+    void writeComboIdList(const std::vector<int8_t>&, const std::vector<ComboId>&) override
+    {
+    }
+
     int getKeyGroupPrefixBytes() const override
     {
         return 1;

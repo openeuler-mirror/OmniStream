@@ -52,6 +52,9 @@ public:
 
     omnistream::ComboId appendRowToVectorBatch(const RowDataView& row) override;
 
+    void writeComboIdList(
+        const std::vector<int8_t>& keyBytes, const std::vector<omnistream::ComboId>& comboIds) override;
+
 protected:
     void flushVectorBatchIfNotEmpty() override;
     void flushMainWriter() override;
@@ -125,6 +128,27 @@ void RocksDBRestoreKVStateVB<K>::writeBytesEntry(const std::vector<int8_t>& keyB
     }
     mainWriter_->Put(mainCF_, keySlice, valueSlice);
     if (ctx_.mainEntryCount) (*ctx_.mainEntryCount)++;
+}
+
+template <typename K>
+void RocksDBRestoreKVStateVB<K>::writeComboIdList(
+    const std::vector<int8_t>& keyBytes, const std::vector<omnistream::ComboId>& comboIds)
+{
+    DataOutputSerializer valueSerializer;
+    OutputBufferStatus outputBufferStatus;
+    valueSerializer.setBackendBuffer(&outputBufferStatus);
+
+    LongSerializer longSerializer;
+    for (size_t i = 0; i < comboIds.size(); ++i) {
+        if (i != 0) {
+            valueSerializer.write(static_cast<uint32_t>(','));
+        }
+        int64_t comboId = comboIds[i];
+        longSerializer.serialize(&comboId, valueSerializer);
+    }
+
+    ByteView valueView(valueSerializer.getData(), valueSerializer.getPosition());
+    writeBytesEntry(keyBytes, valueView);
 }
 
 template <typename K>

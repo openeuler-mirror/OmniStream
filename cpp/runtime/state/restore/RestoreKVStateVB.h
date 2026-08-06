@@ -62,6 +62,12 @@ public:
     // StreamingJoin adaptor 使用该边界精确跳过 key-group prefix，并解析随后由 keyed RowData serializer 写出的长度字段。
     virtual int getKeyGroupPrefixBytes() const = 0;
 
+    // Write one LIST-state entry whose elements reference rows in the VectorBatch side table.
+    // Heap and RocksDB use different physical encodings for list values, so the concrete
+    // restore writer must materialize the comboId list in its backend-native format.
+    virtual void writeComboIdList(
+        const std::vector<int8_t>& keyBytes, const std::vector<omnistream::ComboId>& comboIds) = 0;
+
     // 仅 flush VB 尾批（如有），不 flush main writer。
     // 用于 keyGroup 切换时强制提交当前 VB 批次，避免跨 keyGroup 数据混合。
     void flushVB()

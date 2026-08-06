@@ -22,6 +22,7 @@
 #include <utility>
 
 #include "common.h"
+#include "core/api/common/state/StateDescriptor.h"
 #include "runtime/state/RegisteredStateMetaInfoBase.h"
 #include "runtime/state/rocksdb/RocksDbOperationUtils.h"
 #include "runtime/state/rocksdb/RocksDbStringAppendOperator.h"
@@ -118,7 +119,7 @@ public:
                 // merge_operator_ must be set."
                 auto stateTypeString =
                     stateMetaInfoSnapshot.getOption(StateMetaInfoSnapshot::CommonOptionsKeys::KEYED_STATE_TYPE);
-                if (stateTypeString == "LIST") {
+                if (StateDescriptor::StringToType(stateTypeString) == StateDescriptor::Type::LIST) {
                     columnFamilyDescriptor.options.merge_operator.reset(new RocksDbStringAppendOperator(','));
                 }
 
