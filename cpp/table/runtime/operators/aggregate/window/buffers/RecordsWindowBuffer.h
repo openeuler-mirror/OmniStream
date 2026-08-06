@@ -43,7 +43,7 @@ public:
     void advanceProgress(long currentProgress);
     void flush();
     void close() {};
-    omnistream::VectorBatch* createOutputBatch(std::vector<std::unique_ptr<RowData>>& collectedRows);
+    omnistream::VectorBatch* createOutputBatch(const std::vector<RowData*>& collectedRows);
     void collectOutputBatch(TimestampedCollector* out, omnistream::VectorBatch* outputBatch);
     std::vector<std::string> getKeyedTypes(std::vector<int32_t> keyedIndex, std::vector<std::string> inputTypes);
     Output* getOutput();
