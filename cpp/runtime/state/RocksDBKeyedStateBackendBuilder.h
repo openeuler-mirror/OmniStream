@@ -395,6 +395,7 @@ RocksdbKeyedStateBackend<K>* RocksDBKeyedStateBackendBuilder<K>::build()
             keySerializer.get(),
             keyContext,
             db,
+            columnFamilyOptionsFactory,
             std::move(strategy),
             keyGroupRange,
             kvStateInformation,

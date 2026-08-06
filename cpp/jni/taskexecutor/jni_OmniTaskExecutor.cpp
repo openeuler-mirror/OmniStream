@@ -19,6 +19,7 @@
 #include "com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor.h"
 #include "runtime/taskexecutor/OmniTaskExecutor.h"
 #include "common.h"
+#include "runtime/state/NativeRocksDBResourceRegistry.h"
 #include "runtime/executiongraph/JobInformationPOD.h"
 #include "runtime/executiongraph/TaskInformationPOD.h"
 #include "runtime/executiongraph/descriptor/TaskDeploymentDescriptorPOD.h"
@@ -45,8 +46,14 @@ Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor_createNa
  * Signature: (JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;)J
  */
 JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor_submitTaskNative(
-    JNIEnv* jniEnv, jobject thiz, jlong nativeTaskExecutorAddress, jstring jobjson, jstring taskjson, jstring tddjson)
-{
+    JNIEnv* jniEnv,
+    jobject thiz,
+    jlong nativeTaskExecutorAddress,
+    jstring jobjson,
+    jstring taskjson,
+    jstring tddjson,
+    jlong resourceHandle)
+try {
     const char* jobString = jniEnv->GetStringUTFChars(jobjson, nullptr);
     std::string jobInfoString(jobString);
     jniEnv->ReleaseStringUTFChars(jobjson, jobString);
@@ -69,13 +76,21 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskexecutor_O
     omnistream::TaskInformationPOD taskInfo = task;
     nlohmann::json tdd = nlohmann::json::parse(taskDDString);
     omnistream::TaskDeploymentDescriptorPOD tddinfo = tdd;
+    auto resources = resourceHandle == 0 ? nullptr : NativeRocksDBResourceRegistry::instance().acquire(resourceHandle);
+    INFO_RELEASE("Omni RocksDB task resource: task=" << taskInfo.getTaskName() << ", handle=" << resourceHandle);
 
     auto omniTaskExecutor = reinterpret_cast<omnistream::OmniTaskExecutor*>(nativeTaskExecutorAddress);
     std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge = std::make_shared<RemoteDataFetcherBridgeImpl>();
 
-    auto nativeTask =
-        omniTaskExecutor->submitTask(jobInfo, taskInfo, tddinfo, nullptr, nullptr, nullptr, remoteDataFetcherBridge);
+    auto nativeTask = omniTaskExecutor->submitTask(
+        jobInfo, taskInfo, tddinfo, nullptr, nullptr, nullptr, remoteDataFetcherBridge, resources);
     return reinterpret_cast<jlong>(nativeTask);
+} catch (const std::exception& e) {
+    jniEnv->ThrowNew(jniEnv->FindClass("java/lang/IllegalStateException"), e.what());
+    return 0;
+} catch (...) {
+    jniEnv->ThrowNew(jniEnv->FindClass("java/lang/IllegalStateException"), "Native task submission failed");
+    return 0;
 }
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor
@@ -94,8 +109,9 @@ Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor_submitTa
     jstring tddjson,
     jobject taskStateManagerWrapper,
     jobject omniTaskWrapper,
-    jobject taskOperatorEventGateway)
-{
+    jobject taskOperatorEventGateway,
+    jlong resourceHandle)
+try {
     const char* jobString = jniEnv->GetStringUTFChars(jobjson, nullptr);
     std::string jobInfoString(jobString);
     jniEnv->ReleaseStringUTFChars(jobjson, jobString);
@@ -118,6 +134,8 @@ Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor_submitTa
     omnistream::TaskInformationPOD taskInfo = task;
     nlohmann::json tdd = nlohmann::json::parse(taskDDString);
     omnistream::TaskDeploymentDescriptorPOD tddinfo = tdd;
+    auto resources = resourceHandle == 0 ? nullptr : NativeRocksDBResourceRegistry::instance().acquire(resourceHandle);
+    INFO_RELEASE("Omni RocksDB task resource: task=" << taskInfo.getTaskName() << ", handle=" << resourceHandle);
     jobject globalTaskStateRef = jniEnv->NewGlobalRef(taskStateManagerWrapper);
     if (globalTaskStateRef == nullptr) {
         LOG_TRACE("Failed to create global reference for TaskState!");
@@ -144,8 +162,21 @@ Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor_submitTa
     std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge = std::make_shared<RemoteDataFetcherBridgeImpl>();
     auto omniTaskExecutor = reinterpret_cast<omnistream::OmniTaskExecutor*>(nativeTaskExecutorAddress);
     auto nativeTask = omniTaskExecutor->submitTask(
-        jobInfo, taskInfo, tddinfo, stateBridge, TaskBridge, TaskOperatorEventGatewayBridge, remoteDataFetcherBridge);
+        jobInfo,
+        taskInfo,
+        tddinfo,
+        stateBridge,
+        TaskBridge,
+        TaskOperatorEventGatewayBridge,
+        remoteDataFetcherBridge,
+        resources);
     return reinterpret_cast<jlong>(nativeTask);
+} catch (const std::exception& e) {
+    jniEnv->ThrowNew(jniEnv->FindClass("java/lang/IllegalStateException"), e.what());
+    return 0;
+} catch (...) {
+    jniEnv->ThrowNew(jniEnv->FindClass("java/lang/IllegalStateException"), "Native task submission failed");
+    return 0;
 }
 
 JNIEXPORT jlong JNICALL

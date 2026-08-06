@@ -170,6 +170,7 @@ template <typename K, typename W>
 void SlicingWindowOperator<K, W>::close()
 {
     windowProcessor_->close();
+    AbstractStreamOperator<K>::close();
 }
 
 template <typename K, typename W>

@@ -12,6 +12,7 @@
 #ifndef OMNISTREAM_ROCKSDBLISTSTATE_H
 #define OMNISTREAM_ROCKSDBLISTSTATE_H
 
+#include <functional>
 #include <vector>
 #include "core/typeutils/TypeSerializer.h"
 #include "core/api/common/state/ListState.h"
@@ -34,7 +35,8 @@ public:
     void createTable(
         ROCKSDB_NAMESPACE::DB* db,
         std::string cfName,
-        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation);
+        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
+        const std::function<ROCKSDB_NAMESPACE::ColumnFamilyOptions(const std::string&)>& columnFamilyOptionsFactory);
 
     [[nodiscard]] TypeSerializer* getNamespaceSerializer() const
     {
@@ -118,9 +120,10 @@ template <typename K, typename N, typename UV>
 void RocksdbListState<K, N, UV>::createTable(
     rocksdb::DB* db,
     std::string cfName,
-    std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation)
+    std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
+    const std::function<ROCKSDB_NAMESPACE::ColumnFamilyOptions(const std::string&)>& columnFamilyOptionsFactory)
 {
-    stateTable->createTable(db, cfName, kvStateInformation);
+    stateTable->createTable(db, cfName, kvStateInformation, columnFamilyOptionsFactory);
 }
 
 template <typename K, typename N, typename UV>

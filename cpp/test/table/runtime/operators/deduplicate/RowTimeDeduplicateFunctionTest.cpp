@@ -976,6 +976,8 @@ TEST(RowTimeDeduplicateTest, RocksDBWithoutCacheStoresAndReadsSelectedRowData)
     auto* env = new omnistream::RuntimeEnvironmentV2();
     auto* taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("EmbeddedRocksDBStateBackend");
+    env->setRocksDBSharedResources(
+        RocksDBMemoryControllerUtils::allocateRocksDBSharedResources(32 * 1024 * 1024, 0.5, 0.1, false));
     taskInfo->setRocksdbStorePaths({rocksPath.string()});
     {
         auto configPOD = taskInfo->getStreamConfigPOD();
@@ -1059,6 +1061,8 @@ TEST(RowTimeDeduplicateTest, RocksDBCacheMissReadsAndUpdatesSelectedRowData)
     auto* env = new omnistream::RuntimeEnvironmentV2();
     auto* taskInfo = new TaskInformationPOD();
     taskInfo->setStateBackend("EmbeddedRocksDBStateBackend");
+    env->setRocksDBSharedResources(
+        RocksDBMemoryControllerUtils::allocateRocksDBSharedResources(32 * 1024 * 1024, 0.5, 0.1, false));
     taskInfo->setRocksdbStorePaths({rocksPath.string()});
     {
         auto configPOD = taskInfo->getStreamConfigPOD();

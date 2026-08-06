@@ -69,15 +69,13 @@ public:
     void createTable(
         ROCKSDB_NAMESPACE::DB* db,
         std::string cfName,
-        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation)
+        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
+        const std::function<ROCKSDB_NAMESPACE::ColumnFamilyOptions(const std::string&)>& columnFamilyOptionsFactory)
     {
         this->rocksDb = db;
-        rocksdb::Options options;
-        options.create_if_missing = true;
+        ROCKSDB_NAMESPACE::ColumnFamilyOptions familyOptions = columnFamilyOptionsFactory(cfName);
         // set merge method, listState need
-        options.merge_operator.reset(new RocksDbStringAppendOperator(','));
-        ROCKSDB_NAMESPACE::ColumnFamilyOptions familyOptions(options);
-        ROCKSDB_NAMESPACE::BlockBasedTableOptions blockBasedTableOptions;
+        familyOptions.merge_operator.reset(new RocksDbStringAppendOperator(','));
 
         // [FALCON] -----------------------------------------------------------------------------------------------
         auto useHashMemTable = reinterpret_cast<Boolean*>(
@@ -103,8 +101,6 @@ public:
         if (useHashMemTable != nullptr) {
             useHashMemTable->putRefCount();
         }
-
-        DefaultConfigurableOptionsFactory::createColumnOptions(familyOptions, blockBasedTableOptions);
 
         int64_t blockCacheBytes = 0;
         auto blockCacheSize =

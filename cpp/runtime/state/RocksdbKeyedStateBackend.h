@@ -15,6 +15,7 @@
 #include <map>
 #include <filesystem>
 #include <future>
+#include <functional>
 #include <memory>
 #include <vector>
 #include <atomic>
@@ -93,6 +94,7 @@ public:
         TypeSerializer* keySerializer,
         InternalKeyContext<K>* context,
         rocksdb::DB* rocksdb,
+        std::function<rocksdb::ColumnFamilyOptions(const std::string&)> columnFamilyOptionsFactory,
         std::shared_ptr<RocksDBSnapshotStrategyBase> rocksdbStrategy,
         KeyGroupRange* keyGroupRange,
         std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
@@ -106,6 +108,7 @@ public:
         std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge)
         : AbstractKeyedStateBackend<K>(keySerializer, context),
           db(rocksdb),
+          columnFamilyOptionsFactory_(std::move(columnFamilyOptionsFactory)),
           strategy(std::move(rocksdbStrategy)),
           kvStateInformation_(kvStateInformation),
           rocksDBResourceGuard_(std::move(rocksDBResourceGuard)),
@@ -319,6 +322,8 @@ public:
             delete db;
             db = nullptr;
         }
+        priorityQueueSetFactory_.reset();
+        columnFamilyOptionsFactory_ = {};
         disposed_ = true;
     }
 
@@ -380,6 +385,7 @@ private:
     int endGroup_;
     int maxParallelism_;
     ROCKSDB_NAMESPACE::DB* db = nullptr;
+    std::function<rocksdb::ColumnFamilyOptions(const std::string&)> columnFamilyOptionsFactory_;
     bool disposed_ = false; // mark whether the backend is already disposed and prevent duplicate disposing
     std::shared_ptr<RocksDBWriteBatchWrapper> writeBatchWrapper_;
     std::string kDBPath;
@@ -645,7 +651,7 @@ RocksdbListState<K, N, V>* RocksdbKeyedStateBackend<K>::createOrUpdateInternalLi
     if (isNewState) {
         createdStateObjects_.push_back(static_cast<State*>(createdState));
     }
-    createdState->createTable(db, stateDesc->getName(), kvStateInformation_);
+    createdState->createTable(db, stateDesc->getName(), kvStateInformation_, columnFamilyOptionsFactory_);
     // accumulate this LIST state's memory estimate once (createTable just set it).
     if (isNewState) {
         rocksdbListStateMem_.fetch_add(stateTable->getStateMemoryBytes(), std::memory_order_relaxed);
@@ -734,7 +740,7 @@ RocksdbValueState<K, N, V>* RocksdbKeyedStateBackend<K>::createOrUpdateInternalV
     if (isNewState) {
         createdStateObjects_.push_back(static_cast<State*>(createdState));
     }
-    createdState->createTable(db, stateDesc->getName(), kvStateInformation_);
+    createdState->createTable(db, stateDesc->getName(), kvStateInformation_, columnFamilyOptionsFactory_);
 
     // [FALCON] -------------------------------------------------------------------------------------------
     auto useStateCache =
@@ -804,7 +810,7 @@ RocksdbMapState<K, N, UK, UV>* RocksdbKeyedStateBackend<K>::createOrUpdateIntern
     if (isNewState) {
         createdStateObjects_.push_back(static_cast<State*>(createdState));
     }
-    createdState->createTable(db, stateDesc->getName(), kvStateInformation_);
+    createdState->createTable(db, stateDesc->getName(), kvStateInformation_, columnFamilyOptionsFactory_);
     createdState->setMaxParallelism(maxParallelism_);
     // accumulate this MAP state's memory estimate once (createTable just set it).
     if (isNewState) {

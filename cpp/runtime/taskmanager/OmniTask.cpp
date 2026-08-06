@@ -176,6 +176,13 @@ std::shared_ptr<RuntimeEnvironmentV2> OmniTask::getRuntimeEnv()
     return runtimeEnv;
 }
 
+void OmniTask::closeRocksDBSharedResources()
+{
+    if (runtimeEnv) {
+        runtimeEnv->setRocksDBSharedResources(nullptr);
+    }
+}
+
 void OmniTask::cancel()
 {
     std::thread::id tid = std::this_thread::get_id();

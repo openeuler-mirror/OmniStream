@@ -19,6 +19,8 @@
 
 #include <gtest/gtest.h>
 #include "rocksdb/db.h"
+#include "rocksdb/table.h"
+#include "rocksdb/advanced_cache.h"
 #include "core/api/common/state/MapState.h"
 #include "typeutils/LongSerializer.h"
 #include "runtime/state/InternalKeyContextImpl.h"
@@ -55,8 +57,30 @@ protected:
         options.create_if_missing = true;
         ROCKSDB_NAMESPACE::Status status = ROCKSDB_NAMESPACE::DB::Open(options, dbPath_, &rocksDb_);
         ASSERT_TRUE(status.ok()) << status.ToString();
-        auto* kvStateInformation = new std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>();
-        state_->createTable(rocksDb_, "RocksdbMapStateBatchTest", kvStateInformation);
+        sharedCache_ = ROCKSDB_NAMESPACE::NewLRUCache(1024 * 1024);
+        ROCKSDB_NAMESPACE::BlockBasedTableOptions blockOptions;
+        blockOptions.block_cache = sharedCache_;
+        blockOptions.cache_index_and_filter_blocks = true;
+        blockOptions.cache_index_and_filter_blocks_with_high_priority = true;
+        blockOptions.pin_l0_filter_and_index_blocks_in_cache = true;
+        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>> kvStateInformation;
+        kvStateInformation["RocksdbMapStateBatchTest"] = std::make_shared<RocksDbKvStateInfo>();
+        kvStateInformation["RocksdbMapStateBatchTestvb"] = std::make_shared<RocksDbKvStateInfo>();
+        state_->createTable(
+            rocksDb_, "RocksdbMapStateBatchTest", &kvStateInformation, [blockOptions](const std::string&) {
+                ROCKSDB_NAMESPACE::ColumnFamilyOptions options;
+                options.table_factory.reset(ROCKSDB_NAMESPACE::NewBlockBasedTableFactory(blockOptions));
+                return options;
+            });
+        for (const auto& entry : kvStateInformation) {
+            auto options = rocksDb_->GetOptions(entry.second->columnFamilyHandle_);
+            const auto* tableOptions = options.table_factory->GetOptions<ROCKSDB_NAMESPACE::BlockBasedTableOptions>();
+            ASSERT_NE(tableOptions, nullptr);
+            EXPECT_EQ(tableOptions->block_cache, sharedCache_);
+            EXPECT_TRUE(tableOptions->cache_index_and_filter_blocks);
+            EXPECT_TRUE(tableOptions->cache_index_and_filter_blocks_with_high_priority);
+            EXPECT_TRUE(tableOptions->pin_l0_filter_and_index_blocks_in_cache);
+        }
         context_->setCurrentKey(0);
     }
 
@@ -84,6 +108,7 @@ protected:
     std::unique_ptr<RocksdbMapState<int64_t, VoidNamespace, int64_t, int64_t>> state_;
     ROCKSDB_NAMESPACE::DB* rocksDb_ = nullptr;
     std::string dbPath_;
+    std::shared_ptr<ROCKSDB_NAMESPACE::Cache> sharedCache_;
 };
 
 TEST_F(RocksdbMapStateBatchTest, PutEntriesMatchesSinglePut)

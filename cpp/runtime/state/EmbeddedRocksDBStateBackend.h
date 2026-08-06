@@ -83,7 +83,10 @@ public:
         uint64_t uUpper = std::stoull(upperHex, nullptr, 16);
         auto operatorId = std::make_shared<OperatorID>(uUpper, uLower);
 
-        auto sharedResources = RocksDBMemoryControllerUtils::allocateRocksDBSharedResources(env->taskConfiguration());
+        auto sharedResources = env->getRocksDBSharedResources();
+        if (!sharedResources) {
+            throw std::runtime_error("Omni RocksDB requires a slot-level shared-resource lease");
+        }
 
         auto resourceContainer = std::make_shared<RocksDBResourceContainer>(sharedResources, instanceBasePath, false);
 

@@ -22,7 +22,7 @@ Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor_createNa
  * Signature: (JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;)J
  */
 JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor_submitTaskNative(
-    JNIEnv*, jobject, jlong, jstring, jstring, jstring);
+    JNIEnv*, jobject, jlong, jstring, jstring, jstring, jlong);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor
@@ -32,7 +32,7 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskexecutor_O
  */
 JNIEXPORT jlong JNICALL
 Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor_submitTaskNativeWithCheckpointing(
-    JNIEnv*, jobject, jlong, jstring, jstring, jstring, jobject, jobject, jobject);
+    JNIEnv*, jobject, jlong, jstring, jstring, jstring, jobject, jobject, jobject, jlong);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor
