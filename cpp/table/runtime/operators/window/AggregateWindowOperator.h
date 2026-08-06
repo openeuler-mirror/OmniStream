@@ -52,8 +52,8 @@ public:
         }
         WindowOperator<K, W>::open();
         reuseOutput_ = std::make_unique<JoinedRowData>();
-        resultRowSerializer_ =
-            std::make_unique<RowDataSerializer>(new omnistream::RowType(true, WindowOperator<K, W>::outputTypes));
+        omnistream::RowType resultRowType(true, WindowOperator<K, W>::outputTypes);
+        resultRowSerializer_ = std::make_unique<RowDataSerializer>(&resultRowType);
     }
 
     void setCurrentKey(K key) override

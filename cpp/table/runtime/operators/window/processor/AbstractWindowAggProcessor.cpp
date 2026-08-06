@@ -105,14 +105,16 @@ void AbstractWindowAggProcessor::open(
         THROW_LOGIC_EXCEPTION("The keyedStateBackend is not supported");
     }
     this->internalTimerService = internalTimerService;
-    auto* accSerializer = new RowDataSerializer(new omnistream::RowType(true, accTypes_));
+    omnistream::RowType accRowType(true, accTypes_);
+    auto* accSerializer = new RowDataSerializer(&accRowType);
     // init WindowValueState
     std::string aggName = "window-aggs";
     auto* accDesc = new ValueStateDescriptor<RowData*>(aggName, accSerializer);
     using S = InternalValueState<KeyType, int64_t, RowData*>;
     S* state = keyedStateBackend->template getOrCreateKeyedState<int64_t, S, RowData*>(new LongSerializer(), accDesc);
     windowState = std::make_unique<WindowValueState<KeyType, int64_t, RowData*>>(state);
-    resultRowSerializer_ = std::make_unique<RowDataSerializer>(new omnistream::RowType(true, outputTypes));
+    omnistream::RowType resultRowType(true, outputTypes);
+    resultRowSerializer_ = std::make_unique<RowDataSerializer>(&resultRowType);
     windowBuffer = std::make_unique<RecordsWindowBuffer>(
         config, windowState.get(), output, this->stateBackend, sliceAssigner, internalTimerService);
 }
