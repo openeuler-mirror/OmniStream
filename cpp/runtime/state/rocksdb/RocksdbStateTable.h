@@ -344,7 +344,7 @@ public:
 
         const rocksdb::Status& status = rocksDb->Merge(writeOptions, table, sliceKey, sliceValue);
         if (!status.ok()) {
-            std::cout << "Status not ok!!" << std::endl;
+            THROW_RUNTIME_ERROR("Failed to add value to RocksDB: " << status.ToString());
         }
     }
 
@@ -368,6 +368,10 @@ public:
 
     void addAll(N& nameSpace, const vector<S>& values)
     {
+        if (values.empty()) {
+            WARN_RELEASE("values is emtpy when addAll to rocksdb");
+            return;
+        }
         // 存入
         LOG("RocksDB list value state addAll");
         DataOutputSerializer outputSerializer;
@@ -375,8 +379,15 @@ public:
         outputSerializer.setBackendBuffer(&outputBufferStatus);
         ROCKSDB_NAMESPACE::Slice sliceKey = GetKeyNameSpaceSlice(outputSerializer, nameSpace);
 
-        const rocksdb::Slice& slice = serializeList(values);
-        rocksDb->Merge(writeOptions, table, sliceKey, slice);
+        DataOutputSerializer valueOutputSerializer;
+        OutputBufferStatus valueOutputBufferStatus;
+        valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
+
+        const rocksdb::Slice slice = serializeList(valueOutputSerializer, values);
+        const rocksdb::Status& status = rocksDb->Merge(writeOptions, table, sliceKey, slice);
+        if (!status.ok()) {
+            THROW_RUNTIME_ERROR("Failed to addAll to RocksDB: " << status.ToString());
+        }
     }
 
     typename InternalKvState<K, N, S>::StateIncrementalVisitor* getStateIncrementalVisitor(
@@ -697,14 +708,9 @@ protected:
     ROCKSDB_NAMESPACE::ReadOptions readOptions;
     ROCKSDB_NAMESPACE::WriteOptions writeOptions;
 
-    ROCKSDB_NAMESPACE::Slice serializeList(const std::vector<S>& values)
+    ROCKSDB_NAMESPACE::Slice serializeList(DataOutputSerializer& valueOutputSerializer, const std::vector<S>& values)
     {
-        // value序列化
         TypeSerializer* vSerializer = getStateSerializer();
-        DataOutputSerializer valueOutputSerializer;
-        OutputBufferStatus valueOutputBufferStatus;
-        valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
-
         bool first = true;
         for (const auto& item : values) {
             if (first) {
