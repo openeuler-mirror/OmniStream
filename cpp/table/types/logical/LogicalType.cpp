@@ -318,11 +318,30 @@ BasicLogicalType* BasicLogicalType::getTypeBy(DataTypeId typeId, const nlohmann:
             type = new TimestampWithLocalTimeZoneType(nullable, precision);
             break;
         }
-        /*
-        case DataTypeId::OMNI_INVALID:
-            type = BasicLogicalType::INVALID_TYPE;
+        case DataTypeId::OMNI_DECIMAL64: {
+            type = new BasicLogicalType(nullable, typeId, "DECIMAL64");
             break;
-        */
+        }
+        case DataTypeId::OMNI_DECIMAL128: {
+            type = new BasicLogicalType(nullable, typeId, "DECIMAL128");
+            break;
+        }
+        case DataTypeId::OMNI_INTERVAL_MONTHS: {
+            type = new BasicLogicalType(nullable, typeId, "INTERVAL_MONTHS");
+            break;
+        }
+        case DataTypeId::OMNI_INTERVAL_DAY_TIME: {
+            type = new BasicLogicalType(nullable, typeId, "INTERVAL_DAY_TIME");
+            break;
+        }
+        case DataTypeId::OMNI_INVALID: {
+            if (nullable == BasicLogicalType::INVALID_TYPE->isNullable()) {
+                type = BasicLogicalType::INVALID_TYPE;
+            } else {
+                type = new BasicLogicalType(nullable, typeId, "UNRESOLVED");
+            }
+            break;
+        }
         default: THROW_LOGIC_EXCEPTION("Unsupported DataTypeId : " << typeId << " in inputRowType.");
     }
 
@@ -379,6 +398,26 @@ BasicLogicalType* BasicLogicalType::getTypeBy(
         case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE: {
             int precision = options.value("precision", 0);
             type = new TimestampWithLocalTimeZoneType(isNullable, precision);
+            break;
+        }
+        case DataTypeId::OMNI_DECIMAL64: {
+            type = new BasicLogicalType(isNullable, typeId, "DECIMAL64");
+            break;
+        }
+        case DataTypeId::OMNI_DECIMAL128: {
+            type = new BasicLogicalType(isNullable, typeId, "DECIMAL128");
+            break;
+        }
+        case DataTypeId::OMNI_INTERVAL_MONTHS: {
+            type = new BasicLogicalType(isNullable, typeId, "INTERVAL_MONTHS");
+            break;
+        }
+        case DataTypeId::OMNI_INTERVAL_DAY_TIME: {
+            type = new BasicLogicalType(isNullable, typeId, "INTERVAL_DAY_TIME");
+            break;
+        }
+        case DataTypeId::OMNI_INVALID: {
+            type = new BasicLogicalType(isNullable, typeId, "UNRESOLVED");
             break;
         }
         default: THROW_LOGIC_EXCEPTION("Unsupported DataTypeId : " << typeId << " in inputRowType.");

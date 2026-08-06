@@ -318,7 +318,12 @@ TypeInformation* TypeInfoFactory::createDataStreamTypeInfo(const json& serialize
         const json serializerAttributes = serializerInfo.value("serializerAttributes", json::object());
         const std::string conversionClass =
             serializerAttributes.value("dataTypeConversionClassName", serializerInfo.value("clazz", ""));
-        auto dataType = std::shared_ptr<LogicalType>(createDataType(serializerInfo["logicalType"]));
+        auto logicalTypeDeleter = [](LogicalType* logicalType) {
+            if (!LogicalType::isSharedLogicalType(logicalType)) {
+                delete logicalType;
+            }
+        };
+        auto dataType = std::shared_ptr<LogicalType>(createDataType(serializerInfo["logicalType"]), logicalTypeDeleter);
         TypeInformation* internalTypeInfo = createDataStreamTypeInfo(serializerInfo["valueSerializer"]);
         try {
             typeInformation = new ExternalTypeInfo(
