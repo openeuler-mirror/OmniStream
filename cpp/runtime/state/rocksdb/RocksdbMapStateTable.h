@@ -15,6 +15,7 @@
 #include <unordered_set>
 #include <type_traits>
 #include <tuple>
+#include <functional>
 #include "core/typeutils/TypeSerializer.h"
 #include "../internal/InternalKvState.h"
 #include "../InternalKeyContext.h"
@@ -74,12 +75,12 @@ public:
     void createTable(
         ROCKSDB_NAMESPACE::DB* db,
         const std::string& cfName,
-        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation)
+        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
+        const std::function<ROCKSDB_NAMESPACE::ColumnFamilyOptions(const std::string&)>& columnFamilyOptionsFactory)
     {
         LOG("create MapState column family");
         this->rocksDb = db;
-        ROCKSDB_NAMESPACE::ColumnFamilyOptions familyOptions;
-        ROCKSDB_NAMESPACE::BlockBasedTableOptions blockBasedTableOptions;
+        ROCKSDB_NAMESPACE::ColumnFamilyOptions familyOptions = columnFamilyOptionsFactory(cfName);
 
         // [FALCON]-----------------------------------------------------------------------------------------------
         auto useRangeFilter = reinterpret_cast<Boolean*>(
@@ -104,8 +105,6 @@ public:
             useRangeFilter->putRefCount();
         }
         // [FALCON]-----------------------------------------------------------------------------------------------
-
-        DefaultConfigurableOptionsFactory::createColumnOptions(familyOptions, blockBasedTableOptions);
 
         ROCKSDB_NAMESPACE::Status s;
         auto it1 = kvStateInformation->find(cfName);

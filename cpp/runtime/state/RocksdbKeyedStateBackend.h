@@ -15,6 +15,7 @@
 #include <map>
 #include <filesystem>
 #include <future>
+#include <functional>
 #include <memory>
 #include <vector>
 #include "AbstractKeyedStateBackend.h"
@@ -88,6 +89,7 @@ public:
         TypeSerializer* keySerializer,
         InternalKeyContext<K>* context,
         rocksdb::DB* rocksdb,
+        std::function<rocksdb::ColumnFamilyOptions(const std::string&)> columnFamilyOptionsFactory,
         std::shared_ptr<RocksDBSnapshotStrategyBase> rocksdbStrategy,
         KeyGroupRange* keyGroupRange,
         std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
@@ -101,6 +103,7 @@ public:
         std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge)
         : AbstractKeyedStateBackend<K>(keySerializer, context),
           db(rocksdb),
+          columnFamilyOptionsFactory_(std::move(columnFamilyOptionsFactory)),
           strategy(std::move(rocksdbStrategy)),
           kvStateInformation_(kvStateInformation),
           rocksDBResourceGuard_(std::move(rocksDBResourceGuard)),
@@ -358,6 +361,7 @@ private:
     int endGroup_;
     int maxParallelism_;
     ROCKSDB_NAMESPACE::DB* db = nullptr;
+    std::function<rocksdb::ColumnFamilyOptions(const std::string&)> columnFamilyOptionsFactory_;
     bool disposed_ = false; // mark whether the backend is already disposed and prevent duplicate disposing
     std::shared_ptr<RocksDBWriteBatchWrapper> writeBatchWrapper_;
     std::string kDBPath;
@@ -614,7 +618,7 @@ RocksdbListState<K, N, V>* RocksdbKeyedStateBackend<K>::createOrUpdateInternalLi
             stateDesc, stateTable, reinterpret_cast<RocksdbListState<K, N, V>*>(it->second));
     }
     createdKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
-    createdState->createTable(db, stateDesc->getName(), kvStateInformation_);
+    createdState->createTable(db, stateDesc->getName(), kvStateInformation_, columnFamilyOptionsFactory_);
     return createdState;
 }
 
@@ -693,7 +697,7 @@ RocksdbValueState<K, N, V>* RocksdbKeyedStateBackend<K>::createOrUpdateInternalV
             stateDesc, stateTable, reinterpret_cast<RocksdbValueState<K, N, V>*>(it->second));
     }
     createdKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
-    createdState->createTable(db, stateDesc->getName(), kvStateInformation_);
+    createdState->createTable(db, stateDesc->getName(), kvStateInformation_, columnFamilyOptionsFactory_);
 
     // [FALCON] -------------------------------------------------------------------------------------------
     auto useStateCache =
@@ -752,7 +756,7 @@ RocksdbMapState<K, N, UK, UV>* RocksdbKeyedStateBackend<K>::createOrUpdateIntern
             stateDesc, stateTable, reinterpret_cast<RocksdbMapState<K, N, UK, UV>*>(it->second));
     }
     createdKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
-    createdState->createTable(db, stateDesc->getName(), kvStateInformation_);
+    createdState->createTable(db, stateDesc->getName(), kvStateInformation_, columnFamilyOptionsFactory_);
     createdState->setMaxParallelism(maxParallelism_);
     return createdState;
 }

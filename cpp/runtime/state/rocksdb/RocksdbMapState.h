@@ -12,6 +12,7 @@
 #pragma once
 
 #include <emhash7.hpp>
+#include <functional>
 #include "core/typeutils/TypeSerializer.h"
 #include "core/api/common/state/StateDescriptor.h"
 #include "table/data/vectorbatch/VectorBatch.h"
@@ -114,7 +115,8 @@ public:
     void createTable(
         ROCKSDB_NAMESPACE::DB* db,
         std::string cfName,
-        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation);
+        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
+        const std::function<ROCKSDB_NAMESPACE::ColumnFamilyOptions(const std::string&)>& columnFamilyOptionsFactory);
     std::shared_ptr<std::string> getRawBytes(UK& uk);
 
     void setMaxParallelism(const int32_t maxParallelism)
@@ -382,9 +384,10 @@ template <typename K, typename N, typename UK, typename UV>
 void RocksdbMapState<K, N, UK, UV>::createTable(
     ROCKSDB_NAMESPACE::DB* db,
     std::string cfName,
-    std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation)
+    std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
+    const std::function<ROCKSDB_NAMESPACE::ColumnFamilyOptions(const std::string&)>& columnFamilyOptionsFactory)
 {
-    stateTable->createTable(db, cfName, kvStateInformation);
+    stateTable->createTable(db, cfName, kvStateInformation, columnFamilyOptionsFactory);
 }
 
 template <typename K, typename N, typename UK, typename UV>
