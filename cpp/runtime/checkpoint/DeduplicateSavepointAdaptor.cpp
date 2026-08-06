@@ -80,7 +80,8 @@ void DeduplicateSavepointAdaptor::buildStateSerializerMap()
             "DeduplicateSavepointAdaptor: no column types to build state serializer, "
             "check prepareForSave/operatorDescription");
     }
-    auto* serializer = new RowDataSerializer(new omnistream::RowType(false, compatibleColumnTypes_));
+    omnistream::RowType rowType(false, compatibleColumnTypes_);
+    auto* serializer = new RowDataSerializer(&rowType);
     stateSerializerMap_[DEDUPLICATE_STATE_NAME] = std::shared_ptr<RowDataSerializer>(serializer);
 }
 
