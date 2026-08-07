@@ -273,7 +273,7 @@ private:
 
     // SubtaskCheckpointCoordinator
     std::shared_ptr<omnistream::SubtaskCheckpointCoordinator> subtaskCheckpointCoordinator;
-    StateBackend* stateBackend;
+    StateBackend* stateBackend = nullptr;
     std::shared_ptr<CheckpointStorage> checkpointStorage;
     bool isRunning;
 

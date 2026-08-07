@@ -25,6 +25,7 @@
 #include "runtime/state/hashmap/HashMapStateBackend.h"
 #ifdef WITH_OMNISTATESTORE
 #include "runtime/state/BssKeyedStateBackend.h"
+#include "runtime/state/ockdb/EmbeddedOckStateBackend.h"
 #endif
 #include "runtime/state/RocksDBStateBackend.h"
 #include "runtime/state/UUID.h"
@@ -380,47 +381,43 @@ AbstractKeyedStateBackend<K>* StreamTaskStateInitializerImpl::keyedStatedBackend
     }
 #ifdef WITH_OMNISTATESTORE
     if (backendType == "EmbeddedOckStateBackend") {
-        auto bssBackend = new BssKeyedStateBackend<K>(keySerializer, keyContext, start, end, maxParallelism);
+        delete keyContext;
+        keyContext = nullptr;
+        auto embeddedOckStateBackend = dynamic_cast<EmbeddedOckStateBackend*>(this->stateBackend);
+        if (embeddedOckStateBackend == nullptr) {
+            THROW_RUNTIME_ERROR("stateBackend is not EmbeddedOckStateBackend.");
+        }
+        std::set<std::shared_ptr<KeyedStateHandle>> stateHandles;
         auto taskStateManager = env == nullptr ? nullptr : env->getTaskStateManager();
-        if (taskStateManager == nullptr) {
-            INFO_RELEASE("EmbeddedOckStateBackend: no TaskStateManager, starting with empty BSS state");
-            return bssBackend;
-        }
-        bssBackend->SetLocalRecoveryConfig(taskStateManager->createLocalRecoveryConfig());
-        auto omniTaskBridge = taskStateManager->getOmniTaskBridge();
-        if (omniTaskBridge) {
-            bssBackend->SetOmniTaskBridge(omniTaskBridge);
-        }
-        if (!taskStateManager->hasJobManagerTaskRestore()) {
-            INFO_RELEASE("EmbeddedOckStateBackend: no JobManagerTaskRestore, starting with empty BSS state");
-            return bssBackend;
-        }
-
-        PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskStates;
-        if (operatorID) {
-            prioritizedOperatorSubtaskStates = taskStateManager->prioritizedOperatorState(*operatorID);
-        } else {
-            auto operatorIdStr = env->taskConfiguration().getStreamConfigPOD().getOperatorDescription().getOperatorId();
-            auto operatorId = TaskStateSnapshotDeserializer::HexStringToOperatorId<OperatorID>(operatorIdStr);
-            prioritizedOperatorSubtaskStates = taskStateManager->prioritizedOperatorState(operatorId);
-        }
-
-        auto handleVector = prioritizedOperatorSubtaskStates.getPrioritizedManagedKeyedState();
-        std::vector<std::shared_ptr<KeyedStateHandle>> stateHandles;
-        for (const auto& collection : handleVector) {
-            for (const auto& handle : collection) {
-                if (handle) {
-                    stateHandles.push_back(handle);
+        if (taskStateManager != nullptr && taskStateManager->hasJobManagerTaskRestore()) {
+            PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskStates;
+            if (operatorID) {
+                prioritizedOperatorSubtaskStates = taskStateManager->prioritizedOperatorState(*operatorID);
+            } else {
+                auto operatorIdStr = env->taskConfiguration().getStreamConfigPOD().getOperatorDescription().getOperatorId();
+                auto operatorId = TaskStateSnapshotDeserializer::HexStringToOperatorId<OperatorID>(operatorIdStr);
+                prioritizedOperatorSubtaskStates = taskStateManager->prioritizedOperatorState(operatorId);
+            }
+            auto handleVector = prioritizedOperatorSubtaskStates.getPrioritizedManagedKeyedState();
+            for (const auto& collection : handleVector) {
+                for (const auto& handle : collection) {
+                    if (handle) {
+                        stateHandles.insert(handle);
+                    }
+                }
+                if (!stateHandles.empty()) {
+                    break;
                 }
             }
-            if (!stateHandles.empty()) {
-                break; // Use the highest priority alternative
-            }
         }
-        if (!stateHandles.empty()) {
-            bssBackend->RestoreFromStateHandles(stateHandles, omniTaskBridge);
-        }
-        return bssBackend;
+        return embeddedOckStateBackend->template createKeyedStateBackend<K>(
+            env,
+            operatorIdentifierText,
+            stateHandles,
+            keyGroupRange,
+            keySerializer,
+            maxParallelism,
+            0);
     }
 
 #endif
@@ -507,6 +504,10 @@ inline CheckpointableKeyedStateBackend<K>* StreamTaskStateInitializerImpl::keyed
 inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBackend(
     std::string operatorIdentifierText, OperatorID* operatorID)
 {
+    if (stateBackend == nullptr) {
+        INFO_RELEASE("error StreamTaskStateInitializerImpl::operatorStateBackend stateBackend is null");
+        throw std::runtime_error("stateBackend is null while creating operator state backend");
+    }
     std::string logDescription = "operator state backend for " + operatorIdentifierText;
 
     auto backendRestorer = new BackendRestorerProcedure<OperatorStateBackend*, std::shared_ptr<OperatorStateHandle>>(
@@ -517,11 +518,22 @@ inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBacken
                 return reinterpret_cast<OperatorStateBackend*>(
                     embeddedRocksDBStateBackend->createOperatorStateBackend(env, operatorIdentifierText, stateHandles));
             }
+#ifdef WITH_OMNISTATESTORE
+            auto embeddedOckStateBackend = dynamic_cast<EmbeddedOckStateBackend*>(this->stateBackend);
+            if (embeddedOckStateBackend) {
+                return reinterpret_cast<OperatorStateBackend*>(
+                    embeddedOckStateBackend->createOperatorStateBackend(env, operatorIdentifierText, stateHandles));
+            }
+#endif
             auto hashMapStateBackend = dynamic_cast<HashMapStateBackend*>(this->stateBackend);
             if (hashMapStateBackend) {
                 return reinterpret_cast<OperatorStateBackend*>(
                     hashMapStateBackend->createOperatorStateBackend(env, operatorIdentifierText, stateHandles));
             }
+            INFO_RELEASE(
+                "error StreamTaskStateInitializerImpl::operatorStateBackend unsupported state backend for operator "
+                << operatorIdentifierText);
+            throw std::runtime_error("unsupported state backend while creating operator state backend");
         },
         logDescription);
 
