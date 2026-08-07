@@ -49,6 +49,11 @@ void BinaryRowWriter::writeDouble(int pos, double value)
     MemorySegmentUtils::putDouble(memoryBuffer, row_->getBufferCapacity(), getFieldOffset(pos), value);
 }
 
+void BinaryRowWriter::writeDecimal128(int pos, uint64_t low, int64_t high)
+{
+    row_->setDecimal128(pos, low, high);
+}
+
 void BinaryRowWriter::reset()
 {
     cursor_ = fixedSize_;

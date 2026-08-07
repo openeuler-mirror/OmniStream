@@ -19,6 +19,12 @@ void BinaryWriter::write(BinaryWriter* writer, int pos, void* object, LogicalTyp
     switch (type->getTypeId()) {
         case DataTypeId::OMNI_BOOLEAN: writer->writeLong(pos, *(reinterpret_cast<bool*>(object))); break;
         case DataTypeId::OMNI_LONG: writer->writeLong(pos, *(reinterpret_cast<long*>(object))); break;
+        case DataTypeId::OMNI_DECIMAL64: writer->writeLong(pos, *(reinterpret_cast<long*>(object))); break;
+        case DataTypeId::OMNI_DECIMAL128: {
+            auto* decimal = reinterpret_cast<Decimal128*>(object);
+            writer->writeDecimal128(pos, decimal->LowBits(), decimal->HighBits());
+            break;
+        }
         case DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE:
         case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
         case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:

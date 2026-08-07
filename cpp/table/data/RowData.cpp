@@ -29,6 +29,10 @@ FieldGetter* RowData::createFieldGetter(LogicalType* fieldType, int fieldPos)
             return new FieldGetter(fieldPos, reinterpret_cast<getFieldByPosFn>(&RowData::getInt));
         case DataTypeId::OMNI_LONG:
             return new FieldGetter(fieldPos, reinterpret_cast<getFieldByPosFn>(&RowData::getLong));
+        case DataTypeId::OMNI_DECIMAL64:
+            return new FieldGetter(fieldPos, reinterpret_cast<getFieldByPosFn>(&RowData::getLong));
+        case DataTypeId::OMNI_DECIMAL128:
+            return new FieldGetter(fieldPos, reinterpret_cast<getFieldByPosFn>(&RowData::getDecimal128));
         case DataTypeId::OMNI_DOUBLE:
             return new FieldGetter(fieldPos, reinterpret_cast<getFieldByPosFn>(&RowData::getDouble));
         case DataTypeId::OMNI_DATE32:

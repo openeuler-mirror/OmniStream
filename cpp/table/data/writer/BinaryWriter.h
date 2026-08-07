@@ -23,6 +23,7 @@ public:
     virtual void complete() = 0;
     virtual void writeInt(int pos, int value) = 0;
     virtual void writeDouble(int pos, double value) = 0;
+    virtual void writeDecimal128(int pos, uint64_t low, int64_t high) = 0;
 
     static void write(BinaryWriter* writer, int pos, void* object, LogicalType* type, TypeSerializer* serializer);
 };

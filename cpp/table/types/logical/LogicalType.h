@@ -16,6 +16,7 @@
 #include <memory>
 #include <unordered_map>
 #include <string>
+#include <utility>
 #include "OmniOperatorJIT/core/src/type/data_type.h"
 #include <nlohmann/json.hpp>
 #include "core/include/common.h"
@@ -38,6 +39,8 @@ public:
     static omniruntime::type::DataTypeId flinkTypeToOmniTypeId(const std::string& flinkType);
 
     static LogicalType* flinkTypeToOmniType(const std::string& flinkType);
+
+    static std::pair<int32_t, int32_t> parseDecimalPrecisionScale(const std::string& flinkType);
 
     static bool isSharedLogicalType(const LogicalType* logicalType);
 

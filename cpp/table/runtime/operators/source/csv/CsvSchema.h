@@ -32,6 +32,7 @@ public:
         arrayElementSeparator_ = ",";
         hasNullValue_ = false;
         nullValue_ = "";
+        scales_.resize(arity_, 0);
     }
 
     // Setter methods
@@ -117,6 +118,24 @@ public:
         return types_[idx];
     }
 
+    void setScales(const std::vector<int32_t>& scales)
+    {
+        scales_ = scales;
+    }
+
+    std::vector<int32_t> getScales() const
+    {
+        return scales_;
+    }
+
+    int32_t getScaleAtIdx(int idx) const
+    {
+        if (idx < 0 || static_cast<size_t>(idx) >= scales_.size()) {
+            return 0;
+        }
+        return scales_[idx];
+    }
+
 private:
     char columnSeparator_;
     char quoteChar_;
@@ -128,6 +147,7 @@ private:
 
     int arity_;
     std::vector<omniruntime::type::DataTypeId> types_;
+    std::vector<int32_t> scales_;
 };
 
 } // namespace csv

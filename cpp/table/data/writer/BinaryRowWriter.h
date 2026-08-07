@@ -26,6 +26,7 @@ public:
     void writeLong(int pos, long value) override;
     void writeInt(int pos, int value) override;
     void writeDouble(int pos, double value) override;
+    void writeDecimal128(int pos, uint64_t low, int64_t high) override;
 
     void reset() override;
 

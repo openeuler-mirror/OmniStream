@@ -57,6 +57,11 @@ long* BinaryRowData::getLong(int pos)
     return MemorySegmentUtils::getLong(memoryBuffer, bufferCapacity, getFieldOffset(pos));
 }
 
+omniruntime::type::Decimal128* BinaryRowData::getDecimal128(int pos)
+{
+    return getDecimal128(pos, 0);
+}
+
 bool* BinaryRowData::getBool(int pos)
 {
     return MemorySegmentUtils::getBool(memoryBuffer, bufferCapacity, getFieldOffset(pos));
