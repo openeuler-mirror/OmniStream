@@ -174,6 +174,18 @@ StreamOperator* StreamOperatorFactory::createOperatorAndCollector(
             new InnerJoinOperator<std::shared_ptr<RowData>>(opConfig.getDescription(), chainOutput, nullptr, nullptr);
         op->setup();
         LOG("Operator WindowJoinOperator address " + std::to_string(reinterpret_cast<long>(op)));
+
+        // SP-INTEROP: 启用 WindowJoin 兼容适配器
+        auto opDescriptionJSON = opConfig.getDescription();
+        const FlinkSavepointAdaptorType adaptorType =
+            omnistream::StreamingJoinSavepointUtil::getWindowJoinAdaptorType(opDescriptionJSON);
+        if (adaptorType == FlinkSavepointAdaptorType::None) {
+            op->setFlinkSavepointUnsupported(
+                omnistream::StreamingJoinSavepointUtil::buildWindowJoinUnsupportedReason(opDescriptionJSON));
+        } else {
+            op->setDescription(opDescriptionJSON);
+            op->setFlinkSavepointAdaptor(adaptorType);
+        }
         return static_cast<TwoInputStreamOperator*>(op);
     } else {
         THROW_LOGIC_EXCEPTION("Unknown operator " + uniqueName);
@@ -572,8 +584,16 @@ StreamOperator* StreamOperatorFactory::CreateWindowInnerJoinOp(
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
     auto op = new InnerJoinOperator<std::shared_ptr<RowData>>(opDescriptionJSON, chainOutput, nullptr, nullptr);
     op->setup(std::move(task));
-    op->setDescription(opDescriptionJSON);
-    op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::WindowJoinAdaptor);
+    // SP-INTEROP: 启用 WindowJoin 兼容适配器
+    const FlinkSavepointAdaptorType adaptorType =
+        omnistream::StreamingJoinSavepointUtil::getWindowJoinAdaptorType(opDescriptionJSON);
+    if (adaptorType == FlinkSavepointAdaptorType::None) {
+        op->setFlinkSavepointUnsupported(
+            omnistream::StreamingJoinSavepointUtil::buildWindowJoinUnsupportedReason(opDescriptionJSON));
+    } else {
+        op->setDescription(opDescriptionJSON);
+        op->setFlinkSavepointAdaptor(adaptorType);
+    }
     LOG("Operator WindowJoinOperator address " + std::to_string(reinterpret_cast<long>(op)));
     return static_cast<TwoInputStreamOperator*>(op);
 }

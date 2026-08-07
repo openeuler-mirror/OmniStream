@@ -136,6 +136,45 @@ std::vector<int8_t> bytes(std::initializer_list<int8_t> values)
     return std::vector<int8_t>(values);
 }
 
+void writeInt32BE(std::vector<uint8_t>& buf, int32_t val)
+{
+    buf.push_back(static_cast<uint8_t>((val >> 24) & 0xFF));
+    buf.push_back(static_cast<uint8_t>((val >> 16) & 0xFF));
+    buf.push_back(static_cast<uint8_t>((val >> 8) & 0xFF));
+    buf.push_back(static_cast<uint8_t>(val & 0xFF));
+}
+
+void writeComboIdBE(std::vector<uint8_t>& buf, uint64_t id)
+{
+    for (int i = 56; i >= 0; i -= 8) {
+        buf.push_back(static_cast<uint8_t>((id >> i) & 0xFF));
+    }
+}
+
+// Heap ListState format: [int32 list_size][comboId_1 (8B)][comboId_2 (8B)]...
+std::vector<uint8_t> makeHeapListValue(const std::vector<uint64_t>& comboIds)
+{
+    std::vector<uint8_t> result;
+    writeInt32BE(result, static_cast<int32_t>(comboIds.size()));
+    for (auto id : comboIds) {
+        writeComboIdBE(result, id);
+    }
+    return result;
+}
+
+// RocksDB ListState format: [comboId_1 (8B)][','][comboId_2 (8B)][',']...
+std::vector<uint8_t> makeRocksDbListValue(const std::vector<uint64_t>& comboIds)
+{
+    std::vector<uint8_t> result;
+    for (size_t i = 0; i < comboIds.size(); ++i) {
+        if (i > 0) {
+            result.push_back(static_cast<uint8_t>(','));
+        }
+        writeComboIdBE(result, comboIds[i]);
+    }
+    return result;
+}
+
 } // namespace
 
 TEST(VectorBatchSaveTest, DetectsOnlyNamesEndingWithVb)
@@ -297,4 +336,201 @@ TEST(VectorBatchSaveTest, DefaultEncodeFlinkLogicalKeyKeepsOriginalKeyBytes)
     omnistream::VectorBatchSavePlan plan;
 
     EXPECT_EQ(hooks.encodeFlinkLogicalKey(entry, row, context, plan), key);
+}
+
+// ===== parseComboIdList tests =====
+
+TEST(VectorBatchSaveTest, ParseComboIdList_HeapFormat_SingleElement)
+{
+    const std::vector<uint64_t> comboIds = {0x0123456789ABCDEFULL};
+    auto value = makeHeapListValue(comboIds);
+    auto result = omnistream::VectorBatchSaveTools::parseComboIdList(
+        ByteView(value.data(), value.size()), true);
+
+    ASSERT_EQ(result.size(), 1U);
+    EXPECT_EQ(result[0], 0x0123456789ABCDEFULL);
+}
+
+TEST(VectorBatchSaveTest, ParseComboIdList_HeapFormat_MultipleElements)
+{
+    const std::vector<uint64_t> comboIds = {1ULL, 0xFFFFFFFFULL, 0x1234567890ABCDEFULL};
+    auto value = makeHeapListValue(comboIds);
+    auto result = omnistream::VectorBatchSaveTools::parseComboIdList(
+        ByteView(value.data(), value.size()), true);
+
+    ASSERT_EQ(result.size(), 3U);
+    EXPECT_EQ(result[0], 1ULL);
+    EXPECT_EQ(result[1], 0xFFFFFFFFULL);
+    EXPECT_EQ(result[2], 0x1234567890ABCDEFULL);
+}
+
+TEST(VectorBatchSaveTest, ParseComboIdList_HeapFormat_ZeroElementList)
+{
+    // Heap format with 0 elements = [int32 size=0] = 4 bytes.
+    const std::vector<uint64_t> emptyList;
+    auto value = makeHeapListValue(emptyList);
+    auto result = omnistream::VectorBatchSaveTools::parseComboIdList(
+        ByteView(value.data(), value.size()), true);
+
+    EXPECT_TRUE(result.empty());
+}
+
+TEST(VectorBatchSaveTest, ParseComboIdList_HeapFormat_EdgeCase_ZeroComboId)
+{
+    const std::vector<uint64_t> comboIds = {0ULL, 0ULL, 0ULL};
+    auto value = makeHeapListValue(comboIds);
+    auto result = omnistream::VectorBatchSaveTools::parseComboIdList(
+        ByteView(value.data(), value.size()), true);
+
+    ASSERT_EQ(result.size(), 3U);
+    for (auto id : result) {
+        EXPECT_EQ(id, 0ULL);
+    }
+}
+
+TEST(VectorBatchSaveTest, ParseComboIdList_RocksDbFormat_SingleElement)
+{
+    const std::vector<uint64_t> comboIds = {0x0123456789ABCDEFULL};
+    auto value = makeRocksDbListValue(comboIds);
+    auto result = omnistream::VectorBatchSaveTools::parseComboIdList(
+        ByteView(value.data(), value.size()), false);
+
+    ASSERT_EQ(result.size(), 1U);
+    EXPECT_EQ(result[0], 0x0123456789ABCDEFULL);
+}
+
+TEST(VectorBatchSaveTest, ParseComboIdList_RocksDbFormat_MultipleElements)
+{
+    const std::vector<uint64_t> comboIds = {100ULL, 200ULL, 300ULL, 400ULL};
+    auto value = makeRocksDbListValue(comboIds);
+    auto result = omnistream::VectorBatchSaveTools::parseComboIdList(
+        ByteView(value.data(), value.size()), false);
+
+    ASSERT_EQ(result.size(), 4U);
+    EXPECT_EQ(result[0], 100ULL);
+    EXPECT_EQ(result[1], 200ULL);
+    EXPECT_EQ(result[2], 300ULL);
+    EXPECT_EQ(result[3], 400ULL);
+}
+
+TEST(VectorBatchSaveTest, ParseComboIdList_RocksDbFormat_CommaDelimitersCorrect)
+{
+    std::vector<uint8_t> value;
+    writeComboIdBE(value, 42ULL);
+    value.push_back(static_cast<uint8_t>(','));
+    writeComboIdBE(value, 99ULL);
+    value.push_back(static_cast<uint8_t>(','));
+    writeComboIdBE(value, 7ULL);
+
+    auto result = omnistream::VectorBatchSaveTools::parseComboIdList(
+        ByteView(value.data(), value.size()), false);
+
+    ASSERT_EQ(result.size(), 3U);
+    EXPECT_EQ(result[0], 42ULL);
+    EXPECT_EQ(result[1], 99ULL);
+    EXPECT_EQ(result[2], 7ULL);
+}
+
+TEST(VectorBatchSaveTest, ParseComboIdList_RocksDbFormat_NoTrailingDelimiter)
+{
+    std::vector<uint8_t> value;
+    writeComboIdBE(value, 111ULL);
+    value.push_back(static_cast<uint8_t>(','));
+    writeComboIdBE(value, 222ULL);
+
+    auto result = omnistream::VectorBatchSaveTools::parseComboIdList(
+        ByteView(value.data(), value.size()), false);
+
+    ASSERT_EQ(result.size(), 2U);
+    EXPECT_EQ(result[0], 111ULL);
+    EXPECT_EQ(result[1], 222ULL);
+}
+
+TEST(VectorBatchSaveTest, ParseComboIdList_RejectsShortInput)
+{
+    const std::vector<uint8_t> shortValue = {0x00, 0x01, 0x02};
+    EXPECT_THROW(
+        omnistream::VectorBatchSaveTools::parseComboIdList(
+            ByteView(shortValue.data(), shortValue.size()), false),
+        std::runtime_error);
+}
+
+TEST(VectorBatchSaveTest, ParseComboIdList_RejectsEmptyData)
+{
+    EXPECT_THROW(
+        omnistream::VectorBatchSaveTools::parseComboIdList(ByteView(), false),
+        std::runtime_error);
+}
+
+TEST(VectorBatchSaveTest, ParseComboIdList_HeapFormat_ExplicitBackend)
+{
+    // Heap format: [int32 size=1][8 bytes comboId] = 12 bytes total
+    std::vector<uint8_t> heapValue;
+    writeInt32BE(heapValue, 1);
+    writeComboIdBE(heapValue, 12345ULL);
+
+    auto result = omnistream::VectorBatchSaveTools::parseComboIdList(
+        ByteView(heapValue.data(), heapValue.size()), true);
+    ASSERT_EQ(result.size(), 1U);
+    EXPECT_EQ(result[0], 12345ULL);
+}
+
+TEST(VectorBatchSaveTest, ParseComboIdList_RocksDbFormat_ExplicitBackend)
+{
+    // Two comboIds in RocksDB format (with comma delimiter).
+    std::vector<uint8_t> value;
+    writeComboIdBE(value, 1000ULL);
+    value.push_back(static_cast<uint8_t>(','));
+    writeComboIdBE(value, 2000ULL);
+
+    auto result = omnistream::VectorBatchSaveTools::parseComboIdList(
+        ByteView(value.data(), value.size()), false);
+    ASSERT_EQ(result.size(), 2U);
+    EXPECT_EQ(result[0], 1000ULL);
+    EXPECT_EQ(result[1], 2000ULL);
+}
+
+TEST(VectorBatchSaveTest, ParseComboIdList_HeapFormat_MultipleElementsExplicit)
+{
+    // Heap with 2 elements (20 bytes)
+    std::vector<uint8_t> heapValue;
+    writeInt32BE(heapValue, 2);
+    writeComboIdBE(heapValue, 10ULL);
+    writeComboIdBE(heapValue, 20ULL);
+    EXPECT_EQ(heapValue.size(), 20U);
+
+    auto result = omnistream::VectorBatchSaveTools::parseComboIdList(
+        ByteView(heapValue.data(), heapValue.size()), true);
+    ASSERT_EQ(result.size(), 2U);
+    EXPECT_EQ(result[0], 10ULL);
+    EXPECT_EQ(result[1], 20ULL);
+}
+
+TEST(VectorBatchSaveTest, ParseComboIdList_RocksDbFormat_RejectsInvalidDelimiter)
+{
+    // RocksDB format with ';' instead of ',' as delimiter — should reject
+    std::vector<uint8_t> value;
+    writeComboIdBE(value, 100ULL);
+    value.push_back(static_cast<uint8_t>(';')); // invalid delimiter
+    writeComboIdBE(value, 200ULL);
+
+    EXPECT_THROW(
+        omnistream::VectorBatchSaveTools::parseComboIdList(
+            ByteView(value.data(), value.size()), false),
+        std::runtime_error);
+}
+
+TEST(VectorBatchSaveTest, ParseComboIdList_RocksDbFormat_RejectsTrailingBytes)
+{
+    // RocksDB format with extra trailing byte after last comboId
+    std::vector<uint8_t> value;
+    writeComboIdBE(value, 100ULL);
+    value.push_back(static_cast<uint8_t>(','));
+    writeComboIdBE(value, 200ULL);
+    value.push_back(static_cast<uint8_t>(0xFF)); // trailing garbage
+
+    EXPECT_THROW(
+        omnistream::VectorBatchSaveTools::parseComboIdList(
+            ByteView(value.data(), value.size()), false),
+        std::runtime_error);
 }

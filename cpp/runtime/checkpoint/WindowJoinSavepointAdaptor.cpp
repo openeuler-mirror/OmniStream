@@ -12,22 +12,38 @@
 #include "WindowJoinSavepointAdaptor.h"
 
 #include <cstdint>
+#include <iomanip>
+#include <sstream>
 #include <stdexcept>
 
+#include "core/api/common/state/StateDescriptor.h"
+#include "core/memory/DataInputDeserializer.h"
+#include "core/memory/DataOutputSerializer.h"
 #include "core/typeutils/ListSerializer.h"
 #include "core/typeutils/LongSerializer.h"
-#include "core/memory/DataInputDeserializer.h"
+#include "core/typeutils/MapSerializer.h"
+#include "core/typeutils/SerializerJsonInfo.h"
 #include "runtime/checkpoint/StateMetaInfoValidator.h"
+#include "runtime/checkpoint/StreamingJoinSavepointUtil.h"
+#include "runtime/state/VoidNamespaceSerializer.h"
+#include "runtime/state/RegisteredKeyValueStateBackendMetaInfo.h"
+#include "runtime/state/restore/RestoreKVStateVB.h"
 #include "runtime/state/restore/SavepointRestoreResultIterator.h"
 #include "runtime/state/restore/vb/VectorBatchRestoreFlow.h"
 #include "runtime/state/restore/vb/VectorBatchRestoreUtil.h"
+#include "runtime/state/vbsave/VectorBatchSaveFlow.h"
+#include "runtime/state/vbsave/VectorBatchSaveTools.h"
+#include "state/bridge/OmniTaskBridge.h"
+#include "table/types/logical/RowType.h"
+#include "table/types/logical/LogicTypeUtils.h"
+#include "table/data/util/VectorBatchUtil.h"
 #include "table/typeutils/RowDataSerializer.h"
 
 namespace omnistream {
 
 void WindowJoinSavepointAdaptor::prepareForSave(const nlohmann::json& operatorDescription)
 {
-    (void)operatorDescription;
+    prepareWindowSidePlans(operatorDescription);
 }
 
 void WindowJoinSavepointAdaptor::prepareForRestore(const nlohmann::json& operatorDescription)
@@ -43,9 +59,86 @@ void WindowJoinSavepointAdaptor::prepareForRestore(const nlohmann::json& operato
     }
 }
 
+void WindowJoinSavepointAdaptor::prepareWindowSidePlans(const nlohmann::json& operatorDescription)
+{
+    WindowSidePlan leftPlan;
+    leftPlan.stateName = LEFT_RECORDS_STATE_NAME;
+    parseWindowInputTypes(leftPlan, operatorDescription, StreamingJoinSavepointUtil::LEFT_INPUT_TYPES_FIELD);
+
+    WindowSidePlan rightPlan;
+    rightPlan.stateName = RIGHT_RECORDS_STATE_NAME;
+    parseWindowInputTypes(rightPlan, operatorDescription, StreamingJoinSavepointUtil::RIGHT_INPUT_TYPES_FIELD);
+
+    if (leftPlan.inputTypeNames.empty() || rightPlan.inputTypeNames.empty()) {
+        ERROR_RELEASE(
+            "WindowJoinSavepointAdaptor::prepareWindowSidePlans ->"
+            << " leftInputTypeCount=" << leftPlan.inputTypeNames.size()
+            << ", rightInputTypeCount=" << rightPlan.inputTypeNames.size());
+        throw std::runtime_error(
+            "WindowJoinSavepointAdaptor::prepareWindowSidePlans left/right inputTypes must not be empty");
+    }
+
+    leftPlan_ = std::move(leftPlan);
+    rightPlan_ = std::move(rightPlan);
+}
+
+void WindowJoinSavepointAdaptor::parseWindowInputTypes(
+    WindowSidePlan& sidePlan,
+    const nlohmann::json& description,
+    const std::string& fieldName)
+{
+    sidePlan.inputTypeNames.clear();
+    sidePlan.inputTypes.clear();
+    sidePlan.ownedInputTypes.clear();
+
+    if (!description.contains(fieldName) || !description[fieldName].is_array()) {
+        ERROR_RELEASE(
+            "WindowJoinSavepointAdaptor::parseWindowInputTypes ->"
+            << " fieldName=" << fieldName << ", containsField=" << description.contains(fieldName));
+        throw std::runtime_error(
+            "WindowJoinSavepointAdaptor::parseWindowInputTypes missing input type array field=" + fieldName);
+    }
+
+    const auto& inputTypes = description[fieldName];
+    sidePlan.inputTypeNames.reserve(inputTypes.size());
+    sidePlan.inputTypes.reserve(inputTypes.size());
+    sidePlan.ownedInputTypes.reserve(inputTypes.size());
+    for (size_t idx = 0; idx < inputTypes.size(); ++idx) {
+        const auto& type = inputTypes[idx];
+        if (!type.is_string() || type.get<std::string>().empty()) {
+            ERROR_RELEASE(
+                "WindowJoinSavepointAdaptor::parseWindowInputTypes ->"
+                << " fieldName=" << fieldName << ", fieldSize=" << inputTypes.size());
+            throw std::runtime_error(
+                "WindowJoinSavepointAdaptor::parseWindowInputTypes invalid input type field=" + fieldName);
+        }
+        std::string inputTypeName = type.get<std::string>();
+        sidePlan.inputTypeNames.push_back(inputTypeName);
+
+        // 确定 nullable：从类型字符串检测 "NOT NULL"，默认 true
+        bool nullable = !LogicTypeUtils::isNotNullType(inputTypeName);
+
+        // 用带 nullable 的 options 构建 LogicalType
+        std::string stripped = LogicTypeUtils::stripFlinkTypeExtras(inputTypeName);
+        nlohmann::json options = LogicTypeUtils::optionsFromFlinkType(stripped);
+        options["nullable"] = nullable;
+        int typeId = LogicalType::flinkTypeToOmniTypeId(stripped);
+        LogicalType* logicalType = BasicLogicalType::getTypeBy(
+            static_cast<omniruntime::type::DataTypeId>(typeId), options);
+        sidePlan.inputTypes.push_back(logicalType);
+        if (!LogicalType::isSharedLogicalType(logicalType)) {
+            sidePlan.ownedInputTypes.emplace_back(logicalType);
+        }
+    }
+}
+
 void WindowJoinSavepointAdaptor::validateForSave(const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& metaInfos)
 {
-    (void)metaInfos;
+    StateMetaInfoValidator validator{metaInfos};
+    validator.requireKeyedListStateWithVB(LEFT_RECORDS_STATE_NAME);
+    validator.requireKeyedListStateWithVB(RIGHT_RECORDS_STATE_NAME);
+    validator.requirePriorityQueueStates();
+    validator.requireNoMoreStates();
 }
 
 void WindowJoinSavepointAdaptor::validateForRestore(
@@ -97,16 +190,232 @@ void WindowJoinSavepointAdaptor::validateForRestore(
     }
 }
 
+const WindowJoinSavepointAdaptor::WindowSidePlan& WindowJoinSavepointAdaptor::windowSidePlanForState(
+    const std::string& stateName) const
+{
+    if (stateName == LEFT_RECORDS_STATE_NAME) {
+        return leftPlan_;
+    }
+    if (stateName == RIGHT_RECORDS_STATE_NAME) {
+        return rightPlan_;
+    }
+    ERROR_RELEASE(
+        "WindowJoinSavepointAdaptor::windowSidePlanForState ->"
+        << " stateName=" << stateName);
+    throw std::runtime_error(
+        "WindowJoinSavepointAdaptor::windowSidePlanForState unsupported state=" + stateName);
+}
+
+// ===== 保存方向：构建保存计划 =====
+
+VectorBatchSavePlan WindowJoinSavepointAdaptor::buildWindowSavePlan(FullSnapshotResources& snapshotResources)
+{
+    VectorBatchSavePlan plan;
+    const auto& metaInfos = snapshotResources.getMetaInfoSnapshots();
+    plan.keyGroupRange = snapshotResources.getKeyGroupRange();
+    plan.isHeapBackend = snapshotResources.isHeapBackend();
+
+    int newKvStateId = 0;
+    for (size_t i = 0; i < metaInfos.size(); ++i) {
+        const auto& meta = metaInfos[i];
+        if (meta == nullptr || VectorBatchSaveTools::isVbStateName(meta->getName())) {
+            continue;
+        }
+        const std::string& stateName = meta->getName();
+
+        // PRIORITY_QUEUE 状态（如 _timer_state/*）由 VectorBatchSaveFlow 按 PQ 透传路径
+        // 直接输出 key/value 字节。保持 OmniStream 原生元信息，使用 PQ 状态类型。
+        if (meta->getBackendStateType() == StateMetaInfoSnapshot::BackendStateType::PRIORITY_QUEUE) {
+            plan.targetMetaInfos.push_back(std::make_shared<StateMetaInfoSnapshot>(*meta));
+            int mappedKvStateId = newKvStateId++;
+            plan.kvStateIdMapping[static_cast<int>(i)] = mappedKvStateId;
+            plan.mainStateIds.push_back(static_cast<int>(i));
+            VectorBatchSavePlan::StateContextSpec spec;
+            spec.sourceKvStateId = static_cast<int>(i);
+            spec.logicalStateName = stateName;
+            spec.stateType = VectorBatchStateType::PQ;
+            plan.stateContextSpecs.push_back(std::move(spec));
+            continue;
+        }
+
+        if (stateName != LEFT_RECORDS_STATE_NAME && stateName != RIGHT_RECORDS_STATE_NAME) {
+            continue;
+        }
+
+        const WindowSidePlan& sidePlan = windowSidePlanForState(stateName);
+
+        // 使用已解析好的 inputTypes（含正确 nullable）构建 RowType
+        std::vector<omnistream::RowField> rowFields;
+        for (size_t k = 0; k < sidePlan.inputTypes.size(); ++k) {
+            rowFields.emplace_back("f" + std::to_string(k), sidePlan.inputTypes[k], "");
+        }
+        auto flinkRowType = std::make_unique<RowType>(true, rowFields);
+        auto* rowDataSerializer = new RowDataSerializer(flinkRowType.get());
+        auto* stateSerializer = new ListSerializer(rowDataSerializer);
+        plan.ownedSerializers.emplace_back(stateSerializer);
+
+        RegisteredKeyValueStateBackendMetaInfo convertedMetaInfo(
+            StateDescriptor::Type::LIST, stateName, LongSerializer::INSTANCE, stateSerializer);
+        plan.targetMetaInfos.push_back(convertedMetaInfo.snapshot());
+
+        int mappedKvStateId = newKvStateId++;
+        plan.kvStateIdMapping[static_cast<int>(i)] = mappedKvStateId;
+        plan.mainStateIds.push_back(static_cast<int>(i));
+
+        VectorBatchSavePlan::StateContextSpec spec;
+        spec.sourceKvStateId = static_cast<int>(i);
+        spec.logicalStateName = stateName;
+        spec.valueSerializer = rowDataSerializer;
+        spec.stateType = VectorBatchStateType::KV_WITH_VB;
+        spec.accessorOptions.maxDecodedBatchCacheBytes = VB_SAVE_CACHE_BYTES;
+        plan.stateContextSpecs.push_back(std::move(spec));
+    }
+
+    return plan;
+}
+
+// ===== VectorBatchSaveHooks =====
+
+std::vector<VectorBatchSaveStateContext> WindowJoinSavepointAdaptor::buildSaveStateContexts(
+    FullSnapshotResources& snapshotResources, const VectorBatchSavePlan& plan)
+{
+    std::vector<VectorBatchSaveStateContext> contexts(snapshotResources.getMetaInfoSnapshots().size());
+    for (const auto& spec : plan.stateContextSpecs) {
+        if (spec.sourceKvStateId < 0 ||
+            static_cast<size_t>(spec.sourceKvStateId) >= contexts.size()) {
+            ERROR_RELEASE(
+                "WindowJoinSavepointAdaptor::buildSaveStateContexts ->"
+                << " sourceKvStateId=" << spec.sourceKvStateId);
+            throw std::runtime_error(
+                "WindowJoinSavepointAdaptor: sourceKvStateId=" +
+                std::to_string(spec.sourceKvStateId) + " out of range");
+        }
+        auto& ctx = contexts[spec.sourceKvStateId];
+        ctx.writable = true;
+        ctx.mappedKvStateId = plan.kvStateIdMapping.at(spec.sourceKvStateId);
+        ctx.logicalStateName = spec.logicalStateName;
+        ctx.valueSerializer = spec.valueSerializer;
+        ctx.stateType = spec.stateType;
+        // 仅 KV_WITH_VB 状态需要 VB accessor，PQ 状态直接透传 key/value 字节
+        if (spec.stateType == VectorBatchStateType::KV_WITH_VB) {
+            ctx.vbAccessor =
+                snapshotResources.createVectorBatchStateAccessor(spec.logicalStateName, spec.accessorOptions);
+            if (ctx.vbAccessor == nullptr) {
+                ERROR_RELEASE(
+                    "WindowJoinSavepointAdaptor::buildSaveStateContexts ->"
+                    << " failed to create VB accessor for state=" << spec.logicalStateName);
+                throw std::runtime_error(
+                    "WindowJoinSavepointAdaptor: failed to create VB accessor for state=" +
+                    spec.logicalStateName);
+            }
+        }
+    }
+    return contexts;
+}
+
+// ===== 保存方向：自定义聚合实现 =====
+
+// 将一组 RowData 字节序列化为 Flink MapState<Long, List<RowData>> 的 value 格式
+std::vector<int8_t> WindowJoinSavepointAdaptor::serializeFlinkRowDataList(
+    const std::vector<std::vector<int8_t>>& rowDataBytesList,
+    const std::vector<std::string>& /*inputTypeNames*/)
+{
+    // Flink ListDelimitedSerializer 格式（与 Flink 1.16 源码一致）:
+    //   [element_1 bytes][delimiter=','][element_2 bytes][delimiter=',']...[element_N bytes]
+    // delimiter 写在每对元素之间（第一个元素前和最后一个元素后都没有 delimiter）。
+    // 无 size 前缀，无 per-element length 前缀。
+    static const int8_t DELIMITER = static_cast<int8_t>(',');
+
+    size_t totalSize = 0;
+    for (size_t i = 0; i < rowDataBytesList.size(); ++i) {
+        totalSize += rowDataBytesList[i].size();
+        if (i > 0) {
+            totalSize += 1;  // delimiter before this element
+        }
+    }
+
+    std::vector<int8_t> result;
+    result.reserve(totalSize);
+    for (size_t i = 0; i < rowDataBytesList.size(); ++i) {
+        if (i > 0) {
+            result.push_back(DELIMITER);
+        }
+        const auto& rowBytes = rowDataBytesList[i];
+        result.insert(result.end(), rowBytes.begin(), rowBytes.end());
+    }
+    return result;
+}
+
+// 保存方向：OmniStream → Flink
+// 使用标准 VectorBatchSaveFlow 流程，combId 解析和 RowData 转换由 convertKVRowData 钩子完成。
 void WindowJoinSavepointAdaptor::save(
     CheckpointStateOutputStreamProxy& stream,
     KeyGroupRangeOffsets& keyGroupOffsets,
     FullSnapshotResources& snapshotResources,
     std::string keySerializer)
 {
-    (void)stream;
-    (void)keyGroupOffsets;
-    (void)snapshotResources;
-    (void)keySerializer;
+    VectorBatchSavePlan plan = buildWindowSavePlan(snapshotResources);
+    VectorBatchSaveFlow::executeSave(*this, plan, stream, keyGroupOffsets,
+                                     snapshotResources, std::move(keySerializer));
+}
+
+void WindowJoinSavepointAdaptor::convertKVRowData(
+    const KeyValueStateIterator::CurrentEntry& entry,
+    const VectorBatchSaveStateContext& context,
+    const VectorBatchSavePlan& plan,
+    std::function<void(ConvertedEntry)> output)
+{
+    // 解析 comboId 列表
+    auto comboIds = VectorBatchSaveTools::parseComboIdList(
+        ByteView(entry.value.data(), entry.value.size()), plan.isHeapBackend);
+
+    // 解引用 VB 获取 RowData
+    if (!context.vbAccessor) {
+        ERROR_RELEASE(
+            "WindowJoinSavepointAdaptor::convertKVRowData - null vbAccessor for state="
+            << context.logicalStateName);
+        throw std::runtime_error(
+            "WindowJoinSavepointAdaptor: null vbAccessor for state=" +
+            context.logicalStateName);
+    }
+
+    const auto& sidePlan = windowSidePlanForState(context.logicalStateName);
+
+    // 遍历 comboId 列表，逐个解引用 VB 获取行数据
+    std::vector<std::vector<int8_t>> rowDataBytesList;
+    rowDataBytesList.reserve(comboIds.size());
+    for (auto comboId : comboIds) {
+        omnistream::VectorBatchId batchId = VectorBatchUtil::getVectorBatchId(comboId);
+        int32_t rowId = VectorBatchUtil::getRowId(comboId);
+
+        auto row = context.vbAccessor->getRow(batchId, rowId);
+        if (!row) {
+            ERROR_RELEASE(
+                "WindowJoinSavepointAdaptor::convertKVRowData - null row for comboId="
+                << comboId << ", batchId=" << batchId << ", rowId=" << rowId
+                << ", valueSize=" << entry.value.size()
+                << ", comboIdCount=" << comboIds.size());
+            throw std::runtime_error(
+                "WindowJoinSavepointAdaptor: null row for comboId=" +
+                std::to_string(comboId) + ", batchId=" +
+                std::to_string(batchId) + ", rowId=" + std::to_string(rowId) +
+                ", valueSize=" + std::to_string(entry.value.size()) +
+                ", comboIdCount=" + std::to_string(comboIds.size()));
+        }
+
+        auto rowDataBytes = VectorBatchSaveTools::serializeRowData(row.get(), context.valueSerializer);
+        rowDataBytesList.push_back(std::move(rowDataBytes));
+    }
+
+    // 序列化为 Flink List<RowData> 格式，输出一条 ConvertedEntry
+    auto valueBytes = serializeFlinkRowDataList(rowDataBytesList, sidePlan.inputTypeNames);
+    ConvertedEntry converted;
+    converted.context = &context;
+    converted.keyBytes.assign(
+        reinterpret_cast<const int8_t*>(entry.key.data()),
+        reinterpret_cast<const int8_t*>(entry.key.data()) + entry.key.size());
+    converted.valueBytes = std::move(valueBytes);
+    output(std::move(converted));
 }
 
 void WindowJoinSavepointAdaptor::restore(

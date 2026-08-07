@@ -54,6 +54,64 @@ public:
         return ComboIdUtil::readComboId(input);
     }
 
+    // 从 ByteView 中解析 comboId 列表，由调用方显式指定序列化格式：
+    //   - Heap 后端: [int32 list_size (4B big-endian)][comboId_1 (8B)][comboId_2 (8B)]...
+    //   - RocksDB 后端: [comboId_1 (8B)][delimiter ','][comboId_2 (8B)][delimiter ',']...
+    //
+    // isHeapBackend 应由调用方从 FullSnapshotResources::isHeapBackend() 获取，
+    static std::vector<omnistream::ComboId> parseComboIdList(ByteView value, bool isHeapBackend)
+    {
+        std::vector<omnistream::ComboId> result;
+        if (value.data() == nullptr || value.size() < sizeof(int32_t)) {
+            ERROR_RELEASE("VectorBatchSaveTools::parseComboIdList -> invalid bytes, size=" << value.size());
+            throw std::runtime_error(
+                "VectorBatchSaveTools::parseComboIdList value must contain at least 4 bytes, actual size=" +
+                std::to_string(value.size()));
+        }
+
+        DataInputDeserializer input(value.data(), static_cast<int>(value.size()), 0);
+        if (isHeapBackend) {
+            int32_t heapListSize = input.readInt();
+            if (heapListSize < 0) {
+                ERROR_RELEASE("VectorBatchSaveTools::parseComboIdList -> negative heap list size=" << heapListSize);
+                throw std::runtime_error(
+                    "VectorBatchSaveTools::parseComboIdList invalid heap list size=" +
+                    std::to_string(heapListSize));
+            }
+            result.reserve(static_cast<size_t>(heapListSize));
+            for (int32_t i = 0; i < heapListSize; ++i) {
+                result.push_back(ComboIdUtil::readComboId(input));
+            }
+        } else {
+            // RocksDB 格式：comboId 之间用单字节 ',' 分隔（RocksDbStringAppendOperator）
+            while (input.Available() >= static_cast<int>(sizeof(int64_t))) {
+                result.push_back(ComboIdUtil::readComboId(input));
+                if (input.Available() > 0) {
+                    int8_t delimiter = input.readByte();
+                    if (static_cast<uint8_t>(delimiter) != static_cast<uint8_t>(',')) {
+                        ERROR_RELEASE(
+                            "VectorBatchSaveTools::parseComboIdList -> invalid RocksDB delimiter byte=0x"
+                            << std::hex << static_cast<int>(delimiter) << std::dec
+                            << ", expected ',' (0x2C), comboIdCount=" << result.size());
+                        throw std::runtime_error(
+                            "VectorBatchSaveTools::parseComboIdList invalid RocksDB delimiter byte=0x" +
+                            std::to_string(static_cast<int>(delimiter)) + ", expected ','");
+                    }
+                }
+            }
+            // RocksDB 格式解析完成后不应有残留字节（截断的 comboId 或多余数据）
+            if (input.Available() > 0) {
+                ERROR_RELEASE(
+                    "VectorBatchSaveTools::parseComboIdList -> trailing bytes in RocksDB value, available="
+                    << input.Available() << ", comboIdCount=" << result.size());
+                throw std::runtime_error(
+                    "VectorBatchSaveTools::parseComboIdList trailing bytes in RocksDB value, available=" +
+                    std::to_string(input.Available()));
+            }
+        }
+        return result;
+    }
+
     // 使用指定 serializer 将 RowData 同步序列化为 std::vector<int8_t>。
     // 适用于 encodeFlinkLogicalValue() 中直接使用单一 RowData serializer 的场景。
     // serializer 需非空，并且能够处理 RowData* 类型输入。
