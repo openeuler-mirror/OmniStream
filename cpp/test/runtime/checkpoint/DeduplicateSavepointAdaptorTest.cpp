@@ -131,6 +131,11 @@ protected:
     void writeBytesEntry(const std::vector<int8_t>& /*keyBytes*/, ByteView /*value*/) override
     {
     }
+
+    void writeComboIdList(
+        const std::vector<int8_t>& /*keyBytes*/, const std::vector<omnistream::ComboId>& /*comboIds*/) override
+    {
+    }
 };
 
 constexpr const char* DEDUPLICATE_STATE_NAME = "deduplicate-state";
