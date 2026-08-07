@@ -498,3 +498,29 @@ TEST(BinaryRowDataTest, SetGetStringView)
     EXPECT_EQ(*row->getInt(2), 42);
     EXPECT_EQ(row->getStringView(3), sv1);
 }
+
+TEST(BinaryRowDataTest, BinaryRowWriterReusesVariableLengthStorageWithoutStalePadding)
+{
+    BinaryRowData row(1);
+    BinaryRowWriter writer(&row);
+
+    writer.writeString(0, "abcdefghijklmnop");
+    writer.complete();
+
+    writer.reset();
+    constexpr std::string_view value = "123456789";
+    writer.writeString(0, value);
+    writer.complete();
+
+    EXPECT_EQ(row.getStringView(0), value);
+    const int variableOffset = row.getFixedLengthPartSize();
+    for (int i = static_cast<int>(value.size()); i < 16; ++i) {
+        EXPECT_EQ(row.getSegment()[variableOffset + i], 0);
+    }
+
+    const int expectedHash = row.hashCodeFast();
+    writer.reset();
+    writer.writeString(0, value);
+    writer.complete();
+    EXPECT_EQ(row.hashCodeFast(), expectedHash);
+}

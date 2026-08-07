@@ -70,8 +70,20 @@ BinaryRowData* RowDataSerializer::toBinaryRow(RowData* row)
         if (row->isNullAt(i)) {
             reuseWriter_->setNullAt(i);
         } else {
-            BinaryWriter::write(
-                reuseWriter_, i, (fieldGetters_)[i]->getFieldOrNull(row), types_[i], (fieldSerializers_)[i]);
+            auto typeId = types_[i]->getTypeId();
+            if (typeId == omniruntime::type::DataTypeId::OMNI_VARCHAR ||
+                typeId == omniruntime::type::DataTypeId::OMNI_CHAR) {
+                // VARCHAR/CHAR 字段按 std::string_view 读取并写入可变长度字段，
+                // 避免走 BinaryWriter::write 的 void* object 路径（无字符串长度信息）。
+                reuseWriter_->writeString(static_cast<int>(i), row->getStringView(static_cast<int>(i)));
+            } else {
+                BinaryWriter::write(
+                    reuseWriter_,
+                    static_cast<int>(i),
+                    (fieldGetters_)[i]->getFieldOrNull(row),
+                    types_[i],
+                    (fieldSerializers_)[i]);
+            }
         }
     }
     reuseWriter_->complete();
