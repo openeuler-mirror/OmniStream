@@ -25,7 +25,7 @@ protected:
 
     int cursor_{};
 
-    uint8_t* memoryBuffer;
+    uint8_t* memoryBuffer{};
 };
 
 #endif
