@@ -55,7 +55,8 @@ public:
             auto first = std::dynamic_pointer_cast<IncrementalRemoteKeyedStateHandle>(
                 this->restoreStateHandles.front());
             if (first == nullptr) {
-                throw std::runtime_error("Unsupported state handle for OmniStateStore restore");
+                bss_adapter::ThrowWithLog<std::runtime_error>(
+                    "Unsupported state handle for OmniStateStore restore");
             }
             if (!isRescaling) {
                 isRescaling = !(first->GetKeyGroupRange() == *this->keyGroupRange);
@@ -74,16 +75,19 @@ public:
         std::vector<fs::path> downloadedRestorePaths;
         if (!this->restoreStateHandles.empty()) {
             if (this->omniTaskBridge == nullptr) {
-                throw std::runtime_error("OmniStateStore restore requires an OmniTaskBridge");
+                bss_adapter::ThrowWithLog<std::runtime_error>(
+                    "OmniStateStore restore requires an OmniTaskBridge");
             }
             db = ock::bss::BoostStateDBFactory::Create();
             if (db == nullptr) {
-                throw std::runtime_error("Failed to allocate OmniStateStore database");
+                bss_adapter::ThrowWithLog<std::runtime_error>(
+                    "Failed to allocate OmniStateStore database");
             }
             try {
                 bss_adapter::CheckResult(db->Open(dbConfig), "BoostStateDB::Open");
             } catch (...) {
                 ock::bss::BoostStateDBFactory::Destroy(db);
+                ERROR_RELEASE("Failed to open OmniStateStore database during restore");
                 throw;
             }
             std::vector<std::string> restorePaths;
@@ -94,7 +98,7 @@ public:
                 for (const auto& stateHandle : this->restoreStateHandles) {
                     auto remote = std::dynamic_pointer_cast<IncrementalRemoteKeyedStateHandle>(stateHandle);
                     if (remote == nullptr) {
-                        throw std::runtime_error(
+                        bss_adapter::ThrowWithLog<std::runtime_error>(
                             "Unsupported state handle for OmniStateStore restore: " + stateHandle->ToString());
                     }
                     fs::path restorePath = this->instanceBasePath;
@@ -104,7 +108,8 @@ public:
                     ec.clear();
                     fs::create_directories(restorePath, ec);
                     if (ec) {
-                        throw std::runtime_error("Failed to create OmniStateStore restore path: " + ec.message());
+                        bss_adapter::ThrowWithLog<std::runtime_error>(
+                            "Failed to create OmniStateStore restore path: " + ec.message());
                     }
                     downloader.transferAllStateDataToDirectory(*remote, restorePath, this->omniTaskBridge);
                     restorePaths.push_back(restorePath.string());
@@ -120,6 +125,7 @@ public:
                     std::error_code ec;
                     fs::remove_all(restorePath, ec);
                 }
+                ERROR_RELEASE("OmniStateStore restore failed after downloading state data");
                 throw;
             }
         }

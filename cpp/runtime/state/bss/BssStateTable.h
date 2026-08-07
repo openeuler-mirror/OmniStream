@@ -60,13 +60,14 @@ public:
     void createTable(ock::bss::BoostStateDBPtr& _dbPtr)
     {
         if (_dbPtr == nullptr) {
-            throw std::invalid_argument("OmniStateStore database must not be null");
+            bss_adapter::ThrowWithLog<std::invalid_argument>(
+                "OmniStateStore database must not be null");
         }
         this->dbPtr = _dbPtr;
         auto tblDesc = std::make_shared<ock::bss::TableDescription>(
             ock::bss::StateType::VALUE, metaInfo->getName(), -1, ock::bss::TableSerializer{}, dbPtr->GetConfig());
-        dbTable = bss_adapter::CheckTable(
-            std::dynamic_pointer_cast<ock::bss::KVTable>(_dbPtr->GetTableOrCreate(tblDesc)), metaInfo->getName());
+        dbTable = std::dynamic_pointer_cast<ock::bss::KVTable>(_dbPtr->GetTableOrCreate(tblDesc));
+        bss_adapter::CheckTable(dbTable, metaInfo->getName());
     };
 
     S get(N& nameSpace)
@@ -263,7 +264,8 @@ public:
                 omnistream::VectorBatchSerializationUtils::serializeVectorBatch(vectorBatch, batchSize, buffer);
             ock::bss::BinaryData priVal(serializedBatchInfo.buffer, serializedBatchInfo.size);
             if (dbTable->Put(keyHashCode, priKey, priVal) != ock::bss::BSS_OK) {
-                THROW_RUNTIME_ERROR("Failed to add VectorBatch to BSS for keyGroup " << keyGroup);
+                bss_adapter::ThrowWithLog<std::runtime_error>(
+                    "Failed to add VectorBatch to BSS for keyGroup " + std::to_string(keyGroup));
             }
             sequenceNumberHelper.addNextSequenceNumber(keyGroup);
         }
@@ -293,7 +295,8 @@ public:
         }
         bss_adapter::CheckResult(res, "KVTable::GetVectorBatch(" + metaInfo->getName() + ")");
         if (priVal.Length() <= sizeof(int8_t)) {
-            throw std::runtime_error("OmniStateStore returned an invalid VectorBatch payload");
+            bss_adapter::ThrowWithLog<std::runtime_error>(
+                "OmniStateStore returned an invalid VectorBatch payload");
         }
         uint8_t* address = const_cast<uint8_t*>(priVal.Data() + sizeof(int8_t));
         auto batch = omnistream::VectorBatchDeserializationUtils::deserializeVectorBatch(address);
@@ -302,7 +305,8 @@ public:
 
     std::vector<omnistream::VectorBatch*> getVectorBatches(int32_t keyGroup)
     {
-        NOT_IMPL_EXCEPTION;
+        bss_adapter::ThrowWithLog<std::logic_error>(
+            "BssStateTable::restoreFromVectorBatch is not implemented for this state type");
     }
 
     void clearVectorBatches(int64_t currentTimestamp)

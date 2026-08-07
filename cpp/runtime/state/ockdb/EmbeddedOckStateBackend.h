@@ -34,6 +34,7 @@
 #include "runtime/state/OperatorStateHandle.h"
 #include "runtime/state/ockdb/OckDBKeyedStateBackendBuilder.h"
 #include "runtime/state/ockdb/OckDBCheckpointConfig.h"
+#include "runtime/state/bss/BssExceptionUtils.h"
 #include "runtime/executiongraph/JobIDPOD.h"
 #include "runtime/executiongraph/TaskInformationPOD.h"
 #include "runtime/execution/OmniEnvironment.h"
@@ -188,18 +189,20 @@ private:
         validated.reserve(paths.size());
         for (const auto& rawPath : paths) {
             if (rawPath.empty()) {
-                throw std::invalid_argument("null path");
+                bss_adapter::ThrowWithLog<std::invalid_argument>("Storage path must not be empty");
             }
             std::string processedPath = rawPath;
             const std::string filePrefix = "file://";
             if (rawPath.find(filePrefix) == 0) {
                 processedPath = rawPath.substr(filePrefix.length());
             } else if (rawPath.find("://") != std::string::npos) {
-                throw std::invalid_argument("Path " + rawPath + " has a non-local scheme");
+                bss_adapter::ThrowWithLog<std::invalid_argument>(
+                    "Path " + rawPath + " has a non-local scheme");
             }
             fs::path pathObj(processedPath);
             if (!pathObj.is_absolute()) {
-                throw std::invalid_argument("Relative paths are not supported: " + processedPath);
+                bss_adapter::ThrowWithLog<std::invalid_argument>(
+                    "Relative paths are not supported: " + processedPath);
             }
             validated.emplace_back(std::move(pathObj));
         }
@@ -243,7 +246,8 @@ private:
             }
         }
         if (validDirs.empty()) {
-            throw std::runtime_error("No valid local storage directories available. " + errorMessage);
+            bss_adapter::ThrowWithLog<std::runtime_error>(
+                "No valid local storage directories available. " + errorMessage);
         }
         initializedDbBasePaths = std::move(validDirs);
     }
@@ -259,11 +263,13 @@ private:
     {
         const double managedMemoryFraction = taskInfo.getStateBackendManagedMemoryFraction();
         if (!std::isfinite(managedMemoryFraction) || managedMemoryFraction < 0.0 || managedMemoryFraction > 1.0) {
-            throw std::invalid_argument("stateBackendManagedMemoryFraction must be within [0, 1]");
+            bss_adapter::ThrowWithLog<std::invalid_argument>(
+                "stateBackendManagedMemoryFraction must be within [0, 1]");
         }
         const uint64_t managedMemorySize = taskInfo.getStateBackendManagedMemorySize();
         if (managedMemorySize > static_cast<uint64_t>(INT64_MAX)) {
-            throw std::invalid_argument("stateBackendManagedMemorySize exceeds the supported int64 range");
+            bss_adapter::ThrowWithLog<std::invalid_argument>(
+                "stateBackendManagedMemorySize exceeds the supported int64 range");
         }
 
         OckDBCheckpointConfig cfg;
@@ -308,13 +314,14 @@ private:
     static uint32_t resolveTaskSlotFlag(const omnistream::TaskInformationPOD& taskInfo)
     {
         if (taskInfo.getStateBackendConfigVersion() != 1) {
-            throw std::invalid_argument(
+            bss_adapter::ThrowWithLog<std::invalid_argument>(
                 "Unsupported state backend config version: " +
                 std::to_string(taskInfo.getStateBackendConfigVersion()));
         }
         const uint64_t resourceId = taskInfo.getStateBackendResourceId();
         if (resourceId > UINT32_MAX) {
-            throw std::invalid_argument("stateBackendResourceId exceeds the BSS uint32 range");
+            bss_adapter::ThrowWithLog<std::invalid_argument>(
+                "stateBackendResourceId exceeds the BSS uint32 range");
         }
         if (resourceId != 0) {
             return static_cast<uint32_t>(resourceId);

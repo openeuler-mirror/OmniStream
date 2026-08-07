@@ -63,13 +63,14 @@ public:
     void createTable(ock::bss::BoostStateDBPtr& _dbPtr)
     {
         if (_dbPtr == nullptr) {
-            throw std::invalid_argument("OmniStateStore database must not be null");
+            bss_adapter::ThrowWithLog<std::invalid_argument>(
+                "OmniStateStore database must not be null");
         }
         this->dbPtr = _dbPtr;
         auto tblDesc = std::make_shared<ock::bss::TableDescription>(
             ock::bss::StateType::LIST, metaInfo->getName(), -1, ock::bss::TableSerializer{}, _dbPtr->GetConfig());
-        dbTable = bss_adapter::CheckTable(
-            std::dynamic_pointer_cast<ock::bss::KListTable>(_dbPtr->GetTableOrCreate(tblDesc)), metaInfo->getName());
+        dbTable = std::dynamic_pointer_cast<ock::bss::KListTable>(_dbPtr->GetTableOrCreate(tblDesc));
+        bss_adapter::CheckTable(dbTable, metaInfo->getName());
     };
 
     std::vector<UV>* get(N& nameSpace)
@@ -166,7 +167,7 @@ public:
         for (const auto& item : values) {
             if constexpr (std::is_pointer_v<UV>) {
                 if (item == nullptr) {
-                    THROW_RUNTIME_ERROR("You cannot add null to a value list.");
+                    bss_adapter::ThrowWithLog<std::runtime_error>("You cannot add null to a value list.");
                 }
             }
             add(nameSpace, item);
@@ -251,7 +252,8 @@ public:
                 omnistream::VectorBatchSerializationUtils::serializeVectorBatch(vectorBatch, batchSize, buffer);
             ock::bss::BinaryData priBatchVal(serializedBatchInfo.buffer, serializedBatchInfo.size);
             if (dbTable->Put(keyHashCode, priKey, priBatchVal) != ock::bss::BSS_OK) {
-                THROW_RUNTIME_ERROR("Failed to add VectorBatch to BSS for keyGroup " << keyGroup);
+                bss_adapter::ThrowWithLog<std::runtime_error>(
+                    "Failed to add VectorBatch to BSS for keyGroup " + std::to_string(keyGroup));
             }
             sequenceNumberHelper.addNextSequenceNumber(keyGroup);
         }
@@ -279,7 +281,8 @@ public:
         }
         if (getResult.lengths.empty() || getResult.lengths.at(0) <= sizeof(int8_t)) {
             dbTable->CleanResource(getResult.resId);
-            throw std::runtime_error("OmniStateStore returned an invalid VectorBatch list payload");
+            bss_adapter::ThrowWithLog<std::runtime_error>(
+                "OmniStateStore returned an invalid VectorBatch list payload");
         }
         auto* begin = reinterpret_cast<const uint8_t*>(getResult.addresses.at(0));
         std::vector<uint8_t> payload(begin, begin + getResult.lengths.at(0));
@@ -292,7 +295,8 @@ public:
 
     std::vector<omnistream::VectorBatch*> getVectorBatches(int32_t keyGroup)
     {
-        NOT_IMPL_EXCEPTION;
+        bss_adapter::ThrowWithLog<std::logic_error>(
+            "BssListStateTable::getVectorBatches is not implemented for this state type");
     }
 
     void clearVectorBatches(int64_t currentTimestamp)

@@ -237,7 +237,7 @@ JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Omn
 {
     auto task = reinterpret_cast<omnistream::OmniTask*>(nativeTask);
     if (!task) {
-        INFO_RELEASE("Error OmniTask_triggerCheckpointCpp task is null");
+        ERROR_RELEASE("OmniTask_triggerCheckpointCpp task is null");
         THROW_LOGIC_EXCEPTION("OmniTask_triggerCheckpointCpp task is null");
     }
     const char* checkpointStr = jniEnv->GetStringUTFChars(checkpointoptionJson, nullptr);

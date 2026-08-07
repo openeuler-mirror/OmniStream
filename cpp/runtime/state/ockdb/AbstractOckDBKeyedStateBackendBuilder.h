@@ -26,6 +26,7 @@
 #include "runtime/state/LocalRecoveryConfig.h"
 #include "runtime/state/InternalKeyContextImpl.h"
 #include "runtime/state/ockdb/OckDBCheckpointConfig.h"
+#include "runtime/state/bss/BssExceptionUtils.h"
 #include "core/typeutils/TypeSerializer.h"
 #include "boost_state_db.h"
 #include "runtime/state/bridge/OmniTaskBridge.h"
@@ -163,7 +164,8 @@ protected:
         std::error_code backupError;
         fs::create_directories(backupPath, backupError);
         if (backupError) {
-            throw std::runtime_error("Failed to create OmniStateStore backup path: " + backupError.message());
+            bss_adapter::ThrowWithLog<std::runtime_error>(
+                "Failed to create OmniStateStore backup path: " + backupError.message());
         }
         config->SetBackupPath(backupPath.string());
         std::string localPath = checkpointConfig.getLocalDirectories();
@@ -173,7 +175,8 @@ protected:
             std::error_code localError;
             fs::create_directories(localSstPath, localError);
             if (localError) {
-                throw std::runtime_error("Failed to create OmniStateStore local path: " + localError.message());
+                bss_adapter::ThrowWithLog<std::runtime_error>(
+                    "Failed to create OmniStateStore local path: " + localError.message());
             }
             localPath = localSstPath.string();
         }
@@ -202,7 +205,8 @@ protected:
         std::error_code ec;
         fs::create_directories(instanceBasePath, ec);
         if (ec) {
-            throw std::runtime_error("Failed to create instance base path: " + ec.message());
+            bss_adapter::ThrowWithLog<std::runtime_error>(
+                "Failed to create instance base path: " + ec.message());
         }
     }
 

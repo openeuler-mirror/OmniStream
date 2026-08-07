@@ -35,6 +35,7 @@
 #include "state/SnapshotDirectory.h"
 #include "state/SnapshotDirectoryFactory.h"
 #include "state/bss/BssSnapshotUploader.h"
+#include "state/bss/BssExceptionUtils.h"
 
 using BssSnapshotKeyedStateHandle = ::KeyedStateHandle;
 using BssHandleAndLocalPath = IncrementalRemoteKeyedStateHandle::HandleAndLocalPath;
@@ -148,7 +149,7 @@ public:
         auto coordinator =
             db_->CreateSyncCheckpoint(snapshotDirectory->getDirectory().string(), static_cast<uint64_t>(checkpointId));
         if (coordinator == nullptr) {
-            THROW_LOGIC_EXCEPTION(
+            bss_adapter::ThrowWithLog<std::logic_error>(
                 "BSS CreateSyncCheckpoint failed, checkpointId=" + std::to_string(checkpointId));
         }
         INFO_RELEASE("[BSS-CP-sync] prepared checkpointId=" << checkpointId);
@@ -182,7 +183,8 @@ public:
             case SnapshotType::SharingFilesStrategy::NO_SHARING:
                 previousSnapshot = BssPreviousSnapshot::empty();
                 break;
-            default: THROW_LOGIC_EXCEPTION("Unsupported sharing files strategy");
+            default:
+                bss_adapter::ThrowWithLog<std::logic_error>("Unsupported sharing files strategy");
         }
 
         return std::make_shared<BssIncrementalSnapshotOperation>(
@@ -238,7 +240,8 @@ private:
             auto directoryProvider = localRecoveryConfig_->GetLocalStateDirectoryProvider();
             fs::path directory = directoryProvider->SubtaskSpecificCheckpointDirectory(checkpointId);
             if (!fs::exists(directory) && !fs::create_directories(directory)) {
-                THROW_LOGIC_EXCEPTION("Failed to create directory: " + directory.string());
+                bss_adapter::ThrowWithLog<std::logic_error>(
+                    "Failed to create directory: " + directory.string());
             }
             fs::path bssSnapshotDir = directory;
             bssSnapshotDir /= localDirectoryName_;
@@ -255,7 +258,8 @@ private:
             FileUtils::deleteDirectory(snapshotDir);
         }
         if (!fs::create_directories(snapshotDir)) {
-            THROW_LOGIC_EXCEPTION("Failed to create BSS snapshot directory: " + snapshotDir.string());
+            bss_adapter::ThrowWithLog<std::logic_error>(
+                "Failed to create BSS snapshot directory: " + snapshotDir.string());
         }
         return SnapshotDirectoryFactory::temporary(snapshotDir);
     }
@@ -313,13 +317,14 @@ private:
                     checkpointOptions_,
                     keySerializerJson_);
                 if (metaStateHandle == nullptr || metaStateHandle->GetJobManagerOwnedSnapshot() == nullptr) {
-                    THROW_LOGIC_EXCEPTION("BSS checkpoint failed to materialize metadata");
+                    bss_adapter::ThrowWithLog<std::logic_error>(
+                        "BSS checkpoint failed to materialize metadata");
                 }
 
                 // Flush fresh/slice data into the prepared checkpoint directory.
                 if (parent_->db_->CreateAsyncCheckpoint(static_cast<uint64_t>(checkpointId_), true) !=
                     ock::bss::BSS_OK) {
-                    THROW_LOGIC_EXCEPTION(
+                    bss_adapter::ThrowWithLog<std::logic_error>(
                         "BSS CreateAsyncCheckpoint failed, checkpointId=" + std::to_string(checkpointId_));
                 }
 
@@ -345,10 +350,12 @@ private:
                                                               << ", uploadedBytes=" << uploadedSize);
                 completed = true;
                 return SnapshotResult<BssSnapshotKeyedStateHandle>::Of(jmHandle);
-            } catch (const std::exception&) {
+            } catch (const std::exception& e) {
                 if (!completed) {
                     cleanupIncompleteSnapshot();
                 }
+                ERROR_RELEASE(
+                    "BSS incremental snapshot failed, checkpointId=" << checkpointId_ << ", error=" << e.what());
                 throw;
             }
         }

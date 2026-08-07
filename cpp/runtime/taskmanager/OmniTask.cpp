@@ -208,11 +208,11 @@ uintptr_t OmniTask::setupStreamTask(std::string streamClassName)
             throw std::invalid_argument("unsupported stream task class: " + streamClassName);
         }
     } catch (const std::exception& e) {
-        INFO_RELEASE("error OmniTask::setupStreamTask failed: " << e.what());
+        ERROR_RELEASE("OmniTask::setupStreamTask failed: " << e.what());
         invokable_.reset();
         throw;
     } catch (...) {
-        INFO_RELEASE("error OmniTask::setupStreamTask failed with unknown exception");
+        ERROR_RELEASE("OmniTask::setupStreamTask failed with unknown exception");
         invokable_.reset();
         throw std::runtime_error("OmniTask::setupStreamTask failed with unknown exception");
     }
@@ -222,10 +222,9 @@ void OmniTask::DoRunRestore(long streamTaskAddress)
 {
     if (streamTaskAddress == 0 || invokable_ == nullptr ||
         reinterpret_cast<uintptr_t>(invokable_.get()) != static_cast<uintptr_t>(streamTaskAddress)) {
-        INFO_RELEASE(
-            "error OmniTask::DoRunRestore rejected invalid stream task, address=" << streamTaskAddress
-                                                                                  << ", invokable="
-                                                                                  << invokable_.get());
+        ERROR_RELEASE(
+            "OmniTask::DoRunRestore rejected invalid stream task, address=" << streamTaskAddress << ", invokable="
+                                                                             << invokable_.get());
         throw std::runtime_error("native stream task initialization failed before restore");
     }
     INFO_RELEASE(" DoRunRestore starting: " << taskNameWithSubtask_);
@@ -248,10 +247,13 @@ void OmniTask::DoRunRestore(long streamTaskAddress)
             remoteDataFetcherBridge_->InitCppRemoteInputChannel(this->inputGates);
         }
     } catch (const PartitionNotFoundException& e) {
+        ERROR_RELEASE("PartitionNotFoundException during restore: " << e.what());
         THROW_LOGIC_EXCEPTION("PartitionNotFoundException during restore: " << e.what());
     } catch (const std::exception& e) {
+        ERROR_RELEASE("std::exception during restore: " << e.what());
         THROW_RUNTIME_ERROR("std::exception during restore: " << e.what());
     } catch (...) {
+        ERROR_RELEASE("Unknown error during restore");
         THROW_RUNTIME_ERROR("unknown error during restore");
     }
 }
@@ -260,9 +262,9 @@ void OmniTask::doRun(long streamTaskAddress)
 {
     if (streamTaskAddress == 0 || invokable_ == nullptr ||
         reinterpret_cast<uintptr_t>(invokable_.get()) != static_cast<uintptr_t>(streamTaskAddress)) {
-        INFO_RELEASE(
-            "error OmniTask::doRun rejected invalid stream task, address=" << streamTaskAddress << ", invokable="
-                                                                            << invokable_.get());
+        ERROR_RELEASE(
+            "OmniTask::doRun rejected invalid stream task, address=" << streamTaskAddress << ", invokable="
+                                                                      << invokable_.get());
         throw std::runtime_error("native stream task initialization failed before run");
     }
     INFO_RELEASE(" OmniTask::doRun welcome to native");
@@ -282,13 +284,13 @@ void OmniTask::doRun(long streamTaskAddress)
 
         this->invokable_->invoke();
     } catch (const PartitionNotFoundException& e) {
-        INFO_RELEASE("error PartitionNotFoundException during restore or invoke: " << e.what());
+        ERROR_RELEASE("PartitionNotFoundException during restore or invoke: " << e.what());
         throw;
     } catch (const std::exception& e) {
-        INFO_RELEASE("error std::exception during restore or invoke: " << e.what());
+        ERROR_RELEASE("std::exception during restore or invoke: " << e.what());
         throw;
     } catch (...) {
-        INFO_RELEASE("error unknown exception during restore or invoke, taskName=" << taskNameWithSubtask_);
+        ERROR_RELEASE("Unknown exception during restore or invoke, taskName=" << taskNameWithSubtask_);
         throw;
     }
 
@@ -321,10 +323,9 @@ void OmniTask::DoRunInvoke(long streamTaskAddress)
 {
     if (streamTaskAddress == 0 || invokable_ == nullptr ||
         reinterpret_cast<uintptr_t>(invokable_.get()) != static_cast<uintptr_t>(streamTaskAddress)) {
-        INFO_RELEASE(
-            "error OmniTask::DoRunInvoke rejected invalid stream task, address=" << streamTaskAddress
-                                                                                  << ", invokable="
-                                                                                  << invokable_.get());
+        ERROR_RELEASE(
+            "OmniTask::DoRunInvoke rejected invalid stream task, address=" << streamTaskAddress << ", invokable="
+                                                                            << invokable_.get());
         throw std::runtime_error("native stream task initialization failed before invoke");
     }
     int count = 0;
@@ -337,7 +338,7 @@ void OmniTask::DoRunInvoke(long streamTaskAddress)
         sleep(5);
     }
     if (!flag.load()) {
-        INFO_RELEASE("error OmniTask::DoRunInvoke timed out waiting for restore, taskName=" << taskNameWithSubtask_);
+        ERROR_RELEASE("OmniTask::DoRunInvoke timed out waiting for restore, taskName=" << taskNameWithSubtask_);
         throw std::runtime_error("native stream task restore did not complete before invoke");
     }
 
@@ -346,10 +347,13 @@ void OmniTask::DoRunInvoke(long streamTaskAddress)
         LOG_INFO_IMP("Invokable Invoke");
         this->invokable_->invoke();
     } catch (const PartitionNotFoundException& e) {
+        ERROR_RELEASE("PartitionNotFoundException during invoke: " << e.what());
         THROW_LOGIC_EXCEPTION("PartitionNotFoundException during invoke: " << e.what());
     } catch (const std::exception& e) {
+        ERROR_RELEASE("std::exception during invoke: " << e.what());
         THROW_RUNTIME_ERROR("std::exception during invoke: " << e.what());
     } catch (...) {
+        ERROR_RELEASE("Unknown error during invoke");
         THROW_RUNTIME_ERROR("unknown error during invoke");
     }
 

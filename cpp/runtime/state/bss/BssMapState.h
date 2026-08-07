@@ -90,7 +90,7 @@ public:
         if constexpr (std::is_same_v<UK, Object*> && std::is_same_v<UV, Object*>) {
             return stateTable->get(currentNamespace, userKey);
         } else {
-            THROW_LOGIC_EXCEPTION("type is not Object in BssMapState::Get()");
+            bss_adapter::ThrowWithLog<std::logic_error>("type is not Object in BssMapState::Get()");
         }
     };
 
@@ -107,7 +107,7 @@ public:
             wrapper->putRefCount();
             return result;
         } else {
-            THROW_LOGIC_EXCEPTION("type is not Object in BssMapState::iterator()");
+            bss_adapter::ThrowWithLog<std::logic_error>("type is not Object in BssMapState::iterator()");
         }
     };
 
