@@ -687,6 +687,13 @@ uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(
             namespaceSerializer->getBackendId() == BackendDataType::VOID_NAMESPACE_BK &&
             dataId == BackendDataType::BIGINT_BK) {
             return (uintptr_t)createOrUpdateInternalListState<VoidNamespace, int64_t>(namespaceSerializer, stateDesc);
+        } else if (
+            namespaceSerializer->getBackendId() == BackendDataType::BIGINT_BK && dataId == BackendDataType::ROW_BK) {
+            return (uintptr_t)createOrUpdateInternalListState<int64_t, RowData*>(namespaceSerializer, stateDesc);
+        } else if (
+            namespaceSerializer->getBackendId() == BackendDataType::VOID_NAMESPACE_BK &&
+            dataId == BackendDataType::ROW_BK) {
+            return (uintptr_t)createOrUpdateInternalListState<VoidNamespace, RowData*>(namespaceSerializer, stateDesc);
         } else {
             NOT_IMPL_EXCEPTION;
         }
