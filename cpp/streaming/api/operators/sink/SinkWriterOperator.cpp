@@ -110,6 +110,7 @@ RowData* SinkWriterOperator::getOutputEntireRow(omnistream::VectorBatch* vecBatc
 
 void SinkWriterOperator::processBatch(StreamRecord* record)
 {
+    auto recordGuard = std::unique_ptr<StreamRecord>(record);
     if (record->hasExternalRow()) {
         Row* row_input = reinterpret_cast<Row*>(record->getValue());
         sinkWriter->write(row_input);

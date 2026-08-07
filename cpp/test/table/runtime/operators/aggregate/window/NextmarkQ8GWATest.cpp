@@ -119,12 +119,13 @@ TEST(NEXTMARKTESTQ8, DISABLED_EMPTY)
     slicingWindowOperator->open();
     std::cout << "================step 2 in Q8===================" << std::endl;
     slicingWindowOperator->processBatch(vbatch);
-    slicingWindowOperator->ProcessWatermark(new Watermark(-1));
+    auto watermark = Watermark(-1);
+    slicingWindowOperator->ProcessWatermark(&watermark);
     //    BatchOutputTest* batchOutput = dynamic_cast<BatchOutputTest*>(slicingWindowOperator->getOutput());
 
     slicingWindowOperator->processBatch(vbatch);
     std::cout << "================step 5 in nextmark Q8===================" << std::endl;
-    slicingWindowOperator->ProcessWatermark(new Watermark(-1));
+    slicingWindowOperator->ProcessWatermark(&watermark);
     std::cout << "================step 6 in nextmark Q8===================" << std::endl;
     BinaryRowData* binaryRowData = BinaryRowData::createBinaryRowDataWithMem(2);
     binaryRowData->setLong(0, 1);

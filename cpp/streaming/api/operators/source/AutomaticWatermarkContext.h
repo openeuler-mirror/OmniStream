@@ -55,7 +55,8 @@ protected:
         if (lastRecordTime > nextWatermarkTime) {
             int64_t watermarkTime = lastRecordTime - (lastRecordTime % watermarkInterval);
             nextWatermarkTime = watermarkTime + watermarkInterval;
-            output->emitWatermark(new Watermark(watermarkTime));
+            auto watermark = Watermark(watermarkTime);
+            output->emitWatermark(&watermark);
         }
     }
 

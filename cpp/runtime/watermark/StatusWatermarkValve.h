@@ -131,9 +131,8 @@ private:
 
         if (hasAlignedChannels && newMinWatermark > lastOutputWatermark_) {
             lastOutputWatermark_ = newMinWatermark;
-            auto* newWatermark = new Watermark(lastOutputWatermark_);
-            output->emitWatermark(newWatermark);
-            delete newWatermark;
+            auto newWatermark = Watermark(lastOutputWatermark_);
+            output->emitWatermark(&newWatermark);
         }
     }
 
@@ -147,9 +146,8 @@ private:
 
         if (maxWatermark > lastOutputWatermark_) {
             lastOutputWatermark_ = maxWatermark;
-            auto* newWatermark = new Watermark(lastOutputWatermark_);
-            output->emitWatermark(newWatermark);
-            delete newWatermark;
+            auto newWatermark = Watermark(lastOutputWatermark_);
+            output->emitWatermark(&newWatermark);
         }
     }
 

@@ -59,8 +59,7 @@ public:
     };
     void writeWatermark(Watermark* watermark) override
     {
-        delete watermark;
-    };
+    }
     void finish() override {};
 
 private:
