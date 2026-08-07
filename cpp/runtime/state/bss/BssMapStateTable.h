@@ -63,12 +63,13 @@ public:
     void createTable(ock::bss::BoostStateDBPtr& _dbPtr)
     {
         if (_dbPtr == nullptr) {
-            throw std::invalid_argument("OmniStateStore database must not be null");
+            bss_adapter::ThrowWithLog<std::invalid_argument>(
+                "OmniStateStore database must not be null");
         }
         auto tblDesc = std::make_shared<ock::bss::TableDescription>(
             ock::bss::StateType::MAP, metaInfo->getName(), -1, ock::bss::TableSerializer{}, _dbPtr->GetConfig());
-        dbTable = bss_adapter::CheckTable(
-            std::dynamic_pointer_cast<ock::bss::KMapTable>(_dbPtr->GetTableOrCreate(tblDesc)), metaInfo->getName());
+        dbTable = std::dynamic_pointer_cast<ock::bss::KMapTable>(_dbPtr->GetTableOrCreate(tblDesc));
+        bss_adapter::CheckTable(dbTable, metaInfo->getName());
     };
 
     UV get(N& nameSpace, const UK& userKey)
@@ -200,14 +201,16 @@ public:
             dbTable->EntryIteratorWrraper(keyHashCode, priBinaryData));
         if (iterator == nullptr) {
             delete resultMap;
-            throw std::runtime_error("OmniStateStore failed to create map iterator for state '" + metaInfo->getName() + "'");
+            bss_adapter::ThrowWithLog<std::runtime_error>(
+                "OmniStateStore failed to create map iterator for state '" + metaInfo->getName() + "'");
         }
         while (iterator->HasNext()) {
             LOG("get element from wrapper");
             auto pairs = iterator->Next();
             if (pairs.size() != 2) {
                 LOG("ERROR: get the element from mapState is wrong size");
-                THROW_LOGIC_EXCEPTION("ERROR: get the element from mapState is wrong size");
+                bss_adapter::ThrowWithLog<std::logic_error>(
+                    "Failed to read map state element: invalid entry size");
             }
             auto keyData = pairs.at(0);
             DataInputDeserializer keySerializedData(
@@ -310,7 +313,8 @@ public:
             uint32_t keyHashCode;
             auto vectorBatchKey = GetVectorBatchNameSpaceKey(namespaceSerializer, keyHashCode, keyGroup);
             if (dbTable->Put(keyHashCode, vectorBatchKey, priKey, priVal) != ock::bss::BSS_OK) {
-                THROW_RUNTIME_ERROR("Failed to add VectorBatch to BSS for keyGroup " << keyGroup);
+                bss_adapter::ThrowWithLog<std::runtime_error>(
+                    "Failed to add VectorBatch to BSS for keyGroup " + std::to_string(keyGroup));
             }
             sequenceNumberHelper.addNextSequenceNumber(keyGroup);
         }
@@ -340,7 +344,8 @@ public:
         }
         bss_adapter::CheckResult(res, "KMapTable::GetVectorBatch(" + metaInfo->getName() + ")");
         if (priVal.Length() <= sizeof(int8_t)) {
-            throw std::runtime_error("OmniStateStore returned an invalid VectorBatch map payload");
+            bss_adapter::ThrowWithLog<std::runtime_error>(
+                "OmniStateStore returned an invalid VectorBatch map payload");
         }
         uint8_t* address = const_cast<uint8_t*>(priVal.Data() + sizeof(int8_t));
         auto batch = omnistream::VectorBatchDeserializationUtils::deserializeVectorBatch(address);
@@ -349,7 +354,8 @@ public:
 
     std::vector<omnistream::VectorBatch*> getVectorBatches(int32_t keyGroup)
     {
-        NOT_IMPL_EXCEPTION;
+        bss_adapter::ThrowWithLog<std::logic_error>(
+            "BssMapStateTable::restoreFromVectorBatch is not implemented for this state type");
     }
 
     void clearVectorBatches(int64_t currentTimestamp)

@@ -189,14 +189,15 @@ public:
         override
     {
         if (checkpointId < 0) {
-            throw std::invalid_argument("checkpointId must not be negative");
+            bss_adapter::ThrowWithLog<std::invalid_argument>("checkpointId must not be negative");
         }
         if (sharedBoostStateDB_ == nullptr) {
             return std::make_shared<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>>(
                 []() { return SnapshotResult<KeyedStateHandle>::Empty(); });
         }
         if (omniTaskBridge_ == nullptr) {
-            throw std::runtime_error("OmniStateStore checkpoint requires an OmniTaskBridge");
+            bss_adapter::ThrowWithLog<std::runtime_error>(
+                "OmniStateStore checkpoint requires an OmniTaskBridge");
         }
 
         if (snapshotStrategy_ == SnapshotStrategyType::INCREMENTAL) {
@@ -226,12 +227,14 @@ public:
         ec.clear();
         fs::create_directories(checkpointPath, ec);
         if (ec) {
-            throw std::runtime_error("Failed to create OmniStateStore checkpoint directory: " + ec.message());
+            bss_adapter::ThrowWithLog<std::runtime_error>(
+                "Failed to create OmniStateStore checkpoint directory: " + ec.message());
         }
 
         auto* coordinator = sharedBoostStateDB_->CreateSyncCheckpoint(checkpointPath.string(), checkpointId);
         if (coordinator == nullptr) {
-            throw std::runtime_error("OmniStateStore failed to prepare checkpoint " + std::to_string(checkpointId));
+            bss_adapter::ThrowWithLog<std::runtime_error>(
+                "OmniStateStore failed to prepare checkpoint " + std::to_string(checkpointId));
         }
 
         auto db = sharedBoostStateDB_;
@@ -272,7 +275,8 @@ public:
                     auto metaHandle = bridge->CallMaterializeMetaData(
                         checkpointId, metaSnapshots, localRecoveryConfig, checkpointOptions, keySerializerJson);
                     if (metaHandle == nullptr || metaHandle->GetJobManagerOwnedSnapshot() == nullptr) {
-                        throw std::runtime_error("Failed to materialize OmniStateStore checkpoint metadata");
+                        bss_adapter::ThrowWithLog<std::runtime_error>(
+                            "Failed to materialize OmniStateStore checkpoint metadata");
                     }
 
                     std::vector<fs::path> files;
@@ -302,6 +306,8 @@ public:
                     db->NotifyDBSnapshotAbort(static_cast<uint64_t>(checkpointId));
                     std::error_code cleanupError;
                     fs::remove_all(checkpointPath, cleanupError);
+                    ERROR_RELEASE(
+                        "OmniStateStore checkpoint failed, checkpointId=" << checkpointId);
                     throw;
                 }
             });
@@ -309,7 +315,7 @@ public:
 
     std::shared_ptr<SavepointResources> savepoint() override
     {
-        throw std::runtime_error(
+        bss_adapter::ThrowWithLog<std::runtime_error>(
             "Canonical savepoints are not supported by the OmniStateStore native backend; use native format");
     }
 
@@ -456,7 +462,7 @@ private:
         }
         ock::bss::BoostStateDBPtr db = ock::bss::BoostStateDBFactory::Create();
         if (db == nullptr) {
-            throw std::runtime_error("Failed to create OmniStateStore database");
+            bss_adapter::ThrowWithLog<std::runtime_error>("Failed to create OmniStateStore database");
         }
         ock::bss::ConfigRef config = boostStateDBConfig_;
         if (config == nullptr) {
@@ -481,6 +487,7 @@ private:
             bss_adapter::CheckResult(db->Open(config), "BoostStateDB::Open");
         } catch (...) {
             ock::bss::BoostStateDBFactory::Destroy(db);
+            ERROR_RELEASE("Failed to open OmniStateStore database");
             throw;
         }
         sharedBoostStateDB_ = db;
@@ -555,8 +562,7 @@ uintptr_t BssKeyedStateBackend<K>::GetListState(TypeSerializer* namespaceSeriali
         dataId == BackendDataType::BIGINT_BK) {
         return (uintptr_t)createOrUpdateInternalListState<VoidNamespace, int64_t>(namespaceSerializer, stateDesc);
     } else {
-        LOG("not support these backendId");
-        THROW_LOGIC_EXCEPTION("not support these backendId");
+        bss_adapter::ThrowWithLog<std::logic_error>("OmniStateStore ListState backend types are not supported");
     }
 }
 
@@ -572,8 +578,7 @@ BssMapState<K, N, UK, UV>* BssKeyedStateBackend<K>::createOrUpdateInternalMapSta
         if (existingState == nullptr) {
             const std::string message =
                 "State '" + stateDesc->getName() + "' was previously registered with an incompatible type";
-            ERROR_RELEASE(message);
-            throw std::runtime_error(message);
+            bss_adapter::ThrowWithLog<std::runtime_error>(message);
         }
     }
     BssMapStateTable<K, N, UK, UV>* stateTable = tryRegisterMapStateTable<N, UK, UV>(
@@ -624,8 +629,8 @@ uintptr_t BssKeyedStateBackend<K>::GetMapState(TypeSerializer* namespaceSerializ
     STD_LOG("stateType_ is StateDescriptor::Type::MAP " << ", keyId " << keyId << " , value id " << valueId);
 
     if (namespaceSerializer->getBackendId() != BackendDataType::VOID_NAMESPACE_BK) {
-        LOG("backendID: VOID_NAMESPACE_BK not support");
-        NOT_IMPL_EXCEPTION;
+        bss_adapter::ThrowWithLog<std::logic_error>(
+            "OmniStateStore MapState only supports VoidNamespace");
     }
     if (keyId == BackendDataType::INT_BK && valueId == BackendDataType::INT_BK) {
         return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, int32_t, int32_t>(
@@ -656,9 +661,9 @@ uintptr_t BssKeyedStateBackend<K>::GetMapState(TypeSerializer* namespaceSerializ
         return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, RowData*, std::vector<RowData*>*>(
             namespaceSerializer, stateDesc);
     }
-    THROW_LOGIC_EXCEPTION(
-        "OmniStateStore does not support MapState key/value backend types " << static_cast<int>(keyId) << "/"
-                                                                            << static_cast<int>(valueId));
+    bss_adapter::ThrowWithLog<std::logic_error>(
+        "OmniStateStore does not support MapState key/value backend types " +
+        std::to_string(static_cast<int>(keyId)) + "/" + std::to_string(static_cast<int>(valueId)));
 }
 
 template <typename K>
@@ -673,8 +678,7 @@ BssListState<K, N, V>* BssKeyedStateBackend<K>::createOrUpdateInternalListState(
         if (existingState == nullptr) {
             const std::string message =
                 "State '" + stateDesc->getName() + "' was previously registered with an incompatible type";
-            ERROR_RELEASE(message);
-            throw std::runtime_error(message);
+            bss_adapter::ThrowWithLog<std::runtime_error>(message);
         }
     }
     BssListStateTable<K, N, V>* stateTable = tryRegisterListStateTable<N, V>(namespaceSerializer, stateDesc);
@@ -703,7 +707,7 @@ uintptr_t BssKeyedStateBackend<K>::createOrUpdateInternalState(
     } else if (stateDesc->getType() == StateDescriptor::Type::LIST) {
         return this->GetListState(namespaceSerializer, stateDesc);
     } else {
-        THROW_LOGIC_EXCEPTION("bss has not support this state yet");
+        bss_adapter::ThrowWithLog<std::logic_error>("OmniStateStore does not support this state type");
     }
 }
 
@@ -724,8 +728,7 @@ uintptr_t BssKeyedStateBackend<K>::GetValueState(TypeSerializer* namespaceSerial
     } else if (dataId == BackendDataType::BIGINT_BK) {
         return (uintptr_t)createOrUpdateInternalValueState<VoidNamespace, int64_t>(namespaceSerializer, stateDesc);
     } else {
-        LOG("not support these backendId");
-        THROW_LOGIC_EXCEPTION("not support these backendId");
+        bss_adapter::ThrowWithLog<std::logic_error>("OmniStateStore ValueState backend types are not supported");
     }
 }
 
@@ -741,8 +744,7 @@ BssValueState<K, N, V>* BssKeyedStateBackend<K>::createOrUpdateInternalValueStat
         if (existingState == nullptr) {
             const std::string message =
                 "State '" + stateDesc->getName() + "' was previously registered with an incompatible type";
-            ERROR_RELEASE(message);
-            throw std::runtime_error(message);
+            bss_adapter::ThrowWithLog<std::runtime_error>(message);
         }
     }
     // For Value state, S is the same as V

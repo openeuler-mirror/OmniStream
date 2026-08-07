@@ -23,6 +23,13 @@
 
 namespace bss_adapter {
 
+template <typename Exception>
+[[noreturn]] inline void ThrowWithLog(const std::string& message)
+{
+    ERROR_RELEASE(message);
+    throw Exception(message);
+}
+
 inline void LogStateOperationSuccess(
     const char* stateType,
     const std::string& stateName,
@@ -44,18 +51,19 @@ inline bool IsNotFound(ock::bss::BResult result)
 inline void CheckResult(ock::bss::BResult result, const std::string& operation)
 {
     if (result != ock::bss::BSS_OK) {
-        throw std::runtime_error(
-            "OmniStateStore operation '" + operation + "' failed, error code=" + std::to_string(result));
+        const std::string message =
+            "OmniStateStore operation '" + operation + "' failed, error code=" + std::to_string(result);
+        ThrowWithLog<std::runtime_error>(message);
     }
 }
 
 template <typename T>
-inline std::shared_ptr<T> CheckTable(const std::shared_ptr<T>& table, const std::string& stateName)
+inline void CheckTable(const std::shared_ptr<T>& table, const std::string& stateName)
 {
     if (table == nullptr) {
-        throw std::runtime_error("OmniStateStore failed to create table for state '" + stateName + "'");
+        const std::string message = "OmniStateStore failed to create table for state '" + stateName + "'";
+        ThrowWithLog<std::runtime_error>(message);
     }
-    return table;
 }
 
 } // namespace bss_adapter

@@ -385,6 +385,7 @@ AbstractKeyedStateBackend<K>* StreamTaskStateInitializerImpl::keyedStatedBackend
         keyContext = nullptr;
         auto embeddedOckStateBackend = dynamic_cast<EmbeddedOckStateBackend*>(this->stateBackend);
         if (embeddedOckStateBackend == nullptr) {
+            ERROR_RELEASE("stateBackend is not EmbeddedOckStateBackend");
             THROW_RUNTIME_ERROR("stateBackend is not EmbeddedOckStateBackend.");
         }
         std::set<std::shared_ptr<KeyedStateHandle>> stateHandles;
@@ -464,7 +465,7 @@ inline CheckpointableKeyedStateBackend<K>* StreamTaskStateInitializerImpl::keyed
              operatorDescription](std::set<std::shared_ptr<KeyedStateHandle>> stateHandles, int alternativeIdx) {
                 auto rocksdbStateBackend = dynamic_cast<EmbeddedRocksDBStateBackend*>(this->stateBackend);
                 if (rocksdbStateBackend == nullptr) {
-                    INFO_RELEASE("Error: stateBackend is not EmbeddedRocksDBStateBackend.");
+                    ERROR_RELEASE("stateBackend is not EmbeddedRocksDBStateBackend");
                     THROW_RUNTIME_ERROR("stateBackend is not EmbeddedRocksDBStateBackend.");
                 }
                 return reinterpret_cast<CheckpointableKeyedStateBackend<K>*>(
@@ -496,7 +497,7 @@ inline CheckpointableKeyedStateBackend<K>* StreamTaskStateInitializerImpl::keyed
         }
         return backendRestorer.createAndRestore(handleSet);
     } catch (const std::exception& ex) {
-        INFO_RELEASE("Error:create keyedStatedBackend failed: " + std::string(ex.what()));
+        ERROR_RELEASE("create keyedStatedBackend failed: " + std::string(ex.what()));
         THROW_RUNTIME_ERROR("create keyedStatedBackend failed: " + std::string(ex.what()));
     }
 }
@@ -505,7 +506,7 @@ inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBacken
     std::string operatorIdentifierText, OperatorID* operatorID)
 {
     if (stateBackend == nullptr) {
-        INFO_RELEASE("error StreamTaskStateInitializerImpl::operatorStateBackend stateBackend is null");
+        ERROR_RELEASE("StreamTaskStateInitializerImpl::operatorStateBackend stateBackend is null");
         throw std::runtime_error("stateBackend is null while creating operator state backend");
     }
     std::string logDescription = "operator state backend for " + operatorIdentifierText;
@@ -530,8 +531,8 @@ inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBacken
                 return reinterpret_cast<OperatorStateBackend*>(
                     hashMapStateBackend->createOperatorStateBackend(env, operatorIdentifierText, stateHandles));
             }
-            INFO_RELEASE(
-                "error StreamTaskStateInitializerImpl::operatorStateBackend unsupported state backend for operator "
+            ERROR_RELEASE(
+                "StreamTaskStateInitializerImpl::operatorStateBackend unsupported state backend for operator "
                 << operatorIdentifierText);
             throw std::runtime_error("unsupported state backend while creating operator state backend");
         },
@@ -559,6 +560,7 @@ inline OperatorStateBackend* StreamTaskStateInitializerImpl::operatorStateBacken
         return backendRestorer->createAndRestore(handleSet);
     } catch (const std::exception& e) {
         GErrorLog("create OperatorStateHandle exception : " + std::string(e.what()));
+        ERROR_RELEASE("create OperatorStateHandle failed: " << e.what());
         throw std::runtime_error("create OperatorStateHandle failed.");
     }
 }

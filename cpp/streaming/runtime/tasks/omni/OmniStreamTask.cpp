@@ -110,8 +110,8 @@ void OmniStreamTask::postConstruct()
 #ifdef WITH_OMNISTATESTORE
         stateBackend = new EmbeddedOckStateBackend(taskConfiguration_);
 #else
-        INFO_RELEASE(
-            "error EmbeddedOckStateBackend was requested, but OmniStream was built without WITH_OMNISTATESTORE");
+        ERROR_RELEASE(
+            "EmbeddedOckStateBackend was requested, but OmniStream was built without WITH_OMNISTATESTORE");
         THROW_RUNTIME_ERROR(
             "EmbeddedOckStateBackend was requested, but OmniStream was built without WITH_OMNISTATESTORE");
 #endif
