@@ -332,6 +332,7 @@ void OmniCreditBasedSequenceNumberingViewReader::SerializeVectorBatchBuffer(Vect
                 // it means buffer is not enough
                 bufferInfo = RequestNettyBuffer(bufferSize);
             }
+            delete watermark;
         } else {
             THROW_RUNTIME_ERROR("Unsupported stream element type");
         }

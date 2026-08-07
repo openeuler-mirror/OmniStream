@@ -194,7 +194,8 @@ void SlicingWindowOperator<K, W>::ProcessWatermark(Watermark* mark)
         windowProcessor_->advanceProgress(mark->getTimestamp());
         TableStreamOperator<K>::ProcessWatermark(mark);
     } else {
-        TableStreamOperator<K>::ProcessWatermark(new Watermark(this->currentWatermark));
+        auto watermark = Watermark(this->currentWatermark);
+        TableStreamOperator<K>::ProcessWatermark(&watermark);
     }
 }
 
