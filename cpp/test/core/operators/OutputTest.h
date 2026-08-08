@@ -11,7 +11,7 @@
 class OutputTest : public Output {
 private:
     StreamRecord* record_;
-    Watermark* watermark_;
+    Watermark watermark_{INT64_MIN};
     std::vector<RowData*> outputs;
 
 public:
@@ -36,13 +36,13 @@ public:
     void close() override {};
     void emitWatermark(Watermark* mark) override
     {
-        watermark_ = mark;
-        LOG("output emit watermark " << watermark_->getTimestamp());
-    };
+        watermark_ = Watermark(mark->getTimestamp());
+        LOG("output emit watermark " << watermark_.getTimestamp());
+    }
     Watermark* getWatermark()
     {
-        return watermark_;
-    };
+        return &watermark_;
+    }
     void emitWatermarkStatus(WatermarkStatus* status) override {};
 };
 
@@ -50,7 +50,7 @@ public:
 class BatchOutputTest : public omnistream::datastream::RecordWriterOutput {
 private:
     StreamRecord* record_;
-    Watermark* watermark_;
+    Watermark watermark_{INT64_MIN};
 
 public:
     BatchOutputTest() : RecordWriterOutput(nullptr, nullptr) {};
@@ -68,11 +68,11 @@ public:
     };
     void emitWatermark(Watermark* mark) override
     {
-        watermark_ = mark;
+        watermark_ = Watermark(mark->getTimestamp());
     }
     Watermark* getWatermark()
     {
-        return watermark_;
+        return &watermark_;
     };
     void close() override {};
     void emitWatermarkStatus(WatermarkStatus* status) override {};
@@ -81,7 +81,7 @@ public:
 class OutputTestVectorBatch : public Output {
 private:
     StreamRecord* record_;
-    Watermark* watermark_;
+    Watermark watermark_{INT64_MIN};
     std::vector<omnistream::VectorBatch*> outputs;
 
 public:
@@ -105,11 +105,11 @@ public:
     void close() override {};
     void emitWatermark(Watermark* mark) override
     {
-        watermark_ = mark;
+        watermark_ = Watermark(mark->getTimestamp());
     };
     Watermark* getWatermark()
     {
-        return watermark_;
+        return &watermark_;
     };
     void emitWatermarkStatus(WatermarkStatus* status) override {};
 };
@@ -127,7 +127,7 @@ public:
 class ExternalOutputTest : public omnistream::datastream::RecordWriterOutput {
 private:
     StreamRecord* record_;
-    Watermark* watermark_;
+    Watermark watermark_{INT64_MIN};
     std::vector<Row*> outputs;
 
 public:
@@ -151,12 +151,8 @@ public:
     void close() override {};
     void emitWatermark(Watermark* mark) override
     {
-        watermark_ = mark;
-    };
-    Watermark* getWatermark()
-    {
-        return watermark_;
-    };
+        watermark_ = Watermark(mark->getTimestamp());
+    }
     void emitWatermarkStatus(WatermarkStatus* status) override {};
 };
 
@@ -173,7 +169,6 @@ public:
     };
     void emitWatermark(Watermark* mark) override
     {
-        delete mark;
     }
     void close() override {};
     void emitWatermarkStatus(WatermarkStatus* status) override {};

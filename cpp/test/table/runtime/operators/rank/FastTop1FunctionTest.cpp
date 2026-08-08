@@ -479,7 +479,6 @@ TEST(FastTop1FunctionTest, ProcessSingleBatchWithTwoPKeys)
     EXPECT_EQ(matched, true);
 
     delete expectedBatch;
-    delete record;
 }
 
 TEST(FastTop1FunctionTest, ProcessMultipleBatchesWithTwoPKeys)
@@ -584,6 +583,4 @@ TEST(FastTop1FunctionTest, ProcessMultipleBatchesWithTwoPKeys)
     delete output->getStreamRecord();
 
     delete expectedBatch;
-    delete record;
-    delete record2;
 }

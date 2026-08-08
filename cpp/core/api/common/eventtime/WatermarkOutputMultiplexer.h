@@ -89,7 +89,8 @@ private:
     void UpdateCombinedWatermark()
     {
         if (combinedWatermarkStatus.UpdateCombinedWatermark()) {
-            underlyingOutput->emitWatermark(new Watermark(combinedWatermarkStatus.GetCombinedWatermark()));
+            auto watermark = Watermark(combinedWatermarkStatus.GetCombinedWatermark());
+            underlyingOutput->emitWatermark(&watermark);
         } else if (combinedWatermarkStatus.IsIdle()) {
             underlyingOutput->MarkIdle();
         }

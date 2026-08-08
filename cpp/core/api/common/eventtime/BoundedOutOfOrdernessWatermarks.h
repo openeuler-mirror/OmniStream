@@ -29,7 +29,8 @@ public:
     void OnPeriodicEmit(WatermarkOutput* output) override
     {
         lastEmittedMaxTimestamp_ = maxTimestamp;
-        output->emitWatermark(new Watermark(maxTimestamp - outOfOrdernessMillis - 1));
+        auto watermark = Watermark(maxTimestamp - outOfOrdernessMillis - 1);
+        output->emitWatermark(&watermark);
     }
 
     int64_t getLastEmittedMaxTimestamp() override

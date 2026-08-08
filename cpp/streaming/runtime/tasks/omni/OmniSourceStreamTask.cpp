@@ -95,7 +95,8 @@ void OmniSourceStreamTask::CompleteProcessing()
 
 void OmniSourceStreamTask::AdvanceToEndOfEventTime()
 {
-    operatorChain->GetMainOperatorOutput()->emitWatermark(new Watermark(LONG_MAX));
+    auto watermark = Watermark(LONG_MAX);
+    operatorChain->GetMainOperatorOutput()->emitWatermark(&watermark);
 }
 
 const std::string OmniSourceStreamTask::getName() const
