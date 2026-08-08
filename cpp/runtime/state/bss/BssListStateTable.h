@@ -75,11 +75,6 @@ public:
 
     std::vector<UV>* get(N& nameSpace)
     {
-        LOG("BSS ListState table Get");
-        if constexpr (std::is_same_v<N, long>) {
-            LOG("namespace is " << nameSpace);
-        }
-
         uint32_t keyHashCode;
         OutputBufferStatus outputBufferStatus;
         DataOutputSerializer serializer;
@@ -98,15 +93,12 @@ public:
             }
         }
         dbTable->CleanResource(getResult.resId);
-        bss_adapter::LogStateOperationSuccess(
-            "LIST", metaInfo->getName(), "get", keyHashCode, "elementCount=" + std::to_string(result->size()));
         return result;
     }
 
     // overwrite data in bss list table
     void put(N& nameSpace, const UV& state)
     {
-        LOG("BSS ListState table put");
         uint32_t keyHashCode;
         OutputBufferStatus outputBufferStatus;
         DataOutputSerializer serializer;
@@ -128,14 +120,11 @@ public:
             valueOutputSerializer.getData(), static_cast<int32_t>(valueOutputSerializer.getPosition()));
         auto res = dbTable->Put(keyHashCode, priKey, priValue);
         bss_adapter::CheckResult(res, "KListTable::Put(" + metaInfo->getName() + ")");
-        bss_adapter::LogStateOperationSuccess(
-            "LIST", metaInfo->getName(), "put", keyHashCode, "valueBytes=" + std::to_string(priValue.Length()));
     }
 
     // append data in bss list table
     void add(N& nameSpace, const UV& value)
     {
-        LOG("BSS ListState table add");
         uint32_t keyHashCode;
         OutputBufferStatus outputBufferStatus;
         DataOutputSerializer serializer;
@@ -157,13 +146,10 @@ public:
             valueOutputSerializer.getData(), static_cast<int32_t>(valueOutputSerializer.getPosition()));
         auto res = dbTable->Add(keyHashCode, priKey, priVal);
         bss_adapter::CheckResult(res, "KListTable::Add(" + metaInfo->getName() + ")");
-        bss_adapter::LogStateOperationSuccess(
-            "LIST", metaInfo->getName(), "add", keyHashCode, "valueBytes=" + std::to_string(priVal.Length()));
     }
 
     void addAll(N& nameSpace, const std::vector<UV>& values)
     {
-        LOG("BSS ListState table addAll");
         for (const auto& item : values) {
             if constexpr (std::is_pointer_v<UV>) {
                 if (item == nullptr) {
@@ -176,7 +162,6 @@ public:
 
     void clear(N& nameSpace)
     {
-        LOG("BSS ListState table clear");
         uint32_t keyHashCode;
         OutputBufferStatus outputBufferStatus;
         DataOutputSerializer serializer;
@@ -186,9 +171,6 @@ public:
         if (!bss_adapter::IsNotFound(res)) {
             bss_adapter::CheckResult(res, "KListTable::Remove(" + metaInfo->getName() + ")");
         }
-        bss_adapter::LogStateOperationSuccess(
-            "LIST", metaInfo->getName(), "clear", keyHashCode,
-            bss_adapter::IsNotFound(res) ? "removed=false" : "removed=true");
     }
 
     uint32_t getNextSequenceNumber(int32_t keyGroup)
@@ -199,7 +181,6 @@ public:
     void addVectorBatch(int32_t keyGroup, omnistream::VectorBatch* vectorBatch)
     {
         auto sequenceNumber = sequenceNumberHelper.getNextSequenceNumber(keyGroup);
-        LOG("BSS ListState table addVectorBatch");
         DataOutputSerializer keyOutputSerializer;
         OutputBufferStatus outputBufferStatus;
         keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
@@ -261,7 +242,6 @@ public:
 
     omnistream::VectorBatch* getVectorBatch(int32_t keyGroup, uint32_t sequenceNumber)
     {
-        LOG("BSS ListState table getVectorBatch");
         DataOutputSerializer keyOutputSerializer;
         OutputBufferStatus outputBufferStatus;
         keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
@@ -347,12 +327,6 @@ public:
         auto currentKey = keyContext->getCurrentKey();
         // serialize key
 
-        if constexpr (std::is_same_v<long, K>) {
-            LOG("get current key is " << currentKey);
-        }
-        if constexpr (std::is_same_v<N, long>) {
-            LOG("namespace is " << nameSpace);
-        }
         if constexpr (std::is_same_v<K, int64_t> || std::is_same_v<K, int32_t>) {
             LongSerializer::INSTANCE->serialize(&currentKey, serializer);
         } else if constexpr (std::is_pointer_v<K>) {
