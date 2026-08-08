@@ -19,6 +19,9 @@
 #include "SnapshotResult.h"
 #include "KeyedStateHandle.h"
 #include <future>
+namespace omnistream {
+    class OperatorStateMetricGroup;
+}
 
 template <typename K>
 class CheckpointableKeyedStateBackend : public KeyedStateBackend<K> {
@@ -33,6 +36,17 @@ public:
     ~CheckpointableKeyedStateBackend() = default;
 
     virtual std::shared_ptr<SavepointResources> savepoint() = 0;
+    virtual void SetOperatorStateMetricGroup(omnistream::OperatorStateMetricGroup *group)
+    {
+        operatorStateMetricGroup_ = group;
+    }
+    omnistream::OperatorStateMetricGroup *getOperatorStateMetricGroup() const
+    {
+        return operatorStateMetricGroup_;
+    }
+protected:
+    omnistream::OperatorStateMetricGroup *operatorStateMetricGroup_ = nullptr;
+
 };
 
 #endif // OMNISTREAM_CHECKPOINTABLEKEYEDSTATEBACKEND

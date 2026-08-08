@@ -119,10 +119,9 @@ public:
                     rocksDBBatchUpdateMap.emplace(key, updatedTopNState);
                 } else {
                     ctx.setCurrentKey(key);
-                    auto v = topNState->value();
-                    if (v != nullptr) {
-                        delete v;
-                    }
+                    //HeapValueState::update() now reads the old size (for the
+                    // incremental data-size metric) and frees the replaced vector itself, so the
+                    // operator no longer pre-deletes the old value here.
                     topNState->update(updatedTopNState);
                 }
             }

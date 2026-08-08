@@ -145,7 +145,7 @@ omnistream::VectorBatch* RowTimeDeduplicateFunction::ProcessUpdateRecord(omnistr
     int outPutRowCount = 0;
 
     auto updateState = GetNeededUpdateRecord(inputVB);
-    INFO_RELEASE("state size : " << updateState.size());
+    // INFO_RELEASE("state size : " << updateState.size())
     int currentBatchId = getCurrentBatchId() - 1;
     omnistream::VectorBatch* outputVB = nullptr;
     for (auto it : updateState) {
@@ -274,7 +274,8 @@ void RowTimeDeduplicateFunction::CopyTargetVectorBatchToOut(
         if (dataType == omniruntime::type::DataTypeId::OMNI_INT) {
             auto val = reinterpret_cast<omniruntime::vec::Vector<int32_t>*>(batch->Get(col))->GetValue(rowId);
             reinterpret_cast<omniruntime::vec::Vector<int32_t>*>(outputVB->Get(col))->SetValue(rowIndex, val);
-        } else if (dataType == omniruntime::type::DataTypeId::OMNI_LONG) {
+        } else if (dataType == omniruntime::type::DataTypeId::OMNI_LONG||
+            dataType == omniruntime::type::DataTypeId::OMNI_TIMESTAMP) {
             auto val = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(batch->Get(col))->GetValue(rowId);
             reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(outputVB->Get(col))->SetValue(rowIndex, val);
         } else if (

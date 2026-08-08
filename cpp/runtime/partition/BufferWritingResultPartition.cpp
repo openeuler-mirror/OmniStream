@@ -11,13 +11,21 @@
 
 #include "BufferWritingResultPartition.h"
 
+#include <limits>
+#include <stdexcept>
+#include <core/utils/ByteBuffer.h>
 #include <streaming/runtime/streamrecord/StreamRecord.h>
+#include <streaming/api/watermark/Watermark.h>
 
 #include "PipelinedSubpartition.h"
+#include "buffer/LocalObjectBufferPool.h"
 #include "io/network/api/serialization/EventSerializer.h"
 #include "runtime/buffer/MemoryBufferBuilder.h"
 // check
 // broadcast ability miss
+#include "runtime/metrics/groups/VectorBatchBufferPoolMetricGroup.h"
+#include "table/data/vectorbatch/VectorBatch.h"
+
 namespace omnistream {
 // origin realization
 BufferWritingResultPartition::BufferWritingResultPartition(
@@ -267,23 +275,41 @@ BufferBuilder* BufferWritingResultPartition::appendUnicastDataForNewRecord(void*
         this->getOwningTaskName() << " appending data   " << std::to_string(reinterpret_cast<long>(record))
                                   << " targetPartition " << std::to_string(targetSubpartition));
 
-    if (targetSubpartition < 0 || static_cast<size_t>(targetSubpartition) >= unicastBufferBuilders.size()) {
-        throw std::out_of_range("targetSubpartition out of range");
-    }
-    BufferBuilder* buffer = unicastBufferBuilders[targetSubpartition];
-    if (taskType == 1) {
-        if (buffer == nullptr) {
-            buffer = requestNewUnicastBufferBuilder(targetSubpartition);
-            LOG_PART("Add bufferbuilder: " << buffer << " to subparition" << targetSubpartition);
-            addToSubpartition(buffer, targetSubpartition, 0);
+        if (targetSubpartition < 0 || static_cast<size_t>(targetSubpartition) >= unicastBufferBuilders.size()) {
+            throw std::out_of_range("targetSubpartition out of range");
         }
-        auto objectBuffer = reinterpret_cast<ObjectBufferBuilder*>(buffer);
-        // LOG("buffer->appendAndCommit will running")
-        objectBuffer->appendAndCommit(record);
-    } else if (taskType == 2) {
-        if (buffer == nullptr) {
-            buffer = requestNewUnicastBufferBuilder(targetSubpartition);
-            LOG_PART("Add bufferbuilder: " << buffer << " to subparition" << targetSubpartition);
+
+        BufferBuilder* buffer = unicastBufferBuilders[targetSubpartition];
+        uint64_t bytes = 0;
+        if (taskType == 1) {
+            auto* element = reinterpret_cast<StreamElement*>(record);
+            if (element != nullptr) {
+                switch (element->getTag()) {
+                case StreamElementTag::TAG_REC_WITH_TIMESTAMP:
+                case StreamElementTag::TAG_REC_WITHOUT_TIMESTAMP: {
+                        auto* streamRecord = static_cast<StreamRecord*>(element);
+                        auto* vectorBatch = static_cast<omnistream::VectorBatch*>(streamRecord->getValue());
+                        bytes = vectorBatch == nullptr ? 0 : static_cast<uint64_t>(vectorBatch->getSizeInBytes());
+                        break;
+                }
+                case StreamElementTag::TAG_WATERMARK:
+                    bytes = sizeof(int64_t);
+                    break;
+                default:
+                    throw std::runtime_error("Unsupported stream element tag....... from appendUnicastDataForNewRecord");
+                }
+            }
+            requestMemoryForVectorBatch(targetSubpartition,bytes);
+            if (buffer == nullptr) {
+                buffer = requestNewUnicastBufferBuilder(targetSubpartition,bytes);
+                LOG_PART("Add bufferbuilder: " << buffer.get() << " to subparition" << targetSubpartition);
+                addToSubpartition(buffer, targetSubpartition, 0);
+            }
+            buffer->appendAndCommit(record);
+        }else if (taskType == 2) {
+            if (buffer == nullptr) {
+                buffer = requestNewUnicastBufferBuilder(targetSubpartition,0);
+                LOG_PART("Add bufferbuilder: " << buffer << " to subparition" << targetSubpartition);
 
             auto streamRecord = reinterpret_cast<StreamRecord*>(record);
             auto value = reinterpret_cast<ByteBuffer*>(streamRecord->getValue());
@@ -401,15 +427,16 @@ void BufferWritingResultPartition::createBroadcastBufferConsumers(
     }
 }
 
-BufferBuilder* BufferWritingResultPartition::requestNewUnicastBufferBuilder(int targetSubpartition)
-{
-    checkInProduceState();
-    ensureUnicastMode();
-    BufferBuilder* bufferBuilder = requestNewBufferBuilderFromPool(targetSubpartition);
-    unicastBufferBuilders[targetSubpartition] = bufferBuilder;
-    LOG("set bufferBuilder to unicastBufferBuilders, targetSubpartition: " << std::to_string(targetSubpartition));
-    return bufferBuilder;
-}
+    BufferBuilder * BufferWritingResultPartition::requestNewUnicastBufferBuilder(
+        int targetSubpartition,uint64_t bytes)
+    {
+        checkInProduceState();
+        ensureUnicastMode();
+        BufferBuilder *bufferBuilder = requestNewBufferBuilderFromPool(targetSubpartition,bytes);
+        unicastBufferBuilders[targetSubpartition] = bufferBuilder;
+        LOG("set bufferBuilder to unicastBufferBuilders, targetSubpartition: "<< std::to_string(targetSubpartition));
+        return bufferBuilder;
+    }
 
 BufferBuilder* BufferWritingResultPartition::requestNewBroadcastBufferBuilder()
 {
@@ -421,28 +448,32 @@ BufferBuilder* BufferWritingResultPartition::requestNewBroadcastBufferBuilder()
     return bufferBuilder;
 }
 
-BufferBuilder* BufferWritingResultPartition::requestNewBufferBuilderFromPool(int targetSubpartition)
-{
-    if (isReleased()) {
-        throw std::runtime_error("Partition is released.");
+    BufferBuilder * BufferWritingResultPartition::requestNewBufferBuilderFromPool(
+        int targetSubpartition,uint64_t bytes)
+    {
+        if (isReleased()) {
+            throw std::runtime_error("Partition is released.");
+        }
+        if (bufferPool == nullptr) {
+            throw std::runtime_error("Result partition buffer pool is null.");
+        }
+        LOG("bufferPool->requestObjectBufferBuilder will running");
+        BufferBuilder *bufferBuilder = bufferPool->requestBufferBuilder(targetSubpartition,bytes);
+        if (bufferBuilder) {
+            return bufferBuilder;
+        }
+        //todo backpressure start point....
+        hardBackPressuredTimeMsPerSecond->MarkStart();
+        try {
+            LOG("bufferPool->requestObjectBufferBuilderBlocking will running");
+            bufferBuilder = bufferPool->requestBufferBuilderBlocking(targetSubpartition, bytes);
+            hardBackPressuredTimeMsPerSecond->MarkEnd();
+            return bufferBuilder;
+        } catch (const std::exception &e) {
+            hardBackPressuredTimeMsPerSecond->MarkEnd();
+            throw std::runtime_error("Interrupted while waiting for buffer");
+        }
     }
-    if (bufferPool == nullptr) {
-        throw std::runtime_error("Result partition buffer pool is null.");
-    }
-    LOG("bufferPool->requestObjectBufferBuilder will running");
-    BufferBuilder* bufferBuilder = bufferPool->requestBufferBuilder(targetSubpartition);
-    if (bufferBuilder) {
-        return bufferBuilder;
-    }
-
-    try {
-        LOG("bufferPool->requestObjectBufferBuilderBlocking will running");
-        bufferBuilder = bufferPool->requestBufferBuilderBlocking(targetSubpartition);
-        return bufferBuilder;
-    } catch (const std::exception& e) {
-        throw std::runtime_error(std::string("Interrupted while waiting for buffer: ") + e.what());
-    }
-}
 
 void BufferWritingResultPartition::finishUnicastBufferBuilder(int targetSubpartition)
 {
@@ -485,14 +516,109 @@ void BufferWritingResultPartition::ensureBroadcastMode()
     finishUnicastBufferBuilders();
 }
 
-void BufferWritingResultPartition::releaseInternal()
-{
-    for (auto subPartition : subpartitions_) {
-        try {
-            subPartition->release();
-        } catch (const std::exception& e) {
-            throw std::runtime_error("subpartition release error in class BufferWritingResultPartition");
+    void BufferWritingResultPartition::releaseInternal()
+    {
+        for (auto subPartition : subpartitions_) {
+            try {
+                subPartition->release();
+            } catch (const std::exception &e) {
+                throw std::runtime_error("subpartition release error in class BufferWritingResultPartition");
+            }
         }
     }
-}
+
+    void BufferWritingResultPartition::SetMetricGroup(std::shared_ptr<AbstractMetricGroup> metricGroup)
+    {
+        if (metricGroup == nullptr) {
+            return;
+        }
+
+        auto* parentMetricGroup = metricGroup->GetParent();
+        if (parentMetricGroup != nullptr) {
+            auto backPressureMetric = parentMetricGroup->GetMetric("hardBackPressuredTimeMsPerSecond");
+            hardBackPressuredTimeMsPerSecond = std::dynamic_pointer_cast<TimerGauge>(
+                backPressureMetric);
+        }
+
+        if (taskType != 1) {
+            return;
+        }
+
+        auto localObjectBufferPool = std::dynamic_pointer_cast<LocalObjectBufferPool>(bufferPool);
+        if (localObjectBufferPool == nullptr) {
+            return;
+        }
+
+        auto toSizeGaugeValue = [](uint64_t value) {
+            return value > static_cast<uint64_t>(std::numeric_limits<int>::max())
+                ? std::numeric_limits<int>::max()
+                : static_cast<int>(value);
+        };
+
+        auto vectorBatchMetricGroup = std::dynamic_pointer_cast<VectorBatchBufferPoolMetricGroup>(metricGroup);
+        if (vectorBatchMetricGroup == nullptr) {
+            return;
+        }
+
+        vectorBatchMetricGroup->SetSizeSupplierFactory(
+            [localObjectBufferPool, toSizeGaugeValue](const std::string& metricName) -> SizeGauge::SizeSupplier {
+                if (metricName == "objectSegmentSize") {
+                    return [localObjectBufferPool]() {
+                        return localObjectBufferPool->getObjectSegmentSize();
+                    };
+                }
+                if (metricName == "requiredMemory") {
+                    return [localObjectBufferPool, toSizeGaugeValue]() {
+                        return toSizeGaugeValue(localObjectBufferPool->getRequiredMemory());
+                    };
+                }
+                if (metricName == "currentPoolMemoryBudget") {
+                    return [localObjectBufferPool, toSizeGaugeValue]() {
+                        return toSizeGaugeValue(localObjectBufferPool->getCurrentPoolMemoryBudget());
+                    };
+                }
+                if (metricName == "maxAllowedMemory") {
+                    return [localObjectBufferPool, toSizeGaugeValue]() {
+                        return toSizeGaugeValue(localObjectBufferPool->getMaxMemory());
+                    };
+                }
+                if (metricName == "usedMemory") {
+                    return [localObjectBufferPool, toSizeGaugeValue]() {
+                        return toSizeGaugeValue(localObjectBufferPool->getUsedMemory());
+                    };
+                }
+                if (metricName == "availableMemory") {
+                    return [localObjectBufferPool, toSizeGaugeValue]() {
+                        return toSizeGaugeValue(localObjectBufferPool->getAvailableMemory());
+                    };
+                }
+                if (metricName == "maxMemoryPerChannel") {
+                    return [localObjectBufferPool, toSizeGaugeValue]() {
+                        return toSizeGaugeValue(localObjectBufferPool->getMaxMemoryPerChannel());
+                    };
+                }
+                if (metricName == "requestSegmentNumber") {
+                    return [localObjectBufferPool]() {
+                        return localObjectBufferPool->getRequestSegmentNumber();
+                    };
+                }
+                if (metricName == "recycleSegmentNumber") {
+                    return [localObjectBufferPool]() {
+                        return localObjectBufferPool->getRecycleSegmentNumber();
+                    };
+                }
+                throw std::runtime_error("Unknown VectorBatchBufferPool metric: " + metricName);
+            });
+    }
+
+    void BufferWritingResultPartition::requestMemoryForVectorBatch(int targetSubpartition,uint64_t bytes)
+    {
+        auto localObjectBufferPool = static_cast<LocalObjectBufferPool*>(bufferPool.get());
+        if (!localObjectBufferPool->chargeMemory(targetSubpartition, bytes))
+        {
+            hardBackPressuredTimeMsPerSecond->MarkStart();
+            localObjectBufferPool->chargeMemoryBlocking(targetSubpartition, bytes);
+            hardBackPressuredTimeMsPerSecond->MarkEnd();
+        }
+    }
 } // namespace omnistream

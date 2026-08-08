@@ -532,26 +532,38 @@ public:
         return _num_filled == 0;
     }
 
-    /// Returns the matching ValueT or nullptr if k isn't found.
-    ValueT get(const KeyT& key, const N& nmspace) noexcept override
-    {
-        const auto bucket = find_filled_bucket(key, nmspace);
-        if constexpr (std::is_pointer<ValueT>::value) {
-            return bucket == _num_buckets ? nullptr : EMH_VAL(_pairs, bucket);
-        } else {
-            return bucket == _num_buckets ? std::numeric_limits<ValueT>::max() : EMH_VAL(_pairs, bucket);
+        // Copies the first live entry's key+value out; false if empty. Task-thread only.
+        bool sampleFirstEntry(KeyT& outKey, ValueT& outValue) override
+        {
+            auto it = begin();
+            if (it == end()) {
+                return false;
+            }
+            outKey = it->first;
+            outValue = it->second;
+            return true;
         }
-    }
-    /// Const version of the above
-    ValueT get(const KeyT& key, const N& nmspace) const noexcept override
-    {
-        const auto bucket = find_filled_bucket(key, nmspace);
-        if constexpr (std::is_pointer<ValueT>::value) {
-            return bucket == _num_buckets ? nullptr : EMH_VAL(_pairs, bucket);
-        } else {
-            return bucket == _num_buckets ? std::numeric_limits<ValueT>::max() : EMH_VAL(_pairs, bucket);
+
+        /// Returns the matching ValueT or nullptr if k isn't found.
+        ValueT get(const KeyT& key, const N& nmspace) noexcept override
+        {
+            const auto bucket = find_filled_bucket(key, nmspace);
+            if constexpr(std::is_pointer<ValueT>::value) {
+                return bucket == _num_buckets ? nullptr : EMH_VAL(_pairs, bucket);
+            } else {
+                return bucket == _num_buckets ? std::numeric_limits<ValueT>::max() : EMH_VAL(_pairs, bucket);
+            }
         }
-    }
+        /// Const version of the above
+        ValueT get(const KeyT& key, const N& nmspace) const noexcept override
+        {
+            const auto bucket = find_filled_bucket(key, nmspace);
+            if constexpr(std::is_pointer<ValueT>::value) {
+                return bucket == _num_buckets ? nullptr : EMH_VAL(_pairs, bucket);
+            } else {
+                return bucket == _num_buckets ? std::numeric_limits<ValueT>::max() : EMH_VAL(_pairs, bucket);
+            }
+        }
 
     // update value or insert a new key-value to map
     void put(const KeyT& key, const N& nmspace, const ValueT& value) noexcept override

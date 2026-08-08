@@ -12,6 +12,7 @@
 #define FLINK_TNEL_STATETABLE_H
 
 #include <vector>
+#include <atomic>
 #include <type_traits>
 #include <tuple>
 #include <limits>
@@ -23,6 +24,7 @@
 #include "../InternalKeyContext.h"
 #include "../KeyGroupRange.h"
 #include "../RegisteredKeyValueStateBackendMetaInfo.h"
+#include "../StateSizeUtil.h"
 #include "table/data/binary/BinaryRowData.h"
 /* S is the value used in the State,
  * like RowData* for HeapValueState,
@@ -38,6 +40,64 @@ public:
         TypeSerializer* keySerializer);
 
     virtual ~StateTable();
+
+    // running total of inner-container elements across all (key, namespace)
+    // entries of THIS state table (only meaningful for container values: MAP/LIST/SET_LONG).
+    // Maintained incrementally on the task thread at every Heap{Map,List,Value}State element-mutation
+    // site. CORRECTION 13: now std::atomic because the metric-reporter thread reads it directly (the
+    // data-size metric is pulled on demand from the SizeGauge supplier). The task thread is the only
+    // writer; existing += / -= become atomic fetch_add/sub. Stays 0 for fixed-width VALUE state.
+    std::atomic<int64_t> liveNumElements_{0};
+
+    // CORRECTION 13: per-state widths sampled ONCE on the task thread (from the first non-empty entry)
+    // and cached here so the metric-reporter thread can convert counts -> bytes WITHOUT ever touching
+    // a CopyOnWriteStateMap entry (which would race a concurrent rehash's free(_pairs)). Filled lazily
+    // by refreshSampledWidthsIfNeeded() at the mutation sites. Container states use
+    // cachedElementWidth_/cachedContainerOverhead_/cachedKeyWidth_; fixed-width VALUE states use
+    // cachedKeyWidth_/cachedValueWidth_.
+    std::atomic<int64_t> cachedElementWidth_{0};
+    std::atomic<int64_t> cachedContainerOverhead_{0};
+    std::atomic<int64_t> cachedKeyWidth_{0};
+    std::atomic<int64_t> cachedValueWidth_{0};
+
+    // CORRECTION 13: task-thread-only width sampler. No-op once the relevant width is cached. Samples
+    // ONE live entry (first non-empty key-group map) and stores the representative widths. Called from
+    // the Heap*State mutation sites (synchronously on the task thread, so it never races a rehash).
+    void refreshSampledWidthsIfNeeded()
+    {
+        if constexpr (StateSizeUtil::is_container_value<S>::value) {
+            if (cachedElementWidth_.load(std::memory_order_relaxed) != 0) {
+                return;  // already sampled
+            }
+        } else {
+            if (cachedValueWidth_.load(std::memory_order_relaxed) != 0) {
+                return;  // already sampled
+            }
+        }
+        for (auto *stateMap : keyGroupedStateMaps) {
+            if (stateMap == nullptr || stateMap->size() == 0) {
+                continue;
+            }
+            K sampleKey{};
+            S sampleValue{};
+            if (stateMap->sampleFirstEntry(sampleKey, sampleValue)) {
+                if constexpr (StateSizeUtil::is_container_value<S>::value) {
+                    cachedElementWidth_.store(StateSizeUtil::sampleElementWidth(sampleValue),
+                                              std::memory_order_relaxed);
+                    cachedContainerOverhead_.store(StateSizeUtil::containerOverhead(sampleValue),
+                                                   std::memory_order_relaxed);
+                    cachedKeyWidth_.store(StateSizeUtil::sizeInBytes(sampleKey),
+                                          std::memory_order_relaxed);
+                } else {
+                    cachedKeyWidth_.store(StateSizeUtil::sizeInBytes(sampleKey),
+                                          std::memory_order_relaxed);
+                    cachedValueWidth_.store(StateSizeUtil::sizeInBytes(sampleValue),
+                                            std::memory_order_relaxed);
+                }
+            }
+            break;
+        }
+    }
 
     bool isEmpty()
     {
@@ -147,7 +207,35 @@ public:
 
     StateMap<K, N, S>* getMapForKeyGroup(int keyGroupIndex);
 
-    TypeSerializer* getKeySerializer()
+    //fixed-width VALUE state size, REPORTER-THREAD SAFE. numKeys comes from size()
+    // (sums each key-group map's _num_filled -- plain integer reads, benign race, never a _pairs
+    // deref); the per-key and per-value widths come from the task-sampled cache atomics. No
+    // CopyOnWriteStateMap entry is touched here, so this may run on the metric-reporter thread.
+    int64_t fixedValueDataSize()
+    {
+        int64_t numKeys = static_cast<int64_t>(size());
+        int64_t keyWidth = cachedKeyWidth_.load(std::memory_order_relaxed);
+        int64_t valueWidth = cachedValueWidth_.load(std::memory_order_relaxed);
+        return numKeys * (keyWidth + valueWidth);
+    }
+
+    // incremental container-state size, REPORTER-THREAD SAFE and with NO per-entry
+    // walk. numElements is the running counter liveNumElements_ (maintained at every element-mutation
+    // site); numKeys comes from size() (O(number of key-groups), benign integer reads). The element
+    // width, container overhead and key width come from the task-sampled cache atomics (filled by
+    // refreshSampledWidthsIfNeeded()). No CopyOnWriteStateMap entry is touched, so this may run on the
+    // metric-reporter thread. Used for MAP/LIST/SET_LONG states.
+    int64_t incrementalDataSize()
+    {
+        int64_t numKeys = static_cast<int64_t>(size());
+        int64_t numElements = liveNumElements_.load(std::memory_order_relaxed);
+        int64_t elementWidth = cachedElementWidth_.load(std::memory_order_relaxed);
+        int64_t perContainerOverhead = cachedContainerOverhead_.load(std::memory_order_relaxed);
+        int64_t keyWidth = cachedKeyWidth_.load(std::memory_order_relaxed);
+        return numElements * elementWidth + numKeys * (perContainerOverhead + keyWidth);
+    }
+
+    TypeSerializer *getKeySerializer()
     {
         return keySerializer;
     }

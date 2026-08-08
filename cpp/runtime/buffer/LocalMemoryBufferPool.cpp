@@ -155,20 +155,21 @@ BufferBuilder* LocalMemoryBufferPool::requestBufferBuilder()
     return requestMemoryBufferBuilder();
 };
 
-BufferBuilder* LocalMemoryBufferPool::requestBufferBuilder(int targetChannel)
-{
-    return requestMemoryBufferBuilder(targetChannel);
-};
+
+    BufferBuilder *LocalMemoryBufferPool::requestBufferBuilder(int targetChannel,uint64_t /*bytes*/)
+    {
+        return requestMemoryBufferBuilder(targetChannel);
+    };
 
 BufferBuilder* LocalMemoryBufferPool::requestBufferBuilderBlocking()
 {
     return requestMemoryBufferBuilderBlocking();
 };
 
-BufferBuilder* LocalMemoryBufferPool::requestBufferBuilderBlocking(int targetChannel)
-{
-    return requestMemoryBufferBuilderBlocking(targetChannel);
-};
+    BufferBuilder *LocalMemoryBufferPool::requestBufferBuilderBlocking(int targetChannel, uint64_t /*bytes*/)
+    {
+        return requestMemoryBufferBuilderBlocking(targetChannel);
+    };
 
 std::shared_ptr<NetworkBuffer> LocalMemoryBufferPool::toNetworkBuffer(MemorySegment* memorySegment)
 {

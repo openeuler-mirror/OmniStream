@@ -17,11 +17,12 @@
 #include "state/bridge/TaskOperatorEventGatewayBridge.h"
 
 namespace omnistream {
-OmniTaskExecutor::OmniTaskExecutor(std::shared_ptr<TaskManagerServices> taskManagerServices)
-    : taskManagerServices_(taskManagerServices)
-{
-    // constructor
-}
+    OmniTaskExecutor::OmniTaskExecutor(std::shared_ptr<TaskManagerServices> taskManagerServices)
+        : taskManagerServices_(taskManagerServices),
+          taskManagerMetricGroup_(std::make_shared<TaskManagerMetricGroup>())
+    {
+          // constructor
+    }
 
 OmniTask* OmniTaskExecutor::submitTask(
     JobInformationPOD& jobInfo,
@@ -46,18 +47,26 @@ OmniTask* OmniTaskExecutor::submitTask(
         remoteDataFetcherBridge);
 }
 
-OmniTask* OmniTaskExecutor::submitTaskWithCK(
-    JobInformationPOD& jobInfo,
-    TaskInformationPOD& taskInfo,
-    TaskDeploymentDescriptorPOD& tdd,
-    std::shared_ptr<OmniTaskBridge> omni_task_bridge,
-    std::shared_ptr<TaskOperatorEventGatewayBridge> TaskOperatorEventGatewayBridge,
-    std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge)
-{
-    std::string jobInformation;
-    std::string taskInformation;
-    auto shuffleEnv = this->taskManagerServices_->getShuffleEnvironment();
-    return new OmniTask(
-        jobInfo, taskInfo, tdd, shuffleEnv, omni_task_bridge, TaskOperatorEventGatewayBridge, remoteDataFetcherBridge);
+    OmniTask* OmniTaskExecutor::submitTaskWithCK(
+        JobInformationPOD& jobInfo,
+        TaskInformationPOD& taskInfo,
+        TaskDeploymentDescriptorPOD& tdd,
+        std::shared_ptr<OmniTaskBridge> omni_task_bridge,
+        std::shared_ptr<TaskOperatorEventGatewayBridge> TaskOperatorEventGatewayBridge,
+        std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge)
+    {
+        std::string jobInformation;
+        std::string taskInformation;
+        auto shuffleEnv = this->taskManagerServices_->getShuffleEnvironment();
+        return new OmniTask(jobInfo, taskInfo, tdd, shuffleEnv, omni_task_bridge, TaskOperatorEventGatewayBridge, remoteDataFetcherBridge);
+    }
+
+    std::shared_ptr<TaskManagerMetricGroup> OmniTaskExecutor::GetTaskManagerMetricGroup() const
+    {
+        return taskManagerMetricGroup_;
+    }
+    std::shared_ptr<TaskManagerServices> OmniTaskExecutor::GetTaskManagerService() const
+    {
+        return taskManagerServices_;
+    }
 }
-} // namespace omnistream

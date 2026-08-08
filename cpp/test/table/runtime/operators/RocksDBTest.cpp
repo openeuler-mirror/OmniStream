@@ -684,7 +684,7 @@ void addVectorBatch(DB* rocksDb, long vectorBatchId, omnistream::VectorBatch* ve
     auto serializeEnd = std::chrono::high_resolution_clock::now();
     serializeTime += std::chrono::duration_cast<std::chrono::nanoseconds>(serializeEnd - serializeStart).count();
     ROCKSDB_NAMESPACE::Slice vbValue(
-        reinterpret_cast<const char*>(serializedBatchInfo.buffer), serializedBatchInfo.size);
+        reinterpret_cast<const char*>(serializedBatchInfo.dataAddress), serializedBatchInfo.dataSize);
 
     rocksdb::WriteOptions write_options;
     write_options.disableWAL = true;

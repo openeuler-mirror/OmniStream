@@ -12,6 +12,9 @@
 #pragma once
 
 #include <vector>
+#include <atomic>
+#include <cstdint>
+#include <unordered_map>
 #include "table/data/vectorbatch/VectorBatch.h"
 namespace omnistream {
 enum class StateType {
@@ -30,9 +33,15 @@ public:
         }
     };
     virtual void clear() = 0;
-    virtual void addVectorBatch(omnistream::VectorBatch* vectorBatch)
+    virtual void addVectorBatch(omnistream::VectorBatch *vectorBatch)
     {
-        vectorBatches.push_back(vectorBatch);
+        // vectorBatches.push_back(vectorBatch);
+        // maintain running totals for the per-operator VectorBatch metrics. Written
+        // only on the task thread (here / clearVectors); read via atomic loads on the metric-reporter
+        // thread, so the reporter never iterates the live vectorBatches vector (avoids racing a
+        // push_back realloc). vbCount_ counts only live (non-freed) batches.
+        // vbDataSize_.fetch_add(vectorBatch ? vectorBatch->getSizeInBytes() : 0, std::memory_order_relaxed);
+        // vbCount_.fetch_add(1, std::memory_order_relaxed);
     };
 
     const std::vector<omnistream::VectorBatch*>& getVectorBatches() const
@@ -55,6 +64,9 @@ public:
     {
         for (size_t i = 0; i < vectorBatches.size(); ++i) {
             if (vectorBatches[i] && vectorBatches[i]->isEmpty(currentTimestamp)) {
+                // subtract the freed batch from the running totals before delete.
+                vbDataSize_.fetch_sub(vectorBatches[i]->getSizeInBytes(), std::memory_order_relaxed);
+                vbCount_.fetch_sub(1, std::memory_order_relaxed);
                 delete vectorBatches[i];
                 vectorBatches[i] = nullptr;
             }
@@ -71,6 +83,27 @@ public:
         }
     }
 
+    // reporter-thread-safe reads of the running VectorBatch totals (atomic loads, no
+    // access to the live vectorBatches vector).
+    int64_t getVbDataSize() const
+    {
+        return vbDataSize_.load(std::memory_order_relaxed);
+    }
+    int64_t getVbCount() const
+    {
+        return vbCount_.load(std::memory_order_relaxed);
+    }
+
+    void recordVbStatistic(omnistream::VectorBatch *vectorBatch)
+    {
+        vbDataSize_.fetch_add(vectorBatch ? vectorBatch->getSizeInBytes() : 0, std::memory_order_relaxed);
+        vbCount_.fetch_add(1, std::memory_order_relaxed);
+    }
+
 protected:
-    std::vector<omnistream::VectorBatch*> vectorBatches;
+    std::vector<omnistream::VectorBatch *> vectorBatches;
+    // running totals of the live held VectorBatches (bytes and count). Task thread is
+    // the only writer; the metric-reporter thread only loads them.
+    std::atomic<int64_t> vbDataSize_{0};
+    std::atomic<int64_t> vbCount_{0};
 };

@@ -26,6 +26,7 @@
 #include "streaming/api/operators/TwoInputStreamOperator.h"
 #include "basictypes/Object.h"
 #include "table/data/binary/BinaryRowData.h"
+#include "streaming/api/operators/NamedOperator.h"
 #include "omni/OmniStreamTask.h"
 #include "runtime/io/network/api/writer/RecordWriterDelegate.h"
 #include "taskmanager/OmniRuntimeEnvironment.h"
@@ -474,6 +475,9 @@ void OperatorChainV2::initializeStateAndOpenOperators(
         }
         index++;
         const OperatorPOD& operatorPod = streamConfigPOD->getOperatorDescription();
+        if (auto* named = dynamic_cast<NamedOperator*>(streamOperator)) {
+            named->SetOpName(operatorPod.getName());
+        }
         const nlohmann::json& description = nlohmann::json::parse(operatorPod.getDescription());
         int operatorType = operatorPod.getOperatorType();
         switch (operatorType) {

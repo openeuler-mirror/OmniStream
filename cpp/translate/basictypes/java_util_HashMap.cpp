@@ -23,6 +23,8 @@ HashMap::HashMap(HashMap* map)
         pair.second->getRefCount();
         (*map_)[pair.first] = pair.second;
     }
+    // Content-equal copy carries the same total entry bytes.
+    dataSize_ = map->dataSize_;
 }
 
 HashMap::HashMap(MapType* map)
@@ -32,6 +34,7 @@ HashMap::HashMap(MapType* map)
         pair.first->getRefCount();
         pair.second->getRefCount();
         (*map_)[pair.first] = pair.second;
+        dataSize_ += pair.first->sizeInBytes() + (pair.second ? pair.second->sizeInBytes() : 0);
     }
 }
 
@@ -93,6 +96,10 @@ HashMap::HashMap(emhash7::HashMap<Object*, Object*>* map, bool assign)
 {
     if (assign) {
         map_ = map;
+        // Adopted map: seed the running total by walking it once.
+        for (auto &pair: *map_) {
+            dataSize_ += pair.first->sizeInBytes() + (pair.second ? pair.second->sizeInBytes() : 0);
+        }
     } else {
         map_ = new MapType();
         for (auto& pair : *map) {
@@ -136,11 +143,15 @@ Object* HashMap::put(Object* key, Object* value)
     }
     if (it == map_->end()) {
         (*map_)[key] = value;
+        dataSize_ += key->sizeInBytes() + (value ? value->sizeInBytes() : 0);
         return nullptr;
     }
     Object* k = it->first;
     Object* v = it->second;
     (*map_)[k] = value;
+    // Stored key k is kept; only the value is swapped, so adjust the value bytes only.
+    dataSize_ -= (v ? v->sizeInBytes() : 0);
+    dataSize_ += (value ? value->sizeInBytes() : 0);
     if (likely(v != nullptr)) {
         v->putRefCount();
     }
@@ -196,6 +207,7 @@ bool HashMap::remove(Object* key)
 {
     auto it = map_->find(key);
     if (it != map_->end()) {
+        dataSize_ -= it->first->sizeInBytes() + (it->second ? it->second->sizeInBytes() : 0);
         it->first->putRefCount();
         it->second->putRefCount();
         map_->erase(it);
@@ -211,6 +223,7 @@ bool HashMap::remove(std::string str)
     if (it != map_->end()) {
         auto key = it->first;
         auto value = it->second;
+        dataSize_ -= key->sizeInBytes() + (value ? value->sizeInBytes() : 0);
         map_->erase(it);
         key->putRefCount();
         value->putRefCount();
@@ -228,6 +241,7 @@ void HashMap::clear()
         iter->second->putRefCount();
     }
     map_->clear();
+    dataSize_ = 0;
     return;
 }
 

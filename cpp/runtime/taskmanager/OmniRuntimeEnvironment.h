@@ -117,18 +117,18 @@ public:
         return jobConfiguration_;
     }
 
-    [[nodiscard]] std::shared_ptr<TaskMetricGroup> taskMetricGroup() const
-    {
-        return taskMetricGroup_;
-    }
-    void SetTaskMetricGroup(std::shared_ptr<TaskMetricGroup> group)
-    {
-        taskMetricGroup_ = std::move(group);
-    }
-    [[nodiscard]] TaskPlainInfoPOD taskPlainInfo() const
-    {
-        return taskPlainInfoPod_;
-    }
+        [[nodiscard]] std::shared_ptr<TaskMetricGroup> taskMetricGroup() const override
+        {
+            return taskMetricGroup_;
+        }
+        void SetTaskMetricGroup(std::shared_ptr<TaskMetricGroup> group)
+        {
+            taskMetricGroup_ = std::move(group);
+        }
+        [[nodiscard]] TaskPlainInfoPOD taskPlainInfo() const
+        {
+            return taskPlainInfoPod_;
+        }
 
     void SetInputGates(const std::vector<std::shared_ptr<IndexedInputGate>>& inputGates)
     {

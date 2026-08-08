@@ -23,9 +23,13 @@ void Array::set(int index, Object* obj)
     if (index >= length || index < 0) {
         throw std::out_of_range("Index out of range[set]");
     }
-    if (data_[index]) data_[index]->putRefCount();
+    dataSize_ -= data_[index] ? data_[index]->sizeInBytes() : 0;
+    if (data_[index])
+        data_[index]->putRefCount();
     data_[index] = obj;
-    if (obj) ((Object*)obj)->getRefCount();
+    if (obj)
+        ((Object *)obj)->getRefCount();
+    dataSize_ += obj ? obj->sizeInBytes() : 0;
 }
 
 Object* Array::get(int index)
@@ -57,6 +61,8 @@ Object* Array::clone()
         Object* arr = (Object*)this->data_[i];
         a->data_[i] = (Object*)arr->clone();
     }
+    // Clone is content-equal, so it carries the same total element bytes.
+    a->dataSize_ = this->dataSize_;
     return a;
 }
 

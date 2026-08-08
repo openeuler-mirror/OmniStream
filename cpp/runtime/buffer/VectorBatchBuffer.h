@@ -11,6 +11,8 @@
 
 #ifndef VECTORBATCHBUFFER_H
 #define VECTORBATCHBUFFER_H
+#include <mutex>
+
 #include "ObjectBuffer.h"
 
 namespace omnistream {
@@ -24,17 +26,17 @@ public:
         event_type = -1;
         readerIndex_ = -1;
         isCompressed_ = false;
+        refCount = 1;
     }
 
     explicit VectorBatchBuffer(std::shared_ptr<ObjectSegment> segment)
-        : objectSegment(segment.get()),
-          recycler(nullptr),
-          ownedSegment_(std::move(segment))
+           : objectSegment(segment.get()), recycler(nullptr), ownedSegment_(std::move(segment))
     {
         bufferType = 0;
         event_type = -1;
         readerIndex_ = -1;
         isCompressed_ = false;
+        refCount = 1;
     }
 
     explicit VectorBatchBuffer(int event_)
@@ -47,6 +49,7 @@ public:
         bufferType = 1;
         event_type = event_;
         currentSize = 1;
+        refCount = 1;
     }
 
     ~VectorBatchBuffer() override = default;
@@ -56,36 +59,23 @@ public:
         return bufferType == 0;
     }
 
-    void RecycleBuffer() override
-    {
-        // data buffer has recyler, event buffer does not
-        if (recycler == nullptr) {
-            return;
-        }
-
-        if (IsRecycled()) {
-            GErrorLog("Trying to recycle a VectorBatchBuffer that has already been recycled");
-        } else {
-            int prev = refCount_.fetch_sub(1);
-            if (prev == 1) {
-                recycler->recycle(this->GetObjectSegment());
-                isRecycled_.store(true);
-            }
-        }
-    }
+    void RecycleBuffer() override;
 
     bool IsRecycled() const override
     {
-        return isRecycled_.load();
+        std::lock_guard<std::mutex> lock(refCountMutex_);
+        return isRecycled_;
     }
 
     Buffer* RetainBuffer() override
     {
         LOG_TRACE("retain ");
-        LOG_PART(
-            "RetainBuffer The buffer " << this << " refCount is incremented from " << refCount_.load() << " to "
-                                       << (refCount_.load() + 1));
-        refCount_++;
+        std::lock_guard<std::mutex> lock(refCountMutex_);
+        if (isRecycled_ || refCount <= 0) {
+            throw std::runtime_error("RetainBuffer on a released VectorBatchBuffer");
+        }
+        LOG_PART("RetainBuffer The buffer " << this << " refCount is incremented from " << refCount << " to " << (refCount + 1));
+        ++refCount;
         return this;
     }
 
@@ -150,7 +140,8 @@ public:
 
     int RefCount() const override
     {
-        return refCount_.load();
+        std::lock_guard<std::mutex> lock(refCountMutex_);
+        return refCount;
     }
 
     std::string ToDebugString(bool includeHash) const override
@@ -178,9 +169,12 @@ public:
         return bufferType;
     }
 
+protected:
+    void recycleBuffer(bool selfDelete);
+
 private:
-    ObjectSegment* objectSegment;
-    std::shared_ptr<ObjectSegment> ownedSegment_; // 共享指针包装，保证ObjectSegment生命周期
+    ObjectSegment *objectSegment;
+    std::shared_ptr<ObjectSegment> ownedSegment_;
     std::shared_ptr<BufferRecycler> recycler;
     // ObjectBufferDataType dataType;
     int bufferType; // 0 vectorbatch, 1. event  for now
@@ -190,10 +184,11 @@ private:
 
     int currentSize = 0;
     bool isCompressed_;
-    std::atomic<bool> isRecycled_ = false;
+    bool isRecycled_ = false;
     int readerIndex_;
 
-    std::atomic<int> refCount_;
+    int refCount = 0;
+    mutable std::mutex refCountMutex_;
 };
 
 } // namespace omnistream
