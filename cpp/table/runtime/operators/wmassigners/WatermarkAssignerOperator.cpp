@@ -125,8 +125,8 @@ void WatermarkAssignerOperator::advanceWatermark()
 {
     if (currentWatermark_ > lastWatermark_) {
         lastWatermark_ = currentWatermark_;
-        Watermark* watermark = new Watermark(currentWatermark_);
-        output->emitWatermark(watermark);
+        auto watermark = Watermark(currentWatermark_);
+        output->emitWatermark(&watermark);
     }
 }
 
@@ -184,7 +184,8 @@ void WatermarkAssignerOperator::ProcessWatermark(Watermark* mark)
 
 void WatermarkAssignerOperator::finish()
 {
-    ProcessWatermark(new Watermark(INT64_MAX));
+    auto watermark = Watermark(INT64_MAX);
+    ProcessWatermark(&watermark);
 }
 
 void WatermarkAssignerOperator::close()

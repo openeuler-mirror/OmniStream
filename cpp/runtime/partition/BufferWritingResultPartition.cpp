@@ -149,6 +149,7 @@ void BufferWritingResultPartition::emitRecord(void* record, int targetSubpartiti
 {
     auto buffer = appendUnicastDataForNewRecord(record, targetSubpartition);
     if (taskType == 2) {
+        // todo：这里可能有问题，如果是水印的话，record应该对应的是StreamElement
         auto streamRecord = reinterpret_cast<StreamRecord*>(record);
         auto value = reinterpret_cast<ByteBuffer*>(streamRecord->getValue());
         totalWrittenBytes += value->remaining();
