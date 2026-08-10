@@ -58,6 +58,40 @@ RecordsWindowBuffer::RecordsWindowBuffer(
     initNamespaceAggsHandleFunction(description["aggInfoList"]);
 }
 
+RecordsWindowBuffer::RecordsWindowBuffer(const nlohmann::json& config, Output* output, SliceAssigner* sliceAssigner)
+    : output(output),
+      stateBackend_(nullptr),
+      internalTimerService(nullptr)
+{
+    this->description = config;
+    this->sliceAssigner = sliceAssigner;
+    this->collector = new TimestampedCollector(this->output);
+    shiftTimeZone = ResolveShiftTimeZoneId(sliceAssigner);
+
+    inputTypes = config["inputTypes"].get<std::vector<std::string>>();
+    for (const auto& typeStr : inputTypes) {
+        inputTypeIds_.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
+    }
+    outputTypes = config["outputTypes"].get<std::vector<std::string>>();
+    for (const auto& typeStr : outputTypes) {
+        outputTypeIds.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
+    }
+
+    InitializeKeySelectorAndTypes(config);
+    isWindowAgg = true;
+
+    accState = nullptr;
+    windowRow = std::make_unique<GenericRowData>(1);
+    accWindowRow = std::make_unique<JoinedRowData>();
+    resultRow = std::make_unique<JoinedRowData>();
+
+    const auto keyArity = keyedIndex.size();
+    if (keyArity > outputTypes.size()) {
+        THROW_LOGIC_EXCEPTION("The size of key fields must not exceed output type fields.");
+    }
+    initNamespaceAggsHandleFunction(description["aggInfoList"]);
+}
+
 void RecordsWindowBuffer::InitializeKeySelectorAndTypes(const nlohmann::json& config)
 {
     keyedIndex = config["grouping"].get<std::vector<int32_t>>();
@@ -71,7 +105,7 @@ void RecordsWindowBuffer::InitializeKeySelectorAndTypes(const nlohmann::json& co
 
 void RecordsWindowBuffer::initNamespaceAggsHandleFunction(const nlohmann::json& aggInfoList)
 {
-    std::string const accTypesName = isWindowAgg ? "AccTypes" : "globalAccTypes";
+    std::string const accTypesName = isWindowAgg ? "accTypes" : "globalAccTypes";
     std::string const aggCallsName = isWindowAgg ? "aggregateCalls" : "globalAggregateCalls";
     std::string const aggValueTypesName = isWindowAgg ? "aggValueTypes" : "globalAggValueTypes";
 
@@ -163,32 +197,84 @@ void RecordsWindowBuffer::addVectorBatch(
     omnistream::VectorBatch* input, std::vector<int64_t>& sliceEndArr, std::vector<bool>& dropArr)
 {
     auto rowCount = input->GetRowCount();
-    if (rowCount < 0) {
+    if (rowCount <= 0) {
         return;
     }
 
-    for (int row = 0; row < rowCount; ++row) {
-        if (dropArr[row]) {
-            continue;
-        }
-
-        auto key = keySelector->getKey(input, row);
-        const long rowTime = sliceEndArr[row];
-        minSliceEnd = std::min(rowTime, minSliceEnd);
-        auto sliceResultRow = std::unique_ptr<RowData>(localAggregator->createAccumulators());
-        sliceResultRow->setRowKind(input->getRowKind(row));
-
-        for (int accIndex = 0; accIndex < accumulatorArity; ++accIndex) {
-            int32_t columnIndex = keyedIndex.size() + accIndex;
-            if (!input->Get(columnIndex)->IsNull(row)) {
-                // TODO: only BIGINT is supported now
-                sliceResultRow->setLong(accIndex, input->GetValueAt<long>(columnIndex, row));
-            }
-        }
-
+    bool needsFlush = false;
+    {
         std::lock_guard<std::mutex> lock(bufferMutex);
-        auto [it, inserted] = recordsBuffer.try_emplace(WindowKey(rowTime, key));
-        it->second.push_back(std::move(sliceResultRow));
+
+        for (int row = 0; row < rowCount; ++row) {
+            // Skip dropped records early
+            if (dropArr[row]) {
+                continue;
+            }
+
+            auto key = keySelector->getKey(input, row);
+            const long rowTime = sliceEndArr[row];
+
+            minSliceEnd = std::min(rowTime, minSliceEnd);
+
+            auto sliceResultRow = std::unique_ptr<RowData>(localAggregator->createAccumulators());
+            sliceResultRow->setRowKind(input->getRowKind(row));
+
+            for (int accIndex = 0; accIndex < accumulatorArity; ++accIndex) {
+                int32_t columnIndex = keyedIndex.size() + accIndex;
+                if (!input->Get(columnIndex)->IsNull(row)) {
+                    // TODO: only BIGINT is supported now
+                    sliceResultRow->setLong(accIndex, input->GetValueAt<long>(columnIndex, row));
+                }
+            }
+
+            // Insert into the buffer
+            auto [it, inserted] = globalRecordsBuffer.try_emplace(WindowKey(rowTime, key));
+            it->second.push_back(std::move(sliceResultRow));
+            ++recordsBufferSize_;
+        }
+
+        if (recordsBufferSize_ > recordsBufferSizeLimit_) {
+            needsFlush = true;
+        }
+    }
+
+    if (needsFlush) {
+        LOG("reach recordsBufferSize_ limit");
+        flush();
+    }
+}
+
+// for local windowAgg
+void RecordsWindowBuffer::addVectorBatch(omnistream::VectorBatch* input, std::vector<int64_t>& sliceEndArr)
+{
+    auto rowCount = input->GetRowCount();
+    if (rowCount <= 0) {
+        return;
+    }
+
+    bool needsFlush = false;
+    {
+        std::lock_guard<std::mutex> lock(bufferMutex);
+        for (int row = 0; row < rowCount; ++row) {
+            auto keyRow = keySelector->getKey(input, row);
+            long rowTime = sliceEndArr[row];
+
+            minSliceEnd = std::min(rowTime, minSliceEnd);
+
+            auto [it, inserted] = localRecordsBuffer.try_emplace(WindowKey(rowTime, keyRow));
+            it->second.push_back(VectorBatchUtil::getComboId(currentBatchId, row));
+
+            ++recordsBufferSize_;
+        }
+        currentBatchId++;
+        if (recordsBufferSize_ > recordsBufferSizeLimit_) {
+            needsFlush = true;
+        }
+    }
+    retainedBatches.push_back(std::move(input));
+    if (needsFlush) {
+        LOG("reach recordsBufferSize_ limit");
+        flush();
     }
 }
 
@@ -203,74 +289,173 @@ void RecordsWindowBuffer::advanceProgress(long currentProgress)
 
 void RecordsWindowBuffer::flush()
 {
-    std::lock_guard<std::mutex> lock(bufferMutex);
-    // 开始遍历每一个key
-    for (auto& pair : recordsBuffer) {
+    if (isWindowAgg) {
+        decltype(localRecordsBuffer) localBuffer;
+        {
+            std::lock_guard<std::mutex> lock(bufferMutex);
+            std::swap(localBuffer, localRecordsBuffer);
+            minSliceEnd = INT64_MAX;
+        }
+        if (localBuffer.empty()) {
+            return;
+        }
+        int numRows = localBuffer.size();
+        int numColumns = outputTypes.size();
+        auto outputBatch = omnistream::VectorBatch::CreateVectorBatch(numRows, outputTypeIds);
+        int currentRowNum = 0;
+        for (auto& pair : localBuffer) {
+            WindowKey currentKey = pair.first;
+            std::vector<int64_t>& combinedIdArr = pair.second;
+            // do we still need the iteration?
+            auto iter = combinedIdArr.begin();
+            while (iter != combinedIdArr.end()) {
+                int64_t element = *iter;
+                int batchId = VectorBatchUtil::getBatchId(element);
+                int rowId = VectorBatchUtil::getRowId(element);
+
+                if (batchId >= retainedBatches.size()) {
+                    LOG("ERROR: batchId out of bounds!");
+                    iter = combinedIdArr.erase(iter);
+                    continue;
+                }
+
+                auto& targetBatch = retainedBatches[batchId];
+                if (RowDataUtil::isRetractMsg(targetBatch->getRowKind(rowId))) {
+                    iter = combinedIdArr.erase(iter);
+                } else {
+                    ++iter;
+                }
+            }
+
+            if (combinedIdArr.empty()) {
+                continue;
+            }
+            winAggProcess(currentKey, combinedIdArr);
+
+            for (int colIndex = 0; colIndex < numColumns; ++colIndex) {
+                switch (outputTypeIds[colIndex]) {
+                    case DataTypeId::OMNI_LONG: {
+                        SetLong(outputBatch, currentRowNum, colIndex, resultRow.get());
+                        break;
+                    }
+                    case DataTypeId::OMNI_TIMESTAMP: {
+                        SetLong(outputBatch, currentRowNum, colIndex, resultRow.get());
+                        break;
+                    }
+                    case DataTypeId::OMNI_INT: {
+                        SetInt(outputBatch, currentRowNum, colIndex, resultRow.get());
+                        break;
+                    }
+                    case DataTypeId::OMNI_DOUBLE: {
+                        SetLong(outputBatch, currentRowNum, colIndex, resultRow.get());
+                        break;
+                    }
+                    case DataTypeId::OMNI_BOOLEAN: {
+                        SetInt(outputBatch, currentRowNum, colIndex, resultRow.get());
+                        break;
+                    }
+                    case DataTypeId::OMNI_VARCHAR: {
+                        SetStringVectorBatch(outputBatch, currentRowNum, colIndex, resultRow.get());
+                        break;
+                    }
+                    default: {
+                        throw std::runtime_error("Unsupported column type in inputRow");
+                    }
+                }
+            }
+            outputBatch->setRowKind(currentRowNum, resultRow->getRowKind());
+            currentRowNum++;
+            if (accWindowRow != nullptr) {
+                auto accRow = accWindowRow->getRow1();
+                if (accRow != nullptr) {
+                    delete accRow;
+                    accWindowRow->setRow1(nullptr);
+                }
+            }
+        }
+        // output local windowAgg here.
+        if (currentRowNum != numRows) {
+            outputBatch->Resize(currentRowNum);
+        }
+        collector->collect(outputBatch);
+        recordsBufferSize_ = 0;
+        for (int i = lastDeletedBatchIndex; i <= currentBatchId - 1; i++) {
+            auto input = retainedBatches[i];
+            delete input;
+            retainedBatches[i] = nullptr;
+        }
+        lastDeletedBatchIndex = currentBatchId;
+        return;
+    }
+    // for global window Agg
+    decltype(globalRecordsBuffer) localBuffer;
+    {
+        std::lock_guard<std::mutex> lock(bufferMutex);
+        std::swap(localBuffer, globalRecordsBuffer);
+        minSliceEnd = INT64_MAX;
+    }
+    if (localBuffer.empty()) {
+        return;
+    }
+    for (auto& pair : localBuffer) {
         WindowKey currentKey = pair.first;
         auto& sliceResultArr = pair.second;
         auto iter = sliceResultArr.begin();
         while (iter != sliceResultArr.end()) {
-            auto& tempRow = *iter;
             if (RowDataUtil::isRetractMsg((*iter)->getRowKind())) {
-                iter = sliceResultArr.erase(iter);
+                iter = sliceResultArr.erase(iter); // Safe iteration erasure
             } else {
                 ++iter;
             }
         }
-        if (sliceResultArr.empty()) {
+        if (!sliceResultArr.empty()) {
+            globalWinAggProcess(currentKey, sliceResultArr);
+        }
+    }
+    recordsBufferSize_ = 0;
+}
+
+void RecordsWindowBuffer::winAggProcess(const WindowKey& currentWindowKey, std::vector<int64_t>& combinedIdArr)
+{
+    long window = currentWindowKey.getWindow();
+
+    RowData* accumulators = localAggregator->createAccumulators();
+
+    localAggregator->setAccumulators(window, accumulators);
+    std::vector<int64_t> accumulateArr;
+    std::vector<int64_t> retractArr;
+
+    for (auto combinedId : combinedIdArr) {
+        int batchId = VectorBatchUtil::getBatchId(combinedId);
+        int rowId = VectorBatchUtil::getRowId(combinedId);
+        if (batchId >= retainedBatches.size()) {
+            LOG("ERROR: batchId out of bounds!");
             continue;
         }
 
-        WindowAggProcess(currentKey, sliceResultArr);
-    }
-    recordsBuffer.clear();
-    minSliceEnd = INT64_MAX;
-    LOG("end RecordsWindowBuffer::advanceProgress");
-}
-
-void RecordsWindowBuffer::WindowAggProcess(
-    const WindowKey& currentKey, std::vector<std::unique_ptr<RowData>>& sliceResultArr)
-{
-    if (isWindowAgg) {
-        winAggProcess(currentKey, sliceResultArr);
-        if (sliceAssigner->isEventTime()) {
-            if (!TimeWindowUtil::isWindowFired(
-                    currentKey.getWindow(), internalTimerService->currentWatermark(), shiftTimeZone)) {
-                LOG("register event timer");
-                internalTimerService->registerEventTimeTimer(
-                    currentKey.getWindow(),
-                    TimeWindowUtil::toEpochMillsForTimer(currentKey.getWindow() - 1, shiftTimeZone));
-                LOG("end register event timer");
-            }
+        auto& targetBatch = retainedBatches[batchId];
+        if (targetBatch == nullptr) {
+            LOG("ERROR: targetBatch is NULL for batchId " << batchId);
+            continue;
         }
-    } else {
-        globalWinAggProcess(currentKey, sliceResultArr);
-    }
-}
 
-void RecordsWindowBuffer::winAggProcess(
-    const WindowKey& currentWindowKey, std::vector<std::unique_ptr<RowData>>& sliceResultArr)
-{
-    LOG(">>>WindowAgg process");
-    stateBackend_->setCurrentKey(currentWindowKey.getKey());
-    long window = currentWindowKey.getWindow();
-    RowData* stateVal = accState->value(window);
-    if (stateVal == nullptr) {
-        stateVal = localAggregator->createAccumulators();
-    }
-    localAggregator->setAccumulators(window, stateVal);
-    for (auto& sliceResultRow : sliceResultArr) {
-        if (RowDataUtil::isAccumulateMsg(sliceResultRow->getRowKind())) {
-            localAggregator->accumulate(sliceResultRow.get());
+        if (RowDataUtil::isAccumulateMsg(targetBatch->getRowKind(rowId))) {
+            accumulateArr.push_back(combinedId);
         } else {
-            localAggregator->retract(sliceResultRow.get());
+            retractArr.push_back(combinedId);
         }
     }
-    stateVal = localAggregator->getAccumulators();
-    accState->update(window, stateVal);
-    if (shouldDeleteWindowStateValue()) {
-        delete stateVal;
+    if (!accumulateArr.empty()) {
+        localAggregator->accumulate(retainedBatches, accumulateArr);
     }
+    if (!retractArr.empty()) {
+        localAggregator->retract(retainedBatches, retractArr);
+    }
+
+    accumulators = localAggregator->getAccumulators();
+    windowRow->setField(0, window);
+    accWindowRow->replace(accumulators, windowRow.get());
+    resultRow->replace(currentWindowKey.getKey().get(), accWindowRow.get());
 }
 
 void RecordsWindowBuffer::globalWinAggProcess(
@@ -321,32 +506,32 @@ omnistream::VectorBatch* RecordsWindowBuffer::createOutputBatch(std::vector<std:
     int numColumns = outputTypes.size();
     int numRows = collectedRows.size(); // Number of rows collected
     // Create a new VectorBatch (empty if no rows exist)
-    auto* outputBatch = new omnistream::VectorBatch(numRows);
+    std::unique_ptr<omnistream::VectorBatch> outputBatch(new omnistream::VectorBatch(numRows));
     // Loop through each column and create vectors
     for (int colIndex = 0; colIndex < numColumns; ++colIndex) {
         switch (outputTypeIds[colIndex]) {
             case DataTypeId::OMNI_LONG: {
-                VectorBatchUtils::AppendLongVectorForInt64(outputBatch, collectedRows, numRows, colIndex);
+                VectorBatchUtils::AppendLongVectorForInt64(outputBatch.get(), collectedRows, numRows, colIndex);
                 break;
             }
             case DataTypeId::OMNI_TIMESTAMP: {
-                VectorBatchUtils::AppendLongVectorForInt64(outputBatch, collectedRows, numRows, colIndex);
+                VectorBatchUtils::AppendLongVectorForInt64(outputBatch.get(), collectedRows, numRows, colIndex);
                 break;
             }
             case DataTypeId::OMNI_INT: {
-                VectorBatchUtils::AppendIntVector(outputBatch, collectedRows, numRows, colIndex);
+                VectorBatchUtils::AppendIntVector(outputBatch.get(), collectedRows, numRows, colIndex);
                 break;
             }
             case DataTypeId::OMNI_DOUBLE: {
-                VectorBatchUtils::AppendLongVectorForDouble(outputBatch, collectedRows, numRows, colIndex);
+                VectorBatchUtils::AppendLongVectorForDouble(outputBatch.get(), collectedRows, numRows, colIndex);
                 break;
             }
             case DataTypeId::OMNI_BOOLEAN: {
-                VectorBatchUtils::AppendIntVectorForBool(outputBatch, collectedRows, numRows, colIndex);
+                VectorBatchUtils::AppendIntVectorForBool(outputBatch.get(), collectedRows, numRows, colIndex);
                 break;
             }
             case DataTypeId::OMNI_VARCHAR: {
-                VectorBatchUtils::AppendStringVector(outputBatch, collectedRows, numRows, colIndex);
+                VectorBatchUtils::AppendStringVector(outputBatch.get(), collectedRows, numRows, colIndex);
                 break;
             }
             default: {
@@ -359,7 +544,7 @@ omnistream::VectorBatch* RecordsWindowBuffer::createOutputBatch(std::vector<std:
     for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
         outputBatch->setRowKind(rowIndex, collectedRows[rowIndex]->getRowKind());
     }
-    return outputBatch;
+    return outputBatch.release();
 }
 
 void RecordsWindowBuffer::collectOutputBatch(TimestampedCollector* out, omnistream::VectorBatch* outputBatch)
@@ -375,4 +560,27 @@ Output* RecordsWindowBuffer::getOutput()
 bool RecordsWindowBuffer::shouldDeleteWindowStateValue() const
 {
     return backendType_ == omnistream::StateType::ROCKSDB && !accState->isFalconEnabled();
+}
+
+void RecordsWindowBuffer::SetStringVectorBatch(
+    omnistream::VectorBatch* outputBatch, int rowIndex, int colIndex, RowData* collectedRow)
+{
+    auto vector = static_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(
+        outputBatch->Get(colIndex));
+    std::string_view strView = collectedRow->getStringView(colIndex);
+    vector->SetValue(rowIndex, strView);
+}
+
+void RecordsWindowBuffer::SetLong(
+    omniruntime::vec::VectorBatch* outputBatch, int rowIndex, int colIndex, RowData* collectedRow)
+{
+    auto vector = static_cast<omniruntime::vec::Vector<int64_t>*>(outputBatch->Get(colIndex));
+    vector->SetValue(rowIndex, *collectedRow->getLong(colIndex));
+}
+
+void RecordsWindowBuffer::SetInt(
+    omniruntime::vec::VectorBatch* outputBatch, int rowIndex, int colIndex, RowData* collectedRow)
+{
+    auto vector = static_cast<omniruntime::vec::Vector<int64_t>*>(outputBatch->Get(colIndex));
+    vector->SetValue(rowIndex, *collectedRow->getInt(colIndex));
 }

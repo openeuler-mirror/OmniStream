@@ -46,8 +46,7 @@ public:
     void close() override;
     TypeSerializer* createWindowSerializer() override;
     Output* getOutput() override;
-    omnistream::VectorBatch* createOutputBatch(std::vector<std::unique_ptr<RowData>>& collectedRows);
-    void collectOutputBatch(TimestampedCollector* out, omnistream::VectorBatch* outputBatch);
+    void SetOutputBatch(omnistream::VectorBatch* outputBatch, JoinedRowData* resultRow);
     void setClockService(ClockService* newClock);
     bool isWindowEmpty();
     RowData* GetHopResult(int64_t windowEnd, int64_t numSlices, int64_t interval);
@@ -76,7 +75,7 @@ protected:
     omnistream::VectorBatch* resultBatch = nullptr;
     std::unique_ptr<TimestampedCollector> collector;
     std::vector<std::string> outputTypes;
-    std::vector<int32_t> outputTypeIds;
+    std::vector<omniruntime::type::DataTypeId> outputTypeIds;
     std::unique_ptr<ClockService> clockService = std::make_unique<ClockService>();
     InternalTimerServiceImpl<KeyType, int64_t>* internalTimerService = nullptr;
     std::vector<std::string> inputTypes;

@@ -13,6 +13,7 @@
 
 #include "NamespaceAggsBasicFunction.h"
 
+using namespace omnistream;
 enum class NamespaceAggsBasicFunctionType;
 
 template <typename N>
@@ -29,6 +30,10 @@ public:
 
     void accumulate(RowData* input) override;
     void retract(RowData* input) override;
+    void accumulate(
+        const std::vector<omnistream::VectorBatch*>& inputBatches, const std::vector<int64_t>& indices) override;
+    void retract(
+        const std::vector<omnistream::VectorBatch*>& inputBatches, const std::vector<int64_t>& indices) override;
     void merge(N ns, RowData* otherAcc) override;
     void setAccumulators(N ns, RowData* acc) override;
     RowData* getAccumulators() override;
