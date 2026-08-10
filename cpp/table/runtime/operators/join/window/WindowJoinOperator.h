@@ -717,7 +717,10 @@ void WindowJoinOperator<KeyType>::processBatch(
 
         this->setCurrentKey(key);
         auto inputRow = std::unique_ptr<RowData>(batchGuard->extractRowData(i));
-        recordState->add(windowEndTime, inputRow.release()); // todoL:delete inputRow when window is fired!!
+        recordState->add(windowEndTime, inputRow.get());
+        if (stateType_ == omnistream::StateType::HEAP) {
+            inputRow.release();
+        }
         internalTimerService->registerEventTimeTimer(
             windowEndTime, TimeWindowUtil::toEpochMillsForTimer(windowEndTime - 1, shiftTimeZone));
     }
