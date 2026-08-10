@@ -539,7 +539,7 @@ TEST_F(WindowJoinSavepointAdaptorTest, FlinkSerializationFormat_LeftAndRightStat
     adaptor_.buildOmniMainMetaInfo(2, *rightMeta);
 
     const auto leftRow1 = makeSerializedRow({100, 200});
-    const auto leftRow2 = makeSerializedRow({300, 400});
+    const auto leftRow2 = makeSerializedRow({200, 250});
     auto leftValue = makeListValue({leftRow1, leftRow2});
 
     const auto rightRow = makeSerializedRow({1, 2, 3});

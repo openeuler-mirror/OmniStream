@@ -99,7 +99,7 @@ TEST(HeapVectorSerializationTest, SerializeVector_MultipleElements)
 
 TEST(HeapVectorSerializationTest, SerializeVector_LargeValues)
 {
-    std::vector<int64_t> list = {0xFFFFFFFFFFFFFFFFLL, 0x0123456789ABCDELL};
+    std::vector<int64_t> list = {-1LL, 0x0123456789ABCDELL};
     LongSerializer ser;
     DataOutputSerializer output;
     OutputBufferStatus status{};
