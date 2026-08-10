@@ -13,6 +13,7 @@
 #define FLINK_TNEL_OBJECT_H
 
 #include <string>
+#include <atomic>
 #include <mutex>
 #include <cstdint>
 #include "nlohmann/json.hpp"
@@ -49,7 +50,9 @@ public:
 
     inline void getRefCount()
     {
-        ++refCount;
+        // relaxed is enough to acquire a reference: the caller already holds one, so the object
+        // cannot be destroyed underneath this increment.
+        refCount.fetch_add(1, std::memory_order_relaxed);
     }
 
     void setRefCount(uint64_t count);
@@ -72,7 +75,10 @@ public:
     std::recursive_mutex mutex;
     bool isClone = false;
     bool isPool = false;
-    uint64_t refCount = 1;
+    // Touched from task threads and from Flink's metrics ViewUpdater thread. A plain integer here
+    // loses increments under contention, which means either a premature delete in putRefCount or a
+    // permanent leak.
+    std::atomic<uint64_t> refCount{1};
 };
 
 namespace std {

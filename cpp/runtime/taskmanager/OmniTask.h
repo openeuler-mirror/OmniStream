@@ -70,6 +70,9 @@ public:
      };
      */
 
+    // Logs entry and exit so the teardown can be confirmed to have actually run, not merely started.
+    ~OmniTask();
+
     [[nodiscard]] std::shared_ptr<RuntimeEnvironmentV2> getRuntimeEnv();
 
     // return ahd address of rawStreamTask
@@ -80,9 +83,15 @@ public:
 
     void cancel();
     ExecutionState getExecutionState();
-    static void setupPartitionsAndGates(
+    void setupPartitionsAndGates(
         std::vector<std::shared_ptr<ResultPartitionWriter>>& producedPartitions,
         std::vector<std::shared_ptr<SingleInputGate>>& inputGates);
+
+    /**
+     * Reports that this task's run loop has returned. May delete this task, so the caller must not
+     * touch it afterwards. Returns true when the task was deleted.
+     */
+    bool NotifyRunFinished();
 
     void notifyRemoteDataAvailable(
         int inputGateIndex,

@@ -20,6 +20,9 @@
 namespace omnistream {
 class TaskStateManagerBridge {
 public:
+    // Implementations own a JNI global ref that has to be released on teardown, so this base needs
+    // a virtual destructor for it to run through a base-class pointer.
+    virtual ~TaskStateManagerBridge() = default;
     virtual void ReportTaskStateSnapshots(
         std::string& checkpointMetaData,
         std::string& checkpointMetrics,

@@ -155,34 +155,34 @@ public:
 
         int32_t* offsetArr = UnsafeStringContainer::GetOffsets(stringContainer.get());
 
-        int32_t rowCount = unsafe::UnsafeDictionaryContainer::GetDictSize(string_dictionary.get());
-
         // real data size
-        int32_t stringBodySize = offsetArr[rowCount];
+        int32_t stringBodySize = offsetArr[dictSize];
         ret = memcpy_s(buffer, bufferSize, &stringBodySize, sizeof(int32_t));
         if (ret != EOK) {
             throw std::runtime_error("memcpy_s failed");
         }
         buffer += sizeof(int32_t);
         serializeStringDictionaryTail(
-            baseVector, buffer, bufferSize, valueSize, offsetArr, rowCount, stringBodySize, stringContainer);
+            baseVector, buffer, bufferSize, valueSize, offsetArr, dictSize, stringBodySize, stringContainer);
     }
 
+    // valueSize is the vector's row count, dictSize the number of distinct dictionary entries.
+    // The two are unrelated: the null bitmap and value indices are per row, the offset array and
+    // string body are per dictionary entry.
     static void serializeStringDictionaryTail(
         BaseVector* baseVector,
         uint8_t*& buffer,
         int32_t bufferSize,
         int32_t valueSize,
         int32_t* offsetArr,
-        int32_t rowCount,
+        int32_t dictSize,
         int32_t stringBodySize,
         std::shared_ptr<LargeStringContainer<std::string_view>> stringContainer)
     {
         // nullData
         auto nullData = UnsafeBaseVector::GetNulls(baseVector);
-        auto nullByteSize = omniruntime::vec::NullsBuffer::CalculateNbytes(rowCount);
+        auto nullByteSize = omniruntime::vec::NullsBuffer::CalculateNbytes(valueSize);
 
-        size_t len = nullByteSize;
         auto ret = memcpy_s(buffer, bufferSize, nullData, nullByteSize);
         if (ret != EOK) {
             throw std::runtime_error("memcpy_s failed");
@@ -190,11 +190,11 @@ public:
         buffer += nullByteSize;
 
         // offset array
-        ret = memcpy_s(buffer, bufferSize, offsetArr, sizeof(int32_t) * (rowCount + 1));
+        ret = memcpy_s(buffer, bufferSize, offsetArr, sizeof(int32_t) * (dictSize + 1));
         if (ret != EOK) {
             throw std::runtime_error("memcpy_s failed");
         }
-        buffer += sizeof(int32_t) * (rowCount + 1);
+        buffer += sizeof(int32_t) * (dictSize + 1);
 
         // real data
         std::string dataStr(UnsafeStringContainer::GetStringBufferAddr(stringContainer.get()), stringBodySize);

@@ -95,7 +95,10 @@ void OmniSourceStreamTask::CompleteProcessing()
 
 void OmniSourceStreamTask::AdvanceToEndOfEventTime()
 {
-    operatorChain->GetMainOperatorOutput()->emitWatermark(new Watermark(LONG_MAX));
+    // emitWatermark leaves ownership with the caller, as StatusWatermarkValve does.
+    auto* endOfTime = new Watermark(LONG_MAX);
+    operatorChain->GetMainOperatorOutput()->emitWatermark(endOfTime);
+    delete endOfTime;
 }
 
 const std::string OmniSourceStreamTask::getName() const

@@ -762,22 +762,7 @@ public:
         } else {
             for (auto it = begin(); _num_filled; ++it) {
                 _num_filled--;
-                if constexpr (std::is_same_v<KeyT, Object*>) {
-                    static_cast<Object*>(it->first)->putRefCount();
-                } else if constexpr (std::is_pointer_v<KeyT>) {
-                    delete it->first;
-                }
-                if constexpr (std::is_same_v<ValueT, Object*>) {
-                    static_cast<Object*>(it->second)->putRefCount();
-                } else if constexpr (cowstatemap_detail::IsEmhashMapPtrType<ValueT>::value) {
-                    // For inner HashMap values: clean up Object* entries before deleting
-                    cowstatemap_detail::cleanupInnerMapAndDelete(it->second);
-                } else if constexpr (std::is_pointer_v<ValueT>) {
-                    delete it->second;
-                }
-                if constexpr (std::is_pointer_v<N>) {
-                    delete it->third;
-                }
+                releaseEntry(it->first, it->second, it->third);
             }
         }
         free(_pairs);
@@ -935,6 +920,18 @@ private:
     /// Remove all elements, keeping full capacity.
     void clear()
     {
+        // The map owns its pointer entries -- cloned keys, refcounted Object*, inner HashMaps --
+        // and neither branch below releases them: the memset only wipes the occupancy bitmask and
+        // ~PairT() on a pointer member does nothing. This is also the last chance to free them,
+        // because _num_filled is zeroed at the end, which stops the destructor from ever walking
+        // these entries.
+        if constexpr (std::is_pointer_v<KeyT> || std::is_pointer_v<ValueT> || std::is_pointer_v<N>) {
+            auto it = begin();
+            for (size_type n = _num_filled; n; --n, ++it) {
+                releaseEntry(it->first, it->second, it->third);
+            }
+        }
+
         if (!is_triviall_destructable() && _num_filled) {
             memset_s(_bitmask, (_num_buckets + 7) / 8, (int)0xFFFFFFFF, (_num_buckets + 7) / 8);
             if (_num_buckets < 8) _bitmask[0] = uint8_t((1 << _num_buckets) - 1);
@@ -1056,6 +1053,38 @@ private:
         EMH_CLS(bucket);
         _num_filled--;
         if (is_triviall_destructable()) _pairs[bucket].~PairT();
+    }
+
+    /**
+     * Release everything one entry owns: refcounted Object*, cloned pointer keys, inner HashMaps.
+     * Shared by clear() and the destructor so both free an entry exactly the same way. Non-pointer
+     * key/value/namespace types own nothing and fall through.
+     *
+     * The entry must already be unreachable from the table when this is called.
+     */
+    void releaseEntry(const KeyT& key, const ValueT& value, const N& nmspace)
+    {
+        if constexpr (std::is_same_v<KeyT, Object*>) {
+            // put() stores a null clone for a null key, so the guard is load-bearing.
+            if (key != nullptr) {
+                static_cast<Object*>(key)->putRefCount();
+            }
+        } else if constexpr (std::is_pointer_v<KeyT>) {
+            delete key;
+        }
+        if constexpr (std::is_same_v<ValueT, Object*>) {
+            if (value != nullptr) {
+                static_cast<Object*>(value)->putRefCount();
+            }
+        } else if constexpr (cowstatemap_detail::IsEmhashMapPtrType<ValueT>::value) {
+            // For inner HashMap values: clean up Object* entries before deleting
+            cowstatemap_detail::cleanupInnerMapAndDelete(value);
+        } else if constexpr (std::is_pointer_v<ValueT>) {
+            delete value;
+        }
+        if constexpr (std::is_pointer_v<N>) {
+            delete nmspace;
+        }
     }
 
     /**

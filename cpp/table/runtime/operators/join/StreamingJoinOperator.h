@@ -86,10 +86,17 @@ public:
         LOG(">>>>>>>>>>");
         if (this->combinedWatermark->UpdateWatermark(0, watermark->getTimestamp())) {
             if (this->timeServiceManager != nullptr) {
-                this->timeServiceManager->advanceWatermark(
-                    new Watermark(this->combinedWatermark->GetCombinedWatermark()));
+                // advanceWatermark only reads getTimestamp() -- it neither stores nor frees its
+                // argument -- so heap-allocating one here just leaks it on every watermark.
+                Watermark combined(this->combinedWatermark->GetCombinedWatermark());
+                this->timeServiceManager->advanceWatermark(&combined);
             }
-            this->output->emitWatermark(new Watermark(this->combinedWatermark->GetCombinedWatermark()));
+            // emitWatermark's contract is that the caller still owns the watermark once the call
+            // returns -- StatusWatermarkValve does exactly this, and no consumer may retain the
+            // pointer because of it. broadcastEmit copies it per channel rather than keeping it.
+            auto* outWatermark = new Watermark(this->combinedWatermark->GetCombinedWatermark());
+            this->output->emitWatermark(outWatermark);
+            delete outWatermark;
         }
     }
     void ProcessWatermark2(Watermark* watermark) override
@@ -97,10 +104,17 @@ public:
         LOG(">>>>>>>>>>");
         if (this->combinedWatermark->UpdateWatermark(1, watermark->getTimestamp())) {
             if (this->timeServiceManager != nullptr) {
-                this->timeServiceManager->advanceWatermark(
-                    new Watermark(this->combinedWatermark->GetCombinedWatermark()));
+                // advanceWatermark only reads getTimestamp() -- it neither stores nor frees its
+                // argument -- so heap-allocating one here just leaks it on every watermark.
+                Watermark combined(this->combinedWatermark->GetCombinedWatermark());
+                this->timeServiceManager->advanceWatermark(&combined);
             }
-            this->output->emitWatermark(new Watermark(this->combinedWatermark->GetCombinedWatermark()));
+            // emitWatermark's contract is that the caller still owns the watermark once the call
+            // returns -- StatusWatermarkValve does exactly this, and no consumer may retain the
+            // pointer because of it. broadcastEmit copies it per channel rather than keeping it.
+            auto* outWatermark = new Watermark(this->combinedWatermark->GetCombinedWatermark());
+            this->output->emitWatermark(outWatermark);
+            delete outWatermark;
         }
     }
 

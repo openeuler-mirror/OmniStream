@@ -120,7 +120,7 @@ private:
     std::vector<int32_t> keyedTypes;
     std::vector<int32_t> keyedIndex;
     std::vector<DistinctInfo> distinctInfos;
-    KeySelector<RowData*>* groupByKeySelector;
+    KeySelector<RowData*>* groupByKeySelector = nullptr;
     int indexOfCountStar = -1;
 
     inline void setInt(

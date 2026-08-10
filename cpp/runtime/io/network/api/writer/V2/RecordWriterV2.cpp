@@ -32,6 +32,12 @@ RecordWriterV2::RecordWriterV2(
     this->flushAlways = (this->timeout == ExecutionOptions::FLUSH_AFTER_EVERY_RECORD);
 }
 
+RecordWriterV2::~RecordWriterV2()
+{
+    // Tracing the teardown chain: OmniTask -> OmniStreamTask -> delegate -> here -> ~OutputFlusher.
+    INFO_RELEASE("~RecordWriterV2 for " << taskName);
+}
+
 void RecordWriterV2::postConstruct()
 {
     // share point of recored write , fix it later
@@ -70,6 +76,11 @@ void RecordWriterV2::broadcastEvent(std::shared_ptr<AbstractEvent> event, bool i
 void RecordWriterV2::cancel()
 {
     LOG_INFO_IMP("RecordWriterV2::cancel" << taskName);
+    // Stop the flusher here too. Source tasks take the cancel path, and without this their flusher
+    // thread only stops when this writer is destroyed.
+    if (outputFlusher) {
+        outputFlusher->terminate();
+    }
     targetPartitionWriter_->cancel();
     INFO_RELEASE("Task:" << taskName << " Total number of row emitted:" << counter_);
 }
@@ -77,7 +88,10 @@ void RecordWriterV2::cancel()
 void RecordWriterV2::close()
 {
     LOG_INFO_IMP("RecordWriterV2::close" << taskName);
-    outputFlusher->terminate();
+    // Null until postConstruct() runs, so a close before then must not dereference it.
+    if (outputFlusher) {
+        outputFlusher->terminate();
+    }
     INFO_RELEASE("Task:" << taskName << " Total number of row emitted:" << counter_);
 }
 

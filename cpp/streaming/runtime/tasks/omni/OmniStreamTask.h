@@ -53,6 +53,9 @@ public:
 
     virtual ~OmniStreamTask()
     {
+        // If this never appears, the task object itself is being kept alive and nothing below it
+        // (record writers, output flushers) can be released.
+        INFO_RELEASE("~OmniStreamTask begin " << this);
         if (systemTimerService) {
             systemTimerService->shutdownService();
         }
@@ -63,6 +66,8 @@ public:
             delete inputProcessor_;
             inputProcessor_ = nullptr;
         }
+        INFO_RELEASE("~OmniStreamTask end " << this << " recordWriter_ use_count="
+                                            << recordWriter_.use_count());
     }
 
     // getter

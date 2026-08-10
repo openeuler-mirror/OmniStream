@@ -49,6 +49,14 @@ StreamCalcBatch::StreamCalcBatch(const nlohmann::json& description, Output* outp
 
 StreamCalcBatch::~StreamCalcBatch()
 {
+    // The evaluator owns an LLVM JIT session (Filter/Projection unique_ptrs), so leaking it
+    // retains the compiled code and its ORC materialization units for the life of the process --
+    // one set per Calc operator per job. ~ExpressionEvaluator also frees filterExpr and projExprs,
+    // so those must not be deleted here as well.
+    delete exprEvaluator;
+    exprEvaluator = nullptr;
+    delete timestampedCollector_;
+    timestampedCollector_ = nullptr;
 }
 
 void StreamCalcBatch::processBatch(StreamRecord* input)
@@ -85,6 +93,7 @@ void StreamCalcBatch::processBatch(StreamRecord* input)
                     rowkinds[i] = oldkinds[rowIndex];
                 }
                 outputBatch = new omnistream::VectorBatch(projectedVecs, timestamps, rowkinds);
+                delete projectedVecs;
                 // This destructor clears both rowkind/timestamp and the data vectors
                 delete record;
 
@@ -96,7 +105,12 @@ void StreamCalcBatch::processBatch(StreamRecord* input)
         } else {
             // All rows are kept. Use current timestamp* and RowKind* to create a omnistream::Vectorbatch
             outputBatch = new omnistream::VectorBatch(projectedVecs, record->getTimestamps(), record->getRowKinds());
-            omniruntime::codegen::VectorHelper::FreeVecBatch(record);
+            delete projectedVecs;
+            // outputBatch owns the timestamp/rowKind arrays now, so record must not free them.
+            // Delete record through its own type: omniruntime::vec::VectorBatch has a non-virtual
+            // destructor, so freeing it as a base pointer is undefined behaviour.
+            record->releaseTimestampsAndRowKinds();
+            delete record;
             timestampedCollector_->collect(outputBatch);
         }
     }

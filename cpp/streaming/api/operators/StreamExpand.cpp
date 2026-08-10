@@ -21,7 +21,19 @@ StreamExpand::StreamExpand(const nlohmann::json& description, Output* output)
     LOG("StreamExpand description: " << description);
 }
 
-StreamExpand::~StreamExpand() = default;
+StreamExpand::~StreamExpand()
+{
+    // Each evaluator owns an LLVM JIT session; leaking them retains the compiled code and its
+    // ORC materialization units for the process lifetime. ~ExpressionEvaluator also frees the
+    // projExprs handed to it, so this must not delete those again. Entries are null-initialised
+    // by resize(), and parseDescription can throw partway, so some may legitimately be null.
+    for (auto* evaluator : exprEvaluators) {
+        delete evaluator;
+    }
+    exprEvaluators.clear();
+    delete timestampedCollector_;
+    timestampedCollector_ = nullptr;
+}
 
 void StreamExpand::parseDescription(nlohmann::json& subDesc, int index)
 {
@@ -97,6 +109,9 @@ void StreamExpand::processBatch(StreamRecord* input)
     for (auto expr : exprEvaluators) {
         auto projectedVecs = expr->Evaluate(record, executionContext.get(), &selectedRowsBuffer);
         auto outputBatch = copyTimestampAndKind(record, projectedVecs);
+        // outputBatch took over the vectors, so this only frees the empty shell. When
+        // copyTimestampAndKind returned nullptr the vectors are still here and get freed too.
+        delete projectedVecs;
         if (outputBatch) {
             timestampedCollector_->collect(outputBatch);
         }

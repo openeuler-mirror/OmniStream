@@ -175,15 +175,20 @@ private:
         WindowListState<KeyType, int64_t, VectorBatchId>* recordState,
         bool isLeftSide);
     ::FilterFunc generateJoinCondition();
-    void getAllColRefs(nlohmann::json& config);
-    void BuildInnerLeft(
-        std::vector<VectorBatchId>* leftElements,
-        std::vector<VectorBatchId>* rightElements,
-        omnistream::VectorBatch* outputBatch);
-    void BuildInnerRight(
-        std::vector<VectorBatchId>* leftElements,
-        std::vector<VectorBatchId>* rightElements,
-        omnistream::VectorBatch* outputBatch);
+
+    // The returned FilterFunc points into code JIT-compiled inside the codegen's LLVM engine, and
+    // CodegenBase only keeps a non-owning pointer to the expression -- so both must outlive every
+    // call through generatedFilter. Owning them here ties that to the operator's lifetime.
+    //
+    // Declaration order is load-bearing: members are destroyed in reverse, so the codegen is torn
+    // down before the expression it points at.
+    std::unique_ptr<omniruntime::expressions::Expr> nonEquiConditionExpr_;
+    std::unique_ptr<SimpleFilterCodeGen> nonEquiFilterCodegen_;
+    void getAllColRefs(nlohmann::json &config);
+    void BuildInnerLeft(std::vector<VectorBatchId> *leftElements, std::vector<VectorBatchId> *rightElements,
+        omnistream::VectorBatch *outputBatch);
+    void BuildInnerRight(std::vector<VectorBatchId> *leftElements, std::vector<VectorBatchId> *rightElements,
+        omnistream::VectorBatch *outputBatch);
 };
 
 template <typename KeyType>
@@ -879,11 +884,12 @@ template <typename KeyType>
 {
     if (isNonEquiCondition) {
         auto filter = description["nonEquiCondition"];
-        Expr* jExpr = JSONParser::ParseJSON(filter);
-        SimpleFilterCodeGen* filterCodegen = new SimpleFilterCodeGen("nonEquiCondition", *jExpr, nullptr);
-        int64_t fAddr = filterCodegen->GetFunction();
-        void* refFunc = &fAddr;
-        return *static_cast<::FilterFunc*>(refFunc);
+        nonEquiConditionExpr_.reset(JSONParser::ParseJSON(filter));
+        nonEquiFilterCodegen_ =
+            std::make_unique<SimpleFilterCodeGen>("nonEquiCondition", *nonEquiConditionExpr_, nullptr);
+        int64_t fAddr = nonEquiFilterCodegen_->GetFunction();
+        void *refFunc = &fAddr;
+        return *static_cast<::FilterFunc *>(refFunc);
     }
     return nullptr;
 }

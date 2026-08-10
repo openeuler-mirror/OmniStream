@@ -182,6 +182,7 @@ public:
             LOG("===================start output=======================");
             for (int64_t index = offset; index < offset + size; index++) {
                 StreamElement* object = objSegment->getObject(index);
+                ObjectSegment::countDrained();
                 int tag = static_cast<int>(object->getTag());
                 LOG("OmniAbstractStreamTaskNetworkInput tag: " << tag << " channelIndex: "
                                                                << lastChannel_.getInputChannelIdx());
@@ -196,6 +197,10 @@ public:
                 } else if (object->getTag() == StreamElementTag::TAG_WATERMARK) {
                     statusWatermarkValve_.inputWatermark(
                         reinterpret_cast<Watermark*>(object), lastChannel_.getInputChannelIdx(), output);
+                    // Unlike emitRecord above, the valve does not take ownership: it copies the
+                    // timestamp out and drops the pointer (and returns early when idle). Draining
+                    // the segment made this ours, and ~ObjectSegment frees only the pointer array.
+                    delete reinterpret_cast<Watermark*>(object);
                 } else if (object->getTag() == StreamElementTag::TAG_STREAM_STATUS) {
                     statusWatermarkValve_.inputWatermarkStatus(
                         reinterpret_cast<WatermarkStatus*>(object), lastChannel_.getInputChannelIdx(), output);

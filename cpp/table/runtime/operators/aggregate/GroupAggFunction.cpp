@@ -49,6 +49,12 @@ GroupAggFunction::~GroupAggFunction()
     for (auto func : functions) {
         delete func;
     }
+    // Members allocated in the constructor and in open(). accDesc is deliberately absent: the
+    // keyed state backend takes it over and deletes it with its registered states.
+    delete groupByKeySelector;
+    groupByKeySelector = nullptr;
+    delete resultRow;
+    resultRow = nullptr;
 }
 
 bool IntEqualiser(RowData* r1, RowData* r2, int colIdx)

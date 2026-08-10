@@ -125,8 +125,11 @@ void WatermarkAssignerOperator::advanceWatermark()
 {
     if (currentWatermark_ > lastWatermark_) {
         lastWatermark_ = currentWatermark_;
+        // emitWatermark leaves ownership with the caller once it returns, the same contract
+        // StatusWatermarkValve follows -- no consumer may retain the pointer.
         Watermark* watermark = new Watermark(currentWatermark_);
         output->emitWatermark(watermark);
+        delete watermark;
     }
 }
 

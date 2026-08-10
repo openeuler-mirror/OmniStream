@@ -75,8 +75,13 @@ void CountFunction::accumulate(omnistream::VectorBatch* input, const std::vector
     const auto filterData =
         hasFilterCol ? reinterpret_cast<omniruntime::vec::Vector<bool>*>(input->Get(filterIndex)) : nullptr;
 
+    // aggIdx is -1 for count(*) even when isCountStar was never set -- the row branch below
+    // treats "isCountStar || aggIdx == -1" as count-star, so guard the fetch the same way.
+    // Get(-1) indexes before the vector array; it only faults when that memory happens to be
+    // unmapped, which is why q17 ran (with a bad read) under some allocator configurations and
+    // segfaulted under others.
     omniruntime::vec::BaseVector* columnData = nullptr;
-    if (!isCountStar) {
+    if (!isCountStar && aggIdx >= 0) {
         columnData = input->Get(aggIdx);
     }
 
@@ -126,8 +131,10 @@ void CountFunction::retract(RowData* retractInput)
 
 void CountFunction::retract(omnistream::VectorBatch* input, const std::vector<int>& indices)
 {
-    omniruntime::vec::BaseVector* columnData;
-    if (!isCountStar) {
+    // Same guard as accumulate: aggIdx == -1 means count-star, and Get(-1) is out of bounds.
+    // Also initialise columnData -- it was left uninitialised when the fetch was skipped.
+    omniruntime::vec::BaseVector* columnData = nullptr;
+    if (!isCountStar && aggIdx >= 0) {
         columnData = input->Get(aggIdx);
     }
     for (int rowIndex : indices) {

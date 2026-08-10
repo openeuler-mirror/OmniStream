@@ -324,6 +324,7 @@ void OmniCreditBasedSequenceNumberingViewReader::getNextBufferInternal()
 
         for (int i = offset; i < vectorBatchSize + offset; i++) {
             StreamElement *streamElement = objectSegment->getObject(i);
+            ObjectSegment::countDrained();
             if (dynamic_cast<StreamRecord *>(streamElement)) {
                 StreamRecord *streamRecord =
                         static_cast<StreamRecord *>(streamElement);
@@ -345,6 +346,9 @@ void OmniCreditBasedSequenceNumberingViewReader::getNextBufferInternal()
                 while (!DoSerializeWaterMark(timestamp, bufferInfo)) {
                     bufferInfo = CreateNettyBufferInfo();
                 }
+                // Same ownership as the StreamRecord branch above: draining the segment takes
+                // the element, and ~ObjectSegment frees only the pointer array.
+                delete watermark;
             } else {
                 THROW_RUNTIME_ERROR("Unsupported stream element type");
             }
@@ -399,5 +403,10 @@ void OmniCreditBasedSequenceNumberingViewReader::getNextBufferInternal()
             auto bufferInfo = std::make_shared<NettyBufferInfo>(currentInUseNettyMemorySegment);
             return bufferInfo;
         }
+    }
+
+    void OmniCreditBasedSequenceNumberingViewReader::releaseAllResources()
+    {
+        subpartitionView->releaseAllResources();
     }
 } // namespace omnistream
