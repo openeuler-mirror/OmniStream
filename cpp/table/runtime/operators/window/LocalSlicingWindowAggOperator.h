@@ -26,6 +26,7 @@
 #include "streaming/api/watermark/Watermark.h"
 #include "core/include/common.h"
 #include "table/runtime/keyselector/KeySelector.h"
+#include "table/runtime/operators/aggregate/window/buffers/RecordsWindowBuffer.h"
 
 class LocalSlicingWindowAggOperator : public AbstractStreamOperator<long>, public OneInputStreamOperator {
 public:
@@ -33,7 +34,6 @@ public:
         : AbstractStreamOperator(output),
           description(config)
     {
-        this->collector = new TimestampedCollector(this->output);
         inputTypes = config["inputTypes"].get<std::vector<std::string>>();
         outputTypeStr = config["outputTypes"].get<std::vector<std::string>>();
         clock = new ClockService();
@@ -47,11 +47,7 @@ public:
                 keyedTypes.push_back(LogicalType::flinkTypeToOmniTypeId(inputTypes[index]));
             }
         }
-        keySelector = new KeySelector<std::shared_ptr<RowData>>(keyedTypes, keyedIndex);
-        windowRow = new GenericRowData(1);
-        accWindowRow = new JoinedRowData();
-        resultRow = new JoinedRowData();
-        // todo: This only works for fixed length valueType
+
         sliceAssigner = AssignerAtt::createSliceAssigner(description);
         if (description.contains("timeAttributeIndex")) {
             nlohmann::json rowtimeIndex = description["timeAttributeIndex"];
@@ -60,7 +56,13 @@ public:
             rowtimeIndexVal = -1;
         }
         windowInterval = sliceAssigner->getSliceEndInterval();
+        windowBuffer = std::make_unique<RecordsWindowBuffer>(description, output, sliceAssigner);
     }
+
+    ~LocalSlicingWindowAggOperator() override
+    {
+        delete sliceAssigner;
+    };
     void open() override;
 
     const char* getName() override;
@@ -110,56 +112,27 @@ public:
         AbstractStreamOperator<long>::notifyCheckpointAborted(checkpointId);
     }
 
-    static std::string extractAggFunction(const std::string& input)
-    {
-        std::regex aggRegex(R"((?:MAX|COUNT|SUM|MIN|AVG))", std::regex_constants::icase);
-        std::smatch match;
-        if (std::regex_search(input, match, aggRegex)) {
-            return match.str();
-        } else {
-            return "NONE";
-        }
-    }
-    void eraseMsg(std::vector<std::unique_ptr<RowData>>& entireRows);
-
 private:
+    std::unique_ptr<RecordsWindowBuffer> windowBuffer;
     nlohmann::json description;
     std::vector<std::string> accTypes;
     std::vector<std::string> aggValueTypes;
     int accumulatorArity = 0;
     std::vector<AggsHandleFunction*> functions;
     int aggregateCallsCount = 0;
-    GenericRowData* windowRow;
-    JoinedRowData* accWindowRow;
-    JoinedRowData* resultRow;
-    BinaryRowData* reUseAggValue;
-    BinaryRowData* reUseAccumulator;
-    std::unordered_map<WindowKey, std::vector<std::unique_ptr<RowData>>> bundle;
     std::vector<std::string> inputTypes;
     std::vector<std::string> outputTypeStr; // todo: remove from variables
     std::vector<omniruntime::type::DataTypeId> outputTypes;
 
     std::vector<int32_t> keyedTypes;
-    KeySelector<std::shared_ptr<RowData>>* keySelector;
     std::vector<int32_t> keyedIndex;
     SliceAssigner* sliceAssigner = nullptr;
     long currentWatermark = 0;
     long nextTriggerWatermark = 0;
     long windowInterval = 0;
 
-    TimestampedCollector* collector;
-    omnistream::VectorBatch* resultBatch = nullptr;
-
-    void AccumulateOrRetract(const std::vector<std::unique_ptr<RowData>>& entireRows);
-    int flushBundle(const char* trigger, int64_t triggerValue);
-
-    void SetLong(omniruntime::vec::VectorBatch* outputBatch, int rowIndex, int colIndex, RowData* collectedRow);
-    void SetInt(omniruntime::vec::VectorBatch* outputBatch, int rowIndex, int colIndex, RowData* collectedRow);
-    std::vector<WindowKey> invertOrder;
     int rowtimeIndexVal;
     ClockService* clock;
-    void ExtractFunction();
-    void SetStringVectorBatch(omnistream::VectorBatch* outputBatch, int rowIndex, int colIndex, RowData* collectedRow);
 };
 
 #endif

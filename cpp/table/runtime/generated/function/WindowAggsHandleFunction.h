@@ -35,6 +35,8 @@ public:
     void accumulate(RowData* accInput) override;
     void retract(RowData* retractInput) override;
     void merge(int64_t ns, RowData* otherAcc) override;
+    void accumulate(const std::vector<omnistream::VectorBatch*>& inputBatches, const std::vector<int64_t>& indices);
+    void retract(const std::vector<omnistream::VectorBatch*>& inputBatches, const std::vector<int64_t>& indices);
     void setAccumulators(int64_t ns, RowData* acc) override;
     RowData* getAccumulators() override;
     RowData* createAccumulators() override;

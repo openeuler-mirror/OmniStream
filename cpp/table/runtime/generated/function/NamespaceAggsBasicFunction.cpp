@@ -64,5 +64,23 @@ int64_t NamespaceAggsBasicFunction<N>::readInputByIndex(RowData* input, int32_t 
     }
 }
 
+template <typename N>
+int64_t NamespaceAggsBasicFunction<N>::readInputByIndex(
+    omnistream::VectorBatch* input, int32_t argIndex, int rowId) const
+{
+    switch (inputTypeIds_.at(argIndex)) {
+        case omniruntime::type::DataTypeId::OMNI_INT: {
+            auto val = input->GetValueAt<int32_t>(argIndex, rowId);
+            return static_cast<int64_t>(val);
+        }
+        case omniruntime::type::DataTypeId::OMNI_LONG:
+        case omniruntime::type::DataTypeId::OMNI_TIMESTAMP:
+        case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE: {
+            return input->GetValueAt<int64_t>(argIndex, rowId);
+        }
+        default: THROW_RUNTIME_ERROR("The data type is not supported: " << inputTypeIds_.at(argIndex));
+    }
+}
+
 template class NamespaceAggsBasicFunction<int64_t>;
 template class NamespaceAggsBasicFunction<TimeWindow>;

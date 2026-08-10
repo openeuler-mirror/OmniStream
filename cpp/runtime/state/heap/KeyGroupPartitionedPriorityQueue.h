@@ -144,6 +144,8 @@ public:
     {
         std::shared_ptr<DedupSet> result = std::make_shared<DedupSet>();
         auto& partitionQueue = keyGroupedHeaps_[globalKeyGroupToLocalIndex(keyGroupId)];
+        // Pre-allocate memory to prevent expensive rehashing
+        result->reserve(partitionQueue->size());
         auto iter = partitionQueue->iterator();
         try {
             while (iter->hasNext()) {

@@ -99,8 +99,7 @@ void AbstractWindowAggProcessor::open(
     if (dynamic_cast<RocksdbKeyedStateBackend<AbstractWindowAggProcessor::KeyType>*>(keyedStateBackend) != nullptr) {
         backendType_ = omnistream::StateType::ROCKSDB;
 #ifdef WITH_OMNISTATESTORE
-    } else if (
-        dynamic_cast<BssKeyedStateBackend<AbstractWindowAggProcessor::KeyType>*>(keyedStateBackend) != nullptr) {
+    } else if (dynamic_cast<BssKeyedStateBackend<AbstractWindowAggProcessor::KeyType>*>(keyedStateBackend) != nullptr) {
         backendType_ = omnistream::StateType::BSS;
 #endif
     } else if (
@@ -192,10 +191,9 @@ void AbstractWindowAggProcessor::ProcessHopResult(RowData* result)
     if (static_cast<size_t>(resultRow->getArity()) == outputTypes.size()) {
         if (!isWindowEmpty()) {
             LOG("window not empty");
-            std::vector<RowData*> resultRows;
-            resultRows.push_back(resultRowSerializer_->toBinaryRow(resultRow.get()));
-            resultBatch = createOutputBatch(resultRows);
-            collectOutputBatch(collector.get(), resultBatch);
+            auto outputBatch = omnistream::VectorBatch::CreateVectorBatch(1, outputTypeIds);
+            SetOutputBatch(outputBatch, resultRow.get());
+            collector->collect(outputBatch);
         } else {
             LOG("window is empty");
         }
@@ -208,10 +206,9 @@ void AbstractWindowAggProcessor::ProcessNonHopResult(RowData* result)
 {
     resultRow->replace(stateBackend->getCurrentKey().get(), result);
     if (resultRow->getArity() == static_cast<int>(outputTypes.size())) {
-        std::vector<RowData*> resultRows;
-        resultRows.push_back(resultRowSerializer_->toBinaryRow(resultRow.get()));
-        resultBatch = createOutputBatch(resultRows);
-        collectOutputBatch(collector.get(), resultBatch);
+        auto outputBatch = omnistream::VectorBatch::CreateVectorBatch(1, outputTypeIds);
+        SetOutputBatch(outputBatch, resultRow.get());
+        collector->collect(outputBatch);
     } else {
         THROW_LOGIC_EXCEPTION("Unexpected fireWindow result! ResultRow and outputTypes columns not equal!!");
     }
@@ -277,45 +274,46 @@ bool AbstractWindowAggProcessor::isWindowEmpty()
 bool AbstractWindowAggProcessor::shouldDeleteWindowStateValue() const
 {
     return backendType_ == omnistream::StateType::BSS ||
-        (backendType_ == omnistream::StateType::ROCKSDB && !windowState->isFalconEnabled());
+           (backendType_ == omnistream::StateType::ROCKSDB && !windowState->isFalconEnabled());
 }
 
-omnistream::VectorBatch* AbstractWindowAggProcessor::createOutputBatch(const std::vector<RowData*>& collectedRows)
+void AbstractWindowAggProcessor::SetOutputBatch(omnistream::VectorBatch* outputBatch, JoinedRowData* resultRow)
 {
     int numColumns = outputTypes.size();
-    std::vector<omniruntime::type::DataTypeId> outputRowType = std::vector<omniruntime::type::DataTypeId>();
-    outputRowType.reserve(numColumns);
-    for (const auto& typeStr : outputTypes) {
-        outputRowType.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
-    }
-    int numRows = collectedRows.size(); // Number of rows collected
-    // Create a new VectorBatch (empty if no rows exist)
-    auto* outputBatch = new omnistream::VectorBatch(numRows);
-    // Loop through each column and create vectors
+
     for (int colIndex = 0; colIndex < numColumns; ++colIndex) {
-        switch (outputRowType.at(colIndex)) {
+        switch (outputTypeIds.at(colIndex)) {
             case DataTypeId::OMNI_LONG: {
-                VectorBatchUtils::AppendLongVectorForInt64(outputBatch, collectedRows, numRows, colIndex);
+                auto vector = static_cast<omniruntime::vec::Vector<int64_t>*>(outputBatch->Get(colIndex));
+                vector->SetValue(0, *resultRow->getLong(colIndex));
                 break;
             }
             case DataTypeId::OMNI_TIMESTAMP: {
-                VectorBatchUtils::AppendLongVectorForInt64(outputBatch, collectedRows, numRows, colIndex);
+                auto vector = static_cast<omniruntime::vec::Vector<int64_t>*>(outputBatch->Get(colIndex));
+                vector->SetValue(0, *resultRow->getLong(colIndex));
                 break;
             }
             case DataTypeId::OMNI_INT: {
-                VectorBatchUtils::AppendIntVector(outputBatch, collectedRows, numRows, colIndex);
+                auto vector = static_cast<omniruntime::vec::Vector<int64_t>*>(outputBatch->Get(colIndex));
+                vector->SetValue(0, *resultRow->getInt(colIndex));
                 break;
             }
             case DataTypeId::OMNI_DOUBLE: {
-                VectorBatchUtils::AppendLongVectorForDouble(outputBatch, collectedRows, numRows, colIndex);
+                auto vector = static_cast<omniruntime::vec::Vector<int64_t>*>(outputBatch->Get(colIndex));
+                vector->SetValue(0, *resultRow->getLong(colIndex));
                 break;
             }
             case DataTypeId::OMNI_BOOLEAN: {
-                VectorBatchUtils::AppendIntVectorForBool(outputBatch, collectedRows, numRows, colIndex);
+                auto vector = static_cast<omniruntime::vec::Vector<int64_t>*>(outputBatch->Get(colIndex));
+                vector->SetValue(0, *resultRow->getInt(colIndex));
                 break;
             }
             case DataTypeId::OMNI_VARCHAR: {
-                VectorBatchUtils::AppendStringVector(outputBatch, collectedRows, numRows, colIndex);
+                auto vector =
+                    static_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(
+                        outputBatch->Get(colIndex));
+                std::string_view strView = resultRow->getStringView(colIndex);
+                vector->SetValue(0, strView);
                 break;
             }
             default: {
@@ -324,16 +322,7 @@ omnistream::VectorBatch* AbstractWindowAggProcessor::createOutputBatch(const std
         }
     }
 
-    // Set row kind for all rows (only if there are rows)
-    for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
-        outputBatch->setRowKind(rowIndex, collectedRows[rowIndex]->getRowKind());
-    }
-    return outputBatch;
-}
-
-void AbstractWindowAggProcessor::collectOutputBatch(TimestampedCollector* out, omnistream::VectorBatch* outputBatch)
-{
-    out->collect(outputBatch);
+    outputBatch->setRowKind(0, resultRow->getRowKind());
 }
 
 void AbstractWindowAggProcessor::setClockService(ClockService* newClock)
