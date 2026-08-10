@@ -48,7 +48,7 @@ public:
     int* getInt(int pos) override;
     void setInt(int pos, int value) override;
 
-    double *getDouble(int pos) override;
+    double* getDouble(int pos) override;
     void setDouble(int pos, double value) override;
 
     TimestampData getTimestamp(int pos) override;
@@ -62,6 +62,7 @@ public:
     void setStringView(int pos, std::string_view value) override;
 
     void setNullAt(int pos);
+    void setNotNullAt(int i);
 
     // Utitilities for `getString`
     void writeFixLenVarchar(int fieldOffset, const uint8_t* bytes, int len);
@@ -103,7 +104,6 @@ private:
     int arity_;
     std::vector<uint8_t> types; // type 1 => long or FixLenVarchar, type 2 => VarLenVarchar
     int nullBitsSizeInBytes_;
-    void setNotNullAt(int i);
     int getFieldOffset(int pos);
 };
 

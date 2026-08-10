@@ -22,8 +22,10 @@
 #include <utility>
 
 #include "common.h"
+#include "core/api/common/state/StateDescriptor.h"
 #include "runtime/state/RegisteredStateMetaInfoBase.h"
 #include "runtime/state/rocksdb/RocksDbOperationUtils.h"
+#include "runtime/state/rocksdb/RocksDbStringAppendOperator.h"
 #include "runtime/state/metainfo/StateMetaInfoSnapshot.h"
 #include "runtime/state/RocksDbKvStateInfo.h"
 
@@ -111,6 +113,16 @@ public:
             if (columnFamilyHandle == nullptr) {
                 auto columnFamilyDescriptor =
                     RocksDbOperationUtils::createColumnFamilyDescriptor(stateMetaInfo, columnFamilyOptionsFactory);
+
+                // LIST state uses Merge operations; ensure merge_operator is set when opening an
+                // existing DB, otherwise RocksDB will reject the column family with "Invalid argument:
+                // merge_operator_ must be set."
+                auto stateTypeString =
+                    stateMetaInfoSnapshot.getOption(StateMetaInfoSnapshot::CommonOptionsKeys::KEYED_STATE_TYPE);
+                if (StateDescriptor::StringToType(stateTypeString) == StateDescriptor::Type::LIST) {
+                    columnFamilyDescriptor.options.merge_operator.reset(new RocksDbStringAppendOperator(','));
+                }
+
                 columnFamilyHandle = RocksDbOperationUtils::createColumnFamily(columnFamilyDescriptor, db);
                 PendingColumnFamilyHandleGuard pendingColumnFamilyHandle(db, columnFamilyHandle, dbPath);
                 columnFamilyHandles.push_back(columnFamilyHandle);

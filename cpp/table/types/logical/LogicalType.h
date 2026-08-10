@@ -14,6 +14,8 @@
 
 #include <vector>
 #include <memory>
+#include <optional>
+#include <utility>
 #include <unordered_map>
 #include <string>
 #include <utility>
@@ -60,21 +62,32 @@ public:
     BasicLogicalType(bool isNullable, int typeId, const std::string& typeName)
         : LogicalType(isNullable, typeId, typeName) {};
 
-    // Basic type has no children
+    BasicLogicalType(
+        bool isNullable, int typeId, const std::string& typeName, std::vector<std::unique_ptr<LogicalType>> children)
+        : LogicalType(isNullable, typeId, typeName),
+          children_(std::move(children))
+    {
+    }
+
     std::vector<LogicalType*> getChildren()
     {
-        return emptyChildren;
+        std::vector<LogicalType*> children;
+        children.reserve(children_.size());
+        for (const auto& child : children_) {
+            children.push_back(child.get());
+        }
+        return children;
     }
 
     nlohmann::json toJson() const override
     {
         nlohmann::json result = LogicalType::toJson();
         nlohmann::json types = nlohmann::json::array();
-        for (const auto& item : emptyChildren) {
-            types.push_back(item->toJson());
+        for (const auto& child : children_) {
+            types.push_back(child->toJson());
         }
         if (types.size() > 0) {
-            result["emptyChildren"] = types;
+            result["children"] = types;
         }
 
         return result;
@@ -93,9 +106,12 @@ public:
     static BasicLogicalType* TIMESTAMP;
     static BasicLogicalType* INVALID_TYPE;
 
-    static BasicLogicalType* getTypeBy(omniruntime::type::DataTypeId typeId, const nlohmann::json& element);
+    static BasicLogicalType* getTypeBy(omniruntime::type::DataTypeId typeId, const nlohmann::json& options);
+
+    static BasicLogicalType* getTypeBy(
+        std::optional<bool> nullable, omniruntime::type::DataTypeId typeId, const nlohmann::json& options);
 
 private:
-    std::vector<LogicalType*> emptyChildren;
+    std::vector<std::unique_ptr<LogicalType>> children_;
 };
 #endif

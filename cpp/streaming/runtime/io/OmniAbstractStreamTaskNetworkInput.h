@@ -201,8 +201,8 @@ public:
 
                     output->emitRecord(reinterpret_cast<StreamRecord*>(object));
                 } else if (object->getTag() == StreamElementTag::TAG_WATERMARK) {
-                    statusWatermarkValve_.inputWatermark(
-                        reinterpret_cast<Watermark*>(object), lastChannel_.getInputChannelIdx(), output);
+                    auto watermark = std::unique_ptr<Watermark>(reinterpret_cast<Watermark*>(object));
+                    statusWatermarkValve_.inputWatermark(watermark.get(), lastChannel_.getInputChannelIdx(), output);
                 } else if (object->getTag() == StreamElementTag::TAG_STREAM_STATUS) {
                     statusWatermarkValve_.inputWatermarkStatus(
                         reinterpret_cast<WatermarkStatus*>(object), lastChannel_.getInputChannelIdx(), output);

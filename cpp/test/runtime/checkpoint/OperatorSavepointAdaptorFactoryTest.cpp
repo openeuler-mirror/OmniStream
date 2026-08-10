@@ -18,6 +18,7 @@
 #include "runtime/checkpoint/OperatorSavepointAdaptorFactory.h"
 #include "runtime/checkpoint/OperatorSavepointAdaptor.h"
 #include "runtime/checkpoint/StreamingJoinSavepointUtil.h"
+#include "runtime/checkpoint/WindowJoinSavepointAdaptor.h"
 
 using omnistream::OperatorSavepointAdaptorFactory;
 using omnistream::StreamingJoinSavepointUtil;
@@ -64,6 +65,12 @@ TEST(OperatorSavepointAdaptorFactoryTest, ReturnsAppendOnlyTopNAdaptor)
 {
     auto adaptor = OperatorSavepointAdaptorFactory::createAdaptor(FlinkSavepointAdaptorType::AppendOnlyTopNAdaptor);
     EXPECT_NE(adaptor, nullptr);
+}
+
+TEST(OperatorSavepointAdaptorFactoryTest, ReturnsWindowJoinAdaptor)
+{
+    auto adaptor = OperatorSavepointAdaptorFactory::createAdaptor(FlinkSavepointAdaptorType::WindowJoinAdaptor);
+    EXPECT_NE(dynamic_cast<omnistream::WindowJoinSavepointAdaptor*>(adaptor.get()), nullptr);
 }
 // StreamingJoinAdaptor：已实现的 NoUniqueKey inner/left outer join 互通 Adaptor，
 TEST(OperatorSavepointAdaptorFactoryTest, ReturnsStreamingJoinAdaptors)

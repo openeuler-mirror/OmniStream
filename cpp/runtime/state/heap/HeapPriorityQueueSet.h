@@ -58,22 +58,19 @@ public:
         }
 
         const auto& set = getDedupSetForElement(toRemove);
-        auto iter = set->find(toRemove);
-        if (iter == set->end()) {
+        if (set->erase(toRemove) == 0) {
             THROW_LOGIC_EXCEPTION("Element exists in priority queue but not in dedup set (data inconsistency)");
         }
-        set->erase(iter);
         return toRemove;
     }
 
     bool add(const T& element) override
     {
         const auto& set = getDedupSetForElement(element);
-        auto iter = set->find(element);
-        bool inSet = iter != set->end();
         bool changed = false;
-        if (!inSet) {
-            set->emplace(element);
+        // emplace() does the check and the insertion in a single step
+        auto [iter, inserted] = set->emplace(element);
+        if (inserted) {
             changed = HeapPriorityQueue<T, Comparator>::add(element);
         }
         return changed;

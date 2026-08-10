@@ -160,12 +160,14 @@ StreamOperator* StreamOperatorFactory::createOperatorAndCollector(
         auto* op = new SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>(
             std::move(processor), opConfig.getDescription());
         op->setup();
+        op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
         LOG("Operator SlicingWindowOperator address " + std::to_string(reinterpret_cast<long>(op)));
         return static_cast<OneInputStreamOperator*>(op);
     } else if (opConfig.getUniqueName() == OPERATOR_NAME_GROUP_WINDOW_AGG) {
         auto* op =
             new AggregateWindowOperator<std::shared_ptr<RowData>, TimeWindow>(opConfig.getDescription(), chainOutput);
         op->setup();
+        op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
         LOG("Operator AggregateWindowOperator address " + std::to_string(reinterpret_cast<long>(op)));
         return static_cast<OneInputStreamOperator*>(op);
     } else if (uniqueName == OPERATOR_NAME_WINDOW_INNER_JOIN) {
@@ -286,6 +288,7 @@ StreamOperator* StreamOperatorFactory::CreateLocalWindowAggOp(
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
     auto* op = new LocalSlicingWindowAggOperator(opDescriptionJSON, chainOutput);
     op->setup(std::move(task));
+    op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
     LOG("Operator LocalSlicingWindowAggOperator address " + std::to_string(reinterpret_cast<long>(op)));
     return static_cast<OneInputStreamOperator*>(op);
 }
@@ -300,6 +303,7 @@ StreamOperator* StreamOperatorFactory::CreateGlobalWindowAggOp(
     auto processingTimeService = task->createProcessingTimeService();
     op->setProcessingTimeService(processingTimeService);
     op->setup(std::move(task));
+    op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
     LOG("Operator SlicingWindowOperator address " + std::to_string(reinterpret_cast<long>(op)));
     return static_cast<OneInputStreamOperator*>(op);
 }
@@ -313,6 +317,7 @@ StreamOperator* StreamOperatorFactory::CreateGroupWindowAggOp(
     auto processingTimeService = task->createProcessingTimeService();
     op->setProcessingTimeService(processingTimeService);
     op->setup(std::move(task));
+    op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
     LOG("Operator AggregateWindowOperator address " + std::to_string(reinterpret_cast<long>(op)));
     return static_cast<OneInputStreamOperator*>(op);
 }
@@ -578,9 +583,8 @@ StreamOperator* StreamOperatorFactory::CreateWindowInnerJoinOp(
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
     auto op = new InnerJoinOperator<std::shared_ptr<RowData>>(opDescriptionJSON, chainOutput, nullptr, nullptr);
     op->setup(std::move(task));
-    // SP-INTEROP: WindowJoin 的 compatible Adaptor 尚未实现（工厂对该类型返回 nullptr），
-    // 设 None + reason 以在 compatible 保存/恢复时 fail fast。
-    op->setFlinkSavepointUnsupported("WindowJoin compatible savepoint adaptor not yet implemented");
+    op->setDescription(opDescriptionJSON);
+    op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::WindowJoinAdaptor);
     LOG("Operator WindowJoinOperator address " + std::to_string(reinterpret_cast<long>(op)));
     return static_cast<TwoInputStreamOperator*>(op);
 }

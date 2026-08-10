@@ -13,6 +13,7 @@
 #define OMNIFLINK_KAFKAWRITER_H
 
 #include <deque>
+#include <exception>
 #include <list>
 #include <map>
 #include <memory>
@@ -128,9 +129,9 @@ private:
     void ProduceRecord(KeyValueByteContainer& record);
     void handleRecord();
     void waitForPendingTasks();
+    void checkAsyncProducerException();
     RdKafka::Topic* rd_topic1 = nullptr;
     RdKafka::Topic* rd_topic2 = nullptr;
-    int32_t partitionNum = 0;
     int32_t instanceId = 0;
     int producerIndexOne = 1;
     int producerIndexTwo = 2;
@@ -154,7 +155,14 @@ private:
         if (!timer_worker_thread_flag.load()) {
             return;
         }
-        handleRecord();
+        try {
+            handleRecord();
+        } catch (...) {
+            std::lock_guard<std::mutex> lock(queueMutex);
+            if (asyncProducerException == nullptr) {
+                asyncProducerException = std::current_exception();
+            }
+        }
     }
 
     void WorkerThreadFunc()
@@ -181,8 +189,11 @@ private:
             }
 
             // 执行任务
-            auto completeTask = [this]() {
+            auto completeTask = [this](std::exception_ptr producerException) {
                 std::lock_guard<std::mutex> lock(queueMutex);
+                if (producerException != nullptr && asyncProducerException == nullptr) {
+                    asyncProducerException = producerException;
+                }
                 --inFlightTasks;
                 if (tasks.empty() && inFlightTasks == 0) {
                     tasksDrainedCv.notify_all();
@@ -191,10 +202,10 @@ private:
             try {
                 task();
             } catch (...) {
-                completeTask();
-                throw;
+                completeTask(std::current_exception());
+                continue;
             }
-            completeTask();
+            completeTask(nullptr);
         }
     }
 

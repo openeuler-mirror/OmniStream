@@ -22,13 +22,17 @@
 #include <memory>
 #include "runtime/generated/function/WindowAggsHandleFunction.h"
 #include "table/typeutils/InternalTypeInfo.h"
+#include "table/typeutils/RowDataSerializer.h"
 
 class AbstractWindowAggProcessor : public SlicingWindowProcessor<std::shared_ptr<RowData>, int64_t> {
 public:
     using KeyType = std::shared_ptr<RowData>;
 
     AbstractWindowAggProcessor(nlohmann::json description, Output* output);
-    ~AbstractWindowAggProcessor() = default;
+    ~AbstractWindowAggProcessor()
+    {
+        delete sliceAssigner;
+    };
     void open(
         AbstractKeyedStateBackend<KeyType>* state,
         const nlohmann::json& config,
@@ -43,7 +47,7 @@ public:
     void close() override;
     TypeSerializer* createWindowSerializer() override;
     Output* getOutput() override;
-    omnistream::VectorBatch* createOutputBatch(std::vector<std::unique_ptr<RowData>>& collectedRows);
+    omnistream::VectorBatch* createOutputBatch(const std::vector<RowData*>& collectedRows);
     void collectOutputBatch(TimestampedCollector* out, omnistream::VectorBatch* outputBatch);
     void setClockService(ClockService* newClock);
     bool isWindowEmpty();
@@ -81,6 +85,7 @@ protected:
     std::vector<int32_t> keyedIndex;
     std::vector<int32_t> keyedTypes;
     std::unique_ptr<KeySelector<KeyType>> keySelector;
+    std::unique_ptr<RowDataSerializer> resultRowSerializer_;
 
 private:
     std::unordered_set<int64_t> uniqueData;

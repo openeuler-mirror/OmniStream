@@ -34,6 +34,13 @@ public:
         return basicStrippedType;
     }
 
+    static bool isNotNullType(const std::string& flinkType)
+    {
+        static const std::string suffix = " NOT NULL";
+        return flinkType.size() > suffix.size() &&
+            flinkType.compare(flinkType.size() - suffix.size(), suffix.size(), suffix) == 0;
+    }
+
     static nlohmann::json optionsFromFlinkType(const std::string& basicStrippedType)
     {
         nlohmann::json options = nlohmann::json::object();

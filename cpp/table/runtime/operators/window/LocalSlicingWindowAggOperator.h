@@ -16,7 +16,7 @@
 #include <regex>
 #include "streaming/api/operators/AbstractStreamOperator.h"
 #include "table/data/JoinedRowData.h"
-#include "table/typeutils/BinaryRowDataSerializer.h"
+#include "table/typeutils/RowDataSerializer.h"
 #include "streaming/api/operators/TimestampedCollector.h"
 #include "test/core/operators/OutputTest.h"
 #include "table/runtime/operators/window/WindowKey.h"
@@ -141,7 +141,7 @@ private:
     std::vector<int32_t> keyedTypes;
     KeySelector<std::shared_ptr<RowData>>* keySelector;
     std::vector<int32_t> keyedIndex;
-    SliceAssigner* sliceAssigner;
+    SliceAssigner* sliceAssigner = nullptr;
     long currentWatermark = 0;
     long nextTriggerWatermark = 0;
     long windowInterval = 0;

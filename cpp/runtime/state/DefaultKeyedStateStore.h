@@ -82,6 +82,16 @@ public:
     template <typename V>
     ListState<V>* getListState(ListStateDescriptor<V>* descriptor)
     {
+#ifdef WITH_OMNISTATESTORE
+        if (dynamic_cast<BssKeyedStateBackend<K>*>(backend) != nullptr) {
+            using S = BssListState<K, VoidNamespace, V>;
+            return getPartitionedState<S, std::vector<V>*>(descriptor);
+        }
+#endif
+        if (dynamic_cast<RocksdbKeyedStateBackend<K>*>(backend) != nullptr) {
+            using S = RocksdbListState<K, VoidNamespace, V>;
+            return getPartitionedState<S, std::vector<V>*>(descriptor);
+        }
         using S = HeapListState<K, VoidNamespace, V>;
         return getPartitionedState<S, std::vector<V>*>(descriptor);
     }

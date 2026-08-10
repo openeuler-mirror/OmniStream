@@ -140,6 +140,7 @@ The full project directory structure is as follows:
 │   │   ├── figures                                          # Images in documents
 │   │   ├── public_sys-resources                             # Icons in the document
 │   │   ├── faq.md                                           # OmniStream Installation FAQs
+│   │   ├── config_guide.md                                  # OmniStream Configuration Guide
 │   │   ├── installation_guide.md                            # OmniStream Installation Guide
 │   │   ├── quick_start.md                                   # OmniStream Quick Start
 │   │   ├── release_notes.md                                 # OmniStream Release Notes
@@ -167,6 +168,7 @@ For instructions on quickly verifying whether OmniStream is active and its perfo
 |[Quick Start](./docs/en/quick_start.md)|Provides guidance on how to quickly enable and verify the OmniStream feature.|
 |[Release Notes](./docs/en/release_notes.md)|Provides basic information and feature updates of each OmniStream version.|
 |[Installation Guide](./docs/en/installation_guide.md)|Describes how to install OmniStream.|
+|[Configuration Guide](./docs/en/config_guide.md)|Describes configuration options for OmniStream modules.|
 |[User Guide](./docs/en/user_guide.md)|Provides details about how to use OmniStream.|
 |[FAQs](./docs/zh/faq.md)|Provides answers to frequently asked questions (FAQs) about installing and using OmniStream.|
 

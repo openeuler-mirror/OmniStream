@@ -11,6 +11,7 @@
 #ifndef OMNISTREAM_ROCKSDBINCREMENTALRESTOREOPERATION_H
 #define OMNISTREAM_ROCKSDBINCREMENTALRESTOREOPERATION_H
 
+#include "core/api/common/state/StateDescriptor.h"
 #include "core/fs/CloseableRegistry.h"
 #include "core/memory/DataInputDeserializer.h"
 
@@ -31,6 +32,7 @@
 #include "runtime/state/rocksdb/RocksDBStateDownloader.h"
 #include "runtime/state/CompositeKeySerializationUtils.h"
 #include "runtime/state/RocksDBWriteBatchWrapper.h"
+#include "runtime/state/rocksdb/RocksDbStringAppendOperator.h"
 
 template <typename K>
 class RocksDBIncrementalRestoreOperation : public RocksDBRestoreOperation {
@@ -408,6 +410,14 @@ private:
             rocksdb::ColumnFamilyDescriptor columnFamilyDescriptor =
                 RocksDbOperationUtils::createColumnFamilyDescriptor(
                     std::move(metaInfoBase), rocksHandle_->getColumnFamilyOptionsFactory());
+
+            // LIST state uses Merge operations; the column family must have merge_operator
+            // set to match the original DB when opening it for restore.
+            auto stateTypeString = snapshot.getOption(StateMetaInfoSnapshot::CommonOptionsKeys::KEYED_STATE_TYPE);
+            if (StateDescriptor::StringToType(stateTypeString) == StateDescriptor::Type::LIST) {
+                columnFamilyDescriptor.options.merge_operator.reset(new RocksDbStringAppendOperator(','));
+            }
+
             columnFamilyDescriptors.push_back(std::move(columnFamilyDescriptor));
         }
         return columnFamilyDescriptors;

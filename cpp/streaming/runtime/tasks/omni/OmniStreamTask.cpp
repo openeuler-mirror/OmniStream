@@ -49,6 +49,9 @@
 #include "runtime/state/RocksDBStateBackend.h"
 #include "runtime/state/LocalRecoveryConfig.h"
 #include "runtime/state/LocalRecoveryDirectoryProviderImpl.h"
+#ifdef WITH_OMNISTATESTORE
+#include "runtime/state/ockdb/EmbeddedOckStateBackend.h"
+#endif
 #include "runtime/taskmanager/OmniTask.h"
 #include "partition/BufferWritingResultPartition.h"
 #include "streaming/runtime/tasks/ProcessingTimeServiceImpl.h"
@@ -103,6 +106,15 @@ void OmniStreamTask::postConstruct()
     // SubtaskCheckpointCoordinatorImpl initialization
     if (taskConfiguration_.getStateBackend() == "HashMapStateBackend") {
         stateBackend = new HashMapStateBackend();
+    } else if (taskConfiguration_.getStateBackend() == "EmbeddedOckStateBackend") {
+#ifdef WITH_OMNISTATESTORE
+        stateBackend = new EmbeddedOckStateBackend(taskConfiguration_);
+#else
+        ERROR_RELEASE(
+            "EmbeddedOckStateBackend was requested, but OmniStream was built without WITH_OMNISTATESTORE");
+        THROW_RUNTIME_ERROR(
+            "EmbeddedOckStateBackend was requested, but OmniStream was built without WITH_OMNISTATESTORE");
+#endif
     } else {
         stateBackend = new EmbeddedRocksDBStateBackend(taskConfiguration_);
     }

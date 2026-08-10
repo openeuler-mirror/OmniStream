@@ -32,6 +32,12 @@ KafkaWriter::KafkaWriter(
       limit(maxPushRecords)
 {
     Init();
+    if (deliveryGuarantee == DeliveryGuarantee::EXACTLY_ONCE) {
+        const std::string errorMessage =
+            "Error: KafkaWriter::KafkaWriter -> delivery guarantee is not supported deliveryGuarantee=EXACTLY_ONCE";
+        INFO_RELEASE(errorMessage);
+        throw std::invalid_argument("Kafka sink EXACTLY_ONCE delivery guarantee is not supported");
+    }
     if (description["batch"]) {
         inputFields = description["inputFields"].get<std::vector<std::basic_string<char>>>();
         inputTypes = description["inputTypes"].get<std::vector<std::basic_string<char>>>();
@@ -56,7 +62,6 @@ KafkaWriter::KafkaWriter(
     this->kafkaProducerConfig->set("default_topic_conf", tconf, errstr);
     rd_topic1 = RdKafka::Topic::create(currentProducer1->getKafkaProducer(), topic, tconf, errstr);
     rd_topic2 = RdKafka::Topic::create(currentProducer2->getKafkaProducer(), topic, tconf, errstr);
-    partitionNum = rd_topic1->get_partition_num();
     kafkaWriterState = new KafkaWriterState(transactionalIdPrefix);
     taskId = omnistream::TimerThreadPool::GetTimerThreadPoolInstance()->addPeriodicTask(
         5000, [](KafkaWriter* kafkaWriter) { kafkaWriter->timer_thread(); }, this);
@@ -91,6 +96,7 @@ KafkaWriter::~KafkaWriter()
 
 void KafkaWriter::write(String* element)
 {
+    checkAsyncProducerException();
     if (unlikely(not binded)) {
         if (bindCore >= 0) {
             omnistream::BindCoreManager::GetInstance()->BindDirectCore(bindCore);
@@ -104,18 +110,21 @@ void KafkaWriter::write(String* element)
 
 void KafkaWriter::write(Row* element)
 {
+    checkAsyncProducerException();
     auto record = recordSerializer->Serialize(element);
     ProduceRecord(record);
 }
 
 void KafkaWriter::write(RowData* element)
 {
+    checkAsyncProducerException();
     auto record = recordSerializer->Serialize(element);
     ProduceRecord(record);
 }
 
 void KafkaWriter::write(omnistream::VectorBatch* input, int rowIndex)
 {
+    checkAsyncProducerException();
     auto record = recordSerializer->Serialize(input, rowIndex);
     ProduceRecord(record);
 }
@@ -123,6 +132,7 @@ void KafkaWriter::write(omnistream::VectorBatch* input, int rowIndex)
 void KafkaWriter::Flush(bool endOfInput)
 {
     if (deliveryGuarantee != DeliveryGuarantee::NONE || endOfInput) {
+        checkAsyncProducerException();
         {
             std::unique_lock<std::mutex> gLock(gMtx);
             handleRecord();
@@ -248,6 +258,23 @@ void KafkaWriter::waitForPendingTasks()
 {
     std::unique_lock<std::mutex> lock(queueMutex);
     tasksDrainedCv.wait(lock, [this]() { return tasks.empty() && inFlightTasks == 0; });
+    if (asyncProducerException != nullptr) {
+        INFO_RELEASE(
+            "Error: KafkaWriter::waitForPendingTasks -> rethrow async producer exception "
+            "asyncProducerException=present");
+        std::rethrow_exception(asyncProducerException);
+    }
+}
+
+void KafkaWriter::checkAsyncProducerException()
+{
+    std::lock_guard<std::mutex> lock(queueMutex);
+    if (asyncProducerException != nullptr) {
+        INFO_RELEASE(
+            "Error: KafkaWriter::checkAsyncProducerException -> rethrow async producer exception "
+            "asyncProducerException=present");
+        std::rethrow_exception(asyncProducerException);
+    }
 }
 
 void KafkaWriter::SetSubTaskIdx(int32_t subtaskIdx)
@@ -265,8 +292,8 @@ void KafkaWriter::produce(
     const std::vector<char*>& value,
     const std::vector<size_t>& valuesLen)
 {
-    partitionNum = rd_topic->get_partition_num();
-    int32_t realPartition = partitionNum == 0 ? RdKafka::Topic::PARTITION_UA : (instanceId % partitionNum);
+    const int32_t partitionCount = rd_topic->get_partition_num();
+    const int32_t realPartition = partitionCount == 0 ? RdKafka::Topic::PARTITION_UA : (instanceId % partitionCount);
     RdKafka::ErrorCode resp = kafkaProducer->produce(
         rd_topic,
         realPartition,
@@ -277,7 +304,11 @@ void KafkaWriter::produce(
         0,
         nullptr);
     if (resp != RdKafka::ERR_NO_ERROR) {
-        LOG("Produce failed:" << RdKafka::err2str(resp));
+        const std::string errorMessage =
+            "Error: KafkaWriter::produce -> Kafka producer failed partition=" + std::to_string(realPartition) +
+            " recordCount=" + std::to_string(value.size()) + " error=" + RdKafka::err2str(resp);
+        INFO_RELEASE(errorMessage);
+        throw std::runtime_error("Kafka producer failed");
     }
 
     kafkaProducer->poll(0);
@@ -285,6 +316,7 @@ void KafkaWriter::produce(
 
 std::vector<KafkaWriterState> KafkaWriter::snapshotState(long checkpointId)
 {
+    Flush(true);
     if (deliveryGuarantee == DeliveryGuarantee::EXACTLY_ONCE) {
         auto currentProducer = getTransactionalProducer(checkpointId + 1);
         currentProducer->BeginTransaction();

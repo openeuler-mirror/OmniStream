@@ -57,13 +57,8 @@ std::unordered_map<std::string, omniruntime::type::DataTypeId> LogicalType::name
 DataTypeId LogicalType::flinkTypeToOmniTypeId(const std::string& flinkType)
 {
     buildNameToIdMap();
-    // Deal with tailing "NOT NULL"
-    std::string basicStrippedType = flinkType;
-    const std::string suffix = " NOT NULL";
-    if (basicStrippedType.size() > suffix.size() &&
-        basicStrippedType.compare(basicStrippedType.size() - suffix.size(), suffix.size(), suffix) == 0) {
-        basicStrippedType.erase(basicStrippedType.size() - suffix.size());
-    }
+    // Deal with tailing "NOT NULL" and " *PROCTIME*"
+    std::string basicStrippedType = LogicTypeUtils::stripFlinkTypeExtras(flinkType);
 
     // Typename has fixed format
     auto it = nameToIdMap.find(basicStrippedType);
@@ -151,8 +146,11 @@ std::pair<int32_t, int32_t> LogicalType::parseDecimalPrecisionScale(const std::s
 LogicalType* LogicalType::flinkTypeToOmniType(const std::string& flinkType)
 {
     buildNameToIdMap();
+    // Detect nullable before stripping the "NOT NULL" suffix
+    bool isNotNull = LogicTypeUtils::isNotNullType(flinkType);
     std::string basicStrippedType = LogicTypeUtils::stripFlinkTypeExtras(flinkType);
     nlohmann::json options = LogicTypeUtils::optionsFromFlinkType(basicStrippedType);
+    options["nullable"] = !isNotNull;
 
     auto it = nameToIdMap.find(basicStrippedType);
     if (it != nameToIdMap.end()) {
@@ -276,58 +274,176 @@ BasicLogicalType* BasicLogicalType::INVALID_TYPE = new BasicLogicalType(true, Da
 BasicLogicalType* BasicLogicalType::getTypeBy(DataTypeId typeId, const nlohmann::json& element)
 {
     BasicLogicalType* type = nullptr;
+    bool nullable = element.value("nullable", true);
     switch (typeId) {
         case DataTypeId::OMNI_BOOLEAN: {
-            type = BasicLogicalType::BOOLEAN;
+            if (nullable == BasicLogicalType::BOOLEAN->isNullable()) {
+                type = BasicLogicalType::BOOLEAN;
+            } else {
+                type = new BasicLogicalType(nullable, typeId, "BOOLEAN");
+            }
             break;
         }
         case DataTypeId::OMNI_INT: {
-            type = BasicLogicalType::INTEGER;
+            if (nullable == BasicLogicalType::INTEGER->isNullable()) {
+                type = BasicLogicalType::INTEGER;
+            } else {
+                type = new BasicLogicalType(nullable, typeId, "INT");
+            }
             break;
         }
         case DataTypeId::OMNI_LONG: {
-            type = BasicLogicalType::BIGINT;
+            if (nullable == BasicLogicalType::BIGINT->isNullable()) {
+                type = BasicLogicalType::BIGINT;
+            } else {
+                type = new BasicLogicalType(nullable, typeId, "BIGINT");
+            }
             break;
         }
         case DataTypeId::OMNI_VARCHAR: {
             int length = element.value("length", std::numeric_limits<int>::max());
-            type = new VarCharType(true, length);
+            type = new VarCharType(nullable, length);
             break;
         }
         case DataTypeId::OMNI_DOUBLE: {
-            type = BasicLogicalType::DOUBLE;
+            if (nullable == BasicLogicalType::DOUBLE->isNullable()) {
+                type = BasicLogicalType::DOUBLE;
+            } else {
+                type = new BasicLogicalType(nullable, typeId, "DOUBLE");
+            }
             break;
         }
         case DataTypeId::OMNI_DATE32: {
-            type = BasicLogicalType::DATE;
+            if (nullable == BasicLogicalType::DATE->isNullable()) {
+                type = BasicLogicalType::DATE;
+            } else {
+                type = new BasicLogicalType(nullable, typeId, "DATE");
+            }
             break;
         }
         case DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE: {
             int precision = element.value("precision", 0);
-            type = new TimeWithoutTimeZoneType(true, precision);
+            type = new TimeWithoutTimeZoneType(nullable, precision);
             break;
         }
         case DataTypeId::OMNI_TIMESTAMP:
         case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE: {
             int precision = element.value("precision", 0);
-            type = new TimestampWithoutTimeZoneType(true, precision);
+            type = new TimestampWithoutTimeZoneType(nullable, precision);
             break;
         }
         case DataTypeId::OMNI_TIMESTAMP_WITH_TIME_ZONE: {
             int precision = element.value("precision", 0);
-            type = new TimestampWithTimeZoneType(true, precision);
+            type = new TimestampWithTimeZoneType(nullable, precision);
             break;
         }
         case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE: {
             int precision = element.value("precision", 0);
-            type = new TimestampWithLocalTimeZoneType(true, precision);
+            type = new TimestampWithLocalTimeZoneType(nullable, precision);
             break;
         }
-        /*
-        case DataTypeId::OMNI_INVALID:
-            type = BasicLogicalType::INVALID_TYPE;
+        case DataTypeId::OMNI_DECIMAL64: {
+            type = new BasicLogicalType(nullable, typeId, "DECIMAL64");
             break;
-        */
+        }
+        case DataTypeId::OMNI_DECIMAL128: {
+            type = new BasicLogicalType(nullable, typeId, "DECIMAL128");
+            break;
+        }
+        case DataTypeId::OMNI_INTERVAL_MONTHS: {
+            type = new BasicLogicalType(nullable, typeId, "INTERVAL_MONTHS");
+            break;
+        }
+        case DataTypeId::OMNI_INTERVAL_DAY_TIME: {
+            type = new BasicLogicalType(nullable, typeId, "INTERVAL_DAY_TIME");
+            break;
+        }
+        case DataTypeId::OMNI_INVALID: {
+            if (nullable == BasicLogicalType::INVALID_TYPE->isNullable()) {
+                type = BasicLogicalType::INVALID_TYPE;
+            } else {
+                type = new BasicLogicalType(nullable, typeId, "UNRESOLVED");
+            }
+            break;
+        }
+        default: THROW_LOGIC_EXCEPTION("Unsupported DataTypeId : " << typeId << " in inputRowType.");
+    }
+
+    return type;
+}
+
+BasicLogicalType* BasicLogicalType::getTypeBy(
+    std::optional<bool> nullable, DataTypeId typeId, const nlohmann::json& options)
+{
+    const bool isNullable = nullable.value_or(true);
+    BasicLogicalType* type = nullptr;
+    switch (typeId) {
+        case DataTypeId::OMNI_BOOLEAN: {
+            type = new BasicLogicalType(isNullable, DataTypeId::OMNI_BOOLEAN, "BOOLEAN");
+            break;
+        }
+        case DataTypeId::OMNI_INT: {
+            type = new BasicLogicalType(isNullable, DataTypeId::OMNI_INT, "INTEGER");
+            break;
+        }
+        case DataTypeId::OMNI_LONG: {
+            type = new BasicLogicalType(isNullable, DataTypeId::OMNI_LONG, "BIGINT");
+            break;
+        }
+        case DataTypeId::OMNI_VARCHAR: {
+            int length = options.value("length", std::numeric_limits<int>::max());
+            type = new VarCharType(isNullable, length);
+            break;
+        }
+        case DataTypeId::OMNI_DOUBLE: {
+            type = new BasicLogicalType(isNullable, DataTypeId::OMNI_DOUBLE, "DOUBLE");
+            break;
+        }
+        case DataTypeId::OMNI_DATE32: {
+            type = new BasicLogicalType(isNullable, DataTypeId::OMNI_DATE32, "DATE");
+            break;
+        }
+        case DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE: {
+            int precision = options.value("precision", 0);
+            type = new TimeWithoutTimeZoneType(isNullable, precision);
+            break;
+        }
+        case DataTypeId::OMNI_TIMESTAMP:
+        case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE: {
+            int precision = options.value("precision", 0);
+            type = new TimestampWithoutTimeZoneType(isNullable, precision);
+            break;
+        }
+        case DataTypeId::OMNI_TIMESTAMP_WITH_TIME_ZONE: {
+            int precision = options.value("precision", 0);
+            type = new TimestampWithTimeZoneType(isNullable, precision);
+            break;
+        }
+        case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE: {
+            int precision = options.value("precision", 0);
+            type = new TimestampWithLocalTimeZoneType(isNullable, precision);
+            break;
+        }
+        case DataTypeId::OMNI_DECIMAL64: {
+            type = new BasicLogicalType(isNullable, typeId, "DECIMAL64");
+            break;
+        }
+        case DataTypeId::OMNI_DECIMAL128: {
+            type = new BasicLogicalType(isNullable, typeId, "DECIMAL128");
+            break;
+        }
+        case DataTypeId::OMNI_INTERVAL_MONTHS: {
+            type = new BasicLogicalType(isNullable, typeId, "INTERVAL_MONTHS");
+            break;
+        }
+        case DataTypeId::OMNI_INTERVAL_DAY_TIME: {
+            type = new BasicLogicalType(isNullable, typeId, "INTERVAL_DAY_TIME");
+            break;
+        }
+        case DataTypeId::OMNI_INVALID: {
+            type = new BasicLogicalType(isNullable, typeId, "UNRESOLVED");
+            break;
+        }
         default: THROW_LOGIC_EXCEPTION("Unsupported DataTypeId : " << typeId << " in inputRowType.");
     }
 

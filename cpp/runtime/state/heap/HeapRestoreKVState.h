@@ -64,33 +64,90 @@ protected:
     void writeLongEntry(const std::vector<int8_t>& keyBytes, int64_t value) override;
     void writeBytesEntry(const std::vector<int8_t>& keyBytes, ByteView value) override;
 
-    std::tuple<void*, void*> deserializeKey(const std::vector<int8_t>& keyBytes);
-    std::tuple<void*, void*> deserializeKey(DataInputDeserializer& keyInput);
-
     void writeValueEntry(const std::vector<int8_t>& keyBytes, ByteView value);
 
     void writeMapEntry(const std::vector<int8_t>& keyBytes, ByteView value);
     void writeListEntry(const std::vector<int8_t>& keyBytes, ByteView value);
     void ensureMainTableReady();
 
-    struct DeserializedKeyGuard {
-        void* rawKey;
-        void* rawNs;
-        DeserializedKeyGuard(void* k, void* n) : rawKey(k), rawNs(n)
+    class DeserializedKeyGuard {
+    public:
+        DeserializedKeyGuard(void* k, void* n, BackendDataType nsType) : rawKey(k), rawNs(n), namespaceType(nsType)
         {
         }
         ~DeserializedKeyGuard()
         {
-            if constexpr (std::is_same_v<K, Object*>) {
-                // Release the ref-count acquired by GetBuffer(); the table holds its own reference after put().
-                (*static_cast<Object**>(rawKey))->putRefCount();
-            }
-            delete static_cast<K*>(rawKey);
-            delete static_cast<VoidNamespace*>(rawNs);
+            release();
         }
+        DeserializedKeyGuard(DeserializedKeyGuard&& other) noexcept
+            : rawKey(other.rawKey),
+              rawNs(other.rawNs),
+              namespaceType(other.namespaceType)
+        {
+            other.rawKey = nullptr;
+            other.rawNs = nullptr;
+        }
+
+        DeserializedKeyGuard& operator=(DeserializedKeyGuard&& other) noexcept
+        {
+            if (this != &other) {
+                // release old data
+                release();
+
+                rawKey = other.rawKey;
+                rawNs = other.rawNs;
+                namespaceType = other.namespaceType;
+
+                other.rawKey = nullptr;
+                other.rawNs = nullptr;
+            }
+            return *this;
+        }
+
+        void* getRawKey() const
+        {
+            return rawKey;
+        }
+
+        void* getRawNamespace() const
+        {
+            return rawNs;
+        }
+
         DeserializedKeyGuard(const DeserializedKeyGuard&) = delete;
         DeserializedKeyGuard& operator=(const DeserializedKeyGuard&) = delete;
+
+    private:
+        void release()
+        {
+            if (rawKey) {
+                if constexpr (std::is_same_v<K, Object*>) {
+                    // Release the ref-count acquired by GetBuffer(); the table holds its own reference after put().
+                    (*static_cast<Object**>(rawKey))->putRefCount();
+                }
+                delete static_cast<K*>(rawKey);
+            }
+
+            if (rawNs) {
+                switch (namespaceType) {
+                    case BackendDataType::VOID_NAMESPACE_BK: delete static_cast<VoidNamespace*>(rawNs); break;
+                    case BackendDataType::BIGINT_BK: delete static_cast<int64_t*>(rawNs); break;
+                    default:
+                        ERROR_RELEASE("Unknown namespace type: " << namespaceType << ", it will cause a memory leak.");
+                }
+            }
+
+            rawKey = nullptr;
+            rawNs = nullptr;
+        }
+
+        void* rawKey;
+        void* rawNs;
+        BackendDataType namespaceType;
     };
+
+    DeserializedKeyGuard deserializeKey(const std::vector<int8_t>& keyBytes);
+    DeserializedKeyGuard deserializeKey(DataInputDeserializer& keyInput);
 
     HeapRestoreBackendDelegate<K>& delegate_;
     typename HeapRestoreBackendDelegate<K>::RestoreStateInfo& stateInfo_;
@@ -122,7 +179,8 @@ void HeapRestoreKVState<K>::writeBytesEntry(const std::vector<int8_t>& keyBytes,
 }
 
 template <typename K>
-std::tuple<void*, void*> HeapRestoreKVState<K>::deserializeKey(const std::vector<int8_t>& keyBytes)
+typename HeapRestoreKVState<K>::DeserializedKeyGuard HeapRestoreKVState<K>::deserializeKey(
+    const std::vector<int8_t>& keyBytes)
 {
     DataInputDeserializer keyInput(
         reinterpret_cast<const uint8_t*>(keyBytes.data()),
@@ -133,7 +191,8 @@ std::tuple<void*, void*> HeapRestoreKVState<K>::deserializeKey(const std::vector
 }
 
 template <typename K>
-std::tuple<void*, void*> HeapRestoreKVState<K>::deserializeKey(DataInputDeserializer& keyInput)
+typename HeapRestoreKVState<K>::DeserializedKeyGuard HeapRestoreKVState<K>::deserializeKey(
+    DataInputDeserializer& keyInput)
 {
     void* rawKey = nullptr;
     if constexpr (std::is_same_v<K, Object*>) {
@@ -159,21 +218,23 @@ std::tuple<void*, void*> HeapRestoreKVState<K>::deserializeKey(DataInputDeserial
     }
 
     void* rawNs = stateInfo_.namespaceSerializer->deserialize(keyInput);
-    return {rawKey, rawNs};
+    return {rawKey, rawNs, stateInfo_.namespaceSerializer->getBackendId()};
 }
 
 template <typename K>
 void HeapRestoreKVState<K>::writeValueEntry(const std::vector<int8_t>& keyBytes, ByteView value)
 {
     ensureMainTableReady();
-    auto [rawKey, rawNs] = deserializeKey(keyBytes);
-    DeserializedKeyGuard keyGuard(rawKey, rawNs);
+    auto keyGuard = deserializeKey(keyBytes);
+    auto rawKey = keyGuard.getRawKey();
+    auto rawNs = keyGuard.getRawNamespace();
 
     BackendDataType valueBackendType =
         stateInfo_.valueSerializer ? stateInfo_.valueSerializer->getBackendId() : BackendDataType::BIGINT_BK;
 
     switch (valueBackendType) {
-        case BackendDataType::BIGINT_BK: {
+        case BackendDataType::BIGINT_BK:
+        case BackendDataType::EXTERNAL_BIGINT_BK: {
             auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, int64_t>*>(stateInfo_.mainTablePtr);
             DataInputDeserializer valInput(value.data(), static_cast<int>(value.size()));
             std::unique_ptr<int64_t> rawVal(static_cast<int64_t*>(stateInfo_.valueSerializer->deserialize(valInput)));
@@ -236,8 +297,9 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
         reinterpret_cast<const uint8_t*>(keyBytes.data()),
         static_cast<int>(keyBytes.size()),
         delegate_.getKeyGroupPrefixBytes());
-    auto [rawKey, rawNs] = deserializeKey(keyInput);
-    DeserializedKeyGuard keyGuard(rawKey, rawNs);
+    auto keyGuard = deserializeKey(keyInput);
+    auto rawKey = keyGuard.getRawKey();
+    auto rawNs = keyGuard.getRawNamespace();
 
     auto* mapKeySer = stateInfo_.mapKeySerializer;
     auto* mapValSer = stateInfo_.mapValueSerializer;
@@ -316,7 +378,9 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
         } else {
             (*kvMap)[uk] = uv;
         }
-    } else if (mapKeyId == BackendDataType::BIGINT_BK && mapValId == BackendDataType::BIGINT_BK) {
+    } else if (
+        (mapKeyId == BackendDataType::BIGINT_BK && mapValId == BackendDataType::BIGINT_BK) ||
+        (mapKeyId == BackendDataType::EXTERNAL_BIGINT_BK && mapValId == BackendDataType::EXTERNAL_BIGINT_BK)) {
         using UK = int64_t;
         using UV = int64_t;
         auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<UK, UV>*>*>(
@@ -484,8 +548,9 @@ template <typename K>
 void HeapRestoreKVState<K>::writeListEntry(const std::vector<int8_t>& keyBytes, ByteView value)
 {
     ensureMainTableReady();
-    auto [rawKey, rawNs] = deserializeKey(keyBytes);
-    DeserializedKeyGuard keyGuard(rawKey, rawNs);
+    auto keyGuard = deserializeKey(keyBytes);
+    auto rawKey = keyGuard.getRawKey();
+    auto rawNs = keyGuard.getRawNamespace();
 
     auto* listSer = dynamic_cast<ListSerializer*>(stateInfo_.valueSerializer);
     TypeSerializer* elemSer = listSer ? listSer->getElementSerializer() : nullptr;

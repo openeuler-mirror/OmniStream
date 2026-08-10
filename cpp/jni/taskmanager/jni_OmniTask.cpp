@@ -18,6 +18,33 @@
 #include "com_huawei_omniruntime_flink_runtime_io_network_partition_RemoteDataFetcher.h"
 #include "checkpoint/SavepointType.h"
 #include <bridge/RemoteDataFetcherBridgeImpl.h>
+
+namespace {
+// Keep the split restore/invoke status contract aligned with origin/2026_930_poc:
+// Java treats zero as success and any non-zero value as failure.
+constexpr jlong SPLIT_RUN_STATUS_SUCCESS = 0;
+constexpr jlong SPLIT_RUN_STATUS_FAILURE = 1;
+
+jlong ThrowJavaRuntimeException(JNIEnv* env, const std::string& message, jlong returnCode = 0)
+{
+    ERROR_RELEASE(message);
+    if (env->ExceptionCheck()) {
+        ERROR_RELEASE("Java exception is already pending; preserve the original exception");
+        return returnCode;
+    }
+
+    jclass exceptionClass = env->FindClass("java/lang/RuntimeException");
+    if (exceptionClass == nullptr) {
+        ERROR_RELEASE("Failed to resolve java/lang/RuntimeException");
+        return returnCode;
+    }
+
+    env->ThrowNew(exceptionClass, message.c_str());
+    env->DeleteLocalRef(exceptionClass);
+    return returnCode;
+}
+} // namespace
+
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask
  * Method:    setupStreamTaskBeforeInvoke
@@ -27,10 +54,17 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Om
     JNIEnv* jniEnv, jobject thiz, jlong nativeTask, jstring className)
 {
     auto task = reinterpret_cast<omnistream::OmniTask*>(nativeTask);
+    if (task == nullptr) {
+        return ThrowJavaRuntimeException(jniEnv, "setupStreamTaskBeforeInvoke received a null native task");
+    }
+    if (className == nullptr) {
+        return ThrowJavaRuntimeException(jniEnv, "setupStreamTaskBeforeInvoke received a null stream task class");
+    }
 
     const char* utf8String = jniEnv->GetStringUTFChars(className, nullptr);
     if (utf8String == nullptr) {
-        throw std::runtime_error("Failed to convert jstring to std::string");
+        return ThrowJavaRuntimeException(
+            jniEnv, "setupStreamTaskBeforeInvoke failed to convert stream task class name");
     }
 
     std::string clsName(utf8String);
@@ -38,8 +72,17 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Om
     jniEnv->ReleaseStringUTFChars(className, utf8String); // VERY IMPORTANT: Release the string
     LOG("class name : " << clsName);
 
-    long streamTaskAddress = task->setupStreamTask(clsName);
-    return streamTaskAddress;
+    try {
+        long streamTaskAddress = task->setupStreamTask(clsName);
+        if (streamTaskAddress == 0) {
+            return ThrowJavaRuntimeException(jniEnv, "native stream task setup returned a zero address");
+        }
+        return streamTaskAddress;
+    } catch (const std::exception& e) {
+        return ThrowJavaRuntimeException(jniEnv, std::string("native stream task setup failed: ") + e.what());
+    } catch (...) {
+        return ThrowJavaRuntimeException(jniEnv, "native stream task setup failed with unknown exception");
+    }
 }
 
 /*
@@ -48,27 +91,60 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Om
  * Signature: (JJ)J
  */
 JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_doRunNativeTask(
-    JNIEnv*, jobject, jlong nativeTask, jlong streamTaskAddress)
+    JNIEnv* env, jobject, jlong nativeTask, jlong streamTaskAddress)
 {
     auto task = reinterpret_cast<omnistream::OmniTask*>(nativeTask);
-    task->doRun(streamTaskAddress);
-    return 1;
+    try {
+        if (task == nullptr) {
+            return ThrowJavaRuntimeException(env, "doRunNativeTask received a null native task");
+        }
+        task->doRun(streamTaskAddress);
+        return 1;
+    } catch (const std::exception& e) {
+        return ThrowJavaRuntimeException(env, std::string("native stream task run failed: ") + e.what());
+    } catch (...) {
+        return ThrowJavaRuntimeException(env, "native stream task run failed with unknown exception");
+    }
 }
 
 JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_doRunInvokeNativeTask(
-    JNIEnv*, jobject, jlong nativeTask, jlong streamTaskAddress)
+    JNIEnv* env, jobject, jlong nativeTask, jlong streamTaskAddress)
 {
     auto task = reinterpret_cast<omnistream::OmniTask*>(nativeTask);
-    task->DoRunInvoke(streamTaskAddress);
-    return 1;
+    try {
+        if (task == nullptr) {
+            return ThrowJavaRuntimeException(
+                env, "doRunInvokeNativeTask received a null native task", SPLIT_RUN_STATUS_FAILURE);
+        }
+        task->DoRunInvoke(streamTaskAddress);
+        return SPLIT_RUN_STATUS_SUCCESS;
+    } catch (const std::exception& e) {
+        return ThrowJavaRuntimeException(
+            env, std::string("native stream task invoke failed: ") + e.what(), SPLIT_RUN_STATUS_FAILURE);
+    } catch (...) {
+        return ThrowJavaRuntimeException(
+            env, "native stream task invoke failed with unknown exception", SPLIT_RUN_STATUS_FAILURE);
+    }
 }
 
 JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_doRunRestoreNativeTask(
-    JNIEnv*, jobject, jlong nativeTask, jlong streamTaskAddress)
+    JNIEnv* env, jobject, jlong nativeTask, jlong streamTaskAddress)
 {
     auto task = reinterpret_cast<omnistream::OmniTask*>(nativeTask);
-    task->DoRunRestore(streamTaskAddress);
-    return 1;
+    try {
+        if (task == nullptr) {
+            return ThrowJavaRuntimeException(
+                env, "doRunRestoreNativeTask received a null native task", SPLIT_RUN_STATUS_FAILURE);
+        }
+        task->DoRunRestore(streamTaskAddress);
+        return SPLIT_RUN_STATUS_SUCCESS;
+    } catch (const std::exception& e) {
+        return ThrowJavaRuntimeException(
+            env, std::string("native stream task restore failed: ") + e.what(), SPLIT_RUN_STATUS_FAILURE);
+    } catch (...) {
+        return ThrowJavaRuntimeException(
+            env, "native stream task restore failed with unknown exception", SPLIT_RUN_STATUS_FAILURE);
+    }
 }
 
 JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_doDeleteNativeTask(
@@ -161,7 +237,7 @@ JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Omn
 {
     auto task = reinterpret_cast<omnistream::OmniTask*>(nativeTask);
     if (!task) {
-        INFO_RELEASE("Error OmniTask_triggerCheckpointCpp task is null");
+        ERROR_RELEASE("OmniTask_triggerCheckpointCpp task is null");
         THROW_LOGIC_EXCEPTION("OmniTask_triggerCheckpointCpp task is null");
     }
     const char* checkpointStr = jniEnv->GetStringUTFChars(checkpointoptionJson, nullptr);
