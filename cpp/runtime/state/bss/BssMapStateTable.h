@@ -74,7 +74,6 @@ public:
 
     UV get(N& nameSpace, const UK& userKey)
     {
-        LOG("bss MapState table get");
         // hashcode is used to determine the position of map, not the specified element
         OutputBufferStatus outputBufferStatus;
         DataOutputSerializer serializer;
@@ -88,7 +87,6 @@ public:
         // namespace is the key of Kmap, userKey is the key of value of the Kmap
         auto res = dbTable->Get(hashCode, priNamespace, priUserKey, readValue);
         if (bss_adapter::IsNotFound(res) || (res == ock::bss::BSS_OK && readValue.Length() == 0)) {
-            bss_adapter::LogStateOperationSuccess("MAP", metaInfo->getName(), "get", hashCode, "found=false");
             if constexpr (std::is_pointer_v<UV>) {
                 return nullptr;
             } else {
@@ -96,9 +94,6 @@ public:
             }
         }
         bss_adapter::CheckResult(res, "KMapTable::Get(" + metaInfo->getName() + ")");
-        bss_adapter::LogStateOperationSuccess(
-            "MAP", metaInfo->getName(), "get", hashCode, "found=true, valueBytes=" +
-                std::to_string(readValue.Length()));
         DataInputDeserializer serializedData(reinterpret_cast<const uint8_t*>(readValue.Data()), readValue.Length(), 0);
         void* resPtr = getStateSerializer()->deserialize(serializedData);
         if constexpr (std::is_pointer_v<UV>) {
@@ -110,7 +105,6 @@ public:
 
     void put(N& nameSpace, const UK& userKey, const UV& state)
     {
-        LOG("BSS Map State table put");
         OutputBufferStatus outputBufferStatus;
         DataOutputSerializer serializer;
         serializer.setBackendBuffer(&outputBufferStatus);
@@ -132,13 +126,10 @@ public:
         ock::bss::BinaryData priNamespaceKey = GetNamespaceBinaryData(nameSpace, serializer, hashCode);
         auto res = dbTable->Put(hashCode, priNamespaceKey, priUserKey, priValue);
         bss_adapter::CheckResult(res, "KMapTable::Put(" + metaInfo->getName() + ")");
-        bss_adapter::LogStateOperationSuccess(
-            "MAP", metaInfo->getName(), "put", hashCode, "valueBytes=" + std::to_string(priValue.Length()));
     }
 
     void remove(N& nameSpace, const UK& userKey)
     {
-        LOG("BSS MapState table remove");
         DataOutputSerializer serializer;
         OutputBufferStatus outputBufferStatus;
         serializer.setBackendBuffer(&outputBufferStatus);
@@ -151,9 +142,6 @@ public:
         if (!bss_adapter::IsNotFound(res)) {
             bss_adapter::CheckResult(res, "KMapTable::RemoveEntry(" + metaInfo->getName() + ")");
         }
-        bss_adapter::LogStateOperationSuccess(
-            "MAP", metaInfo->getName(), "remove", keyHashCode,
-            bss_adapter::IsNotFound(res) ? "removed=false" : "removed=true");
     }
 
     bool contains(N& nameSpace, const UK& userKey)
@@ -167,8 +155,6 @@ public:
         serializer.setBackendBuffer(&userKeyBuffer);
         auto userKeyData = GetUserKeyBinaryData(userKey, serializer);
         bool found = dbTable->Contain(hashCode, namespaceData, userKeyData);
-        bss_adapter::LogStateOperationSuccess(
-            "MAP", metaInfo->getName(), "contains", hashCode, found ? "found=true" : "found=false");
         return found;
     }
 
@@ -183,14 +169,10 @@ public:
         if (!bss_adapter::IsNotFound(res)) {
             bss_adapter::CheckResult(res, "KMapTable::RemoveNamespace(" + metaInfo->getName() + ")");
         }
-        bss_adapter::LogStateOperationSuccess(
-            "MAP", metaInfo->getName(), "clear", hashCode,
-            bss_adapter::IsNotFound(res) ? "removed=false" : "removed=true");
     }
 
     emhash7::HashMap<UK, UV>* entries(N& nameSpace)
     {
-        LOG("BSS MapState table entries");
         auto* resultMap = new emhash7::HashMap<UK, UV>();
         DataOutputSerializer serializer;
         OutputBufferStatus outputBufferStatus;
@@ -205,10 +187,8 @@ public:
                 "OmniStateStore failed to create map iterator for state '" + metaInfo->getName() + "'");
         }
         while (iterator->HasNext()) {
-            LOG("get element from wrapper");
             auto pairs = iterator->Next();
             if (pairs.size() != 2) {
-                LOG("ERROR: get the element from mapState is wrong size");
                 bss_adapter::ThrowWithLog<std::logic_error>(
                     "Failed to read map state element: invalid entry size");
             }
@@ -235,10 +215,6 @@ public:
             }
             resultMap->emplace(userKey, userVal);
         }
-        LOG("get entries size is " << resultMap->size());
-        bss_adapter::LogStateOperationSuccess(
-            "MAP", metaInfo->getName(), "entries", keyHashCode,
-            "elementCount=" + std::to_string(resultMap->size()));
         if (resultMap->size() == 0) {
             delete resultMap;
             return nullptr;
@@ -255,7 +231,6 @@ public:
     void addVectorBatch(int32_t keyGroup, omnistream::VectorBatch* vectorBatch)
     {
         auto sequenceNumber = sequenceNumberHelper.getNextSequenceNumber(keyGroup);
-        LOG("BSS MapState table addVectorBatch");
         DataOutputSerializer keyOutputSerializer;
         OutputBufferStatus outputBufferStatus;
         keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
@@ -279,7 +254,6 @@ public:
         uint32_t keyHashCode;
         auto vectorBatchKey = GetVectorBatchNameSpaceKey(namespaceSerializer, keyHashCode, keyGroup);
         auto res = dbTable->Put(keyHashCode, vectorBatchKey, priKey, priVal);
-        LOG("add result " << res);
         bss_adapter::CheckResult(res, "KMapTable::PutVectorBatch(" + metaInfo->getName() + ")");
         sequenceNumberHelper.addNextSequenceNumber(keyGroup);
     }
@@ -322,7 +296,6 @@ public:
 
     omnistream::VectorBatch* getVectorBatch(int32_t keyGroup, uint32_t sequenceNumber)
     {
-        LOG("BSS MapState table getVectorBatch");
         DataOutputSerializer keyOutputSerializer;
         OutputBufferStatus outputBufferStatus;
         keyOutputSerializer.setBackendBuffer(&outputBufferStatus);

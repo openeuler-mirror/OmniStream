@@ -30,19 +30,6 @@ template <typename Exception>
     throw Exception(message);
 }
 
-inline void LogStateOperationSuccess(
-    const char* stateType,
-    const std::string& stateName,
-    const char* operation,
-    uint32_t keyHashCode,
-    const std::string& outcome)
-{
-    INFO_RELEASE(
-        "BSS state operation success, stateType=" << stateType << ", state=" << stateName
-                                                   << ", operation=" << operation << ", keyHash=" << keyHashCode
-                                                   << ", " << outcome);
-}
-
 inline bool IsNotFound(ock::bss::BResult result)
 {
     return result == ock::bss::BSS_NOT_FOUND || result == ock::bss::BSS_NOT_EXISTS;

@@ -70,7 +70,6 @@ public:
 
     std::optional<UV> get(const UK& userKey) override
     {
-        LOG("BSS MapState get");
         UV userValue = stateTable->get(currentNamespace, userKey);
         if constexpr (std::is_pointer_v<UV>) {
             if (userValue == nullptr && !stateTable->contains(currentNamespace, userKey)) {
@@ -113,13 +112,11 @@ public:
 
     void put(const UK& userKey, const UV& userValue) override
     {
-        LOG("BSS MapState put");
         stateTable->put(currentNamespace, userKey, userValue);
     };
 
     void remove(const UK& userKey) override
     {
-        LOG("BSS MapState remove");
         stateTable->remove(currentNamespace, userKey);
     };
 

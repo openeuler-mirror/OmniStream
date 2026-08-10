@@ -72,7 +72,6 @@ public:
 
     S get(N& nameSpace)
     {
-        LOG("bss state table get");
         uint32_t keyHashCode;
 
         DataOutputSerializer serializer;
@@ -82,7 +81,6 @@ public:
         ock::bss::BinaryData readValue;
         auto res = dbTable->Get(keyHashCode, priKey, readValue);
         if (bss_adapter::IsNotFound(res) || (res == ock::bss::BSS_OK && readValue.Length() == 0)) {
-            bss_adapter::LogStateOperationSuccess("VALUE", metaInfo->getName(), "get", keyHashCode, "found=false");
             if constexpr (std::is_pointer_v<S>) {
                 return nullptr;
             } else {
@@ -90,9 +88,6 @@ public:
             }
         }
         bss_adapter::CheckResult(res, "KVTable::Get(" + metaInfo->getName() + ")");
-        bss_adapter::LogStateOperationSuccess(
-            "VALUE", metaInfo->getName(), "get", keyHashCode, "found=true, valueBytes=" +
-                std::to_string(readValue.Length()));
         DataInputDeserializer serializedData(reinterpret_cast<const uint8_t*>(readValue.Data()), readValue.Length(), 0);
         void* resPtr = getStateSerializer()->deserialize(serializedData);
         if constexpr (std::is_pointer_v<S>) {
@@ -104,7 +99,6 @@ public:
 
     void put(N& nameSpace, const S& state)
     {
-        LOG("BSS state table put");
         uint32_t keyHashCode;
         DataOutputSerializer serializer;
         OutputBufferStatus outputBufferStatus;
@@ -126,13 +120,10 @@ public:
             valueOutputSerializer.getData(), static_cast<int32_t>(valueOutputSerializer.getPosition()));
         auto res = dbTable->Put(keyHashCode, priKey, priValue);
         bss_adapter::CheckResult(res, "KVTable::Put(" + metaInfo->getName() + ")");
-        bss_adapter::LogStateOperationSuccess(
-            "VALUE", metaInfo->getName(), "put", keyHashCode, "valueBytes=" + std::to_string(priValue.Length()));
     }
 
     void clear(N& nameSpace)
     {
-        LOG("BSS state table clear");
         uint32_t keyHashCode;
         DataOutputSerializer serializer;
         OutputBufferStatus outputBufferStatus;
@@ -142,14 +133,10 @@ public:
         if (!bss_adapter::IsNotFound(res)) {
             bss_adapter::CheckResult(res, "KVTable::Remove(" + metaInfo->getName() + ")");
         }
-        bss_adapter::LogStateOperationSuccess(
-            "VALUE", metaInfo->getName(), "clear", keyHashCode,
-            bss_adapter::IsNotFound(res) ? "removed=false" : "removed=true");
     }
 
     void add(N& nameSpace, const S& value)
     {
-        LOG("BSS state table add");
         uint32_t keyHashCode;
         DataOutputSerializer serializer;
         OutputBufferStatus outputBufferStatus;
@@ -171,8 +158,6 @@ public:
             valueOutputSerializer.getData(), static_cast<int32_t>(valueOutputSerializer.getPosition()));
         auto res = dbTable->Add(keyHashCode, priKey, priVal);
         bss_adapter::CheckResult(res, "KVTable::Add(" + metaInfo->getName() + ")");
-        bss_adapter::LogStateOperationSuccess(
-            "VALUE", metaInfo->getName(), "add", keyHashCode, "valueBytes=" + std::to_string(priVal.Length()));
     }
 
     ock::bss::BinaryData GetPriBinaryData(N& nameSpace, uint32_t& keyHashCode, DataOutputSerializer& serializer)
@@ -210,7 +195,6 @@ public:
     void addVectorBatch(int32_t keyGroup, omnistream::VectorBatch* vectorBatch)
     {
         auto sequenceNumber = sequenceNumberHelper.getNextSequenceNumber(keyGroup);
-        LOG("Bss state table addVectorBatch");
         DataOutputSerializer keyOutputSerializer;
         OutputBufferStatus outputBufferStatus;
         keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
@@ -273,7 +257,6 @@ public:
 
     omnistream::VectorBatch* getVectorBatch(int32_t keyGroup, uint32_t sequenceNumber)
     {
-        LOG("Bss state table getVectorBatch");
         DataOutputSerializer keyOutputSerializer;
         OutputBufferStatus outputBufferStatus;
         keyOutputSerializer.setBackendBuffer(&outputBufferStatus);
