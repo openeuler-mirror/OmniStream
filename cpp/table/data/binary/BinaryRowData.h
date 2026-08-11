@@ -12,11 +12,45 @@
 #pragma once
 
 #include <bitset>
+#include <cstddef>
+#include <cstdint>
+#include <stdexcept>
+#include <vector>
 #include "../RowData.h"
 #include "../TimestampData.h"
 #include "BinarySection.h"
 #include "TypedSetters.h"
 #include "BinarySegmentUtils.h"
+#include <memory>
+
+class BinaryRawValueData {
+public:
+    BinaryRawValueData(const uint8_t* bytes, size_t size)
+    {
+        if (bytes == nullptr && size != 0) {
+            throw std::invalid_argument("RAW value bytes are null");
+        }
+        if (size != 0) {
+            bytes_.assign(bytes, bytes + size);
+        }
+    }
+
+    const uint8_t* data() const noexcept
+    {
+        return bytes_.data();
+    }
+    size_t size() const noexcept
+    {
+        return bytes_.size();
+    }
+    std::vector<uint8_t> toBytes() const
+    {
+        return bytes_;
+    }
+
+private:
+    std::vector<uint8_t> bytes_;
+};
 
 class BinaryRowData : public RowData, public BinarySection, public TypedSetters {
 public:
@@ -51,6 +85,7 @@ public:
 
     TimestampData getTimestamp(int pos) override;
     TimestampData getTimestampPrecise(int pos) override;
+    void* getRawValue(int pos) override;
     void setTimestamp(int pos, const TimestampData& value, int precision) override;
 
     BinaryStringData* getString(int pos) override;
@@ -103,6 +138,7 @@ private:
     std::vector<uint8_t> types; // type 1 => long or FixLenVarchar, type 2 => VarLenVarchar
     int nullBitsSizeInBytes_;
     int getFieldOffset(int pos);
+    std::vector<std::shared_ptr<BinaryRawValueData>> rawValues_;
 };
 
 namespace std {

@@ -23,14 +23,12 @@
 #include "OperatorSavepointAdaptor.h"
 #include "core/utils/ByteView.h"
 #include "runtime/state/restore/RestoreBackendDelegate.h"
+#include "runtime/state/restore/vb/VectorBatchRestoreHooks.h"
 #include "runtime/state/vbsave/VectorBatchSaveHooks.h"
 #include "runtime/state/vbsave/VectorBatchSavePlan.h"
 #include "table/types/logical/LogicalType.h"
 
 namespace omnistream {
-
-// restore 方向带 VectorBatch side table 的 KV 状态 writer 声明。
-class RestoreKVStateVB;
 
 // StreamingJoin NoUniqueKey 兼容 savepoint 适配器。
 //
@@ -40,7 +38,9 @@ class RestoreKVStateVB;
 // Flink 标准 StreamingJoin 则期望每侧只有一个逻辑 MapState：map key 内包含完整 RowData 字节，
 // map value 只保存 count 相关字段。该适配器负责在算子边界完成两种格式互转，并复用
 // VectorBatchSaveFlow 读取 VB 侧表。
-class StreamingJoinSavepointAdaptor : public OperatorSavepointAdaptor, public VectorBatchSaveHooks {
+class StreamingJoinSavepointAdaptor : public OperatorSavepointAdaptor,
+                                      public VectorBatchSaveHooks,
+                                      public VectorBatchRestoreHooks {
 public:
     // 使用工厂判定出的 adaptorType 创建 StreamingJoin 格式互通适配器，算子描述在 prepare 阶段解析。
     explicit StreamingJoinSavepointAdaptor(FlinkSavepointAdaptorType adaptorType);

@@ -395,8 +395,19 @@ StreamOperator* StreamOperatorFactory::CreateKeyedProcessOp(
         GroupAggFunction* func = new GroupAggFunction(0l, opDescriptionJSON);
         auto* op = new KeyedProcessOperator(func, chainOutput, opDescriptionJSON);
         op->setup(std::move(task));
-        // 当前先设置为NONE,待sp流程支持格式转换后设置为对应的Adapter
-        op->setFlinkSavepointUnsupported("GroupAgg Adaptor not yet implemented");
+        // GroupAggFunction 在初始化时会过滤掉包含 "RAW" 的 accType（对应基于 DataView 的累加器）。
+        // 仅当原始 accTypes 中存在 RAW 类型时，才需要 GroupAggAdaptor 来处理 RAW 占位与
+        // DataView keyed state 的 savepoint 转换；否则 Omni 原生格式即可与 Flink 兼容。
+        const auto& accTypes = opDescriptionJSON["aggInfoList"]["accTypes"];
+        bool hasRawAccType = false;
+        for (const auto& type : accTypes) {
+            if (type.get<std::string>().find("RAW") != std::string::npos) {
+                hasRawAccType = true;
+                break;
+            }
+        }
+        op->setFlinkSavepointAdaptor(
+            hasRawAccType ? FlinkSavepointAdaptorType::GroupAggAdaptor : FlinkSavepointAdaptorType::OmniIsCompatible);
         op->setDescription(opDescriptionJSON);
         LOG("Operator KeyedProcessOperator address  " + std::to_string(reinterpret_cast<long>(op)));
         return static_cast<OneInputStreamOperator*>(op);

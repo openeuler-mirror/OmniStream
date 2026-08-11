@@ -27,10 +27,13 @@
 #include "runtime/state/vbsave/VectorBatchSaveHooks.h"
 #include "runtime/state/vbsave/VectorBatchSavePlan.h"
 #include "table/types/logical/LogicalType.h"
+#include "runtime/state/restore/vb/VectorBatchRestoreHooks.h"
 
 namespace omnistream {
 
-class WindowJoinSavepointAdaptor : public OperatorSavepointAdaptor, public VectorBatchSaveHooks {
+class WindowJoinSavepointAdaptor : public OperatorSavepointAdaptor,
+                                   public VectorBatchSaveHooks,
+                                   public VectorBatchRestoreHooks {
 public:
     WindowJoinSavepointAdaptor() = default;
     ~WindowJoinSavepointAdaptor() override = default;
@@ -103,9 +106,7 @@ private:
     void prepareWindowSidePlans(const nlohmann::json& operatorDescription);
 
     void parseWindowInputTypes(
-        WindowSidePlan& sidePlan,
-        const nlohmann::json& description,
-        const std::string& fieldName);
+        WindowSidePlan& sidePlan, const nlohmann::json& description, const std::string& fieldName);
 
     VectorBatchSavePlan buildWindowSavePlan(FullSnapshotResources& snapshotResources);
 
@@ -115,8 +116,7 @@ private:
 
     // 将一组 RowData 序列化为 Flink MapState 的 List<RowData> value 格式
     std::vector<int8_t> serializeFlinkRowDataList(
-        const std::vector<std::vector<int8_t>>& rowDataBytesList,
-        const std::vector<std::string>& inputTypeNames);
+        const std::vector<std::vector<int8_t>>& rowDataBytesList, const std::vector<std::string>& inputTypeNames);
 
     // VB 反序列化行缓存上限
     static constexpr std::size_t VB_SAVE_CACHE_BYTES = 64UL * 1024 * 1024;

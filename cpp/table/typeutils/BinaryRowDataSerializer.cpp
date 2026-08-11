@@ -40,10 +40,13 @@ void* BinaryRowDataSerializer::deserialize(DataInputView& source)
     int length = source.readInt();
 
     auto bytes = reUse_->getSegment();
-    LOG(" bytes: " << reinterpret_cast<long>(bytes) << " capacity: " << length << " offset : " << 0
+    LOG(" bytes: " << reinterpret_cast<long>(bytes) << " capacity: " << length << " offset : " << 0 << " offset : " << 0
                    << " length: " << length);
     if (length > SEG_SIZE) {
-        LOG("Warning! Deserialize bytes length is " << length << ". Bigger than " << SEG_SIZE);
+        LOG_DEBUG(
+            "BinaryRowDataSerializer::deserialize WARNING length=" << length << " > SEG_SIZE=" << SEG_SIZE
+                                                                   << " numFields=" << numFields_
+                                                                   << " fixedPartSize=" << fixedLengthPartSize_);
     }
     source.readFully(bytes, length, 0, length);
     // PRINT_HEX(bytes, 0, length)

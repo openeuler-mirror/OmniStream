@@ -119,7 +119,7 @@ public:
         }
 
         nlohmann::json fieldTypesJson = nlohmann::json::array();
-        for (auto i = 0; i < fieldSerializers.size(); i++) {
+        for (size_t i = 0; i < fieldSerializers.size(); i++) {
             nlohmann::json fieldJson;
             auto fieldName = fieldNames[i];
             auto fieldSerializer = fieldSerializers[i];
