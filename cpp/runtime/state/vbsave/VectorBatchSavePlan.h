@@ -128,6 +128,12 @@ struct VectorBatchSavePlan {
     std::vector<int> mainStateIds;
     std::unordered_map<int, int> kvStateIdMapping;
 
+    // Owning container for serializers created during plan construction.
+    // ListSerializer owns RowDataSerializer, so storing ListSerializer here
+    // forms a complete ownership chain. Raw pointers in StateContextSpec and
+    // StateMetaInfoSnapshot are non-owning views valid for the plan's lifetime.
+    std::vector<std::unique_ptr<TypeSerializer>> ownedSerializers;
+
     struct StateContextSpec {
         int sourceKvStateId;
         std::string logicalStateName;
@@ -138,6 +144,7 @@ struct VectorBatchSavePlan {
     std::vector<StateContextSpec> stateContextSpecs;
 
     KeyGroupRange* keyGroupRange = nullptr;
+    bool isHeapBackend = false;
     std::string keySerializerJson;
 };
 
