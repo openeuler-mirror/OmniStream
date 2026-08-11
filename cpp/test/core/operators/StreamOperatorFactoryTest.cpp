@@ -77,8 +77,8 @@ TEST(StreamOperatorFactoryTest, CreateWindowJoinConfiguresCompatibleSavepointAda
 {
     const std::string id = "org.apache.flink.table.runtime.operators.join.window.WindowJoinOperator.InnerJoinOperator";
     const std::string description = R"({
-        "leftInputTypes": ["INT", "BIGINT"],
-        "rightInputTypes": ["INT", "BIGINT"],
+        "leftInputTypes": ["BIGINT", "BIGINT"],
+        "rightInputTypes": ["BIGINT", "BIGINT"],
         "leftJoinKey": [0],
         "rightJoinKey": [0],
         "leftWindowEndIndex": 1,
