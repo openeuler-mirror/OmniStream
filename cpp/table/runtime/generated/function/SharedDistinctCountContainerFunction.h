@@ -26,7 +26,7 @@
 
 class SharedDistinctCountContainerFunction : public AggsHandleFunction {
 public:
-    explicit SharedDistinctCountContainerFunction(std::string stateName = "distinct_acc_shared");
+    explicit SharedDistinctCountContainerFunction(std::string stateName = "distinctAcc");
 
     void addDistinctEntry(
         int aggFuncIndex, const std::string& aggType, int aggIdx, int filterIndex, const std::string& inputType);
