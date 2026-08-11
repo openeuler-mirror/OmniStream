@@ -63,6 +63,10 @@ public:
 
         SimpleVersionedSerialization::writeVersionAndSerializeList(requestSerializer, list, out);
 
+        out.writeInt(subtask.GetNumCommittables());
+        out.writeInt(subtask.GetNumDrained());
+        out.writeInt(subtask.GetNumFailed());
+
         return std::vector<uint8_t>(out.getData(), out.getData() + out.length());
     }
 
