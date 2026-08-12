@@ -16,6 +16,7 @@
 #include "types/logical/TimestampWithoutTimeZoneType.h"
 #include "types/logical/TimestampWithTimeZoneType.h"
 #include "types/logical/TimestampWithLocalTimeZoneType.h"
+#include "types/logical/RawType.h"
 
 using namespace omniruntime::type;
 
@@ -60,6 +61,11 @@ FieldGetter* RowData::createFieldGetter(LogicalType* fieldType, int fieldPos)
             }
             return new FieldGetter(fieldPos, false);
         }
+        case DataTypeId::OMNI_CONTAINER:
+            if (dynamic_cast<omnistream::RawType*>(fieldType) != nullptr) {
+                return new FieldGetter(fieldPos, &RowData::getRawValue);
+            }
+            THROW_LOGIC_EXCEPTION("Unsupported OMNI_CONTAINER field type: " << fieldType->getTypeName());
         default: THROW_LOGIC_EXCEPTION("Unknown type: " + std::to_string(fieldType->getTypeId()));
     }
 }

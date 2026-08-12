@@ -12,17 +12,28 @@
 #pragma once
 
 #include <cstddef>
+#include <functional>
+#include <memory>
 #include <cstdint>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
+#include <nlohmann/json.hpp>
 
 #include "OperatorSavepointAdaptor.h"
+#include "core/utils/ByteView.h"
 #include "runtime/state/restore/RestoreBackendDelegate.h"
+#include "runtime/state/vbsave/VectorBatchSaveHooks.h"
+#include "runtime/state/vbsave/VectorBatchSavePlan.h"
+#include "table/types/logical/LogicalType.h"
+#include "runtime/state/restore/vb/VectorBatchRestoreHooks.h"
 
 namespace omnistream {
 
-class WindowJoinSavepointAdaptor : public OperatorSavepointAdaptor {
+class WindowJoinSavepointAdaptor : public OperatorSavepointAdaptor,
+                                   public VectorBatchSaveHooks,
+                                   public VectorBatchRestoreHooks {
 public:
     WindowJoinSavepointAdaptor() = default;
     ~WindowJoinSavepointAdaptor() override = default;
@@ -42,6 +53,17 @@ public:
 
     void restore(SavepointRestoreResultIterator& restoreIterator, RestoreBackendDelegate& backend) override;
 
+    // ===== VectorBatchSaveHooks =====
+
+    std::vector<VectorBatchSaveStateContext> buildSaveStateContexts(
+        FullSnapshotResources& snapshotResources, const VectorBatchSavePlan& plan) override;
+
+    void convertKVRowData(
+        const KeyValueStateIterator::CurrentEntry& entry,
+        const VectorBatchSaveStateContext& context,
+        const VectorBatchSavePlan& plan,
+        std::function<void(ConvertedEntry)> output) override;
+
     RestoreStateType getStateType(const StateMetaInfoSnapshot& metaInfo);
     StateMetaInfoSnapshot buildOmniMainMetaInfo(int kvStateId, const StateMetaInfoSnapshot& flinkMetaInfo);
     void retrieveKVRowData(
@@ -59,6 +81,14 @@ private:
         RIGHT
     };
 
+    // 单侧 WindowJoin 状态的格式转换参数。
+    struct WindowSidePlan {
+        std::string stateName;
+        std::vector<std::string> inputTypeNames;
+        std::vector<std::unique_ptr<LogicalType>> ownedInputTypes;
+        std::vector<LogicalType*> inputTypes;
+    };
+
     static constexpr const char* LEFT_RECORDS_STATE_NAME = "left-records";
     static constexpr const char* RIGHT_RECORDS_STATE_NAME = "right-records";
 
@@ -72,6 +102,32 @@ private:
     std::vector<omniruntime::type::DataTypeId> leftColumnTypes_;
     std::vector<omniruntime::type::DataTypeId> rightColumnTypes_;
     std::unordered_map<int, InputSide> inputSideByKvStateId_;
+
+    void prepareWindowSidePlans(const nlohmann::json& operatorDescription);
+
+    void parseWindowInputTypes(
+        WindowSidePlan& sidePlan, const nlohmann::json& description, const std::string& fieldName);
+
+    VectorBatchSavePlan buildWindowSavePlan(FullSnapshotResources& snapshotResources);
+
+    const WindowSidePlan& windowSidePlanForState(const std::string& stateName) const;
+
+    // ===== 保存方向：Flink MapState 序列化辅助 =====
+
+    // 将一组 RowData 序列化为 Flink MapState 的 List<RowData> value 格式
+    std::vector<int8_t> serializeFlinkRowDataList(
+        const std::vector<std::vector<int8_t>>& rowDataBytesList, const std::vector<std::string>& inputTypeNames);
+
+    // VB 反序列化行缓存上限
+    static constexpr std::size_t VB_SAVE_CACHE_BYTES = 64UL * 1024 * 1024;
+
+    // ===== 成员变量 =====
+
+    WindowSidePlan leftPlan_;
+    WindowSidePlan rightPlan_;
+
+    int leftRestoreKvStateId_ = -1;
+    int rightRestoreKvStateId_ = -1;
 };
 
 } // namespace omnistream

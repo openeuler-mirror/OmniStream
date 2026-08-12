@@ -11,9 +11,11 @@
 
 #include <algorithm>
 #include <mutex>
+#include <stdexcept>
 
 #include "LogicTypeUtils.h"
 #include "LogicalType.h"
+#include "RawType.h"
 #include "VarCharType.h"
 #include "TimestampWithoutTimeZoneType.h"
 #include "TimeWithoutTimeZoneType.h"
@@ -146,11 +148,13 @@ std::pair<int32_t, int32_t> LogicalType::parseDecimalPrecisionScale(const std::s
 LogicalType* LogicalType::flinkTypeToOmniType(const std::string& flinkType)
 {
     buildNameToIdMap();
-    // Detect nullable before stripping the "NOT NULL" suffix
-    bool isNotNull = LogicTypeUtils::isNotNullType(flinkType);
     std::string basicStrippedType = LogicTypeUtils::stripFlinkTypeExtras(flinkType);
     nlohmann::json options = LogicTypeUtils::optionsFromFlinkType(basicStrippedType);
-    options["nullable"] = !isNotNull;
+    const bool isNullable = !LogicTypeUtils::isNotNullType(flinkType);
+
+    if (LogicTypeUtils::startsWith(basicStrippedType, "RAW(")) {
+        return parseRawType(flinkType, basicStrippedType, isNullable);
+    }
 
     auto it = nameToIdMap.find(basicStrippedType);
     if (it != nameToIdMap.end()) {
@@ -199,6 +203,30 @@ LogicalType* LogicalType::flinkTypeToOmniType(const std::string& flinkType)
     }
 
     return BasicLogicalType::getTypeBy(DataTypeId::OMNI_INVALID, options);
+}
+
+LogicalType* LogicalType::parseRawType(
+    const std::string& flinkType, const std::string& basicStrippedType, bool isNullable)
+{
+    std::vector<std::string> arguments;
+    bool inQuote = false;
+    std::string current;
+    for (size_t i = basicStrippedType.find('(') + 1; i < basicStrippedType.size(); ++i) {
+        const char ch = basicStrippedType[i];
+        if (ch == '\'') {
+            if (inQuote) {
+                arguments.push_back(current);
+                current.clear();
+            }
+            inQuote = !inQuote;
+        } else if (inQuote) {
+            current.push_back(ch);
+        }
+    }
+    if (arguments.size() != 2 || arguments[0].empty()) {
+        throw std::invalid_argument("Invalid Flink RAW type: " + flinkType);
+    }
+    return new omnistream::RawType(isNullable, arguments[0], arguments[1]);
 }
 
 bool LogicalType::isSharedLogicalType(const LogicalType* logicalType)
@@ -271,10 +299,10 @@ BasicLogicalType* BasicLogicalType::TIMESTAMP_WITH_LOCAL_TIME_ZONE = new Timesta
 BasicLogicalType* BasicLogicalType::TIMESTAMP = new TimestampWithLocalTimeZoneType(true);
 BasicLogicalType* BasicLogicalType::INVALID_TYPE = new BasicLogicalType(true, DataTypeId::OMNI_INVALID, "UNRESOLVED");
 
-BasicLogicalType* BasicLogicalType::getTypeBy(DataTypeId typeId, const nlohmann::json& element)
+LogicalType* BasicLogicalType::getTypeBy(DataTypeId typeId, const nlohmann::json& options)
 {
-    BasicLogicalType* type = nullptr;
-    bool nullable = element.value("nullable", true);
+    LogicalType* type = nullptr;
+    bool nullable = options.value("nullable", true);
     switch (typeId) {
         case DataTypeId::OMNI_BOOLEAN: {
             if (nullable == BasicLogicalType::BOOLEAN->isNullable()) {
@@ -300,11 +328,6 @@ BasicLogicalType* BasicLogicalType::getTypeBy(DataTypeId typeId, const nlohmann:
             }
             break;
         }
-        case DataTypeId::OMNI_VARCHAR: {
-            int length = element.value("length", std::numeric_limits<int>::max());
-            type = new VarCharType(nullable, length);
-            break;
-        }
         case DataTypeId::OMNI_DOUBLE: {
             if (nullable == BasicLogicalType::DOUBLE->isNullable()) {
                 type = BasicLogicalType::DOUBLE;
@@ -321,41 +344,18 @@ BasicLogicalType* BasicLogicalType::getTypeBy(DataTypeId typeId, const nlohmann:
             }
             break;
         }
-        case DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE: {
-            int precision = element.value("precision", 0);
-            type = new TimeWithoutTimeZoneType(nullable, precision);
-            break;
-        }
+        case DataTypeId::OMNI_VARCHAR:
+        case DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE:
         case DataTypeId::OMNI_TIMESTAMP:
-        case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE: {
-            int precision = element.value("precision", 0);
-            type = new TimestampWithoutTimeZoneType(nullable, precision);
-            break;
-        }
-        case DataTypeId::OMNI_TIMESTAMP_WITH_TIME_ZONE: {
-            int precision = element.value("precision", 0);
-            type = new TimestampWithTimeZoneType(nullable, precision);
-            break;
-        }
-        case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE: {
-            int precision = element.value("precision", 0);
-            type = new TimestampWithLocalTimeZoneType(nullable, precision);
-            break;
-        }
-        case DataTypeId::OMNI_DECIMAL64: {
-            type = new BasicLogicalType(nullable, typeId, "DECIMAL64");
-            break;
-        }
-        case DataTypeId::OMNI_DECIMAL128: {
-            type = new BasicLogicalType(nullable, typeId, "DECIMAL128");
-            break;
-        }
-        case DataTypeId::OMNI_INTERVAL_MONTHS: {
-            type = new BasicLogicalType(nullable, typeId, "INTERVAL_MONTHS");
-            break;
-        }
-        case DataTypeId::OMNI_INTERVAL_DAY_TIME: {
-            type = new BasicLogicalType(nullable, typeId, "INTERVAL_DAY_TIME");
+        case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+        case DataTypeId::OMNI_TIMESTAMP_WITH_TIME_ZONE:
+        case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+        case DataTypeId::OMNI_DECIMAL64:
+        case DataTypeId::OMNI_DECIMAL128:
+        case DataTypeId::OMNI_INTERVAL_MONTHS:
+        case DataTypeId::OMNI_INTERVAL_DAY_TIME:
+        case DataTypeId::OMNI_CONTAINER: {
+            type = BasicLogicalType::getTypeBy(nullable, typeId, options);
             break;
         }
         case DataTypeId::OMNI_INVALID: {
@@ -372,11 +372,10 @@ BasicLogicalType* BasicLogicalType::getTypeBy(DataTypeId typeId, const nlohmann:
     return type;
 }
 
-BasicLogicalType* BasicLogicalType::getTypeBy(
-    std::optional<bool> nullable, DataTypeId typeId, const nlohmann::json& options)
+LogicalType* BasicLogicalType::getTypeBy(std::optional<bool> nullable, DataTypeId typeId, const nlohmann::json& options)
 {
     const bool isNullable = nullable.value_or(true);
-    BasicLogicalType* type = nullptr;
+    LogicalType* type = nullptr;
     switch (typeId) {
         case DataTypeId::OMNI_BOOLEAN: {
             type = new BasicLogicalType(isNullable, DataTypeId::OMNI_BOOLEAN, "BOOLEAN");
@@ -443,6 +442,17 @@ BasicLogicalType* BasicLogicalType::getTypeBy(
         case DataTypeId::OMNI_INVALID: {
             type = new BasicLogicalType(isNullable, typeId, "UNRESOLVED");
             break;
+        }
+        case DataTypeId::OMNI_CONTAINER: {
+            const std::string typeName = options.value("type", "");
+            if (typeName == "RAW") {
+                const std::string className = options.value("class", "");
+                const std::string serializerString = options.value("serializer", "");
+                type = new omnistream::RawType(isNullable, className, serializerString);
+                break;
+            }
+            THROW_LOGIC_EXCEPTION(
+                "OMNI_CONTAINER requires RAW metadata; ROW must be constructed explicitly, typeName=" << typeName);
         }
         default: THROW_LOGIC_EXCEPTION("Unsupported DataTypeId : " << typeId << " in inputRowType.");
     }

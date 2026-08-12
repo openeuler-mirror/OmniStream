@@ -11,6 +11,7 @@
 #pragma once
 
 #include <memory>
+#include <stdexcept>
 #include <vector>
 #include <string>
 #include <nlohmann/json.hpp>
@@ -34,7 +35,6 @@ namespace omnistream {
 class VectorBatch;
 class OmniTaskBridge;
 class RestoreBackendDelegate;
-
 class OperatorSavepointAdaptor {
 public:
     virtual ~OperatorSavepointAdaptor() = default;

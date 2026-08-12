@@ -20,6 +20,7 @@
 
 #include "OperatorSavepointAdaptor.h"
 #include "runtime/state/restore/RestoreBackendDelegate.h"
+#include "runtime/state/restore/vb/VectorBatchRestoreHooks.h"
 #include "runtime/state/vbsave/VectorBatchSaveHooks.h"
 #include "runtime/state/vbsave/VectorBatchSavePlan.h"
 #include "runtime/state/metainfo/StateMetaInfoSnapshot.h"
@@ -30,7 +31,9 @@
 
 namespace omnistream {
 
-class AppendOnlyTopNSavepointAdaptor : public OperatorSavepointAdaptor, public VectorBatchSaveHooks {
+class AppendOnlyTopNSavepointAdaptor : public OperatorSavepointAdaptor,
+                                       public VectorBatchSaveHooks,
+                                       public VectorBatchRestoreHooks {
 public:
     AppendOnlyTopNSavepointAdaptor();
 

@@ -345,3 +345,214 @@ TEST_F(WindowJoinSavepointAdaptorTest, RetrieveKVRowDataRejectsInvalidArgumentsA
     EXPECT_THROW(adaptor_.retrieveKVRowData(keyBytes, makeListValue({row, row}, ';'), 4, &writer), std::runtime_error);
     EXPECT_THROW(adaptor_.columnTypes(99), std::runtime_error);
 }
+
+// ===== Tests for deserializeRows (Flink ListDelimitedSerializer format) =====
+
+TEST_F(WindowJoinSavepointAdaptorTest, DeserializeRows_SingleRow)
+{
+    prepareAdaptor();
+    auto leftMeta = makeListMeta(LEFT_STATE_NAME, {"BIGINT", "INT"});
+    adaptor_.buildOmniMainMetaInfo(4, *leftMeta);
+
+    const auto row = makeSerializedRow({10, 20, 30});
+    // Flink ListDelimitedSerializer format for single row = just the row bytes
+    // (no comma needed for single element)
+    const auto listValue = row;
+
+    RecordingRestoreKVStateVB writer;
+    adaptor_.retrieveKVRowData({1}, listValue, 4, &writer);
+
+    ASSERT_EQ(writer.appendedRows.size(), 1U);
+    EXPECT_EQ(writer.appendedRows[0], row);
+    EXPECT_EQ(writer.writtenComboIds.size(), 1U);
+}
+
+TEST_F(WindowJoinSavepointAdaptorTest, DeserializeRows_MultipleRowsWithCommas)
+{
+    prepareAdaptor();
+    auto leftMeta = makeListMeta(LEFT_STATE_NAME, {"BIGINT", "INT"});
+    adaptor_.buildOmniMainMetaInfo(4, *leftMeta);
+
+    const auto row1 = makeSerializedRow({1, 2, 3, 4});
+    const auto row2 = makeSerializedRow({5, 6});
+    const auto row3 = makeSerializedRow({7, 8, 9});
+    const auto listValue = makeListValue({row1, row2, row3});
+
+    RecordingRestoreKVStateVB writer;
+    adaptor_.retrieveKVRowData({1}, listValue, 4, &writer);
+
+    ASSERT_EQ(writer.appendedRows.size(), 3U);
+    EXPECT_EQ(writer.appendedRows[0], row1);
+    EXPECT_EQ(writer.appendedRows[1], row2);
+    EXPECT_EQ(writer.appendedRows[2], row3);
+    EXPECT_EQ(writer.writtenComboIds.size(), 3U);
+}
+
+TEST_F(WindowJoinSavepointAdaptorTest, DeserializeRows_RejectsZeroLengthRow)
+{
+    prepareAdaptor();
+    auto leftMeta = makeListMeta(LEFT_STATE_NAME, {"BIGINT", "INT"});
+    adaptor_.buildOmniMainMetaInfo(4, *leftMeta);
+
+    // Row with zero-length payload (length=0) is rejected
+    auto emptyRow = makeSerializedRow({});
+    ASSERT_EQ(emptyRow.size(), 4U);  // Just the int32 length = 0
+
+    RecordingRestoreKVStateVB writer;
+    EXPECT_THROW(adaptor_.retrieveKVRowData({1}, emptyRow, 4, &writer), std::runtime_error);
+}
+
+TEST_F(WindowJoinSavepointAdaptorTest, DeserializeRows_RejectsMissingDelimiter)
+{
+    prepareAdaptor();
+    auto leftMeta = makeListMeta(LEFT_STATE_NAME, {"BIGINT", "INT"});
+    adaptor_.buildOmniMainMetaInfo(4, *leftMeta);
+
+    const auto row1 = makeSerializedRow({1, 2});
+    const auto row2 = makeSerializedRow({3, 4});
+    // Concatenate without comma between them
+    std::vector<int8_t> badValue;
+    badValue.insert(badValue.end(), row1.begin(), row1.end());
+    badValue.insert(badValue.end(), row2.begin(), row2.end());
+
+    RecordingRestoreKVStateVB writer;
+    EXPECT_THROW(adaptor_.retrieveKVRowData({1}, badValue, 4, &writer), std::runtime_error);
+}
+
+TEST_F(WindowJoinSavepointAdaptorTest, DeserializeRows_RejectsTruncatedRow)
+{
+    prepareAdaptor();
+    auto leftMeta = makeListMeta(LEFT_STATE_NAME, {"BIGINT", "INT"});
+    adaptor_.buildOmniMainMetaInfo(4, *leftMeta);
+
+    // Write a valid row followed by a truncated row (only length prefix, no data)
+    const auto row1 = makeSerializedRow({1, 2});
+    std::vector<int8_t> truncatedValue;
+    truncatedValue.insert(truncatedValue.end(), row1.begin(), row1.end());
+    truncatedValue.push_back(static_cast<int8_t>(','));
+    // Write length 100 but don't include the 100 bytes of data
+    truncatedValue.push_back(static_cast<int8_t>(0));
+    truncatedValue.push_back(static_cast<int8_t>(0));
+    truncatedValue.push_back(static_cast<int8_t>(0));
+    truncatedValue.push_back(static_cast<int8_t>(100));  // 100 bytes needed but not present
+
+    RecordingRestoreKVStateVB writer;
+    EXPECT_THROW(adaptor_.retrieveKVRowData({1}, truncatedValue, 4, &writer), std::runtime_error);
+}
+
+TEST_F(WindowJoinSavepointAdaptorTest, DeserializeRows_RejectsNegativeRowLength)
+{
+    prepareAdaptor();
+    auto leftMeta = makeListMeta(LEFT_STATE_NAME, {"BIGINT", "INT"});
+    adaptor_.buildOmniMainMetaInfo(4, *leftMeta);
+
+    // Write a negative row length (0xFFFFFFFF = -1 in signed int32)
+    std::vector<int8_t> badValue;
+    badValue.push_back(static_cast<int8_t>(0xFF));
+    badValue.push_back(static_cast<int8_t>(0xFF));
+    badValue.push_back(static_cast<int8_t>(0xFF));
+    badValue.push_back(static_cast<int8_t>(0xFF));
+
+    RecordingRestoreKVStateVB writer;
+    EXPECT_THROW(adaptor_.retrieveKVRowData({1}, badValue, 4, &writer), std::runtime_error);
+}
+
+// ===== Tests for Flink serialization format round-trip =====
+
+TEST_F(WindowJoinSavepointAdaptorTest, FlinkSerializationFormat_SingleRowRoundTrip)
+{
+    prepareAdaptor();
+    auto leftMeta = makeListMeta(LEFT_STATE_NAME, {"BIGINT", "INT"});
+    adaptor_.buildOmniMainMetaInfo(4, *leftMeta);
+
+    // Simulate what serializeFlinkRowDataList would produce for a single row
+    const auto row = makeSerializedRow({42, 99});
+
+    // The Flink ListDelimitedSerializer format for 1 element = [element bytes]
+    // (no delimiter needed)
+    RecordingRestoreKVStateVB writer;
+    adaptor_.retrieveKVRowData({1}, row, 4, &writer);
+
+    ASSERT_EQ(writer.appendedRows.size(), 1U);
+    EXPECT_EQ(writer.appendedRows[0], row);
+}
+
+TEST_F(WindowJoinSavepointAdaptorTest, FlinkSerializationFormat_MultipleRowsRoundTrip)
+{
+    prepareAdaptor();
+    auto leftMeta = makeListMeta(LEFT_STATE_NAME, {"BIGINT", "INT"});
+    adaptor_.buildOmniMainMetaInfo(4, *leftMeta);
+
+    // Simulate what serializeFlinkRowDataList produces for multiple rows:
+    // [row1Bytes][','][row2Bytes][','][row3Bytes]
+    const auto row1 = makeSerializedRow({10, 20});
+    const auto row2 = makeSerializedRow({30, 40});
+    const auto row3 = makeSerializedRow({50, 60});
+
+    auto flinkValue = makeListValue({row1, row2, row3});
+
+    RecordingRestoreKVStateVB writer;
+    adaptor_.retrieveKVRowData({1}, flinkValue, 4, &writer);
+
+    ASSERT_EQ(writer.appendedRows.size(), 3U);
+    EXPECT_EQ(writer.appendedRows[0], row1);
+    EXPECT_EQ(writer.appendedRows[1], row2);
+    EXPECT_EQ(writer.appendedRows[2], row3);
+    EXPECT_EQ(writer.writtenComboIds.size(), 3U);
+}
+
+TEST_F(WindowJoinSavepointAdaptorTest, FlinkSerializationFormat_CommaBetweenRowsNotBeforeFirst)
+{
+    // Verify that the Flink format has NO comma before the first element
+    // and NO comma after the last element
+    const auto row1 = makeSerializedRow({1});
+    const auto row2 = makeSerializedRow({2});
+
+    // Format: [row1][','][row2]
+    auto valueWithCommaBetween = makeListValue({row1, row2});
+
+    // Manually verify the format
+    size_t firstCommaPos = 0;
+    bool foundComma = false;
+    for (size_t i = 0; i < valueWithCommaBetween.size(); ++i) {
+        if (valueWithCommaBetween[i] == static_cast<int8_t>(',')) {
+            firstCommaPos = i;
+            foundComma = true;
+            break;
+        }
+    }
+    ASSERT_TRUE(foundComma);
+    // Comma must be exactly at the end of the first row (not before, not inside)
+    EXPECT_EQ(firstCommaPos, row1.size());
+    // Comma must NOT be at the very start
+    EXPECT_GT(firstCommaPos, 0U);
+    // Comma must NOT be at the very end (no trailing delimiter)
+    EXPECT_LT(firstCommaPos, valueWithCommaBetween.size() - 1);
+}
+
+TEST_F(WindowJoinSavepointAdaptorTest, FlinkSerializationFormat_LeftAndRightStatesSeparately)
+{
+    prepareAdaptor();
+    auto leftMeta = makeListMeta(LEFT_STATE_NAME, {"BIGINT", "INT"});
+    auto rightMeta = makeListMeta(RIGHT_STATE_NAME, {"VARCHAR"});
+    adaptor_.buildOmniMainMetaInfo(1, *leftMeta);
+    adaptor_.buildOmniMainMetaInfo(2, *rightMeta);
+
+    const auto leftRow1 = makeSerializedRow({100, 200});
+    const auto leftRow2 = makeSerializedRow({200, 250});
+    auto leftValue = makeListValue({leftRow1, leftRow2});
+
+    const auto rightRow = makeSerializedRow({1, 2, 3});
+    auto rightValue = rightRow;  // single row, no comma needed
+
+    RecordingRestoreKVStateVB leftWriter;
+    adaptor_.retrieveKVRowData({1}, leftValue, 1, &leftWriter);
+    ASSERT_EQ(leftWriter.appendedRows.size(), 2U);
+    EXPECT_EQ(leftWriter.appendedRows[0], leftRow1);
+    EXPECT_EQ(leftWriter.appendedRows[1], leftRow2);
+
+    RecordingRestoreKVStateVB rightWriter;
+    adaptor_.retrieveKVRowData({2}, rightValue, 2, &rightWriter);
+    ASSERT_EQ(rightWriter.appendedRows.size(), 1U);
+    EXPECT_EQ(rightWriter.appendedRows[0], rightRow);
+}

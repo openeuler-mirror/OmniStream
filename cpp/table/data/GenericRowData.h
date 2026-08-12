@@ -71,6 +71,11 @@ public:
         return *reinterpret_cast<TimestampData*>(fields_[pos]);
     };
 
+    void* getRawValue(int pos) override
+    {
+        return reinterpret_cast<void*>(fields_[pos]);
+    }
+
     // non virtual
     [[nodiscard]] int getRowDataTypeId() const
     {

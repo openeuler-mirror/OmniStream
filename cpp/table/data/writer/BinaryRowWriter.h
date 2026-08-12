@@ -31,6 +31,7 @@ public:
     void writeDouble(int pos, double value) override;
     void writeDecimal128(int pos, uint64_t low, int64_t high) override;
     void writeString(int pos, std::string_view value) override;
+    void writeRawValue(int pos, const uint8_t* bytes, size_t size) override;
 
     void reset() override;
 

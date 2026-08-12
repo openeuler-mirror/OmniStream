@@ -12,6 +12,7 @@
 #include "RowDataSerializer.h"
 #include "InternalSerializers.h"
 #include "BinaryRowDataSerializer.h"
+#include "RawValueDataSerializer.h"
 #include "streaming/runtime/streamrecord/StreamRecord.h"
 
 RowDataSerializer::RowDataSerializer(omnistream::RowType* rowType)

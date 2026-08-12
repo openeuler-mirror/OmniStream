@@ -26,6 +26,10 @@ public:
     virtual KeyGroupRange* getKeyGroupRange() = 0;
     virtual TypeSerializer* getKeySerializer() = 0;
     virtual std::shared_ptr<KeyValueStateIterator> createKVStateIterator() = 0;
+    virtual bool isHeapBackend() const
+    {
+        return false;
+    }
     virtual bool isHeapPriorityQueueStateId(int /*kvStateId*/) const
     {
         return false;
