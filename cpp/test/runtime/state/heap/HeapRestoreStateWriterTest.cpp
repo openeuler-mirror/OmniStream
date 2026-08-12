@@ -34,6 +34,9 @@
 #include "runtime/state/restore/RestoreKVState.h"
 #include "runtime/state/restore/RestoreKVStateVB.h"
 #include "runtime/state/restore/RestorePQState.h"
+#include "table/data/binary/BinaryRowData.h"
+#include "table/runtime/operators/window/TimeWindow.h"
+#include "table/typeutils/BinaryRowDataSerializer.h"
 
 using namespace omnistream;
 
@@ -136,6 +139,23 @@ protected:
             serializers);
     }
 
+    StateMetaInfoSnapshot makeWindowValueMetaInfo(const std::string& name = "window-aggs")
+    {
+        std::unordered_map<std::string, std::string> options;
+        options[StateMetaInfoSnapshot::KEYED_STATE_TYPE] = "VALUE";
+
+        std::unordered_map<std::string, TypeSerializer*> serializers;
+        serializers[StateMetaInfoSnapshot::COMMON_NAMESPACE_SERIALIZER_KEY] = new TimeWindow::Serializer();
+        serializers[StateMetaInfoSnapshot::COMMON_VALUE_SERIALIZER_KEY] = new BinaryRowDataSerializer(1);
+
+        return StateMetaInfoSnapshot(
+            name,
+            StateMetaInfoSnapshot::BackendStateType::KEY_VALUE,
+            options,
+            std::unordered_map<std::string, std::shared_ptr<TypeSerializerSnapshot>>{},
+            serializers);
+    }
+
     std::vector<int8_t> makeWindowKeyBytes(int key, int64_t windowNamespace)
     {
         DataOutputSerializer output;
@@ -145,6 +165,34 @@ protected:
         keySerializer_->serialize(&key, output);
         LongSerializer namespaceSerializer;
         namespaceSerializer.serialize(&windowNamespace, output);
+        return std::vector<int8_t>(
+            reinterpret_cast<int8_t*>(output.getData()),
+            reinterpret_cast<int8_t*>(output.getData() + output.getPosition()));
+    }
+
+    std::vector<int8_t> makeTimeWindowKeyBytes(int key, TimeWindow windowNamespace)
+    {
+        DataOutputSerializer output;
+        OutputBufferStatus outputStatus{};
+        output.setBackendBuffer(&outputStatus);
+        output.writeShort(0);
+        keySerializer_->serialize(&key, output);
+        TimeWindow::Serializer namespaceSerializer;
+        namespaceSerializer.serialize(&windowNamespace, output);
+        return std::vector<int8_t>(
+            reinterpret_cast<int8_t*>(output.getData()),
+            reinterpret_cast<int8_t*>(output.getData() + output.getPosition()));
+    }
+
+    std::vector<int8_t> makeRowValueBytes(int64_t value)
+    {
+        std::unique_ptr<BinaryRowData> row(BinaryRowData::createBinaryRowDataWithMem(1));
+        row->setLong(0, value);
+        BinaryRowDataSerializer serializer(1);
+        DataOutputSerializer output;
+        OutputBufferStatus outputStatus{};
+        output.setBackendBuffer(&outputStatus);
+        serializer.serialize(row.get(), output);
         return std::vector<int8_t>(
             reinterpret_cast<int8_t*>(output.getData()),
             reinterpret_cast<int8_t*>(output.getData() + output.getPosition()));
@@ -259,6 +307,31 @@ TEST_F(HeapRestoreStateWriterTest, KvStateSetKeyGroupIdDoesNotThrow)
     auto kv = delegate_->createKVState(0, metaInfo);
 
     EXPECT_NO_THROW(kv->setKeyGroupId(5));
+}
+
+TEST_F(HeapRestoreStateWriterTest, KvStateRestoresRowValueWithTimeWindowNamespace)
+{
+    constexpr int keyGroupId = 3;
+    constexpr int key = 42;
+    constexpr int64_t accumulator = 7;
+    const TimeWindow windowNamespace(1700000000000L, 1700000010000L);
+    auto metaInfo = makeWindowValueMetaInfo();
+    auto kv = delegate_->createKVState(0, metaInfo);
+    kv->setKeyGroupId(keyGroupId);
+
+    auto valueBytes = makeRowValueBytes(accumulator);
+    EXPECT_NO_THROW(
+        kv->writeEntry(makeTimeWindowKeyBytes(key, windowNamespace), ByteView(valueBytes.data(), valueBytes.size())));
+
+    auto* table =
+        reinterpret_cast<CopyOnWriteStateTable<int, TimeWindow, RowData*>*>(backend_->getStateTablePtr("window-aggs"));
+    ASSERT_NE(table, nullptr);
+    auto* restored = dynamic_cast<BinaryRowData*>(table->get(key, keyGroupId, windowNamespace));
+    ASSERT_NE(restored, nullptr);
+    ASSERT_NE(restored->getLong(0), nullptr);
+    EXPECT_EQ(*restored->getLong(0), accumulator);
+    ASSERT_EQ(delegate_->getStateInfos().size(), 1U);
+    EXPECT_EQ(delegate_->getStateInfos()[0].mainEntryCount, 1);
 }
 
 // ============================================================================
