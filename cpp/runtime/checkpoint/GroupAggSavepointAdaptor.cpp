@@ -20,6 +20,7 @@
 #include "core/memory/DataInputDeserializer.h"
 #include "core/typeutils/MapSerializer.h"
 #include "runtime/state/RegisteredKeyValueStateBackendMetaInfo.h"
+#include "runtime/state/VoidNamespaceSerializer.h"
 #include "runtime/state/heap/HeapFullSnapshotResources.h"
 #include "runtime/state/restore/SavepointRestoreResultIterator.h"
 #include "runtime/state/restore/RestoreBackendDelegate.h"
@@ -392,11 +393,14 @@ StateMetaInfoSnapshot GroupAggSavepointAdaptor::buildOmniMainMetaInfo(
     }
     auto* namespaceSerializer = flinkMetaInfo.getTypeSerializer(
         {"namespaceSerializer", StateMetaInfoSnapshot::COMMON_NAMESPACE_SERIALIZER_KEY});
-    auto* sourceSerializer =
-        flinkMetaInfo.getTypeSerializer({"stateSerializer", StateMetaInfoSnapshot::COMMON_VALUE_SERIALIZER_KEY});
+    auto* sourceSerializer = flinkMetaInfo.getTypeSerializer(
+        {"stateSerializer", "valueSerializer", StateMetaInfoSnapshot::COMMON_VALUE_SERIALIZER_KEY});
     if (namespaceSerializer == nullptr || sourceSerializer == nullptr || omniAccSerializer_ == nullptr) {
         ERROR_RELEASE("The namespaceSerializer is null or sourceSerializer is null or omniAccSerializer_ is null.");
         throw std::runtime_error("GroupAggSavepointAdaptor: missing restore accState serializer");
+    }
+    if (namespaceSerializer->getBackendId() != BackendDataType::VOID_NAMESPACE_BK) {
+        throw std::runtime_error("GroupAggSavepointAdaptor: accState requires VoidNamespaceSerializer");
     }
     sourceSerializers_[kvStateId] = sourceSerializer;
     // 直接构造 StateMetaInfoSnapshot，使用 commonSerializerKeyToString (UPPERCASE) key，
@@ -408,15 +412,19 @@ StateMetaInfoSnapshot GroupAggSavepointAdaptor::buildOmniMainMetaInfo(
         StateMetaInfoSnapshot::CommonOptionsKeys::KEYED_STATE_TYPE)] =
         std::to_string(static_cast<int>(StateDescriptor::Type::VALUE));
 
+    // The restore adaptor and JNI metadata are temporary, while RocksDB keeps registered metadata for its lifetime.
+    // Keep an independent value serializer and use the process-lifetime namespace singleton so neither pointer in
+    // the registered accState metadata depends on the source metadata or restore adaptor.
+    auto backendValueSerializer = std::make_unique<RowDataSerializer>(new RowType(true, omniAccTypes_));
     std::unordered_map<std::string, TypeSerializer*> serializerMap;
     serializerMap.emplace(
         StateMetaInfoSnapshot::commonSerializerKeyToString(
             StateMetaInfoSnapshot::CommonSerializerKeys::NAMESPACE_SERIALIZER),
-        namespaceSerializer);
+        VoidNamespaceSerializer::INSTANCE);
     serializerMap.emplace(
         StateMetaInfoSnapshot::commonSerializerKeyToString(
             StateMetaInfoSnapshot::CommonSerializerKeys::VALUE_SERIALIZER),
-        omniAccSerializer_.get());
+        backendValueSerializer.release());
 
     std::unordered_map<std::string, std::shared_ptr<TypeSerializerSnapshot>> serializerConfigSnapshotsMap;
     return StateMetaInfoSnapshot(
