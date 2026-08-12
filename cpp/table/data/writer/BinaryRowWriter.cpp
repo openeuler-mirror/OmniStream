@@ -10,6 +10,7 @@
  */
 
 #include "BinaryRowWriter.h"
+#include <limits>
 #include "../../../core/memory/MemorySegmentUtils.h"
 
 BinaryRowWriter::BinaryRowWriter(BinaryRowData* row, int initialSize) : row_(row)
@@ -72,6 +73,26 @@ void BinaryRowWriter::writeString(int pos, std::string_view value)
         row_->zeroOutPaddingBytes(cursor_, len);
         cursor_ += roundedSize;
     }
+}
+
+void BinaryRowWriter::writeRawValue(int pos, const uint8_t* bytes, size_t size)
+{
+    if (bytes == nullptr && size != 0) {
+        throw std::invalid_argument("RAW value bytes are null");
+    }
+    if (size > static_cast<size_t>(std::numeric_limits<int>::max())) {
+        throw std::length_error("RAW value is too large");
+    }
+    const int len = static_cast<int>(size);
+    const int roundedSize = row_->getNumberOfBytesToNearestWord(len);
+    ensureVariableCapacity(roundedSize);
+    row_->setNotNullAt(pos);
+    row_->setOffsetAndSize(getFieldOffset(pos), cursor_, len);
+    if (len != 0) {
+        MemorySegmentUtils::put(memoryBuffer, row_->getBufferCapacity(), cursor_, bytes, 0, len);
+    }
+    row_->zeroOutPaddingBytes(cursor_, len);
+    cursor_ += roundedSize;
 }
 
 void BinaryRowWriter::ensureVariableCapacity(int requiredSize)

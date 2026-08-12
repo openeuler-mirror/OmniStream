@@ -524,3 +524,48 @@ TEST(BinaryRowDataTest, BinaryRowWriterReusesVariableLengthStorageWithoutStalePa
     writer.complete();
     EXPECT_EQ(row.hashCodeFast(), expectedHash);
 }
+
+TEST(BinaryRowDataTest, RawValueLengthsUseVariableLengthEncoding)
+{
+    for (const size_t length : {size_t(0), size_t(1), size_t(7), size_t(8)}) {
+        BinaryRowData row(1);
+        BinaryRowWriter writer(&row);
+        std::vector<uint8_t> bytes(length, 0x5A);
+        writer.writeRawValue(0, bytes.data(), bytes.size());
+        writer.complete();
+
+        ASSERT_FALSE(row.isNullAt(0));
+        auto* raw = static_cast<BinaryRawValueData*>(row.getRawValue(0));
+        ASSERT_NE(raw, nullptr);
+        EXPECT_EQ(raw->size(), length);
+        EXPECT_EQ(raw->toBytes(), bytes);
+    }
+}
+
+TEST(BinaryRowDataTest, RawValueNullAndNonZeroSectionOffset)
+{
+    BinaryRowData nullRow(1);
+    BinaryRowWriter nullWriter(&nullRow);
+    nullWriter.setNullAt(0);
+    nullWriter.complete();
+    EXPECT_EQ(nullRow.getRawValue(0), nullptr);
+
+    std::vector<uint8_t> buffer(29, 0);
+    BinaryRowData row(1);
+    row.pointTo(buffer.data(), 5, 24, static_cast<int>(buffer.size()));
+    row.setNotNullAt(0);
+    row.setOffsetAndSize(5 + row.getNullBitsSizeInBytes(), 16, 3);
+    const uint8_t bytes[] = {0x10, 0x20, 0x30};
+    MemorySegmentUtils::put(row.getSegment(), row.getBufferCapacity(), 5 + 16, bytes, 0, 3);
+    auto* raw = static_cast<BinaryRawValueData*>(row.getRawValue(0));
+    ASSERT_NE(raw, nullptr);
+    EXPECT_EQ(raw->toBytes(), std::vector<uint8_t>({0x10, 0x20, 0x30}));
+}
+
+TEST(BinaryRowDataTest, RawValueInvalidOffsetAndSizeThrows)
+{
+    BinaryRowData row(1, 24);
+    row.setNotNullAt(0);
+    row.setOffsetAndSize(row.getNullBitsSizeInBytes(), 23, 2);
+    EXPECT_THROW(row.getRawValue(0), std::runtime_error);
+}

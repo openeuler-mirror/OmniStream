@@ -21,6 +21,7 @@
 
 #include "OperatorSavepointAdaptor.h"
 #include "runtime/state/restore/RestoreBackendDelegate.h"
+#include "runtime/state/restore/vb/VectorBatchRestoreHooks.h"
 #include "runtime/state/vbsave/VectorBatchSaveHooks.h"
 #include "runtime/state/vbsave/VectorBatchSavePlan.h"
 #include "runtime/state/metainfo/StateMetaInfoSnapshot.h"
@@ -38,7 +39,9 @@ class OmniTaskBridge;
 //   保存方向实现 VectorBatchSaveHooks，save() 调用 VectorBatchSaveFlow；
 //   恢复方向 restore() 调用 VectorBatchRestoreFlow，以自身为 Derived hook
 //   提供 getStateType()/buildOmniMainMetaInfo()/retrieveKVRowData()。
-class DeduplicateSavepointAdaptor : public OperatorSavepointAdaptor, public VectorBatchSaveHooks {
+class DeduplicateSavepointAdaptor : public OperatorSavepointAdaptor,
+                                    public VectorBatchSaveHooks,
+                                    public VectorBatchRestoreHooks {
 public:
     DeduplicateSavepointAdaptor() = default;
 

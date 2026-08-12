@@ -188,9 +188,8 @@ std::vector<VectorBatchSaveStateContext> DeduplicateSavepointAdaptor::buildSaveS
         ctx.mappedKvStateId = (mapIt != plan.kvStateIdMapping.end()) ? mapIt->second : spec.sourceKvStateId;
         ctx.logicalStateName = spec.logicalStateName;
         ctx.valueSerializer = spec.valueSerializer;
-        // 仅 KV_WITH_VB / KV_LIST_WITH_VB 状态需要 VB accessor
-        if (spec.stateType == VectorBatchStateType::KV_WITH_VB ||
-            spec.stateType == VectorBatchStateType::KV_LIST_WITH_VB) {
+        // 仅 KV_WITH_VB 状态需要 VB accessor
+        if (spec.stateType == VectorBatchStateType::KV_WITH_VB) {
             ctx.vbAccessor =
                 snapshotResources.createVectorBatchStateAccessor(spec.logicalStateName, spec.accessorOptions);
             if (ctx.vbAccessor == nullptr) {

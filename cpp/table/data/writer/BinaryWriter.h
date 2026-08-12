@@ -13,6 +13,8 @@
 #define FLINK_TNEL_BINARYWRITER_H
 
 #include <string_view>
+#include <cstddef>
+#include <cstdint>
 
 #include "../../types/logical/LogicalType.h"
 #include "../../../core/typeutils/TypeSerializer.h"
@@ -26,6 +28,7 @@ public:
     virtual void writeInt(int pos, int value) = 0;
     virtual void writeDouble(int pos, double value) = 0;
     virtual void writeString(int pos, std::string_view value) = 0;
+    virtual void writeRawValue(int pos, const uint8_t* bytes, size_t size) = 0;
 
     static void write(BinaryWriter* writer, int pos, void* object, LogicalType* type, TypeSerializer* serializer);
 };

@@ -158,7 +158,7 @@ TypeInformation* TypeInfoFactory::createInternalTypeInfoOfRow(const json& fields
         const json& fieldType = field["fieldType"];
         string type = fieldType["type"];
         const auto typeId = LogicalType::flinkTypeToOmniTypeId(type);
-        auto logicalType = BasicLogicalType::getTypeBy(typeId, fieldType);
+        LogicalType* logicalType = BasicLogicalType::getTypeBy(typeId, fieldType);
         rowFields.emplace_back(name, logicalType, description);
     }
     omnistream::RowType rowType(true, rowFields);
@@ -173,7 +173,7 @@ omnistream::RowType* TypeInfoFactory::createRowType(const std::vector<omniruntim
     std::vector<omnistream::RowField> typeInfo;
     for (size_t i = 0; i < inputRowType->size(); ++i) {
         std::string columnName = "col" + std::to_string(i);
-        BasicLogicalType* logicalType = BasicLogicalType::getTypeBy(inputRowType->at(i), json::object());
+        LogicalType* logicalType = BasicLogicalType::getTypeBy(inputRowType->at(i), json::object());
         typeInfo.emplace_back(columnName, logicalType);
     }
 
@@ -269,14 +269,36 @@ TypeInformation* TypeInfoFactory::createDataStreamTypeInfo(const json& serialize
             typeInformation = new PojoTypeInfo(clazz, pojoFields);
         }
     } else if (serializerName == TYPE_NAME_MAP_SERIALIZER) {
-        if (serializerInfo.contains("keySerializer") && serializerInfo.contains("valueSerializer")) {
-            auto keyTypeInfo = createDataStreamTypeInfo(serializerInfo["keySerializer"]);
-            auto valueTypeInfo = createDataStreamTypeInfo(serializerInfo["valueSerializer"]);
-            typeInformation = new MapTypeInfo(keyTypeInfo, valueTypeInfo);
-        } else {
-            ERROR_RELEASE("Error:Unsupport map serializer format.");
-            throw std::runtime_error("Unsupport map serializer format.");
+        const json* keySerializer = nullptr;
+        const json* valueSerializer = nullptr;
+        if (serializerInfo.contains("keySerializer") && serializerInfo["keySerializer"].is_object() &&
+            !serializerInfo["keySerializer"].empty()) {
+            keySerializer = &serializerInfo["keySerializer"];
         }
+        if (serializerInfo.contains("valueSerializer") && serializerInfo["valueSerializer"].is_object() &&
+            !serializerInfo["valueSerializer"].empty()) {
+            valueSerializer = &serializerInfo["valueSerializer"];
+        }
+        // Compatibility with serializer descriptions that encode Map<K,V> as two nested fields.
+        if ((keySerializer == nullptr || valueSerializer == nullptr) && serializerInfo.contains("fieldSerializers") &&
+            serializerInfo["fieldSerializers"].is_array() && serializerInfo["fieldSerializers"].size() == 2) {
+            keySerializer = &serializerInfo["fieldSerializers"][0];
+            valueSerializer = &serializerInfo["fieldSerializers"][1];
+        }
+        if (keySerializer == nullptr || valueSerializer == nullptr) {
+            ERROR_RELEASE(
+                "MapSerializer missing key/value serializer; clazz=" << serializerInfo.value("clazz", "")
+                                                                     << ", json=" << serializerInfo.dump());
+            throw std::runtime_error(
+                "MapSerializer requires keySerializer and valueSerializer; java.util.HashMap does not contain "
+                "generic type information");
+        }
+        auto keyTypeInfo = createDataStreamTypeInfo(*keySerializer);
+        auto valueTypeInfo = createDataStreamTypeInfo(*valueSerializer);
+        if (keyTypeInfo == nullptr || valueTypeInfo == nullptr) {
+            throw std::runtime_error("MapSerializer nested serializer could not be converted to TypeInformation");
+        }
+        typeInformation = new MapTypeInfo(keyTypeInfo, valueTypeInfo);
     } else if (serializerName == TYPE_NAME_LIST_SERIALIZER) {
         auto elementTypeInfo = createDataStreamTypeInfo(serializerInfo["elementSerializer"]);
         typeInformation = new ListTypeInfo(elementTypeInfo);
@@ -311,9 +333,8 @@ TypeInformation* TypeInfoFactory::createDataStreamTypeInfo(const json& serialize
         typeInformation = BinaryTypeInfo::of(fields.size(), fields);
     } else if (serializerName == TYPE_NAME_EXTERNAL_SERIALIZER) {
         if (!serializerInfo.contains("valueSerializer")) {
-            INFO_RELEASE(
-                "Error: TypeInfoFactory::createDataStreamTypeInfo missing valueSerializer, serializerName="
-                << serializerName);
+            ERROR_RELEASE(
+                "TypeInfoFactory::createDataStreamTypeInfo missing valueSerializer, serializerName=" << serializerName);
             THROW_RUNTIME_ERROR("ExternalSerializer requires valueSerializer");
         }
         const json serializerAttributes = serializerInfo.value("serializerAttributes", json::object());
@@ -333,15 +354,15 @@ TypeInformation* TypeInfoFactory::createDataStreamTypeInfo(const json& serialize
                 serializerAttributes.value("externalIsInternalInput", false),
                 conversionClass);
         } catch (const std::exception& e) {
-            INFO_RELEASE(
-                "Error: TypeInfoFactory::createDataStreamTypeInfo failed to create ExternalTypeInfo, "
+            ERROR_RELEASE(
+                "TypeInfoFactory::createDataStreamTypeInfo failed to create ExternalTypeInfo, "
                 "serializerName="
                 << serializerName << ", conversionClass=" << conversionClass << ", reason=" << e.what());
             internalTypeInfo->putRefCount();
             THROW_RUNTIME_ERROR("Failed to create ExternalTypeInfo: " << e.what());
         } catch (...) {
-            INFO_RELEASE(
-                "Error: TypeInfoFactory::createDataStreamTypeInfo failed to create ExternalTypeInfo, "
+            ERROR_RELEASE(
+                "TypeInfoFactory::createDataStreamTypeInfo failed to create ExternalTypeInfo, "
                 "serializerName="
                 << serializerName << ", conversionClass=" << conversionClass << ", reason=unknown");
             internalTypeInfo->putRefCount();
