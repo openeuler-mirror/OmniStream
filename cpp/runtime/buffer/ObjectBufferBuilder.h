@@ -12,6 +12,7 @@
 #ifndef OMNISTREAM_BUFFERBUILDER_H
 #define OMNISTREAM_BUFFERBUILDER_H
 
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -28,6 +29,7 @@ public:
 
     int appendAndCommit(void* source) override;
     int append(void* source);
+    int appendSerializedObjectSegment(const uint8_t* source, int length);
 
     using BufferBuilder::createBufferConsumer;
     std::shared_ptr<BufferConsumer> createBufferConsumerFromBeginning() override;
@@ -43,6 +45,16 @@ private:
     ObjectSegment* objSegment;
 };
 
+class ObjectSegmentChannelStateSerde {
+public:
+    struct AppendResult {
+        int bytesConsumed;
+        int elementsWritten;
+    };
+
+    static AppendResult AppendSerializedObjectSegment(
+        const uint8_t* source, int length, ObjectSegment* target, int targetOffset, int writableElements);
+};
 } // namespace omnistream
 
 #endif // OMNISTREAM_BUFFERBUILDER_H

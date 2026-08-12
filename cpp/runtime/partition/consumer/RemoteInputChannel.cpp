@@ -12,11 +12,34 @@
 #include "table/utils/VectorBatchDeserializationUtils.h"
 #include "common.h"
 #include "runtime/buffer/NetworkBuffer.h"
+#include "runtime/buffer/VectorBatchBuffer.h"
 #include "runtime/io/checkpointing/CheckpointBarrierHandler.h"
 #include <buffer/ReadOnlySlicedNetworkBuffer.h>
 #include "core/include/omni_const.h"
 
 namespace omnistream {
+namespace {
+VectorBatchBuffer* CopyVectorBatchBufferForCheckpoint(VectorBatchBuffer* source)
+{
+    if (source == nullptr) {
+        return nullptr;
+    }
+
+    auto* oldObjectSegment = source->GetObjectSegment();
+    if (oldObjectSegment == nullptr) {
+        return nullptr;
+    }
+
+    int offset = source->GetOffset();
+    int bufferLength = source->GetSize();
+    ObjectSegment* objectSegment = new ObjectSegment(bufferLength);
+    objectSegment->put(0, oldObjectSegment, offset, bufferLength);
+    auto* copiedBuffer = new VectorBatchBuffer(objectSegment, std::make_shared<DeepCopiedObjectBufferRecycler>());
+    copiedBuffer->SetSize(bufferLength);
+    return copiedBuffer;
+}
+} // namespace
+
 RemoteInputChannel::RemoteInputChannel(
     std::shared_ptr<SingleInputGate> inputGate,
     int channelIndex,
@@ -50,6 +73,7 @@ void RemoteInputChannel::requestSubpartition(int subpartitionIndex)
 void RemoteInputChannel::notifyRemoteDataAvailableForVectorBatch(
     long bufferAddress, int bufferLength, int sequenceNumber)
 {
+    taskType = 1;
     if (bufferAddress == -1) {
         // event
         int eventType = bufferLength;
@@ -65,11 +89,25 @@ void RemoteInputChannel::notifyRemoteDataAvailableForVectorBatch(
         // do data deserialization
         std::shared_ptr<ObjectSegment> objectSegment = this->DoDataDeserializationResult(buffer, bufferLength);
         auto vectorBatchBuffer = new VectorBatchBuffer(objectSegment);
+        if (isNeedExpansion && (sequenceNumber > lastSequenceNumber)) {
+            isNeedExpansion = false;
+        }
         if (vectorBatchBuffer != nullptr) {
             vectorBatchBuffer->SetSize(objectSegment->getSize());
             std::lock_guard<std::recursive_mutex> lock(queueMutex);
             this->dataQueue.push(vectorBatchBuffer);
             LOG("remote got an buffer  " << vectorBatchBuffer->ToDebugString(true));
+            if (isNeedPersistence_ || isNeedExpansion) {
+                auto* copy = CopyVectorBatchBufferForCheckpoint(vectorBatchBuffer);
+                if (copy != nullptr) {
+                    inflightBuffers_.push_back(copy);
+                }
+            }
+        }
+        auto bufferLength = vectorBatchBuffer->GetSize();
+        insize += bufferLength;
+        if (!isNeedExpansion) {
+            lastSequenceNumber = sequenceNumber;
         }
     }
     this->notifyDataAvailable();
@@ -260,7 +298,11 @@ void RemoteInputChannel::CheckpointStarted(
     inflightBuffers_.clear();
     std::vector<Buffer*> knownBuffers;
     if (IsNeedPersistence()) {
-        knownBuffers = GetInflightBuffersUnsafe(barrier.GetId());
+        if (taskType == 1) {
+            knownBuffers = GetInflightVectorBatchBuffersUnsafe(barrier.GetId());
+        } else {
+            knownBuffers = GetInflightBuffersUnsafe(barrier.GetId());
+        }
     }
     channelStatePersister->StartPersisting(barrier.GetId(), knownBuffers);
 }
@@ -273,11 +315,47 @@ void RemoteInputChannel::CheckpointStopped(long checkpointId)
         ResetLastBarrier();
     }
     startSize_ = 0;
+    inflightBuffers_.clear();
 }
 
 void RemoteInputChannel::AddInputData(long checkpointId, const omnistream::InputChannelInfo& info)
 {
     return channelStatePersister->AddInputData(inflightBuffers_, checkpointId, info);
+}
+
+std::vector<Buffer*> RemoteInputChannel::GetInflightVectorBatchBuffersUnsafe(long checkpointId)
+{
+    std::lock_guard<std::recursive_mutex> lock(queueMutex);
+    std::vector<Buffer*> inflightBuffers;
+    std::queue<Buffer*> tmpQueue = dataQueue;
+    while (!tmpQueue.empty()) {
+        Buffer* buffer = tmpQueue.front();
+        VectorBatchBuffer* vectorBatchBuffer = dynamic_cast<VectorBatchBuffer*>(buffer);
+        datastream::ReadOnlySlicedNetworkBuffer* readOnlyBuffer =
+            dynamic_cast<datastream::ReadOnlySlicedNetworkBuffer*>(buffer);
+        if (vectorBatchBuffer == nullptr && readOnlyBuffer == nullptr) {
+            tmpQueue.pop();
+            continue;
+        }
+        int bufferLength = buffer->GetSize();
+        if (vectorBatchBuffer != nullptr) {
+            auto newVectorBatchBuffer = CopyVectorBatchBufferForCheckpoint(vectorBatchBuffer);
+            inflightBuffers.push_back(newVectorBatchBuffer);
+            tmpQueue.pop();
+            continue;
+        }
+        if (startSize_ != 0) {
+            std::shared_ptr<AbstractEvent> event = EventSerializer::fromBufferNotRecycle(readOnlyBuffer);
+            if (event->GetEventClassName() == "CheckpointBarrier") {
+                isNeedPersistence_ = false;
+                break;
+            }
+        }
+        tmpQueue.pop();
+    }
+    LOG("RemoteInputChannel get inflight buffers success, buffer num:" << inflightBuffers.size()
+                                                                       << ", checkpointId: " << checkpointId);
+    return inflightBuffers;
 }
 
 std::vector<Buffer*> RemoteInputChannel::GetInflightBuffersUnsafe(long checkpointId)

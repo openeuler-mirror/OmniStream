@@ -15,7 +15,6 @@
 #include "ChannelStateWriter.h"
 #include "state/filesystem/FileStateHandle.h"
 namespace omnistream {
-
 ChannelStateCheckpointWriter::ChannelStateCheckpointWriter(
     const std::set<SubtaskID>& subtasks,
     int64_t checkpointId,
@@ -24,7 +23,10 @@ ChannelStateCheckpointWriter::ChannelStateCheckpointWriter(
     std::function<void()> onComplete)
     : checkpointId(checkpointId),
       serializer(serializer),
-      onComplete(onComplete)
+      onComplete(onComplete),
+      checkpointStream(nullptr),
+      dataStream(nullptr),
+      streamOffset(0)
 {
     if (subtasks.empty()) {
         throw std::invalid_argument("subtasks cannot be empty");
@@ -32,7 +34,7 @@ ChannelStateCheckpointWriter::ChannelStateCheckpointWriter(
     subtasksToRegister = subtasks;
     std::unique_ptr<CheckpointStateOutputStream> checkpointStreamGuard(
         streamFactory->createCheckpointStateOutputStream(CheckpointedStateScope::EXCLUSIVE));
-    size_t memSize = 64 * 1024 * 1024;
+    size_t memSize = static_cast<size_t>(serializer->GetHeaderLength());
     std::unique_ptr<char, void (*)(void*)> dataStreamGuard(static_cast<char*>(std::malloc(memSize)), std::free);
     if (dataStreamGuard == nullptr) {
         INFO_RELEASE("Exception: Failed to allocate channel state data stream.");
@@ -40,7 +42,10 @@ ChannelStateCheckpointWriter::ChannelStateCheckpointWriter(
     }
     (void)memset_s(dataStreamGuard.get(), memSize, 0, memSize);
     serializer->WriteHeader(dataStreamGuard.get());
-    checkpointStream = checkpointStreamGuard.release();
+    checkpointStream = checkpointStreamGuard.get();
+    checkpointStream->Write(dataStreamGuard.get(), memSize);
+    streamOffset = static_cast<int64_t>(memSize);
+    checkpointStreamGuard.release();
     dataStream = dataStreamGuard.release();
 }
 
@@ -231,11 +236,14 @@ void ChannelStateCheckpointWriter::FinishWriteAndResult(ChannelStatePendingResul
             paritionHandles->push_back(resultSubpartitionStateHandle);
         }
         pending->GetResult()->GetResultSubpartitionStateHandles()->Complete(paritionHandles);
+    } else {
+        throw std::runtime_error("Failed to close channel state stream: null state handle");
     }
 }
 
 void ChannelStateCheckpointWriter::failResultAndCloseStream(const std::exception_ptr& e)
 {
+    throwable = e;
     for (auto& kv : pendingResults) kv.second->Fail(e);
     try {
         checkpointStream->Close();

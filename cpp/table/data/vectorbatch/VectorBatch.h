@@ -139,6 +139,18 @@ public:
             copiedVectorBatch->Append(
                 omniruntime::vec::VectorHelper::CopyPositionsVector(value->Get(i), offsets.data(), 0, offsets.size()));
         }
+        if (rowCount > 0) {
+            memcpy_s(
+                copiedVectorBatch->getTimestamps(),
+                sizeof(int64_t) * rowCount,
+                value->getTimestamps(),
+                sizeof(int64_t) * rowCount);
+            memcpy_s(
+                copiedVectorBatch->getRowKinds(),
+                sizeof(RowKind) * rowCount,
+                value->getRowKinds(),
+                sizeof(RowKind) * rowCount);
+        }
         return copiedVectorBatch;
     }
     static omniruntime::vec::BaseVector* CopyPositionsAndFlatten(

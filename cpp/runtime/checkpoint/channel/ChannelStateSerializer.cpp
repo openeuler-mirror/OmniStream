@@ -11,7 +11,10 @@
 
 #include <cstring>
 #include "runtime/buffer/MemoryBufferBuilder.h"
+#include "runtime/buffer/ObjectBufferBuilder.h"
 #include "runtime/checkpoint/channel/ChannelStateSerializer.h"
+
+#include "core/memory/MemorySegment.h"
 
 namespace omnistream {
 
@@ -265,28 +268,47 @@ void ChannelStateByteBufferImpl::close()
 
 int ChannelStateByteBufferImpl::writeBytes(std::ifstream& input, int bytesToRead) //
 {
-    auto memoryBuilder = (omnistream::datastream::MemoryBufferBuilder*)(bufferBuilder_);
-    if (!memoryBuilder) {
-        throw std::runtime_error(
-            "ChannelStateByteBufferImpl only supports MemoryBufferBuilder for byte channel-state restore");
-    }
-
-    int toRead = getToRead(bytesToRead);
-    if (toRead <= 0) {
+    if (bytesToRead <= 0) {
         return 0;
     }
+    auto memoryBuilder = dynamic_cast<omnistream::datastream::MemoryBufferBuilder*>(bufferBuilder_);
+    auto objectBuilder = dynamic_cast<omnistream::ObjectBufferBuilder*>(bufferBuilder_);
+    if (memoryBuilder) {
+        // MemoryBuffer can read 1024 bytes in a single loop, read all data through multiple loops
+        int toRead = getToRead(bytesToRead);
+        if (toRead <= 0) {
+            return 0;
+        }
 
-    input.read(reinterpret_cast<char*>(buf_.data()), toRead);
-    int readBytes = static_cast<int>(input.gcount());
-    if (readBytes != toRead) {
-        throw std::ios_base::failure("Unexpected EOF while reading channel-state data from file stream");
+        input.read(reinterpret_cast<char*>(buf_.data()), toRead);
+        int readBytes = static_cast<int>(input.gcount());
+        if (readBytes != toRead) {
+            throw std::ios_base::failure("Unexpected EOF while reading channel-state data from file stream");
+        }
+        return memoryBuilder->appendRawBytes(buf_.data(), readBytes);
     }
+    if (objectBuilder) {
+        // ObjectBuffer must read all bytes in a single loop
+        std::vector<uint8_t> tmpBuf(bytesToRead);
 
-    return memoryBuilder->appendRawBytes(buf_.data(), readBytes);
+        input.read(reinterpret_cast<char*>(tmpBuf.data()), bytesToRead);
+        int readBytes = static_cast<int>(input.gcount());
+        if (readBytes != bytesToRead) {
+            throw std::ios_base::failure("Unexpected EOF while reading channel-state data from file stream");
+        }
+        return objectBuilder->appendSerializedObjectSegment(tmpBuf.data(), readBytes);
+    }
+    throw std::runtime_error(
+        "ChannelStateByteBufferImpl only supports MemoryBufferBuilder and ObjectBufferBuilder for byte channel-state "
+        "restore");
 }
 
 int ChannelStateByteBufferImpl::writeBytes2(std::shared_ptr<ByteStateHandleInputStream>& input, int bytesToRead) //
 {
+    if (bytesToRead <= 0) {
+        return 0;
+    }
+
     if (!input) {
         INFO_RELEASE("Exception: ByteStateHandleInputStream is null.");
         throw std::invalid_argument("ByteStateHandleInputStream is null");
@@ -298,26 +320,36 @@ int ChannelStateByteBufferImpl::writeBytes2(std::shared_ptr<ByteStateHandleInput
     }
 
     auto memoryBuilder = dynamic_cast<omnistream::datastream::MemoryBufferBuilder*>(bufferBuilder_);
-    if (!memoryBuilder) {
-        INFO_RELEASE(
-            "Exception: ChannelStateByteBufferImpl only supports MemoryBufferBuilder for byte channel-state "
-            "restore.");
-        throw std::runtime_error(
-            "ChannelStateByteBufferImpl only supports MemoryBufferBuilder for byte channel-state restore");
-    }
+    auto objectBuilder = dynamic_cast<omnistream::ObjectBufferBuilder*>(bufferBuilder_);
+    if (memoryBuilder) {
+        // MemoryBuffer can read 1024 bytes in a single loop, read all data through multiple loops
+        int toRead = getToRead(bytesToRead);
+        if (toRead <= 0) {
+            return 0;
+        }
 
-    int toRead = getToRead(bytesToRead);
-    if (toRead <= 0) {
-        return 0;
+        int readBytes = input->Read(buf_, 0, toRead);
+        if (readBytes != toRead) {
+            INFO_RELEASE("Exception: Unexpected EOF while reading channel-state data from byte stream.");
+            throw std::ios_base::failure("Unexpected EOF while reading channel-state data from byte stream");
+        }
+        return memoryBuilder->appendRawBytes(buf_.data(), readBytes);
     }
+    if (objectBuilder) {
+        // ObjectBuffer must read all bytes in a single loop
+        std::vector<uint8_t> tmpBuf(bytesToRead);
 
-    int readBytes = input->Read(buf_, 0, toRead);
-    if (readBytes != toRead) {
-        INFO_RELEASE("Exception: Unexpected EOF while reading channel-state data from byte stream.");
-        throw std::ios_base::failure("Unexpected EOF while reading channel-state data from byte stream");
+        int readBytes = input->Read(tmpBuf, 0, bytesToRead);
+        if (readBytes != bytesToRead) {
+            INFO_RELEASE("Exception: Unexpected EOF while reading channel-state data from byte stream.");
+            throw std::ios_base::failure("Unexpected EOF while reading channel-state data from byte stream");
+        }
+        return objectBuilder->appendSerializedObjectSegment(tmpBuf.data(), readBytes);
     }
-
-    return memoryBuilder->appendRawBytes(buf_.data(), readBytes);
+    INFO_RELEASE(
+        "Exception: ChannelStateByteBufferImpl only supports MemoryBufferBuilder for byte channel-state restore.");
+    throw std::runtime_error(
+        "ChannelStateByteBufferImpl only supports MemoryBufferBuilder for byte channel-state restore");
 }
 
 int ChannelStateByteBufferImpl::getToRead(int bytesToRead) const
@@ -344,29 +376,50 @@ int ChannelStateByteBufferImpl2::writeBytes(std::ifstream& input, int bytesToRea
         throw std::invalid_argument("Buffer is null");
     }
 
-    auto memorySegment = (MemorySegment*)(buffer_->GetSegment());
-    if (!memorySegment) {
-        throw std::runtime_error(
-            "ChannelStateByteBufferImpl2 only supports MemorySegment-backed Buffer for byte channel-state restore");
-    }
+    auto memorySegment = dynamic_cast<MemorySegment*>(buffer_->GetSegment());
+    if (memorySegment) {
+        int writable = buffer_->GetMaxCapacity() - buffer_->GetSize();
+        int toRead = std::min(bytesToRead, writable);
+        if (toRead <= 0) {
+            return 0;
+        }
 
-    int writable = buffer_->GetMaxCapacity() - buffer_->GetSize();
-    int toRead = std::min(bytesToRead, writable);
-    if (toRead <= 0) {
-        return 0;
-    }
+        std::vector<uint8_t> tmp(toRead);
+        input.read(reinterpret_cast<char*>(tmp.data()), toRead);
+        int readBytes = static_cast<int>(input.gcount());
+        if (readBytes != toRead) {
+            throw std::ios_base::failure("Unexpected EOF while reading channel-state data from file stream");
+        }
 
-    std::vector<uint8_t> tmp(toRead);
-    input.read(reinterpret_cast<char*>(tmp.data()), toRead);
-    int readBytes = static_cast<int>(input.gcount());
-    if (readBytes != toRead) {
-        throw std::ios_base::failure("Unexpected EOF while reading channel-state data from file stream");
+        int writeOffset = buffer_->GetOffset() + buffer_->GetSize();
+        memorySegment->put(writeOffset, tmp.data(), 0, readBytes);
+        buffer_->SetSize(buffer_->GetSize() + readBytes);
+        return readBytes;
     }
+    auto objectSegment = dynamic_cast<ObjectSegment*>(buffer_->GetSegment());
+    if (objectSegment) {
+        // 注意：这里不能按 object writable 数量截断 bytesToRead
+        // 必须读取完整 ObjectSegment payload
+        std::vector<uint8_t> tmp(bytesToRead);
+        input.read(reinterpret_cast<char*>(tmp.data()), bytesToRead);
+        int readBytes = static_cast<int>(input.gcount());
+        if (readBytes != bytesToRead) {
+            throw std::ios_base::failure("Unexpected EOF while reading channel-state data from file stream");
+        }
 
-    int writeOffset = buffer_->GetOffset() + buffer_->GetSize();
-    memorySegment->put(writeOffset, tmp.data(), 0, readBytes);
-    buffer_->SetSize(buffer_->GetSize() + readBytes);
-    return readBytes;
+        auto result = ObjectSegmentChannelStateSerde::AppendSerializedObjectSegment(
+            tmp.data(),
+            bytesToRead,
+            objectSegment,
+            buffer_->GetOffset() + buffer_->GetSize(),
+            buffer_->GetMaxCapacity() - buffer_->GetSize());
+
+        buffer_->SetSize(buffer_->GetSize() + result.elementsWritten);
+        return result.bytesConsumed;
+    }
+    throw std::runtime_error(
+        "ChannelStateByteBufferImpl2 only supports MemorySegment and ObjectSegment Buffer for byte channel-state "
+        "restore");
 }
 
 int ChannelStateByteBufferImpl2::writeBytes2(std::shared_ptr<ByteStateHandleInputStream>& input, int bytesToRead)
@@ -380,31 +433,53 @@ int ChannelStateByteBufferImpl2::writeBytes2(std::shared_ptr<ByteStateHandleInpu
         throw std::invalid_argument("Buffer is null");
     }
 
-    auto memorySegment = (MemorySegment*)(buffer_->GetSegment());
-    if (!memorySegment) {
-        INFO_RELEASE(
-            "Exception: ChannelStateByteBufferImpl2 only supports MemorySegment-backed Buffer for byte "
-            "channel-state restore.");
-        throw std::runtime_error(
-            "ChannelStateByteBufferImpl2 only supports MemorySegment-backed Buffer for byte channel-state restore");
+    auto memorySegment = dynamic_cast<MemorySegment*>(buffer_->GetSegment());
+    if (memorySegment) {
+        int writable = buffer_->GetMaxCapacity() - buffer_->GetSize();
+        int toRead = std::min(bytesToRead, writable);
+        if (toRead <= 0) {
+            return 0;
+        }
+
+        std::vector<uint8_t> tmp(toRead);
+        int readBytes = input->Read(tmp, 0, toRead);
+        if (readBytes != toRead) {
+            INFO_RELEASE("Exception: Unexpected EOF while reading channel-state data from byte stream.");
+            throw std::ios_base::failure("Unexpected EOF while reading channel-state data from byte stream");
+        }
+
+        int writeOffset = buffer_->GetOffset() + buffer_->GetSize();
+        memorySegment->put(writeOffset, tmp.data(), 0, readBytes);
+        buffer_->SetSize(buffer_->GetSize() + readBytes);
+        return readBytes;
     }
 
-    int writable = buffer_->GetMaxCapacity() - buffer_->GetSize();
-    int toRead = std::min(bytesToRead, writable);
-    if (toRead <= 0) {
-        return 0;
-    }
+    auto objectSegment = dynamic_cast<ObjectSegment*>(buffer_->GetSegment());
+    if (objectSegment) {
+        // 注意：这里不能按 object writable 数量截断 bytesToRead
+        // 必须读取完整 ObjectSegment payload
+        std::vector<uint8_t> tmp(bytesToRead);
+        int readBytes = input->Read(tmp, 0, bytesToRead);
+        if (readBytes != bytesToRead) {
+            INFO_RELEASE("Exception: Unexpected EOF while reading channel-state data from byte stream.");
+            throw std::ios_base::failure("Unexpected EOF while reading channel-state data from byte stream");
+        }
 
-    std::vector<uint8_t> tmp(toRead);
-    int readBytes = input->Read(tmp, 0, toRead);
-    if (readBytes != toRead) {
-        INFO_RELEASE("Exception: Unexpected EOF while reading channel-state data from byte stream.");
-        throw std::ios_base::failure("Unexpected EOF while reading channel-state data from byte stream");
-    }
+        auto result = ObjectSegmentChannelStateSerde::AppendSerializedObjectSegment(
+            tmp.data(),
+            bytesToRead,
+            objectSegment,
+            buffer_->GetOffset() + buffer_->GetSize(),
+            buffer_->GetMaxCapacity() - buffer_->GetSize());
 
-    int writeOffset = buffer_->GetOffset() + buffer_->GetSize();
-    memorySegment->put(writeOffset, tmp.data(), 0, readBytes);
-    buffer_->SetSize(buffer_->GetSize() + readBytes);
-    return readBytes;
+        buffer_->SetSize(buffer_->GetSize() + result.elementsWritten);
+        return result.bytesConsumed;
+    }
+    INFO_RELEASE(
+        "Exception: ChannelStateByteBufferImpl2 only supports MemorySegment and ObjectSegment Buffer for byte "
+        "channel-state restore.");
+    throw std::runtime_error(
+        "ChannelStateByteBufferImpl2 only supports MemorySegment and ObjectSegment Buffer for byte channel-state "
+        "restore");
 }
 } // namespace omnistream

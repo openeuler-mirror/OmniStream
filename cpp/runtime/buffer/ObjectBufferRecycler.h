@@ -53,6 +53,35 @@ private:
     static std::shared_ptr<DummyObjectBufferRecycler> instance;
 };
 
+class DeepCopiedObjectBufferRecycler : public ObjectBufferRecycler {
+public:
+    static std::shared_ptr<DeepCopiedObjectBufferRecycler> getInstance()
+    {
+        if (!instance) {
+            instance = std::make_shared<DeepCopiedObjectBufferRecycler>();
+        }
+        return instance;
+    };
+    DeepCopiedObjectBufferRecycler() = default;
+    ~DeepCopiedObjectBufferRecycler() override = default;
+
+    void recycle(Segment* objectBuffer) override
+    {
+        ObjectSegment* segment = dynamic_cast<ObjectSegment*>(objectBuffer);
+        if (segment) {
+            segment->ReleaseObjects();
+            delete segment;
+        }
+    }
+
+    std::string toString() const override
+    {
+        return "DeepCopiedObjectBufferRecycler";
+    };
+
+private:
+    static std::shared_ptr<DeepCopiedObjectBufferRecycler> instance;
+};
 } // namespace omnistream
 
 #endif // OMNISTREAM_OBJECTBUFFERRECYCLER_H
