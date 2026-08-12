@@ -59,8 +59,33 @@
 #include "StreamOperatorFactory.h"
 #include "runtime/checkpoint/FlinkSavepointAdaptorInfo.h"
 #include "runtime/checkpoint/StreamingJoinSavepointUtil.h"
+#include "runtime/checkpoint/WindowAggSavepointCompatibility.h"
 
 namespace omnistream {
+
+namespace {
+
+template <typename OperatorT>
+void configureSavepoint(
+    OperatorT* op,
+    const char* operatorType,
+    const nlohmann::json& description,
+    const FlinkSavepointAdaptorInfo& adaptorInfo)
+{
+    op->setDescription(description);
+    if (adaptorInfo.type == FlinkSavepointAdaptorType::None) {
+        op->setFlinkSavepointUnsupported(adaptorInfo.reason);
+    } else {
+        op->setFlinkSavepointAdaptor(adaptorInfo.type);
+    }
+    INFO_RELEASE(
+        "StreamOperatorFactory configured compatible savepoint adaptor: operatorType="
+        << operatorType << ", adaptorType=" << flinkSavepointAdaptorTypeName(adaptorInfo.type)
+        << ", adaptorTypeCode=" << static_cast<int>(adaptorInfo.type)
+        << ", reason=" << (adaptorInfo.reason.empty() ? "<none>" : adaptorInfo.reason));
+}
+
+} // namespace
 
 StreamOperator* StreamOperatorFactory::createOperatorAndCollector(
     omnistream::OperatorConfig& opConfig, WatermarkGaugeExposingOutput* chainOutput)
@@ -150,23 +175,26 @@ StreamOperator* StreamOperatorFactory::createOperatorAndCollector(
             return static_cast<OneInputStreamOperator*>(op);
         }
     } else if (uniqueName == OPERATOR_NAME_LOCAL_WINDOW_AGG) {
-        auto* op = new LocalSlicingWindowAggOperator(opConfig.getDescription(), chainOutput);
+        const auto description = opConfig.getDescription();
+        auto* op = new LocalSlicingWindowAggOperator(description, chainOutput);
         op->setup();
+        configureSavepoint(op, "LocalWindowAgg", description, WindowAggSavepointCompatibility::forLocal());
         LOG("Operator LocalSlicingWindowAggOperator address " + std::to_string(reinterpret_cast<long>(op)));
         return static_cast<OneInputStreamOperator*>(op);
     } else if (uniqueName == OPERATOR_NAME_GLOBAL_WINDOW_AGG) {
-        auto processor = std::make_unique<AbstractWindowAggProcessor>(opConfig.getDescription(), chainOutput);
-        auto* op = new SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>(
-            std::move(processor), opConfig.getDescription());
+        const auto description = opConfig.getDescription();
+        auto processor = std::make_unique<AbstractWindowAggProcessor>(description, chainOutput);
+        auto* op = new SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>(std::move(processor), description);
         op->setup();
-        op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
+        configureSavepoint(
+            op, "SlicingWindowAgg", description, WindowAggSavepointCompatibility::forSlicing(description));
         LOG("Operator SlicingWindowOperator address " + std::to_string(reinterpret_cast<long>(op)));
         return static_cast<OneInputStreamOperator*>(op);
     } else if (opConfig.getUniqueName() == OPERATOR_NAME_GROUP_WINDOW_AGG) {
-        auto* op =
-            new AggregateWindowOperator<std::shared_ptr<RowData>, TimeWindow>(opConfig.getDescription(), chainOutput);
+        const auto description = opConfig.getDescription();
+        auto* op = new AggregateWindowOperator<std::shared_ptr<RowData>, TimeWindow>(description, chainOutput);
         op->setup();
-        op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
+        configureSavepoint(op, "GroupWindowAgg", description, WindowAggSavepointCompatibility::forGroup(description));
         LOG("Operator AggregateWindowOperator address " + std::to_string(reinterpret_cast<long>(op)));
         return static_cast<OneInputStreamOperator*>(op);
     } else if (uniqueName == OPERATOR_NAME_WINDOW_INNER_JOIN) {
@@ -299,7 +327,7 @@ StreamOperator* StreamOperatorFactory::CreateLocalWindowAggOp(
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
     auto* op = new LocalSlicingWindowAggOperator(opDescriptionJSON, chainOutput);
     op->setup(std::move(task));
-    op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
+    configureSavepoint(op, "LocalWindowAgg", opDescriptionJSON, WindowAggSavepointCompatibility::forLocal());
     LOG("Operator LocalSlicingWindowAggOperator address " + std::to_string(reinterpret_cast<long>(op)));
     return static_cast<OneInputStreamOperator*>(op);
 }
@@ -314,7 +342,8 @@ StreamOperator* StreamOperatorFactory::CreateGlobalWindowAggOp(
     auto processingTimeService = task->createProcessingTimeService();
     op->setProcessingTimeService(processingTimeService);
     op->setup(std::move(task));
-    op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
+    configureSavepoint(
+        op, "SlicingWindowAgg", opDescriptionJSON, WindowAggSavepointCompatibility::forSlicing(opDescriptionJSON));
     LOG("Operator SlicingWindowOperator address " + std::to_string(reinterpret_cast<long>(op)));
     return static_cast<OneInputStreamOperator*>(op);
 }
@@ -328,7 +357,8 @@ StreamOperator* StreamOperatorFactory::CreateGroupWindowAggOp(
     auto processingTimeService = task->createProcessingTimeService();
     op->setProcessingTimeService(processingTimeService);
     op->setup(std::move(task));
-    op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
+    configureSavepoint(
+        op, "GroupWindowAgg", opDescriptionJSON, WindowAggSavepointCompatibility::forGroup(opDescriptionJSON));
     LOG("Operator AggregateWindowOperator address " + std::to_string(reinterpret_cast<long>(op)));
     return static_cast<OneInputStreamOperator*>(op);
 }

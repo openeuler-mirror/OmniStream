@@ -28,6 +28,7 @@
 #include "runtime/state/restore/RestoreKVState.h"
 #include "table/data/RowData.h"
 #include "runtime/state/restore/RestoreBackendDelegate.h"
+#include "table/runtime/operators/window/TimeWindow.h"
 
 namespace omnistream {
 
@@ -132,6 +133,7 @@ protected:
                 switch (namespaceType) {
                     case BackendDataType::VOID_NAMESPACE_BK: delete static_cast<VoidNamespace*>(rawNs); break;
                     case BackendDataType::BIGINT_BK: delete static_cast<int64_t*>(rawNs); break;
+                    case BackendDataType::TIME_WINDOW_BK: delete static_cast<TimeWindow*>(rawNs); break;
                     default:
                         ERROR_RELEASE("Unknown namespace type: " << namespaceType << ", it will cause a memory leak.");
                 }
@@ -252,11 +254,32 @@ void HeapRestoreKVState<K>::writeValueEntry(const std::vector<int8_t>& keyBytes,
             break;
         }
         case BackendDataType::ROW_BK: {
-            auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, RowData*>*>(stateInfo_.mainTablePtr);
             DataInputDeserializer valInput(value.data(), static_cast<int>(value.size()));
             void* rawVal = stateInfo_.valueSerializer->deserialize(valInput);
             std::unique_ptr<RowData> copied(static_cast<RowData*>(rawVal)->copy());
-            table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), copied.release());
+            const auto namespaceBackendType = stateInfo_.namespaceSerializer->getBackendId();
+            if (namespaceBackendType == BackendDataType::TIME_WINDOW_BK) {
+                auto* table =
+                    reinterpret_cast<CopyOnWriteStateTable<K, TimeWindow, RowData*>*>(stateInfo_.mainTablePtr);
+                table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<TimeWindow*>(rawNs), copied.release());
+            } else if (namespaceBackendType == BackendDataType::BIGINT_BK) {
+                auto* table = reinterpret_cast<CopyOnWriteStateTable<K, int64_t, RowData*>*>(stateInfo_.mainTablePtr);
+                table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<int64_t*>(rawNs), copied.release());
+            } else if (namespaceBackendType == BackendDataType::VOID_NAMESPACE_BK) {
+                auto* table =
+                    reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, RowData*>*>(stateInfo_.mainTablePtr);
+                table->put(
+                    *static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), copied.release());
+            } else {
+                ERROR_RELEASE(
+                    "HeapRestoreKVState: unsupported namespace backend type "
+                    << static_cast<int>(namespaceBackendType) << " for ROW VALUE state '" << stateInfo_.stateName
+                    << "'");
+                throw std::runtime_error(
+                    "HeapRestoreKVState: unsupported namespace backend type " +
+                    std::to_string(static_cast<int>(namespaceBackendType)) + " for ROW VALUE state '" +
+                    stateInfo_.stateName + "'");
+            }
             break;
         }
         case BackendDataType::OBJECT_BK:
