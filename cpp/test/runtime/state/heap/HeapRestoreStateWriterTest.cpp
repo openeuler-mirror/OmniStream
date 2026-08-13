@@ -128,8 +128,8 @@ protected:
         options[StateMetaInfoSnapshot::KEYED_STATE_TYPE] = "LIST";
 
         std::unordered_map<std::string, TypeSerializer*> serializers;
-        serializers[StateMetaInfoSnapshot::COMMON_NAMESPACE_SERIALIZER_KEY] = new LongSerializer();
-        serializers[StateMetaInfoSnapshot::COMMON_VALUE_SERIALIZER_KEY] = new ListSerializer(new LongSerializer());
+        serializers[StateMetaInfoSnapshot::NAMESPACE_SERIALIZER_KEY] = new LongSerializer();
+        serializers[StateMetaInfoSnapshot::VALUE_SERIALIZER_KEY] = new ListSerializer(new LongSerializer());
 
         return StateMetaInfoSnapshot(
             name,
@@ -145,8 +145,8 @@ protected:
         options[StateMetaInfoSnapshot::KEYED_STATE_TYPE] = "VALUE";
 
         std::unordered_map<std::string, TypeSerializer*> serializers;
-        serializers[StateMetaInfoSnapshot::COMMON_NAMESPACE_SERIALIZER_KEY] = new TimeWindow::Serializer();
-        serializers[StateMetaInfoSnapshot::COMMON_VALUE_SERIALIZER_KEY] = new BinaryRowDataSerializer(1);
+        serializers[StateMetaInfoSnapshot::NAMESPACE_SERIALIZER_KEY] = new TimeWindow::Serializer();
+        serializers[StateMetaInfoSnapshot::VALUE_SERIALIZER_KEY] = new BinaryRowDataSerializer(1);
 
         return StateMetaInfoSnapshot(
             name,

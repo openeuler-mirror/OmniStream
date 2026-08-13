@@ -62,32 +62,32 @@ const char* TYPE_NAME_BYTE_PRIMITIVE_ARRAY_SERIALIZER =
 
 const char* TYPE_NAME_JOIN_TUPLE = "JoinTuple";
 const char* TYPE_NAME_JOIN_TUPLE_CLASS =
-    "com.huawei.omniruntime.flink.runtime.api.state.serializer.model.info.entity.JoinTuple";
+    "com.huawei.omniruntime.flink.runtime.api.state.serializer.model.entity.JoinTuple";
 const char* TYPE_NAME_JOIN_TUPLE_CLASS_LINE =
-    "com_huawei_omniruntime_flink_runtime_api_state_serializer_model_info_entity_JoinTuple";
+    "com_huawei_omniruntime_flink_runtime_api_state_serializer_model_entity_JoinTuple";
 
 const char* TYPE_NAME_JOIN_TUPLE2 = "JoinTuple2";
 const char* TYPE_NAME_JOIN_TUPLE2_CLASS =
-    "com.huawei.omniruntime.flink.runtime.api.state.serializer.model.info.entity.JoinTuple2";
+    "com.huawei.omniruntime.flink.runtime.api.state.serializer.model.entity.JoinTuple2";
 const char* TYPE_NAME_JOIN_TUPLE2_CLASS_LINE =
-    "com_huawei_omniruntime_flink_runtime_api_state_serializer_model_info_entity_JoinTuple2";
+    "com_huawei_omniruntime_flink_runtime_api_state_serializer_model_entity_JoinTuple2";
 
 const char* TYPE_NAME_XXH128_HASH = "XxH128_hash";
 const char* TYPE_NAME_XXH128_HASH_CLASS =
-    "com.huawei.omniruntime.flink.runtime.api.state.serializer.model.info.entity.XxHash128";
+    "com.huawei.omniruntime.flink.runtime.api.state.serializer.model.entity.XxHash128";
 const char* TYPE_NAME_XXH128_HASH_CLASS_LINE =
-    "com_huawei_omniruntime_flink_runtime_api_state_serializer_model_info_entity_XxHash128";
+    "com_huawei_omniruntime_flink_runtime_api_state_serializer_model_entity_XxHash128";
 
 const char* TYPE_NAME_VECTOR_BATCH = "VectorBatch";
 const char* TYPE_NAME_VECTOR_BATCH_CLASS =
-    "com.huawei.omniruntime.flink.runtime.api.state.serializer.model.info.entity.VectorBatch";
+    "com.huawei.omniruntime.flink.runtime.api.state.serializer.model.entity.VectorBatch";
 const char* TYPE_NAME_VECTOR_BATCH_CLASS_LINE =
-    "com_huawei_omniruntime_flink_runtime_api_state_serializer_model_info_entity_VectorBatch";
+    "com_huawei_omniruntime_flink_runtime_api_state_serializer_model_entity_VectorBatch";
 
 const char* TYPE_NAME_SORTED_VECTOR_LONG = "SortedVectorLong";
 const char* TYPE_NAME_SORTED_VECTOR_LONG_CLASS =
-    "com.huawei.omniruntime.flink.runtime.api.state.serializer.model.info.entity.SortedVectorLong";
+    "com.huawei.omniruntime.flink.runtime.api.state.serializer.model.entity.SortedVectorLong";
 const char* TYPE_NAME_SORTED_VECTOR_LONG_CLASS_LINE =
-    "com_huawei_omniruntime_flink_runtime_api_state_serializer_model_info_entity_SortedVectorLong";
+    "com_huawei_omniruntime_flink_runtime_api_state_serializer_model_entity_SortedVectorLong";
 
 const char* TYPE_NAME_EXTERNAL_SERIALIZER = "org.apache.flink.table.runtime.typeutils.ExternalSerializer";

@@ -127,7 +127,7 @@ VectorBatchSavePlan DeduplicateSavepointAdaptor::buildDeduplicateSavePlan(FullSn
 
         // PRIORITY_QUEUE 状态（如 _timer_state/*）
         // 由 VectorBatchSaveFlow 按 PQ 透传路径直接输出 key/value 字节。
-        // 使用 OmniStream 原生的 StateMetaInfoSnapshot（含 "stateSerializer"）写入 targetMetaInfos，
+        // 使用 OmniStream 原生的 StateMetaInfoSnapshot（含 canonical VALUE_SERIALIZER）写入 targetMetaInfos，
         // 确保 mappedKvStateId 与 targetMetaInfos 索引一致。
         if (omniMeta->getBackendStateType() == StateMetaInfoSnapshot::BackendStateType::PRIORITY_QUEUE) {
             plan.targetMetaInfos.push_back(omniMeta);
@@ -140,7 +140,7 @@ VectorBatchSavePlan DeduplicateSavepointAdaptor::buildDeduplicateSavePlan(FullSn
             continue;
         }
 
-        TypeSerializer* omniNsSer = omniMeta->getTypeSerializer("namespaceSerializer");
+        TypeSerializer* omniNsSer = omniMeta->getNamespaceSerializer();
         TypeSerializer* flinkValueSer = getRecordStateSerializer();
         if (omniNsSer == nullptr || flinkValueSer == nullptr) {
             INFO_RELEASE(

@@ -159,8 +159,8 @@ protected:
 
         std::unordered_map<std::string, std::string> options{{StateMetaInfoSnapshot::KEYED_STATE_TYPE, "LIST"}};
         std::unordered_map<std::string, TypeSerializer*> serializers{
-            {StateMetaInfoSnapshot::COMMON_NAMESPACE_SERIALIZER_KEY, namespaceSerializer},
-            {StateMetaInfoSnapshot::COMMON_VALUE_SERIALIZER_KEY, valueSerializer},
+            {StateMetaInfoSnapshot::NAMESPACE_SERIALIZER_KEY, namespaceSerializer},
+            {StateMetaInfoSnapshot::VALUE_SERIALIZER_KEY, valueSerializer},
         };
         return std::make_shared<StateMetaInfoSnapshot>(
             name,
@@ -293,8 +293,7 @@ TEST_F(WindowJoinSavepointAdaptorTest, BuildOmniMainMetaInfoMapsStateIdAndUsesCo
 
     EXPECT_EQ(omniMeta.getName(), LEFT_STATE_NAME);
     EXPECT_EQ(omniMeta.getOption(StateMetaInfoSnapshot::KEYED_STATE_TYPE), "2");
-    auto* listSerializer =
-        dynamic_cast<ListSerializer*>(omniMeta.getTypeSerializer(StateMetaInfoSnapshot::COMMON_VALUE_SERIALIZER_KEY));
+    auto* listSerializer = dynamic_cast<ListSerializer*>(omniMeta.getValueSerializer());
     ASSERT_NE(listSerializer, nullptr);
     ASSERT_NE(listSerializer->getElementSerializer(), nullptr);
     EXPECT_EQ(listSerializer->getElementSerializer()->getBackendId(), BackendDataType::BIGINT_BK);
@@ -396,7 +395,7 @@ TEST_F(WindowJoinSavepointAdaptorTest, DeserializeRows_RejectsZeroLengthRow)
 
     // Row with zero-length payload (length=0) is rejected
     auto emptyRow = makeSerializedRow({});
-    ASSERT_EQ(emptyRow.size(), 4U);  // Just the int32 length = 0
+    ASSERT_EQ(emptyRow.size(), 4U); // Just the int32 length = 0
 
     RecordingRestoreKVStateVB writer;
     EXPECT_THROW(adaptor_.retrieveKVRowData({1}, emptyRow, 4, &writer), std::runtime_error);
@@ -434,7 +433,7 @@ TEST_F(WindowJoinSavepointAdaptorTest, DeserializeRows_RejectsTruncatedRow)
     truncatedValue.push_back(static_cast<int8_t>(0));
     truncatedValue.push_back(static_cast<int8_t>(0));
     truncatedValue.push_back(static_cast<int8_t>(0));
-    truncatedValue.push_back(static_cast<int8_t>(100));  // 100 bytes needed but not present
+    truncatedValue.push_back(static_cast<int8_t>(100)); // 100 bytes needed but not present
 
     RecordingRestoreKVStateVB writer;
     EXPECT_THROW(adaptor_.retrieveKVRowData({1}, truncatedValue, 4, &writer), std::runtime_error);
@@ -543,7 +542,7 @@ TEST_F(WindowJoinSavepointAdaptorTest, FlinkSerializationFormat_LeftAndRightStat
     auto leftValue = makeListValue({leftRow1, leftRow2});
 
     const auto rightRow = makeSerializedRow({1, 2, 3});
-    auto rightValue = rightRow;  // single row, no comma needed
+    auto rightValue = rightRow; // single row, no comma needed
 
     RecordingRestoreKVStateVB leftWriter;
     adaptor_.retrieveKVRowData({1}, leftValue, 1, &leftWriter);
