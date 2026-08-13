@@ -78,7 +78,6 @@ public:
 
     K getKey(IOReadableWritable* record);
 
-    // This will be deleted in the future
     K getKey(RowData* input);
 
     void fillKeyToVectorBatch(
@@ -171,7 +170,7 @@ K KeySelector<K>::getKey(omnistream::VectorBatch* inputBatch, int row, bool enab
     }
 }
 
-// This function will be deleted in the future
+// todo: 跟上面的VB版本对齐
 template <typename K>
 K KeySelector<K>::getKey(RowData* input)
 {
