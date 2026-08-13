@@ -37,7 +37,8 @@ enum class SerializerType {
 };
 
 struct SerializerJsonInfo {
-    // serializer JSON 和状态 snapshot 中使用的字段 key。
+    // C++ serializer JSON / JNI metadata 协议使用的字段 key。
+    // StateMetaInfoSnapshot 内部使用 Flink canonical CommonSerializerKeys。
     static constexpr const char* TYPE_KEY = "type";
     static constexpr const char* ELEMENT_TYPE_KEY = "element_type";
     static constexpr const char* KEY_SERIALIZER_KEY = "keySerializer";

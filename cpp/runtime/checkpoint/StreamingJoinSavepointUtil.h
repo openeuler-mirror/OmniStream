@@ -30,7 +30,6 @@
 #include "core/typeinfo/BasicTypeInfo.h"
 #include "core/typeutils/LongSerializer.h"
 #include "core/typeutils/MapSerializer.h"
-#include "core/typeutils/SerializerJsonInfo.h"
 #include "core/typeutils/TupleSerializer.h"
 #include "core/typeutils/XxH128_hashSerializer.h"
 #include "core/utils/ByteView.h"
@@ -642,8 +641,7 @@ inline std::shared_ptr<StateMetaInfoSnapshot> StreamingJoinSavepointUtil::create
     const std::vector<std::string>& inputTypeNames,
     bool outerJoinState)
 {
-    TypeSerializer* namespaceSerializer = sourceMetaInfo.getTypeSerializer(
-        {StateMetaInfoSnapshot::COMMON_NAMESPACE_SERIALIZER_KEY, SerializerJsonInfo::NAMESPACE_SERIALIZER_KEY});
+    TypeSerializer* namespaceSerializer = sourceMetaInfo.getNamespaceSerializer();
     if (namespaceSerializer == nullptr) {
         INFO_RELEASE(
             "Error: StreamingJoinSavepointUtil::createFlinkMapStateSnapshot ->"

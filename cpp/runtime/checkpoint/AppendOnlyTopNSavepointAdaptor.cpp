@@ -217,8 +217,8 @@ StateMetaInfoSnapshot AppendOnlyTopNSavepointAdaptor::buildOmniMainMetaInfo(
         std::unordered_map<std::string, std::shared_ptr<TypeSerializerSnapshot>> omniConfigSnapshotMap;
 
         std::unordered_map<std::string, TypeSerializer*> omniSerializerMap;
-        omniSerializerMap.emplace("NAMESPACE_SERIALIZER", VoidNamespaceSerializer::INSTANCE);
-        omniSerializerMap.emplace("VALUE_SERIALIZER", SortedVectorLong::INSTANCE);
+        omniSerializerMap.emplace(StateMetaInfoSnapshot::NAMESPACE_SERIALIZER_KEY, VoidNamespaceSerializer::INSTANCE);
+        omniSerializerMap.emplace(StateMetaInfoSnapshot::VALUE_SERIALIZER_KEY, SortedVectorLong::INSTANCE);
 
         return StateMetaInfoSnapshot(
             TOPN_STATE_NAME,
@@ -334,8 +334,8 @@ std::shared_ptr<StateMetaInfoSnapshot> AppendOnlyTopNSavepointAdaptor::buildFlin
     std::unordered_map<std::string, std::shared_ptr<TypeSerializerSnapshot>> omniConfigSnapshotMap;
 
     std::unordered_map<std::string, TypeSerializer*> omniSerializerMap;
-    TypeSerializer* nsSerializer = omniMetaInfo->getTypeSerializer("namespaceSerializer");
-    omniSerializerMap.emplace("namespaceSerializer", nsSerializer);
+    TypeSerializer* nsSerializer = omniMetaInfo->getNamespaceSerializer();
+    omniSerializerMap.emplace(StateMetaInfoSnapshot::NAMESPACE_SERIALIZER_KEY, nsSerializer);
 
     // key
     std::vector<std::string> typeNames = {compatibleColumnTypes_[sortKeyIndices_[0]]};
@@ -347,7 +347,7 @@ std::shared_ptr<StateMetaInfoSnapshot> AppendOnlyTopNSavepointAdaptor::buildFlin
 
     stateSerializer_ = std::make_unique<MapSerializer>(keyRowSerializer.release(), listSerializer.release());
 
-    omniSerializerMap.emplace("stateSerializer", stateSerializer_.get());
+    omniSerializerMap.emplace(StateMetaInfoSnapshot::VALUE_SERIALIZER_KEY, stateSerializer_.get());
 
     return std::make_shared<StateMetaInfoSnapshot>(
         TOPN_STATE_NAME,
@@ -384,7 +384,7 @@ VectorBatchSavePlan AppendOnlyTopNSavepointAdaptor::buildTopNSavePlan(FullSnapsh
             spec.valueSerializer = stateSerializer_.get();
         } else {
             plan.targetMetaInfos.push_back(omniMeta);
-            spec.valueSerializer = omniMeta->getTypeSerializer("stateSerializer");
+            spec.valueSerializer = omniMeta->getValueSerializer();
         }
 
         spec.accessorOptions.maxDecodedBatchCacheBytes = VB_SAVE_CACHE_BYTES;
