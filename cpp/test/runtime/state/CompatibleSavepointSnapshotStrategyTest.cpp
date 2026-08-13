@@ -123,6 +123,24 @@ TEST(CompatibleSavepointSnapshotStrategyTest, AsyncSnapshotValidatesEmptyMetaAnd
     EXPECT_TRUE(adaptorDestroyed);
 }
 
+// 看护 strategy 构造器拒绝空 resources，确保 compatible savepoint 分支在构造期 fail-fast。
+TEST(CompatibleSavepointSnapshotStrategyTest, ConstructorThrowsForNullResources)
+{
+    EXPECT_THROW(CompatibleSavepointSnapshotStrategy(nullptr), std::invalid_argument);
+}
+
+// 看护 asyncSnapshot 拒绝空 snapshotResources，确保同步准备阶段异常不会静默传递到 async 阶段。
+TEST(CompatibleSavepointSnapshotStrategyTest, AsyncSnapshotThrowsForNullSnapshotResources)
+{
+    auto resources = std::make_shared<CompatibleSavepointSnapshotResources>(
+        makeSourceResources(true),
+        makeAdaptor(),
+        compatible_savepoint_test::makeCompatibleTestAdaptorInfo());
+    CompatibleSavepointSnapshotStrategy strategy(resources);
+
+    EXPECT_THROW(strategy.asyncSnapshot(nullptr, 42L, 100L, nullptr, nullptr), std::invalid_argument);
+}
+
 // 看护非空 metadata 进入 writer 边界前会一次性转移 adaptor，避免后续重复 move 同一 adaptor。
 TEST(CompatibleSavepointSnapshotStrategyTest, AsyncSnapshotTransfersAdaptorOwnershipOnce)
 {
