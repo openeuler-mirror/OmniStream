@@ -20,6 +20,8 @@
 #include "streaming/runtime/io/OmniStreamTaskNetworkInputFactory.h"
 #include "streaming/runtime/io/StreamTaskNetworkOutput.h"
 #include "streaming/runtime/io/OmniStreamOneInputProcessor.h"
+#include "streaming/runtime/io/OmniStreamMultipleInputProcessor.h"
+#include "streaming/runtime/io/MutipleInputSelectionHandler.h"
 #include "../../io/OmniStreamTaskNetworkOutput.h"
 
 namespace omnistream {
@@ -123,11 +125,23 @@ void OmniOneInputStreamTask::init()
 {
     OmniStreamTask::init();
     auto counter = env_->taskMetricGroup()->GetInternalOperatorIOMetric(mainOperator_->getTypeName(), "numRecordsOut");
-    auto inputGate = CreateCheckpointedInputGate();
-    auto output = createDataOutput(reinterpret_cast<std::shared_ptr<omnistream::SimpleCounter>&>(counter));
-    auto input = CreateTaskInput(inputGate);
+    auto inputGates = CreateCheckpointedInputGates();
 
-    inputProcessor_ = new OmniStreamOneInputProcessor(input, output, operatorChain.get());
+    // One processor per input gate: a single processor only polls its own gate,
+    // leaving the rest of a UNION-ALL sink unconsumed and hanging restore.
+    std::vector<OmniStreamOneInputProcessor*> processors;
+    for (auto& inputGate : inputGates) {
+        auto output = createDataOutput(reinterpret_cast<std::shared_ptr<omnistream::SimpleCounter>&>(counter));
+        auto input = CreateTaskInput(inputGate);
+        processors.push_back(new OmniStreamOneInputProcessor(input, output, operatorChain.get()));
+    }
+    if (processors.size() == 1) {
+        inputProcessor_ = processors[0];
+    } else {
+        const auto inputCount = processors.size();
+        inputProcessor_ = new OmniStreamMultipleInputProcessor(
+            std::move(processors), std::make_shared<MutipleInputSelectionHandler>(inputCount));
+    }
 }
 
 void OmniOneInputStreamTask::processInput(MailboxDefaultAction::Controller* controller)
@@ -147,7 +161,7 @@ const std::string OmniOneInputStreamTask::getName() const
     return std::string("OmniOneInputStreamTask");
 }
 
-std::shared_ptr<CheckpointedInputGate> OmniOneInputStreamTask::CreateCheckpointedInputGate()
+std::vector<std::shared_ptr<CheckpointedInputGate>> OmniOneInputStreamTask::CreateCheckpointedInputGates()
 {
     auto checkpointableInputs = env_->GetAllInputGates();
     std::vector<std::shared_ptr<OmniStreamTaskSourceInput>> emptySourceInputs;
@@ -169,9 +183,7 @@ std::shared_ptr<CheckpointedInputGate> OmniOneInputStreamTask::CreateCheckpointe
         alignedCheckpointTimeoutMillis,
         checkpointExecutionConfig.getCheckpointAfterTasksFinishEnabled());
 
-    auto checkpointedInputGates = InputProcessorUtil::CreateCheckpointedMultipleInputGate(
+    return InputProcessorUtil::CreateCheckpointedMultipleInputGate(
         mainMailboxExecutor_, {checkpointableInputs}, checkpointBarrierHandler);
-
-    return checkpointedInputGates[0];
 }
 } // namespace omnistream

@@ -132,8 +132,8 @@ std::vector<VBToRowSerializer> rowSerializerCenter = {
     SerializeIntIntoRowData,        // OMNI_TIME32
     SerializeLongIntoRowData,       // OMNI_TIME64
     SerializeLongIntoRowData,       // OMNI_TIMESTAMP
-    nullptr,                        // OMNI_INTERVAL_MONTHS
-    nullptr,                        // OMNI_INTERVAL_DAY_TIME
+    SerializeIntIntoRowData,        // OMNI_INTERVAL_MONTHS
+    SerializeLongIntoRowData,       // OMNI_INTERVAL_DAY_TIME
     SerializeVarcharIntoRowData,    // OMNI_VARCHAR
     SerializeVarcharIntoRowData,    // OMNI_CHAR,
     nullptr                         // OMNI_CONTAINER,
