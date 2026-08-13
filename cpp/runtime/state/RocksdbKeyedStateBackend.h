@@ -232,7 +232,9 @@ public:
                         (keyId == BackendDataType::OBJECT_BK && valueId == BackendDataType::OBJECT_BK)) {
                         delete reinterpret_cast<RocksdbMapStateTable<K, VoidNamespace, Object*, Object*>*>(
                             stateTablePtr);
-                    } else if (keyId == BackendDataType::EXTERNAL_BIGINT_BK && valueId == BackendDataType::EXTERNAL_BIGINT_BK) {
+                    } else if (
+                        keyId == BackendDataType::EXTERNAL_BIGINT_BK &&
+                        valueId == BackendDataType::EXTERNAL_BIGINT_BK) {
                         delete reinterpret_cast<RocksdbMapStateTable<K, VoidNamespace, int64_t, int64_t>*>(
                             stateTablePtr);
                     } else {

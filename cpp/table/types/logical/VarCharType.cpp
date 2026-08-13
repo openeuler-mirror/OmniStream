@@ -22,7 +22,7 @@ VarCharType::VarCharType(bool isNull, int length)
 
 std::vector<LogicalType*> VarCharType::getChildren()
 {
-    NOT_IMPL_EXCEPTION;
+    return {};
 }
 
 nlohmann::json VarCharType::toJson() const

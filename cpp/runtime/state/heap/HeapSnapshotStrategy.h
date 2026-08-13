@@ -65,7 +65,7 @@ public:
         std::string keySerializer = "") override
     {
         if (snapshotResources->getMetaInfoSnapshots().empty()) {
-            INFO_RELEASE("Error:HeapSnapshotStrategy: no states to snapshot, returning empty");
+            INFO_RELEASE("HeapSnapshotStrategy: no states to snapshot, returning empty");
             struct EmptySnapshotResultSupplier : public SnapshotResultSupplier<KeyedStateHandle> {
                 std::shared_ptr<SnapshotResult<KeyedStateHandle>> get(
                     std::shared_ptr<omnistream::OmniTaskBridge> bridge) override

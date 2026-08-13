@@ -561,7 +561,8 @@ TEST(LocalWindowAggTest, SumAggTest)
     omnistream::VectorBatch* vBatch = newVectorBatchOneKeyOneValue1();
     auto* streamRecord = new StreamRecord(vBatch);
     windowAggOperator->processBatch(streamRecord);
-    windowAggOperator->ProcessWatermark(new Watermark(1000000));
+    auto watermark = Watermark(1000000);
+    windowAggOperator->ProcessWatermark(&watermark);
     auto* batchOutput = dynamic_cast<BatchOutputTest*>(windowAggOperator->getOutput());
     std::cout << "=========== print result ==========" << std::endl;
     auto* resultBatch = reinterpret_cast<omnistream::VectorBatch*>(batchOutput->getVectorBatch());
@@ -635,7 +636,8 @@ TEST(LocalWindowAggTest, NexmarkQ5Test1)
     auto* streamRecord = new StreamRecord(vBatch);
     windowAggOperator->processBatch(streamRecord);
     std::cout << "NexmarkQ5Test3" << std::endl;
-    windowAggOperator->ProcessWatermark(new Watermark(1000000));
+    auto watermark = Watermark(1000000);
+    windowAggOperator->ProcessWatermark(&watermark);
     std::cout << "NexmarkQ5Test4" << std::endl;
 
     auto* batchOutput = dynamic_cast<BatchOutputTest*>(windowAggOperator->getOutput());
@@ -675,7 +677,8 @@ TEST(LocalWindowAggTest, DISABLED_NexmarkQ5Test2)
     omnistream::VectorBatch* vBatch = nexmarkQ5Input2();
     auto* streamRecord = new StreamRecord(vBatch);
     windowAggOperator->processBatch(streamRecord);
-    windowAggOperator->ProcessWatermark(new Watermark(1000000));
+    auto watermark = Watermark(1000000);
+    windowAggOperator->ProcessWatermark(&watermark);
 
     //    auto* batchOutput = dynamic_cast<BatchOutputTest*>(windowAggOperator->getOutput());
     std::cout << "=========== print result ==========" << std::endl;
@@ -734,7 +737,8 @@ TEST(LocalWindowAggTest, NexmarkQ8Test1)
     auto* streamRecord = new StreamRecord(vBatch);
     windowAggOperator->processBatch(streamRecord);
     std::cout << "NexmarkQ8Test3" << std::endl;
-    windowAggOperator->ProcessWatermark(new Watermark(1000000));
+    auto watermark = Watermark(1000000);
+    windowAggOperator->ProcessWatermark(&watermark);
     std::cout << "NexmarkQ8Test4" << std::endl;
 
     std::cout << "=========== print result ==========" << std::endl;
@@ -806,7 +810,8 @@ TEST(LocalWindowAggTest, NexmarkQ7Test)
     omnistream::VectorBatch* vBatch = nexmarkQ7Input();
     auto* streamRecord = new StreamRecord(vBatch);
     windowAggOperator->processBatch(streamRecord);
-    windowAggOperator->ProcessWatermark(new Watermark(1000000));
+    auto watermark = Watermark(1000000);
+    windowAggOperator->ProcessWatermark(&watermark);
 
     auto* batchOutput = dynamic_cast<BatchOutputTest*>(windowAggOperator->getOutput());
     std::cout << "=========== print result ==========" << std::endl;

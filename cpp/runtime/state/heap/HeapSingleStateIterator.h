@@ -25,6 +25,7 @@
 #include "core/typeutils/MapSerializer.h"
 #include "core/typeutils/ListSerializer.h"
 #include "core/typeutils/LongSerializer.h"
+#include "table/typeutils/SortedVectorLong.h"
 #include "basictypes/Object.h"
 #include "StateTable.h"
 #include "CopyOnWriteStateMap.h"
@@ -146,6 +147,24 @@ public:
     std::shared_ptr<HeapSnapshotStateData> getSnapshotData() const
     {
         return snapshotData_;
+    }
+
+    /**
+     * Serializes a std::vector entry-by-entry using the ListSerializer's element serializer.
+     * Format matches ListSerializer::serialize(Object*,...): [int size] [elem_1] [elem_2] ...
+     */
+    template <typename V>
+    static void serializeVector(const std::vector<V>& vec, TypeSerializer* elemSer, DataOutputSerializer& out)
+    {
+        out.writeInt(static_cast<int>(vec.size()));
+        for (const auto& elem : vec) {
+            if constexpr (std::is_pointer_v<V>) {
+                elemSer->serialize(const_cast<V>(elem), out);
+            } else {
+                V me = elem;
+                elemSer->serialize(&me, out);
+            }
+        }
     }
 
 private:
@@ -547,24 +566,6 @@ private:
         }
     }
 
-    /**
-     * Serializes a std::vector entry-by-entry using the ListSerializer's element serializer.
-     * Format matches ListSerializer::serialize(Object*,...): [int size] [elem_1] [elem_2] ...
-     */
-    template <typename V>
-    static void serializeVector(const std::vector<V>& vec, TypeSerializer* elemSer, DataOutputSerializer& out)
-    {
-        out.writeInt(static_cast<int>(vec.size()));
-        for (const auto& elem : vec) {
-            if constexpr (std::is_pointer_v<V>) {
-                elemSer->serialize(const_cast<V>(elem), out);
-            } else {
-                V me = elem;
-                elemSer->serialize(&me, out);
-            }
-        }
-    }
-
     std::vector<int8_t> serializeValue(const S& state, TypeSerializer* stateSerializer)
     {
         OutputBufferStatus outputBufferStatus;
@@ -580,14 +581,27 @@ private:
             }
         } else if constexpr (IsVectorPtr<S>::value) {
             // LIST state: bypass ListSerializer (whose void* path is NOT_IMPL)
-            // and serialize the std::vector directly using the element serializer
+            // and serialize the std::vector directly using the element serializer.
+            //
+            // 三种情况：
+            // 1. stateSerializer 是 ListSerializer → 用 getElementSerializer() 逐元素序列化
+            // 2. stateSerializer 是元素序列化器（如 LongSerializer，WindowJoin 场景
+            //    dataId=BIGINT_BK）→ 用 stateSerializer 逐元素序列化
+            // 3. stateSerializer 是容器序列化器（如 SortedVectorLong，TopN 场景）
+            //    → 直接 serialize 整个 vector（其 serialize 期望 void* 是 vector 指针）
             auto* listSer = dynamic_cast<ListSerializer*>(stateSerializer);
+            auto* sortedVecSer = dynamic_cast<SortedVectorLong*>(stateSerializer);
             if (listSer && state != nullptr) {
                 serializeVector(*state, listSer->getElementSerializer(), outputSerializer);
-            } else {
-                // fallback: stateSerializer is not ListSerializer (e.g. SortedVectorLong for topN),
-                // serialize via the generic void* path
+            } else if (sortedVecSer != nullptr && state != nullptr) {
+                // 容器序列化器：serialize 接收整个 vector 指针
                 stateSerializer->serialize(const_cast<S>(state), outputSerializer);
+            } else if (state != nullptr) {
+                // 元素序列化器（如 LongSerializer）：逐元素序列化
+                serializeVector(*state, stateSerializer, outputSerializer);
+            } else {
+                // state 为 nullptr，写出空 list（size=0）
+                outputSerializer.writeInt(0);
             }
         } else if constexpr (std::is_pointer_v<S>) {
             stateSerializer->serialize(const_cast<S>(state), outputSerializer);

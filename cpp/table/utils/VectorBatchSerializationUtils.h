@@ -181,7 +181,6 @@ public:
         auto nullData = UnsafeBaseVector::GetNulls(baseVector);
         auto nullByteSize = omniruntime::vec::NullsBuffer::CalculateNbytes(rowCount);
 
-        size_t len = nullByteSize;
         auto ret = memcpy_s(buffer, bufferSize, nullData, nullByteSize);
         if (ret != EOK) {
             throw std::runtime_error("memcpy_s failed");

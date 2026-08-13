@@ -139,6 +139,14 @@ TimestampData JoinedRowData::getTimestampPrecise(int pos)
     }
 }
 
+void* JoinedRowData::getRawValue(int pos)
+{
+    if (pos < row1->getArity()) {
+        return row1->getRawValue(pos);
+    }
+    return row2->getRawValue(pos - row1->getArity());
+}
+
 int* JoinedRowData::getInt(int pos)
 {
     if (pos < row1->getArity()) {

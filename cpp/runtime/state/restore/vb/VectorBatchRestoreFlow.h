@@ -23,8 +23,8 @@
 namespace omnistream {
 
 // 恢复方向公共调度流程：遍历 Flink logical source entries，通过 Adaptor 提供的
-// 按 StateType 分发到 KV / KV_WITH_VB / PQ 子流程。
-// Derived 需实现:  getStateType / buildOmniMainMetaInfo / retrieveKVRowData
+// 按 StateType 分发到 KV / KV_WITH_VB / KV_TRANSFORM / PQ 子流程。
+// Derived 需实现:  getStateType / buildOmniMainMetaInfo / retrieveKVRowData / transformKVData
 
 class VectorBatchRestoreFlow final {
 public:
@@ -60,6 +60,11 @@ public:
                         auto mainMetaInfo = derived.buildOmniMainMetaInfo(i, metaInfos[i]);
                         kvVbWriters[i] =
                             backend.createKVStateVB(i, mainMetaInfo, derived.columnTypes(i), derived.batchSize(i));
+                        break;
+                    }
+                    case RestoreStateType::KV_TRANSFORM: {
+                        auto mainMetaInfo = derived.buildOmniMainMetaInfo(i, metaInfos[i]);
+                        kvWriters[i] = backend.createKVState(i, mainMetaInfo);
                         break;
                     }
                     case RestoreStateType::PQ: {
@@ -99,6 +104,12 @@ public:
                                 auto& w = kvVbWriters[kvStateId];
                                 w->setKeyGroupId(keyGroupId);
                                 derived.retrieveKVRowData(entry.getKey(), entry.getValue(), kvStateId, w.get());
+                                break;
+                            }
+                            case RestoreStateType::KV_TRANSFORM: {
+                                auto& w = kvWriters[kvStateId];
+                                w->setKeyGroupId(keyGroupId);
+                                derived.transformKVData(entry.getKey(), entry.getValue(), kvStateId, w.get());
                                 break;
                             }
                             case RestoreStateType::PQ: {

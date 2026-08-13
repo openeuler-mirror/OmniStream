@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
+#include <memory>
 #include "table/types/logical/LogicalType.h"
+#include "table/types/logical/RawType.h"
 #include <string.h>
 #include "OmniOperatorJIT/core/src/type/data_type.h"
 
@@ -185,4 +187,13 @@ TEST(LogicalTypeTest, flinkTypeToOmniTypeIdTest)
     EXPECT_EQ(
         LogicalType::flinkTypeToOmniTypeId("TIMESTAMP_LTZ(3) NOT NULL *PROCTIME*"),
         omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE);
+}
+
+TEST(LogicalTypeTest, RawTypeAllowsEmptySerializerMetadata)
+{
+    std::unique_ptr<LogicalType> type(LogicalType::flinkTypeToOmniType("RAW('example.Type', '')"));
+    auto* rawType = dynamic_cast<omnistream::RawType*>(type.get());
+    ASSERT_NE(rawType, nullptr);
+    EXPECT_EQ(rawType->getClassName(), "example.Type");
+    EXPECT_TRUE(rawType->getSerializerString().empty());
 }

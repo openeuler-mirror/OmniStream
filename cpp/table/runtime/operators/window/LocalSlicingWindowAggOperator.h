@@ -16,7 +16,7 @@
 #include <regex>
 #include "streaming/api/operators/AbstractStreamOperator.h"
 #include "table/data/JoinedRowData.h"
-#include "table/typeutils/BinaryRowDataSerializer.h"
+#include "table/typeutils/RowDataSerializer.h"
 #include "streaming/api/operators/TimestampedCollector.h"
 #include "test/core/operators/OutputTest.h"
 #include "table/runtime/operators/window/WindowKey.h"

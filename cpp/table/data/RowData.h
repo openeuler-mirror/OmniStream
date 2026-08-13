@@ -55,7 +55,10 @@ public:
 
     virtual int* getInt(int pos) = 0;
 
-    virtual double* getDouble(int pos) { NOT_IMPL_EXCEPTION; };
+    virtual double* getDouble(int pos)
+    {
+        NOT_IMPL_EXCEPTION;
+    };
 
     virtual BinaryStringData* getString(int pos);
 
@@ -79,7 +82,7 @@ public:
     {
         NOT_IMPL_EXCEPTION;
     };
-    
+
     virtual void setDouble(int pos, double value)
     {
         NOT_IMPL_EXCEPTION;
@@ -99,6 +102,12 @@ public:
     {
         NOT_IMPL_EXCEPTION;
     };
+
+    virtual void* getRawValue(int pos)
+    {
+        NOT_IMPL_EXCEPTION;
+    };
+
     virtual void setStringView(int pos, std::string_view value)
     {
         NOT_IMPL_EXCEPTION;

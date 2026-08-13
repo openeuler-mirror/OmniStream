@@ -10,6 +10,7 @@
  */
 
 #include <iostream>
+#include <stdexcept>
 #include "BinaryRowData.h"
 #include "core/memory/MemorySegmentUtils.h"
 #include "streaming/runtime/tasks/StreamTask.h"
@@ -19,6 +20,7 @@ BinaryRowData::BinaryRowData(int arity) : RowData(RowData::BinaryRowDataID), Bin
 {
     nullBitsSizeInBytes_ = calculateBitSetWidthInBytes(arity);
     types.resize(arity);
+    rawValues_.resize(arity);
 }
 
 BinaryRowData::BinaryRowData(int arity, int length) : RowData(RowData::BinaryRowDataID), BinarySection(), arity_(arity)
@@ -27,6 +29,7 @@ BinaryRowData::BinaryRowData(int arity, int length) : RowData(RowData::BinaryRow
     memoryBuffer = new uint8_t[length]();
     nullBitsSizeInBytes_ = calculateBitSetWidthInBytes(arity);
     types.resize(arity);
+    rawValues_.resize(arity);
     bufferCapacity = length;
     sizeInBytes_ = length;
 }
@@ -193,6 +196,28 @@ TimestampData BinaryRowData::getTimestampPrecise(int pos)
         *(MemorySegmentUtils::getInt(memoryBuffer, bufferCapacity, getFieldOffset(pos + 1))));
 }
 
+void* BinaryRowData::getRawValue(int pos)
+{
+    if (pos < 0 || pos >= arity_) {
+        throw std::out_of_range("BinaryRowData RAW field position out of range");
+    }
+    if (isNullAt(pos)) {
+        return nullptr;
+    }
+    const uint64_t offsetAndSize =
+        static_cast<uint64_t>(*MemorySegmentUtils::getLong(memoryBuffer, bufferCapacity, getFieldOffset(pos)));
+    const uint64_t rawOffset = offsetAndSize >> 32;
+    const uint64_t rawSize = offsetAndSize & 0xFFFFFFFFULL;
+    const uint64_t payloadStart = static_cast<uint64_t>(offset_) + rawOffset;
+    const uint64_t sectionEnd = static_cast<uint64_t>(offset_) + static_cast<uint64_t>(sizeInBytes_);
+    if (payloadStart > static_cast<uint64_t>(bufferCapacity) ||
+        rawSize > static_cast<uint64_t>(bufferCapacity) - payloadStart || payloadStart + rawSize > sectionEnd) {
+        throw std::runtime_error("BinaryRowData RAW value has invalid offset/size");
+    }
+    rawValues_[pos] = std::make_shared<BinaryRawValueData>(memoryBuffer + payloadStart, static_cast<size_t>(rawSize));
+    return rawValues_[pos].get();
+}
+
 void BinaryRowData::setTimestamp(int pos, const TimestampData& value, int precision)
 {
     if (TimestampData::isCompact(precision)) {
@@ -218,7 +243,7 @@ void BinaryRowData::setInt(int pos, int value)
     types[pos] = 1;
 }
 
-double *BinaryRowData::getDouble(int pos)
+double* BinaryRowData::getDouble(int pos)
 {
     return MemorySegmentUtils::getDouble(memoryBuffer, bufferCapacity, getFieldOffset(pos));
 }

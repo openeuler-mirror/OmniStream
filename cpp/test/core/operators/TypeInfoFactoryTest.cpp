@@ -2,15 +2,22 @@
 #include "typeinfo/TypeInfoFactory.h"
 #include "table/types/logical/LogicalType.h"
 #include "typeinfo/StringTypeInfo.h"
+#include "core/typeutils/TypeSerializer.h"
 #include "execution/Environment.h"
+#include "basictypes/String.h"
+#include "runtime/state/VoidNamespace.h"
+#include "streaming/api/operators/TimerHeapInternalTimer.h"
 #include "streaming/api/operators/StreamTaskStateInitializerImpl.h"
 #include "taskmanager/OmniRuntimeEnvironment.h"
 #include "api/common/TaskInfoImpl.h"
 #include "streaming/api/operators/StreamOperatorStateHandler.h"
 #include "typeinfo/LongTypeInfo.h"
+#include "typeinfo/WindowTypeInfo.h"
 #include "test/core/operators/source/User.h"
 #include "basictypes/ReflectMacros.h"
 #include <nlohmann/json.hpp>
+#include <limits>
+#include <memory>
 #include <stdexcept>
 #include <iostream>
 
@@ -183,6 +190,35 @@ TEST(TypeInfoFactoryTest, CreateCommittableMessageInfoTest)
     delete typeInfo;
 }
 
+TEST(TypeInfoFactoryTest, CreateTimeWindowTypeInfoTest)
+{
+    json serializerInfo = {
+        {"serializerName", TYPE_NAME_TIME_WINDOW_SERIALIZER}, {"serializerInstanceClazz", TYPE_NAME_TIME_WINDOW_CLASS}};
+
+    TypeInformation* typeInfo = TypeInfoFactory::createDataStreamTypeInfo(serializerInfo);
+    ASSERT_NE(typeInfo, nullptr);
+    auto* windowTypeInfo = dynamic_cast<WindowTypeInfo*>(typeInfo);
+    ASSERT_NE(windowTypeInfo, nullptr);
+    EXPECT_EQ(windowTypeInfo->getSerializerInstanceClazz(), TYPE_NAME_TIME_WINDOW_CLASS);
+    EXPECT_EQ(typeInfo->name(), "TimeWindow.Serializer");
+    EXPECT_EQ(typeInfo->getBackendId(), BackendDataType::TIME_WINDOW_BK);
+
+    TypeSerializer* serializer = typeInfo->createTypeSerializer();
+    ASSERT_NE(serializer, nullptr);
+    EXPECT_EQ(serializer->getBackendId(), BackendDataType::TIME_WINDOW_BK);
+    EXPECT_STREQ(serializer->getName(), "TimeWindow.Serializer");
+
+    delete serializer;
+    delete typeInfo;
+}
+
+TEST(TypeInfoFactoryTest, WindowTypeInfoRequiresSerializerInstanceClazzTest)
+{
+    json serializerInfo = {{"serializerName", TYPE_NAME_TIME_WINDOW_SERIALIZER}};
+
+    EXPECT_THROW(TypeInfoFactory::createDataStreamTypeInfo(serializerInfo), std::runtime_error);
+}
+
 TEST(TypeInfoFactoryTest, CreateBasicInternalTypeInfoTest)
 {
     EXPECT_THROW(
@@ -230,4 +266,125 @@ TEST(TypeInfoFactoryTest, CreateLogicalTypeTimestampWithLocalTimeZoneTest)
     LogicalType* logicalType = TypeInfoFactory::createLogicalType("'TIMESTAMP_WITH_LOCAL_TIME_ZONE'");
     EXPECT_TRUE(logicalType->getTypeId() == BasicLogicalType::TIMESTAMP_WITH_LOCAL_TIME_ZONE->getTypeId());
     delete logicalType;
+}
+
+TEST(TypeInfoFactoryTest, CreateDataTypeWithChildrenTest)
+{
+    const nlohmann::json logicalTypeJson = nlohmann::json::parse(R"({
+        "type": "MAP",
+        "nullable": false,
+        "children": [
+            {"type": "VARCHAR", "nullable": false},
+            {
+                "type": "ARRAY",
+                "nullable": true,
+                "children": [{"type": "BIGINT", "nullable": true}]
+            }
+        ]
+    })");
+
+    std::unique_ptr<LogicalType> logicalType(TypeInfoFactory::createDataType(logicalTypeJson));
+
+    EXPECT_EQ(logicalType->getTypeId(), omniruntime::type::DataTypeId::OMNI_MAP);
+    EXPECT_FALSE(logicalType->isNullable());
+    ASSERT_EQ(logicalType->getChildren().size(), 2);
+    EXPECT_EQ(logicalType->getChildren()[1]->getTypeId(), omniruntime::type::DataTypeId::OMNI_ARRAY);
+    nlohmann::json expectedJson = logicalTypeJson;
+    expectedJson["children"][0]["length"] = std::numeric_limits<int>::max();
+    EXPECT_EQ(logicalType->toJson(), expectedJson);
+}
+
+TEST(TypeInfoFactoryTest, CreateDataTypeVarCharRoundTripTest)
+{
+    const nlohmann::json logicalTypeJson = nlohmann::json::parse(R"({
+        "type": "VARCHAR",
+        "nullable": true,
+        "length": 32
+    })");
+
+    std::unique_ptr<LogicalType> logicalType(TypeInfoFactory::createDataType(logicalTypeJson));
+
+    EXPECT_EQ(logicalType->toJson(), logicalTypeJson);
+}
+
+TEST(TypeInfoFactoryTest, CreateDataTypeTimestampRoundTripTest)
+{
+    const nlohmann::json logicalTypeJson = nlohmann::json::parse(R"({
+        "type": "TIMESTAMP_WITHOUT_TIME_ZONE",
+        "nullable": false,
+        "precision": 3
+    })");
+
+    std::unique_ptr<LogicalType> logicalType(TypeInfoFactory::createDataType(logicalTypeJson));
+
+    EXPECT_EQ(logicalType->toJson(), logicalTypeJson);
+}
+
+TEST(TypeInfoFactoryTest, CreateDataTypeTimeRoundTripTest)
+{
+    const nlohmann::json logicalTypeJson = nlohmann::json::parse(R"({
+        "type": "TIME_WITHOUT_TIME_ZONE",
+        "nullable": true,
+        "precision": 4
+    })");
+
+    std::unique_ptr<LogicalType> logicalType(TypeInfoFactory::createDataType(logicalTypeJson));
+
+    EXPECT_EQ(logicalType->toJson(), logicalTypeJson);
+}
+
+TEST(TypeInfoFactoryTest, CreateDataTypeNullNullableDefaultsToTrueTest)
+{
+    const nlohmann::json logicalTypeJson = nlohmann::json::parse(R"({
+        "type": "VARCHAR",
+        "nullable": null,
+        "length": 32
+    })");
+
+    std::unique_ptr<LogicalType> logicalType(TypeInfoFactory::createDataType(logicalTypeJson));
+
+    EXPECT_TRUE(logicalType->isNullable());
+}
+
+TEST(TypeInfoFactoryTest, CreateDataTypeBasicLeafRoundTripTest)
+{
+    const nlohmann::json logicalTypeJson = nlohmann::json::parse(R"({
+        "type": "DOUBLE",
+        "nullable": false
+    })");
+
+    std::unique_ptr<LogicalType> logicalType(TypeInfoFactory::createDataType(logicalTypeJson));
+
+    EXPECT_EQ(logicalType->toJson(), logicalTypeJson);
+}
+
+TEST(TypeInfoFactoryTest, CreateTimerSerializerFallsBackOnEmptyClassNameTest)
+{
+    const nlohmann::json timerJson = nlohmann::json::parse(R"({
+        "serializerName": "org.apache.flink.streaming.api.operators.TimerSerializer",
+        "keySerializer": {
+            "serializerName": "org.apache.flink.api.common.typeutils.base.StringSerializer",
+            "serializerInstanceClazz": ""
+        },
+        "namespaceSerializer": {
+            "serializerName": "org.apache.flink.runtime.state.VoidNamespaceSerializer",
+            "serializerInstanceClazz": ""
+        }
+    })");
+
+    std::unique_ptr<TypeSerializer> serializer;
+    std::unique_ptr<TypeInformation> typeInfo(TypeInfoFactory::createDataStreamTypeInfo(timerJson));
+    ASSERT_NE(typeInfo, nullptr);
+
+    serializer.reset(typeInfo->createTypeSerializer());
+    ASSERT_NE(serializer, nullptr);
+    serializer->setSelfBufferReusable(false);
+
+    auto* timer = static_cast<TimerHeapInternalTimer<Object*, Object*>*>(serializer->GetBuffer());
+    ASSERT_NE(timer, nullptr);
+    ASSERT_NE(dynamic_cast<String*>(timer->getKey()), nullptr);
+    ASSERT_NE(dynamic_cast<VoidNamespace*>(timer->getNamespace()), nullptr);
+
+    timer->putRefCount();
+    typeInfo.reset();
 }

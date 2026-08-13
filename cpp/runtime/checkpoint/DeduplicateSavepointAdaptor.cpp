@@ -80,7 +80,8 @@ void DeduplicateSavepointAdaptor::buildStateSerializerMap()
             "DeduplicateSavepointAdaptor: no column types to build state serializer, "
             "check prepareForSave/operatorDescription");
     }
-    auto* serializer = new RowDataSerializer(new omnistream::RowType(false, compatibleColumnTypes_));
+    omnistream::RowType rowType(false, compatibleColumnTypes_);
+    auto* serializer = new RowDataSerializer(&rowType);
     stateSerializerMap_[DEDUPLICATE_STATE_NAME] = std::shared_ptr<RowDataSerializer>(serializer);
 }
 
@@ -187,9 +188,8 @@ std::vector<VectorBatchSaveStateContext> DeduplicateSavepointAdaptor::buildSaveS
         ctx.mappedKvStateId = (mapIt != plan.kvStateIdMapping.end()) ? mapIt->second : spec.sourceKvStateId;
         ctx.logicalStateName = spec.logicalStateName;
         ctx.valueSerializer = spec.valueSerializer;
-        // 仅 KV_WITH_VB / KV_LIST_WITH_VB 状态需要 VB accessor
-        if (spec.stateType == VectorBatchStateType::KV_WITH_VB ||
-            spec.stateType == VectorBatchStateType::KV_LIST_WITH_VB) {
+        // 仅 KV_WITH_VB 状态需要 VB accessor
+        if (spec.stateType == VectorBatchStateType::KV_WITH_VB) {
             ctx.vbAccessor =
                 snapshotResources.createVectorBatchStateAccessor(spec.logicalStateName, spec.accessorOptions);
             if (ctx.vbAccessor == nullptr) {

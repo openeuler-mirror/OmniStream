@@ -23,10 +23,11 @@
 namespace omnistream {
 
 enum class RestoreStateType {
-    KV,         // 普通 KV 状态（无 VB side table）
-    KV_WITH_VB, // 带 VectorBatch side table 的 KV 状态
-    PQ,         // PriorityQueue 状态
-    UNSUPPORT,  // 未支持的状态
+    KV,           // 普通 KV 状态（无 VB side table）
+    KV_WITH_VB,   // 带 VectorBatch side table 的 KV 状态
+    KV_TRANSFORM, // 需数据转换的 KV 状态（如 GroupAgg 的 accumulator compact）
+    PQ,           // PriorityQueue 状态
+    UNSUPPORT,    // 未支持的状态
 };
 
 // ============================================================================

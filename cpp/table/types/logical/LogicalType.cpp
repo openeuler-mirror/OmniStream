@@ -11,9 +11,11 @@
 
 #include <algorithm>
 #include <mutex>
+#include <stdexcept>
 
 #include "LogicTypeUtils.h"
 #include "LogicalType.h"
+#include "RawType.h"
 #include "VarCharType.h"
 #include "TimestampWithoutTimeZoneType.h"
 #include "TimeWithoutTimeZoneType.h"
@@ -57,13 +59,8 @@ std::unordered_map<std::string, omniruntime::type::DataTypeId> LogicalType::name
 DataTypeId LogicalType::flinkTypeToOmniTypeId(const std::string& flinkType)
 {
     buildNameToIdMap();
-    // Deal with tailing "NOT NULL"
-    std::string basicStrippedType = flinkType;
-    const std::string suffix = " NOT NULL";
-    if (basicStrippedType.size() > suffix.size() &&
-        basicStrippedType.compare(basicStrippedType.size() - suffix.size(), suffix.size(), suffix) == 0) {
-        basicStrippedType.erase(basicStrippedType.size() - suffix.size());
-    }
+    // Deal with tailing "NOT NULL" and " *PROCTIME*"
+    std::string basicStrippedType = LogicTypeUtils::stripFlinkTypeExtras(flinkType);
 
     // Typename has fixed format
     auto it = nameToIdMap.find(basicStrippedType);
@@ -129,6 +126,11 @@ LogicalType* LogicalType::flinkTypeToOmniType(const std::string& flinkType)
     buildNameToIdMap();
     std::string basicStrippedType = LogicTypeUtils::stripFlinkTypeExtras(flinkType);
     nlohmann::json options = LogicTypeUtils::optionsFromFlinkType(basicStrippedType);
+    const bool isNullable = !LogicTypeUtils::isNotNullType(flinkType);
+
+    if (LogicTypeUtils::startsWith(basicStrippedType, "RAW(")) {
+        return parseRawType(flinkType, basicStrippedType, isNullable);
+    }
 
     auto it = nameToIdMap.find(basicStrippedType);
     if (it != nameToIdMap.end()) {
@@ -177,6 +179,30 @@ LogicalType* LogicalType::flinkTypeToOmniType(const std::string& flinkType)
     }
 
     return BasicLogicalType::getTypeBy(DataTypeId::OMNI_INVALID, options);
+}
+
+LogicalType* LogicalType::parseRawType(
+    const std::string& flinkType, const std::string& basicStrippedType, bool isNullable)
+{
+    std::vector<std::string> arguments;
+    bool inQuote = false;
+    std::string current;
+    for (size_t i = basicStrippedType.find('(') + 1; i < basicStrippedType.size(); ++i) {
+        const char ch = basicStrippedType[i];
+        if (ch == '\'') {
+            if (inQuote) {
+                arguments.push_back(current);
+                current.clear();
+            }
+            inQuote = !inQuote;
+        } else if (inQuote) {
+            current.push_back(ch);
+        }
+    }
+    if (arguments.size() != 2 || arguments[0].empty()) {
+        throw std::invalid_argument("Invalid Flink RAW type: " + flinkType);
+    }
+    return new omnistream::RawType(isNullable, arguments[0], arguments[1]);
 }
 
 bool LogicalType::isSharedLogicalType(const LogicalType* logicalType)
@@ -256,69 +282,161 @@ BasicLogicalType* BasicLogicalType::INTERVAL_DAY_TIME =
     new BasicLogicalType(true, DataTypeId::OMNI_INTERVAL_DAY_TIME, "INTERVAL_DAY_TIME");
 BasicLogicalType* BasicLogicalType::INVALID_TYPE = new BasicLogicalType(true, DataTypeId::OMNI_INVALID, "UNRESOLVED");
 
-BasicLogicalType* BasicLogicalType::getTypeBy(DataTypeId typeId, const nlohmann::json& element)
+LogicalType* BasicLogicalType::getTypeBy(DataTypeId typeId, const nlohmann::json& options)
 {
-    BasicLogicalType* type = nullptr;
+    LogicalType* type = nullptr;
+    bool nullable = options.value("nullable", true);
     switch (typeId) {
         case DataTypeId::OMNI_BOOLEAN: {
-            type = BasicLogicalType::BOOLEAN;
+            if (nullable == BasicLogicalType::BOOLEAN->isNullable()) {
+                type = BasicLogicalType::BOOLEAN;
+            } else {
+                type = new BasicLogicalType(nullable, typeId, "BOOLEAN");
+            }
             break;
         }
         case DataTypeId::OMNI_INT: {
-            type = BasicLogicalType::INTEGER;
+            if (nullable == BasicLogicalType::INTEGER->isNullable()) {
+                type = BasicLogicalType::INTEGER;
+            } else {
+                type = new BasicLogicalType(nullable, typeId, "INT");
+            }
             break;
         }
         case DataTypeId::OMNI_LONG: {
-            type = BasicLogicalType::BIGINT;
-            break;
-        }
-        case DataTypeId::OMNI_VARCHAR: {
-            int length = element.value("length", std::numeric_limits<int>::max());
-            type = new VarCharType(true, length);
+            if (nullable == BasicLogicalType::BIGINT->isNullable()) {
+                type = BasicLogicalType::BIGINT;
+            } else {
+                type = new BasicLogicalType(nullable, typeId, "BIGINT");
+            }
             break;
         }
         case DataTypeId::OMNI_DOUBLE: {
-            type = BasicLogicalType::DOUBLE;
+            if (nullable == BasicLogicalType::DOUBLE->isNullable()) {
+                type = BasicLogicalType::DOUBLE;
+            } else {
+                type = new BasicLogicalType(nullable, typeId, "DOUBLE");
+            }
             break;
         }
         case DataTypeId::OMNI_DATE32: {
-            type = BasicLogicalType::DATE;
+            if (nullable == BasicLogicalType::DATE->isNullable()) {
+                type = BasicLogicalType::DATE;
+            } else {
+                type = new BasicLogicalType(nullable, typeId, "DATE");
+            }
             break;
         }
-        case DataTypeId::OMNI_INTERVAL_MONTHS: {
-            type = BasicLogicalType::INTERVAL_YEAR_MONTH;
+        case DataTypeId::OMNI_VARCHAR:
+        case DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE:
+        case DataTypeId::OMNI_TIMESTAMP:
+        case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+        case DataTypeId::OMNI_TIMESTAMP_WITH_TIME_ZONE:
+        case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+        case DataTypeId::OMNI_DECIMAL64:
+        case DataTypeId::OMNI_DECIMAL128:
+        case DataTypeId::OMNI_INTERVAL_MONTHS:
+        case DataTypeId::OMNI_INTERVAL_DAY_TIME:
+        case DataTypeId::OMNI_CONTAINER: {
+            type = BasicLogicalType::getTypeBy(nullable, typeId, options);
             break;
         }
-        case DataTypeId::OMNI_INTERVAL_DAY_TIME: {
-            type = BasicLogicalType::INTERVAL_DAY_TIME;
+        case DataTypeId::OMNI_INVALID: {
+            if (nullable == BasicLogicalType::INVALID_TYPE->isNullable()) {
+                type = BasicLogicalType::INVALID_TYPE;
+            } else {
+                type = new BasicLogicalType(nullable, typeId, "UNRESOLVED");
+            }
+            break;
+        }
+        default: THROW_LOGIC_EXCEPTION("Unsupported DataTypeId : " << typeId << " in inputRowType.");
+    }
+
+    return type;
+}
+
+LogicalType* BasicLogicalType::getTypeBy(std::optional<bool> nullable, DataTypeId typeId, const nlohmann::json& options)
+{
+    const bool isNullable = nullable.value_or(true);
+    LogicalType* type = nullptr;
+    switch (typeId) {
+        case DataTypeId::OMNI_BOOLEAN: {
+            type = new BasicLogicalType(isNullable, DataTypeId::OMNI_BOOLEAN, "BOOLEAN");
+            break;
+        }
+        case DataTypeId::OMNI_INT: {
+            type = new BasicLogicalType(isNullable, DataTypeId::OMNI_INT, "INTEGER");
+            break;
+        }
+        case DataTypeId::OMNI_LONG: {
+            type = new BasicLogicalType(isNullable, DataTypeId::OMNI_LONG, "BIGINT");
+            break;
+        }
+        case DataTypeId::OMNI_VARCHAR: {
+            int length = options.value("length", std::numeric_limits<int>::max());
+            type = new VarCharType(isNullable, length);
+            break;
+        }
+        case DataTypeId::OMNI_DOUBLE: {
+            type = new BasicLogicalType(isNullable, DataTypeId::OMNI_DOUBLE, "DOUBLE");
+            break;
+        }
+        case DataTypeId::OMNI_DATE32: {
+            type = new BasicLogicalType(isNullable, DataTypeId::OMNI_DATE32, "DATE");
             break;
         }
         case DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE: {
-            int precision = element.value("precision", 0);
-            type = new TimeWithoutTimeZoneType(true, precision);
+            int precision = options.value("precision", 0);
+            type = new TimeWithoutTimeZoneType(isNullable, precision);
             break;
         }
         case DataTypeId::OMNI_TIMESTAMP:
         case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE: {
-            int precision = element.value("precision", 0);
-            type = new TimestampWithoutTimeZoneType(true, precision);
+            int precision = options.value("precision", 0);
+            type = new TimestampWithoutTimeZoneType(isNullable, precision);
             break;
         }
         case DataTypeId::OMNI_TIMESTAMP_WITH_TIME_ZONE: {
-            int precision = element.value("precision", 0);
-            type = new TimestampWithTimeZoneType(true, precision);
+            int precision = options.value("precision", 0);
+            type = new TimestampWithTimeZoneType(isNullable, precision);
             break;
         }
         case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE: {
-            int precision = element.value("precision", 0);
-            type = new TimestampWithLocalTimeZoneType(true, precision);
+            int precision = options.value("precision", 0);
+            type = new TimestampWithLocalTimeZoneType(isNullable, precision);
             break;
         }
-        /*
-        case DataTypeId::OMNI_INVALID:
-            type = BasicLogicalType::INVALID_TYPE;
+        case DataTypeId::OMNI_DECIMAL64: {
+            type = new BasicLogicalType(isNullable, typeId, "DECIMAL64");
             break;
-        */
+        }
+        case DataTypeId::OMNI_DECIMAL128: {
+            type = new BasicLogicalType(isNullable, typeId, "DECIMAL128");
+            break;
+        }
+        case DataTypeId::OMNI_INTERVAL_MONTHS: {
+            type = new BasicLogicalType(isNullable, typeId, "INTERVAL_MONTHS");
+            break;
+        }
+        case DataTypeId::OMNI_INTERVAL_DAY_TIME: {
+            type = new BasicLogicalType(isNullable, typeId, "INTERVAL_DAY_TIME");
+            break;
+        }
+        case DataTypeId::OMNI_INVALID: {
+            type = new BasicLogicalType(isNullable, typeId, "UNRESOLVED");
+            break;
+        }
+        case DataTypeId::OMNI_CONTAINER: {
+            const std::string typeName = options.value("type", "");
+            if (typeName == "RAW") {
+                const std::string className = options.value("class", "");
+                const std::string serializerString = options.value("serializer", "");
+                type = new omnistream::RawType(isNullable, className, serializerString);
+                break;
+            }
+            THROW_LOGIC_EXCEPTION(
+                "OMNI_CONTAINER requires RAW metadata; ROW must be constructed explicitly, typeName=" << typeName);
+        }
         default: THROW_LOGIC_EXCEPTION("Unsupported DataTypeId : " << typeId << " in inputRowType.");
     }
 

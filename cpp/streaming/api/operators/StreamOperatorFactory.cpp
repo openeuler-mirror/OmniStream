@@ -59,8 +59,33 @@
 #include "StreamOperatorFactory.h"
 #include "runtime/checkpoint/FlinkSavepointAdaptorInfo.h"
 #include "runtime/checkpoint/StreamingJoinSavepointUtil.h"
+#include "runtime/checkpoint/WindowAggSavepointCompatibility.h"
 
 namespace omnistream {
+
+namespace {
+
+template <typename OperatorT>
+void configureSavepoint(
+    OperatorT* op,
+    const char* operatorType,
+    const nlohmann::json& description,
+    const FlinkSavepointAdaptorInfo& adaptorInfo)
+{
+    op->setDescription(description);
+    if (adaptorInfo.type == FlinkSavepointAdaptorType::None) {
+        op->setFlinkSavepointUnsupported(adaptorInfo.reason);
+    } else {
+        op->setFlinkSavepointAdaptor(adaptorInfo.type);
+    }
+    INFO_RELEASE(
+        "StreamOperatorFactory configured compatible savepoint adaptor: operatorType="
+        << operatorType << ", adaptorType=" << flinkSavepointAdaptorTypeName(adaptorInfo.type)
+        << ", adaptorTypeCode=" << static_cast<int>(adaptorInfo.type)
+        << ", reason=" << (adaptorInfo.reason.empty() ? "<none>" : adaptorInfo.reason));
+}
+
+} // namespace
 
 StreamOperator* StreamOperatorFactory::createOperatorAndCollector(
     omnistream::OperatorConfig& opConfig, WatermarkGaugeExposingOutput* chainOutput)
@@ -150,21 +175,26 @@ StreamOperator* StreamOperatorFactory::createOperatorAndCollector(
             return static_cast<OneInputStreamOperator*>(op);
         }
     } else if (uniqueName == OPERATOR_NAME_LOCAL_WINDOW_AGG) {
-        auto* op = new LocalSlicingWindowAggOperator(opConfig.getDescription(), chainOutput);
+        const auto description = opConfig.getDescription();
+        auto* op = new LocalSlicingWindowAggOperator(description, chainOutput);
         op->setup();
+        configureSavepoint(op, "LocalWindowAgg", description, WindowAggSavepointCompatibility::forLocal());
         LOG("Operator LocalSlicingWindowAggOperator address " + std::to_string(reinterpret_cast<long>(op)));
         return static_cast<OneInputStreamOperator*>(op);
     } else if (uniqueName == OPERATOR_NAME_GLOBAL_WINDOW_AGG) {
-        auto processor = std::make_unique<AbstractWindowAggProcessor>(opConfig.getDescription(), chainOutput);
-        auto* op = new SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>(
-            std::move(processor), opConfig.getDescription());
+        const auto description = opConfig.getDescription();
+        auto processor = std::make_unique<AbstractWindowAggProcessor>(description, chainOutput);
+        auto* op = new SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>(std::move(processor), description);
         op->setup();
+        configureSavepoint(
+            op, "SlicingWindowAgg", description, WindowAggSavepointCompatibility::forSlicing(description));
         LOG("Operator SlicingWindowOperator address " + std::to_string(reinterpret_cast<long>(op)));
         return static_cast<OneInputStreamOperator*>(op);
     } else if (opConfig.getUniqueName() == OPERATOR_NAME_GROUP_WINDOW_AGG) {
-        auto* op =
-            new AggregateWindowOperator<std::shared_ptr<RowData>, TimeWindow>(opConfig.getDescription(), chainOutput);
+        const auto description = opConfig.getDescription();
+        auto* op = new AggregateWindowOperator<std::shared_ptr<RowData>, TimeWindow>(description, chainOutput);
         op->setup();
+        configureSavepoint(op, "GroupWindowAgg", description, WindowAggSavepointCompatibility::forGroup(description));
         LOG("Operator AggregateWindowOperator address " + std::to_string(reinterpret_cast<long>(op)));
         return static_cast<OneInputStreamOperator*>(op);
     } else if (uniqueName == OPERATOR_NAME_WINDOW_INNER_JOIN) {
@@ -172,6 +202,18 @@ StreamOperator* StreamOperatorFactory::createOperatorAndCollector(
             new InnerJoinOperator<std::shared_ptr<RowData>>(opConfig.getDescription(), chainOutput, nullptr, nullptr);
         op->setup();
         LOG("Operator WindowJoinOperator address " + std::to_string(reinterpret_cast<long>(op)));
+
+        // SP-INTEROP: 启用 WindowJoin 兼容适配器
+        auto opDescriptionJSON = opConfig.getDescription();
+        const FlinkSavepointAdaptorType adaptorType =
+            omnistream::StreamingJoinSavepointUtil::getWindowJoinAdaptorType(opDescriptionJSON);
+        if (adaptorType == FlinkSavepointAdaptorType::None) {
+            op->setFlinkSavepointUnsupported(
+                omnistream::StreamingJoinSavepointUtil::buildWindowJoinUnsupportedReason(opDescriptionJSON));
+        } else {
+            op->setDescription(opDescriptionJSON);
+            op->setFlinkSavepointAdaptor(adaptorType);
+        }
         return static_cast<TwoInputStreamOperator*>(op);
     } else {
         THROW_LOGIC_EXCEPTION("Unknown operator " + uniqueName);
@@ -285,6 +327,7 @@ StreamOperator* StreamOperatorFactory::CreateLocalWindowAggOp(
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
     auto* op = new LocalSlicingWindowAggOperator(opDescriptionJSON, chainOutput);
     op->setup(std::move(task));
+    configureSavepoint(op, "LocalWindowAgg", opDescriptionJSON, WindowAggSavepointCompatibility::forLocal());
     LOG("Operator LocalSlicingWindowAggOperator address " + std::to_string(reinterpret_cast<long>(op)));
     return static_cast<OneInputStreamOperator*>(op);
 }
@@ -299,6 +342,8 @@ StreamOperator* StreamOperatorFactory::CreateGlobalWindowAggOp(
     auto processingTimeService = task->createProcessingTimeService();
     op->setProcessingTimeService(processingTimeService);
     op->setup(std::move(task));
+    configureSavepoint(
+        op, "SlicingWindowAgg", opDescriptionJSON, WindowAggSavepointCompatibility::forSlicing(opDescriptionJSON));
     LOG("Operator SlicingWindowOperator address " + std::to_string(reinterpret_cast<long>(op)));
     return static_cast<OneInputStreamOperator*>(op);
 }
@@ -312,6 +357,8 @@ StreamOperator* StreamOperatorFactory::CreateGroupWindowAggOp(
     auto processingTimeService = task->createProcessingTimeService();
     op->setProcessingTimeService(processingTimeService);
     op->setup(std::move(task));
+    configureSavepoint(
+        op, "GroupWindowAgg", opDescriptionJSON, WindowAggSavepointCompatibility::forGroup(opDescriptionJSON));
     LOG("Operator AggregateWindowOperator address " + std::to_string(reinterpret_cast<long>(op)));
     return static_cast<OneInputStreamOperator*>(op);
 }
@@ -378,8 +425,19 @@ StreamOperator* StreamOperatorFactory::CreateKeyedProcessOp(
         GroupAggFunction* func = new GroupAggFunction(0l, opDescriptionJSON);
         auto* op = new KeyedProcessOperator(func, chainOutput, opDescriptionJSON);
         op->setup(std::move(task));
-        // 当前先设置为NONE,待sp流程支持格式转换后设置为对应的Adapter
-        op->setFlinkSavepointUnsupported("GroupAgg Adaptor not yet implemented");
+        // GroupAggFunction 在初始化时会过滤掉包含 "RAW" 的 accType（对应基于 DataView 的累加器）。
+        // 仅当原始 accTypes 中存在 RAW 类型时，才需要 GroupAggAdaptor 来处理 RAW 占位与
+        // DataView keyed state 的 savepoint 转换；否则 Omni 原生格式即可与 Flink 兼容。
+        const auto& accTypes = opDescriptionJSON["aggInfoList"]["accTypes"];
+        bool hasRawAccType = false;
+        for (const auto& type : accTypes) {
+            if (type.get<std::string>().find("RAW") != std::string::npos) {
+                hasRawAccType = true;
+                break;
+            }
+        }
+        op->setFlinkSavepointAdaptor(
+            hasRawAccType ? FlinkSavepointAdaptorType::GroupAggAdaptor : FlinkSavepointAdaptorType::OmniIsCompatible);
         op->setDescription(opDescriptionJSON);
         LOG("Operator KeyedProcessOperator address  " + std::to_string(reinterpret_cast<long>(op)));
         return static_cast<OneInputStreamOperator*>(op);
@@ -567,9 +625,16 @@ StreamOperator* StreamOperatorFactory::CreateWindowInnerJoinOp(
     nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
     auto op = new InnerJoinOperator<std::shared_ptr<RowData>>(opDescriptionJSON, chainOutput, nullptr, nullptr);
     op->setup(std::move(task));
-    // SP-INTEROP: WindowJoin 的 compatible Adaptor 尚未实现（工厂对该类型返回 nullptr），
-    // 设 None + reason 以在 compatible 保存/恢复时 fail fast。
-    op->setFlinkSavepointUnsupported("WindowJoin compatible savepoint adaptor not yet implemented");
+    // SP-INTEROP: 启用 WindowJoin 兼容适配器
+    const FlinkSavepointAdaptorType adaptorType =
+        omnistream::StreamingJoinSavepointUtil::getWindowJoinAdaptorType(opDescriptionJSON);
+    if (adaptorType == FlinkSavepointAdaptorType::None) {
+        op->setFlinkSavepointUnsupported(
+            omnistream::StreamingJoinSavepointUtil::buildWindowJoinUnsupportedReason(opDescriptionJSON));
+    } else {
+        op->setDescription(opDescriptionJSON);
+        op->setFlinkSavepointAdaptor(adaptorType);
+    }
     LOG("Operator WindowJoinOperator address " + std::to_string(reinterpret_cast<long>(op)));
     return static_cast<TwoInputStreamOperator*>(op);
 }

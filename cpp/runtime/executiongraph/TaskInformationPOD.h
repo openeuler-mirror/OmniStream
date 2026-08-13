@@ -21,6 +21,7 @@
 #include "ExecutionCheckpointConfigPOD.h"
 #include "operatorchain/OperatorChainPOD.h"
 #include "state/RocksDBMemoryConfiguration.h"
+#include "OckDBConfigPOD.h"
 
 namespace omnistream {
 
@@ -217,6 +218,26 @@ public:
         return stateBackendManagedMemorySize;
     }
 
+    uint32_t getStateBackendConfigVersion() const
+    {
+        return stateBackendConfigVersion;
+    }
+
+    void setStateBackendConfigVersion(uint32_t version)
+    {
+        stateBackendConfigVersion = version;
+    }
+
+    uint64_t getStateBackendResourceId() const
+    {
+        return stateBackendResourceId;
+    }
+
+    void setStateBackendResourceId(uint64_t resourceId)
+    {
+        stateBackendResourceId = resourceId;
+    }
+
     uint32_t getNumberOfTransferThreads() const
     {
         return numberOfTransferThreads;
@@ -240,6 +261,16 @@ public:
     std::string getPriorityQueueStateType() const
     {
         return priorityQueueStateType;
+    }
+
+    const OckDBConfigPOD& getOckDBConfig() const
+    {
+        return ockDBConfig;
+    }
+
+    void setOckDBConfig(const OckDBConfigPOD& cfg)
+    {
+        ockDBConfig = cfg;
     }
 
     std::string toString() const
@@ -334,9 +365,12 @@ public:
             {"rocksdbStorePaths", taskInfo.rocksdbStorePaths},
             {"stateBackendManagedMemoryFraction", taskInfo.stateBackendManagedMemoryFraction},
             {"stateBackendManagedMemorySize", taskInfo.stateBackendManagedMemorySize},
+            {"stateBackendConfigVersion", taskInfo.stateBackendConfigVersion},
+            {"stateBackendResourceId", taskInfo.stateBackendResourceId},
             {"cacheAddr", taskInfo.cacheAddr},
             {"writeBufferManagerAddr", taskInfo.writeBufferManagerAddr},
             {"priorityQueueStateType", taskInfo.priorityQueueStateType},
+            {"ockDBConfig", taskInfo.ockDBConfig},
             {"numberOfTransferThreads", taskInfo.numberOfTransferThreads},
             {"rocksDBMemoryConfiguration", taskInfo.rocksDBMemoryConfiguration},
             {"streamConfig", taskInfo.streamConfig},
@@ -360,9 +394,14 @@ public:
         taskInfo.stateBackendManagedMemoryFraction = json.value("stateBackendManagedMemoryFraction", 0.0);
         taskInfo.stateBackendManagedMemorySize =
             json.value("stateBackendManagedMemorySize", TaskInformationPOD::DEFAULT_ROCKSDB_MANAGED_MEMORY_SIZE);
+        taskInfo.stateBackendConfigVersion = json.value("stateBackendConfigVersion", static_cast<uint32_t>(1));
+        taskInfo.stateBackendResourceId = json.value("stateBackendResourceId", static_cast<uint64_t>(0));
         taskInfo.cacheAddr = json.value("cacheAddr", static_cast<uint64_t>(0));
         taskInfo.writeBufferManagerAddr = json.value("writeBufferManagerAddr", static_cast<uint64_t>(0));
         taskInfo.priorityQueueStateType = json.value("priorityQueueStateType", "HEAP");
+        if (json.contains("ockDBConfig") && !json.at("ockDBConfig").is_null()) {
+            taskInfo.ockDBConfig = json.at("ockDBConfig").get<OckDBConfigPOD>();
+        }
         taskInfo.numberOfTransferThreads = json.value("numberOfTransferThreads", static_cast<uint32_t>(4));
         taskInfo.rocksDBMemoryConfiguration =
             json.contains("rocksDBMemoryConfiguration") && !json.at("rocksDBMemoryConfiguration").is_null()
@@ -399,11 +438,16 @@ private:
     std::vector<std::string> rocksdbStorePaths;
     double stateBackendManagedMemoryFraction;
     uint64_t stateBackendManagedMemorySize;
+    uint32_t stateBackendConfigVersion = 1;
+    uint64_t stateBackendResourceId = 0;
     uint32_t numberOfTransferThreads;
     RocksDBMemoryConfiguration rocksDBMemoryConfiguration;
     uint64_t cacheAddr;
     uint64_t writeBufferManagerAddr;
     std::string priorityQueueStateType;
+
+    // ockdb相关配置，仅当stateBackend为EmbeddedOckStateBackend时由OmniAdaptor下传填充
+    OckDBConfigPOD ockDBConfig;
 
     std::unordered_map<int, StreamConfigPOD> chainedConfigMap;
     int taskType;

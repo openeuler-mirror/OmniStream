@@ -18,9 +18,13 @@
 #include "runtime/checkpoint/OperatorSavepointAdaptorFactory.h"
 #include "runtime/checkpoint/OperatorSavepointAdaptor.h"
 #include "runtime/checkpoint/StreamingJoinSavepointUtil.h"
+#include "runtime/checkpoint/WindowJoinSavepointAdaptor.h"
+#include "runtime/checkpoint/GroupWindowAggSavepointAdaptor.h"
+#include "runtime/checkpoint/WindowAggSavepointCompatibility.h"
 
 using omnistream::OperatorSavepointAdaptorFactory;
 using omnistream::StreamingJoinSavepointUtil;
+using omnistream::WindowAggSavepointCompatibility;
 
 namespace {
 nlohmann::json createStreamingJoinDescription(const std::string& timestampType)
@@ -65,6 +69,26 @@ TEST(OperatorSavepointAdaptorFactoryTest, ReturnsAppendOnlyTopNAdaptor)
     auto adaptor = OperatorSavepointAdaptorFactory::createAdaptor(FlinkSavepointAdaptorType::AppendOnlyTopNAdaptor);
     EXPECT_NE(adaptor, nullptr);
 }
+
+TEST(OperatorSavepointAdaptorFactoryTest, ReturnsWindowJoinAdaptor)
+{
+    auto adaptor = OperatorSavepointAdaptorFactory::createAdaptor(FlinkSavepointAdaptorType::WindowJoinAdaptor);
+    EXPECT_NE(dynamic_cast<omnistream::WindowJoinSavepointAdaptor*>(adaptor.get()), nullptr);
+}
+
+TEST(OperatorSavepointAdaptorFactoryTest, ReturnsGroupWindowAggAdaptor)
+{
+    auto adaptor = OperatorSavepointAdaptorFactory::createAdaptor(FlinkSavepointAdaptorType::GroupWindowAggAdaptor);
+    EXPECT_NE(dynamic_cast<omnistream::GroupWindowAggSavepointAdaptor*>(adaptor.get()), nullptr);
+
+    const nlohmann::json sessionWindowDescription = {
+        {"windowType", "SessionGroupWindow('w$, dateTime, 10000)"},
+    };
+    // window-aggs is byte-compatible, so adaptor preparation must not depend
+    // on accumulator schema or construct an accumulator serializer.
+    EXPECT_NO_THROW(adaptor->prepareForSave(sessionWindowDescription));
+    EXPECT_NO_THROW(adaptor->prepareForRestore(sessionWindowDescription));
+}
 // StreamingJoinAdaptor：已实现的 NoUniqueKey inner/left outer join 互通 Adaptor，
 TEST(OperatorSavepointAdaptorFactoryTest, ReturnsStreamingJoinAdaptors)
 {
@@ -82,6 +106,78 @@ TEST(OperatorSavepointAdaptorFactoryTest, ReturnsNullForNotYetImplementedTypes)
 {
     EXPECT_EQ(OperatorSavepointAdaptorFactory::createAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible), nullptr);
     EXPECT_EQ(OperatorSavepointAdaptorFactory::createAdaptor(FlinkSavepointAdaptorType::None), nullptr);
+}
+
+TEST(OperatorSavepointAdaptorFactoryTest, GroupWindowAggAdaptorRecognizesStructuredWindowType)
+{
+    auto adaptor = OperatorSavepointAdaptorFactory::createAdaptor(FlinkSavepointAdaptorType::GroupWindowAggAdaptor);
+    ASSERT_NE(adaptor, nullptr);
+
+    EXPECT_NO_THROW(adaptor->prepareForSave({{"windowKind", "SESSION"}}));
+    EXPECT_NO_THROW(adaptor->prepareForRestore({{"windowTypeName", "TumblingGroupWindow"}}));
+    EXPECT_NO_THROW(adaptor->prepareForSave({{"windowType", {{"kind", "SESSION"}}}}));
+}
+
+TEST(OperatorSavepointAdaptorFactoryTest, GroupWindowAggAdaptorRejectsUnknownWindowType)
+{
+    auto adaptor = OperatorSavepointAdaptorFactory::createAdaptor(FlinkSavepointAdaptorType::GroupWindowAggAdaptor);
+    ASSERT_NE(adaptor, nullptr);
+
+    EXPECT_THROW(adaptor->prepareForSave(nlohmann::json::object()), std::runtime_error);
+    EXPECT_THROW(adaptor->prepareForRestore({{"windowType", "UnknownGroupWindow()"}}), std::runtime_error);
+}
+
+TEST(WindowAggSavepointCompatibilityTest, LocalWindowAggIsCompatible)
+{
+    const auto info = WindowAggSavepointCompatibility::forLocal();
+
+    EXPECT_EQ(info.type, FlinkSavepointAdaptorType::OmniIsCompatible);
+    EXPECT_TRUE(info.reason.empty());
+}
+
+TEST(WindowAggSavepointCompatibilityTest, SelectsSlicingAccumulatorTypesFromOperatorMode)
+{
+    const nlohmann::json localDescription = {
+        {"isWindowAggregate", true},
+        {"aggInfoList", {{"AccTypes", {"BIGINT"}}, {"globalAccTypes", {"RAW(unused)"}}}},
+    };
+    const nlohmann::json globalDescription = {
+        {"isWindowAggregate", false},
+        {"aggInfoList", {{"AccTypes", {"RAW(unused)"}}, {"globalAccTypes", {"BIGINT"}}}},
+    };
+
+    EXPECT_EQ(
+        WindowAggSavepointCompatibility::forSlicing(localDescription).type,
+        FlinkSavepointAdaptorType::OmniIsCompatible);
+    EXPECT_EQ(
+        WindowAggSavepointCompatibility::forSlicing(globalDescription).type,
+        FlinkSavepointAdaptorType::OmniIsCompatible);
+}
+
+TEST(WindowAggSavepointCompatibilityTest, RejectsOnlyActualRawAccumulatorTypes)
+{
+    const nlohmann::json rawDescription = {
+        {"aggInfoList", {{"AccTypes", {"RAW(org.example.DataView)"}}}},
+    };
+    const nlohmann::json nonRawDescription = {
+        {"aggInfoList", {{"AccTypes", {"DRAWING"}}}},
+    };
+
+    EXPECT_EQ(WindowAggSavepointCompatibility::forGroup(rawDescription).type, FlinkSavepointAdaptorType::None);
+    EXPECT_EQ(
+        WindowAggSavepointCompatibility::forGroup(nonRawDescription).type,
+        FlinkSavepointAdaptorType::GroupWindowAggAdaptor);
+}
+
+TEST(WindowAggSavepointCompatibilityTest, RejectsMalformedAccumulatorTypesWithoutThrowing)
+{
+    const nlohmann::json description = {
+        {"aggInfoList", {{"AccTypes", {nlohmann::json::object()}}}},
+    };
+
+    FlinkSavepointAdaptorInfo info;
+    EXPECT_NO_THROW(info = WindowAggSavepointCompatibility::forGroup(description));
+    EXPECT_EQ(info.type, FlinkSavepointAdaptorType::None);
 }
 
 TEST(StreamingJoinSavepointUtilTest, OnlySupportsCompactTimestampPrecision)

@@ -4,8 +4,11 @@
  */
 #include <cstring>
 #include <iostream>
+#include <memory>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
+#include <utility>
 #include <nlohmann/json.hpp>
 #include "typeconstants.h"
 #include "StringTypeInfo.h"
@@ -23,6 +26,7 @@
 #include "core/typeinfo/MapTypeInfo.h"
 #include "core/typeinfo/ListTypeInfo.h"
 #include "core/typeinfo/BytePrimitiveArrayTypeInfo.h"
+#include "core/typeinfo/ExternalTypeInfo.h"
 #include "LongTypeInfo.h"
 #include "CommittableMessageInfo.h"
 #include "PojoField.h"
@@ -31,6 +35,7 @@
 #include "runtime/state/VoidNamespace.h"
 #include "runtime/state/VoidNamespaceTypeInfo.h"
 #include "core/typeinfo/TimerTypeInfo.h"
+#include "core/typeinfo/WindowTypeInfo.h"
 
 TypeInformation* TypeInfoFactory::createTypeInfo(const char* name)
 {
@@ -113,9 +118,14 @@ TypeInformation* TypeInfoFactory::createInternalTypeInfo(const json& rowType)
         // Access and process properties of each element
         LOG("type Name: " << element["type"]);
         string typeName = element["type"];
-        int typeId = LogicalType::flinkTypeToOmniTypeId(typeName);
+        const auto typeId = LogicalType::flinkTypeToOmniTypeId(typeName);
         LOG("type Id: " << typeId);
-        auto logicalType = BasicLogicalType::getTypeBy(typeId, element);
+        // Map "isNull" key to "nullable" for getTypeBy() compatibility
+        json options = element;
+        if (element.contains("isNull") && !element.contains("nullable")) {
+            options["nullable"] = element["isNull"];
+        }
+        auto logicalType = BasicLogicalType::getTypeBy(typeId, options);
         fields.emplace_back("f" + std::to_string(fieldIndex++), logicalType);
     }
     omnistream::RowType type(true, fields);
@@ -147,8 +157,8 @@ TypeInformation* TypeInfoFactory::createInternalTypeInfoOfRow(const json& fields
         string description = field["description"];
         const json& fieldType = field["fieldType"];
         string type = fieldType["type"];
-        int typeId = LogicalType::flinkTypeToOmniTypeId(type);
-        auto logicalType = BasicLogicalType::getTypeBy(typeId, json::object());
+        const auto typeId = LogicalType::flinkTypeToOmniTypeId(type);
+        LogicalType* logicalType = BasicLogicalType::getTypeBy(typeId, fieldType);
         rowFields.emplace_back(name, logicalType, description);
     }
     omnistream::RowType rowType(true, rowFields);
@@ -163,11 +173,33 @@ omnistream::RowType* TypeInfoFactory::createRowType(const std::vector<omniruntim
     std::vector<omnistream::RowField> typeInfo;
     for (size_t i = 0; i < inputRowType->size(); ++i) {
         std::string columnName = "col" + std::to_string(i);
-        BasicLogicalType* logicalType = BasicLogicalType::getTypeBy(inputRowType->at(i), json::object());
+        LogicalType* logicalType = BasicLogicalType::getTypeBy(inputRowType->at(i), json::object());
         typeInfo.emplace_back(columnName, logicalType);
     }
 
     return new omnistream::RowType(true, typeInfo);
+}
+
+LogicalType* TypeInfoFactory::createDataType(const nlohmann::json& logicalTypeJson)
+{
+    const std::string typeName = logicalTypeJson["type"];
+    const auto typeId = LogicalType::flinkTypeToOmniTypeId(typeName);
+    if (typeId == omniruntime::type::DataTypeId::OMNI_INVALID) {
+        THROW_LOGIC_EXCEPTION("Unsupported logical type: " << typeName);
+    }
+    std::vector<std::unique_ptr<LogicalType>> children;
+    for (const auto& child : logicalTypeJson.value("children", json::array())) {
+        children.emplace_back(createDataType(child));
+    }
+
+    std::optional<bool> nullable;
+    if (logicalTypeJson.contains("nullable") && !logicalTypeJson["nullable"].is_null()) {
+        nullable = logicalTypeJson["nullable"].get<bool>();
+    }
+    if (children.empty()) {
+        return BasicLogicalType::getTypeBy(nullable, typeId, logicalTypeJson);
+    }
+    return new BasicLogicalType(nullable.value_or(true), typeId, typeName, std::move(children));
 }
 
 TypeInformation* TypeInfoFactory::createBasicInternalTypeInfo(const char* name)
@@ -237,14 +269,36 @@ TypeInformation* TypeInfoFactory::createDataStreamTypeInfo(const json& serialize
             typeInformation = new PojoTypeInfo(clazz, pojoFields);
         }
     } else if (serializerName == TYPE_NAME_MAP_SERIALIZER) {
-        if (serializerInfo.contains("keySerializer") && serializerInfo.contains("valueSerializer")) {
-            auto keyTypeInfo = createDataStreamTypeInfo(serializerInfo["keySerializer"]);
-            auto valueTypeInfo = createDataStreamTypeInfo(serializerInfo["valueSerializer"]);
-            typeInformation = new MapTypeInfo(keyTypeInfo, valueTypeInfo);
-        } else {
-            ERROR_RELEASE("Error:Unsupport map serializer format.");
-            throw std::runtime_error("Unsupport map serializer format.");
+        const json* keySerializer = nullptr;
+        const json* valueSerializer = nullptr;
+        if (serializerInfo.contains("keySerializer") && serializerInfo["keySerializer"].is_object() &&
+            !serializerInfo["keySerializer"].empty()) {
+            keySerializer = &serializerInfo["keySerializer"];
         }
+        if (serializerInfo.contains("valueSerializer") && serializerInfo["valueSerializer"].is_object() &&
+            !serializerInfo["valueSerializer"].empty()) {
+            valueSerializer = &serializerInfo["valueSerializer"];
+        }
+        // Compatibility with serializer descriptions that encode Map<K,V> as two nested fields.
+        if ((keySerializer == nullptr || valueSerializer == nullptr) && serializerInfo.contains("fieldSerializers") &&
+            serializerInfo["fieldSerializers"].is_array() && serializerInfo["fieldSerializers"].size() == 2) {
+            keySerializer = &serializerInfo["fieldSerializers"][0];
+            valueSerializer = &serializerInfo["fieldSerializers"][1];
+        }
+        if (keySerializer == nullptr || valueSerializer == nullptr) {
+            ERROR_RELEASE(
+                "MapSerializer missing key/value serializer; clazz=" << serializerInfo.value("clazz", "")
+                                                                     << ", json=" << serializerInfo.dump());
+            throw std::runtime_error(
+                "MapSerializer requires keySerializer and valueSerializer; java.util.HashMap does not contain "
+                "generic type information");
+        }
+        auto keyTypeInfo = createDataStreamTypeInfo(*keySerializer);
+        auto valueTypeInfo = createDataStreamTypeInfo(*valueSerializer);
+        if (keyTypeInfo == nullptr || valueTypeInfo == nullptr) {
+            throw std::runtime_error("MapSerializer nested serializer could not be converted to TypeInformation");
+        }
+        typeInformation = new MapTypeInfo(keyTypeInfo, valueTypeInfo);
     } else if (serializerName == TYPE_NAME_LIST_SERIALIZER) {
         auto elementTypeInfo = createDataStreamTypeInfo(serializerInfo["elementSerializer"]);
         typeInformation = new ListTypeInfo(elementTypeInfo);
@@ -254,15 +308,14 @@ TypeInformation* TypeInfoFactory::createDataStreamTypeInfo(const json& serialize
         auto keyTypeInfo = createDataStreamTypeInfo(serializerInfo["keySerializer"]);
         auto namespaceTypeInfo = createDataStreamTypeInfo(serializerInfo["namespaceSerializer"]);
 
-        std::string keyInstanceClass = TYPE_NAME_STRING_CLASS;
-        if (serializerInfo["keySerializer"].contains("serializerInstanceClazz") &&
-            !serializerInfo["keySerializer"]["serializerInstanceClazz"].empty()) {
-            keyInstanceClass = serializerInfo["keySerializer"]["serializerInstanceClazz"];
+        std::string keyInstanceClass = serializerInfo["keySerializer"].value("serializerInstanceClazz", "");
+        if (keyInstanceClass.empty()) {
+            keyInstanceClass = TYPE_NAME_STRING_CLASS;
         }
-        std::string namespaceInstanceClass = TYPE_NAME_VOID_NAMESPACE_CLASS;
-        if (serializerInfo["namespaceSerializer"].contains("serializerInstanceClazz") &&
-            !serializerInfo["namespaceSerializer"]["serializerInstanceClazz"].empty()) {
-            namespaceInstanceClass = serializerInfo["namespaceSerializer"]["serializerInstanceClazz"];
+
+        std::string namespaceInstanceClass = serializerInfo["namespaceSerializer"].value("serializerInstanceClazz", "");
+        if (namespaceInstanceClass.empty()) {
+            namespaceInstanceClass = TYPE_NAME_VOID_NAMESPACE_CLASS;
         }
 
         typeInformation = new TimerTypeInfo(
@@ -278,6 +331,50 @@ TypeInformation* TypeInfoFactory::createDataStreamTypeInfo(const json& serialize
     } else if (serializerName == TYPE_NAME_BINARY_ROW_DATA_SERIALIZER) {
         std::vector<std::string> fields = serializerInfo["fields"];
         typeInformation = BinaryTypeInfo::of(fields.size(), fields);
+    } else if (serializerName == TYPE_NAME_EXTERNAL_SERIALIZER) {
+        if (!serializerInfo.contains("valueSerializer")) {
+            ERROR_RELEASE(
+                "TypeInfoFactory::createDataStreamTypeInfo missing valueSerializer, serializerName=" << serializerName);
+            THROW_RUNTIME_ERROR("ExternalSerializer requires valueSerializer");
+        }
+        const json serializerAttributes = serializerInfo.value("serializerAttributes", json::object());
+        const std::string conversionClass =
+            serializerAttributes.value("dataTypeConversionClassName", serializerInfo.value("clazz", ""));
+        auto logicalTypeDeleter = [](LogicalType* logicalType) {
+            if (!LogicalType::isSharedLogicalType(logicalType)) {
+                delete logicalType;
+            }
+        };
+        auto dataType = std::shared_ptr<LogicalType>(createDataType(serializerInfo["logicalType"]), logicalTypeDeleter);
+        TypeInformation* internalTypeInfo = createDataStreamTypeInfo(serializerInfo["valueSerializer"]);
+        try {
+            typeInformation = new ExternalTypeInfo(
+                std::move(dataType),
+                internalTypeInfo,
+                serializerAttributes.value("externalIsInternalInput", false),
+                conversionClass);
+        } catch (const std::exception& e) {
+            ERROR_RELEASE(
+                "TypeInfoFactory::createDataStreamTypeInfo failed to create ExternalTypeInfo, "
+                "serializerName="
+                << serializerName << ", conversionClass=" << conversionClass << ", reason=" << e.what());
+            internalTypeInfo->putRefCount();
+            THROW_RUNTIME_ERROR("Failed to create ExternalTypeInfo: " << e.what());
+        } catch (...) {
+            ERROR_RELEASE(
+                "TypeInfoFactory::createDataStreamTypeInfo failed to create ExternalTypeInfo, "
+                "serializerName="
+                << serializerName << ", conversionClass=" << conversionClass << ", reason=unknown");
+            internalTypeInfo->putRefCount();
+            THROW_RUNTIME_ERROR("Failed to create ExternalTypeInfo");
+        }
+    } else if (serializerName == TYPE_NAME_TIME_WINDOW_SERIALIZER) {
+        if (!serializerInfo.contains("serializerInstanceClazz") ||
+            !serializerInfo["serializerInstanceClazz"].is_string() ||
+            serializerInfo["serializerInstanceClazz"].empty()) {
+            THROW_RUNTIME_ERROR("serializerInstanceClazz is required for window serializer.");
+        }
+        typeInformation = new WindowTypeInfo(serializerInfo["serializerInstanceClazz"].get<std::string>());
     } else {
         THROW_RUNTIME_ERROR("invalid serializerName " + serializerName);
     }

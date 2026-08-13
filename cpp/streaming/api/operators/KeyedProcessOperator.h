@@ -81,6 +81,7 @@ public:
 
     void processBatch(StreamRecord* element) override
     {
+        auto elementGuard = std::unique_ptr<StreamRecord>(element);
         LOG("KeyedProcessOperator processBatch running");
         this->userFunction->processBatch(
             reinterpret_cast<omnistream::VectorBatch*>(element->getValue()),

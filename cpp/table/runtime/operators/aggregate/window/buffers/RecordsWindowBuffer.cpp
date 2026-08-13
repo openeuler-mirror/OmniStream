@@ -316,7 +316,7 @@ void RecordsWindowBuffer::combineAccumulator(const WindowKey& windowKey, RowData
     }
 }
 
-omnistream::VectorBatch* RecordsWindowBuffer::createOutputBatch(std::vector<std::unique_ptr<RowData>>& collectedRows)
+omnistream::VectorBatch* RecordsWindowBuffer::createOutputBatch(const std::vector<RowData*>& collectedRows)
 {
     int numColumns = outputTypes.size();
     int numRows = collectedRows.size(); // Number of rows collected

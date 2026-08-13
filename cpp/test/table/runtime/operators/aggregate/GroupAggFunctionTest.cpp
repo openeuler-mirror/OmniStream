@@ -1285,7 +1285,6 @@ TEST(GroupAggFunctionTest, VectorBatch_OneKeyMaxAggTest)
         std::cout << to_string(resultBatch->getRowKind(i)) << std::endl;
     }
     delete output->getStreamRecord();
-    delete record;
 
     /* Expect output
     (long) , (long)   , (RowType)
@@ -1454,7 +1453,6 @@ TEST(GroupAggFunctionTest, VectorBatch_OneKeyAvgAggTest)
         std::cout << to_string(resultBatch2->getRowKind(i)) << std::endl;
     }
     delete output->getStreamRecord();
-    delete record2;
 
     /* Expect output2
     (long) , (long)   , (RowType)
