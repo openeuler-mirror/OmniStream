@@ -26,7 +26,7 @@
 #include "table/runtime/operators/aggregate/GroupAggFunction.h"
 #include "table/runtime/operators/deduplicate/RowTimeDeduplicateFunction.h"
 #include "streaming/api/operators/KeyedProcessOperator.h"
-#include "table/runtime/operators/join/StreamingJoinOperator.h"
+#include "table/runtime/operators/join/stream/StreamingJoinOperator.h"
 #include "table/runtime/operators/join/StreamingSemiAntiJoinOperator.h"
 #include "core/typeinfo/TypeInfoFactory.h"
 #include "table/runtime/operators/wmassigners/WatermarkAssignerOperator.h"

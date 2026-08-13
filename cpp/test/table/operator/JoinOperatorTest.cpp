@@ -11,9 +11,8 @@
 
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
-#include "table/runtime/operators/join/StreamingJoinOperator.h"
-#include "table/runtime/operators/join/JoinRecordStateView.h"
-#include "table/runtime/operators/join/AbstractStreamingJoinOperator.h"
+#include "table/runtime/operators/join/stream/StreamingJoinOperator.h"
+#include "table/runtime/operators/join/stream/AbstractStreamingJoinOperator.h"
 
 #include "test/core/operators/OutputTest.h"
 
@@ -440,8 +439,14 @@ TEST(InnerJoinTest, SimpleInnerJoinLongKeyInsertDelete)
     auto rightRecord = new StreamRecord(vectorBatchRight);
     op->processBatch1(leftRecord);
     op->processBatch2(rightRecord);
-    auto expectedVB =
-        createVectorBatch({{2, 1, 2, 1}, {2, 2, 2, 1}, {2, 1, 2, 6}, {2, 2, 2, 6}, {2, 1, 2, 1}, {2, 2, 2, 1}});
+    auto expectedVB = createVectorBatch({
+        {2, 2, 2, 1},
+        {2, 1, 2, 1},
+        {2, 2, 2, 6},
+        {2, 1, 2, 6},
+        {2, 2, 2, 1},
+        {2, 1, 2, 1},
+    });
     for (int i = 0; i < 4; i++) {
         expectedVB->setRowKind(i, RowKind::INSERT);
     }
@@ -454,8 +459,7 @@ TEST(InnerJoinTest, SimpleInnerJoinLongKeyInsertDelete)
     for (int i = 0; i < 6; i++) {
         EXPECT_EQ(expectedVB->getRowKind(i), outputVB->getRowKind(i));
     }
-    delete vectorBatchLeft;
-    delete vectorBatchRight;
+    // StreamingJoinOperator consumes the input VectorBatch through StreamRecord.
     delete outputVB;
     delete expectedVB;
 }
@@ -520,7 +524,7 @@ TEST(InnerJoinTest, SimpleJoinWithNonEquiCondition)
     op->processBatch1(leftRecord);
     op->processBatch2(rightRecord);
 
-    auto expectedVB = createVectorBatch({{2, 1, 2, 1}, {2, 2, 2, 1}});
+    auto expectedVB = createVectorBatch({{2, 2, 2, 1}, {2, 1, 2, 1}});
 
     for (int i = 0; i < 2; i++) {
         expectedVB->setRowKind(i, RowKind::INSERT);
@@ -534,8 +538,7 @@ TEST(InnerJoinTest, SimpleJoinWithNonEquiCondition)
     for (int i = 0; i < 2; i++) {
         EXPECT_EQ(expectedVB->getRowKind(i), outputVB->getRowKind(i));
     }
-    delete vectorBatchLeft;
-    delete vectorBatchRight;
+    // StreamingJoinOperator consumes the input VectorBatch through StreamRecord.
     delete outputVB;
     delete expectedVB;
 }
@@ -692,8 +695,7 @@ TEST(InnerJoinTest, InnerJoin)
         EXPECT_EQ(expectedVB->getRowKind(i), outputVB->getRowKind(i));
     }
 
-    delete vectorBatchLeft;
-    delete vectorBatchRight;
+    // StreamingJoinOperator consumes the input VectorBatch through StreamRecord.
     delete outputVB;
     delete expectedVB;
 }
@@ -819,8 +821,7 @@ TEST(InnerJoinTest, InnerJoinAdvance)
         EXPECT_EQ(expectedVB->getRowKind(i), outputVB->getRowKind(i));
     }
 
-    delete vectorBatchLeft;
-    delete vectorBatchRight;
+    // StreamingJoinOperator consumes the input VectorBatch through StreamRecord.
     delete outputVB;
     delete expectedVB;
 }
@@ -945,8 +946,7 @@ TEST(OuterJoinTest, LeftJoin)
 
     omniruntime::vec::VectorHelper::PrintVecBatch(outputVB);
 
-    delete vectorBatchLeft;
-    delete vectorBatchRight;
+    // StreamingJoinOperator consumes the input VectorBatch through StreamRecord.
     delete outputVB;
     delete expectedVB;
 }
@@ -1028,12 +1028,7 @@ TEST(OuterJoinTest, DISABLED_RightJoin)
     for (int i = 0; i < 8; i++) {
         EXPECT_EQ(expectedVB->getRowKind(i), outputVB->getRowKind(i));
     }
-    if (vectorBatchLeft) {
-        delete vectorBatchLeft;
-    }
-    if (vectorBatchRight) {
-        delete vectorBatchRight;
-    }
+    // StreamingJoinOperator consumes both input batches through StreamRecord.
     if (outputVB) {
         delete outputVB;
     }
@@ -1124,18 +1119,19 @@ TEST(OuterJoinTest, LeftJoinAdvance)
     op->processBatch2(rightRecord);
 
     expectedVB =
-        createVectorBatch({{1, 3, 1, 4}, {1, 2, 1, 4}, {1, 3, 1, 6}, {1, 2, 1, 6}, {1, 3, 0, 0}, {1, 2, 0, 0}});
+        createVectorBatch({{1, 3, 0, 0}, {1, 2, 0, 0}, {1, 3, 1, 4}, {1, 2, 1, 4}, {1, 3, 1, 6}, {1, 2, 1, 6}});
 
-    reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(expectedVB->Get(2))->SetNull(4);
-    reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(expectedVB->Get(3))->SetNull(4);
-    reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(expectedVB->Get(2))->SetNull(5);
-    reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(expectedVB->Get(3))->SetNull(5);
+    reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(expectedVB->Get(2))->SetNull(0);
+    reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(expectedVB->Get(3))->SetNull(0);
+    reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(expectedVB->Get(2))->SetNull(1);
+    reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(expectedVB->Get(3))->SetNull(1);
 
-    for (int i = 0; i < 4; i++) {
+    expectedVB->setRowKind(0, RowKind::DELETE);
+    expectedVB->setRowKind(1, RowKind::DELETE);
+
+    for (int i = 2; i < 6; i++) {
         expectedVB->setRowKind(i, RowKind::INSERT);
     }
-    expectedVB->setRowKind(4, RowKind::DELETE);
-    expectedVB->setRowKind(5, RowKind::DELETE);
 
     outputVB = reinterpret_cast<omnistream::VectorBatch*>(outputTest->getVectorBatch());
     matched = omniruntime::TestUtil::VecBatchMatch(outputVB, expectedVB);
@@ -1204,12 +1200,7 @@ TEST(OuterJoinTest, LeftJoinAdvance)
         std::cout << to_string(outputVB->getRowKind(i)) << std::endl;
     }
     omniruntime::vec::VectorHelper::PrintVecBatch(outputVB);
-    if (vectorBatchLeft) {
-        delete vectorBatchLeft;
-    }
-    if (vectorBatchRight) {
-        delete vectorBatchRight;
-    }
+    // StreamingJoinOperator consumes both input batches through StreamRecord.
     if (outputVB) {
         delete outputVB;
     }
@@ -1342,8 +1333,7 @@ TEST(OuterJoinTest, DISABLED_RightJoinAdvance)
         EXPECT_EQ(expectedVB->getRowKind(i), outputVB->getRowKind(i));
     }
 
-    delete vectorBatchLeft;
-    delete vectorBatchRight;
+    // StreamingJoinOperator consumes the input VectorBatch through StreamRecord.
     delete outputVB;
     delete expectedVB;
 }

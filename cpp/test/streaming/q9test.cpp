@@ -4,7 +4,7 @@
 #include "../../runtime/taskmanager/OmniRuntimeEnvironment.h"
 #include "../../runtime/state/TaskStateManager.h"
 #include "../../streaming/api/operators/KeyedProcessOperator.h"
-#include "../../table/runtime/operators/join/StreamingJoinOperator.h"
+#include "table/runtime/operators/join/stream/StreamingJoinOperator.h"
 #include "../../table/runtime/operators/join/window/WindowJoinOperator.h"
 #include "../../table/runtime/operators/rank/FastTop1Function.h"
 #include "../../table/data/vectorbatch/VectorBatch.h"
