@@ -107,7 +107,8 @@ protected:
 
         uint8_t* payload = const_cast<uint8_t*>(serializedValue.data() + sizeof(int8_t));
         return std::unique_ptr<omnistream::VectorBatch>(
-            omnistream::VectorBatchDeserializationUtils::deserializeVectorBatch(payload));
+            omnistream::VectorBatchDeserializationUtils::deserializeVectorBatch(
+                payload, serializedValue.size() - sizeof(int8_t)));
     }
 
     static std::unique_ptr<RowData> extractRow(omnistream::VectorBatch* batch, int32_t rowId)
