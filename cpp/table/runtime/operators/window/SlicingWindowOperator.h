@@ -109,7 +109,7 @@ public:
     void processElement(StreamRecord* element) override {};
     void onEventTime(TimerHeapInternalTimer<K, W>* timer) override;
     void onProcessingTime(TimerHeapInternalTimer<K, W>* timer) override;
-    void prepareSnapshotPreBarrier(int64_t checkpointId);
+    void PrepareSnapshotPreBarrier(long checkpointId) override;
     Output* getOutput();
     void processWatermarkStatus(WatermarkStatus* watermarkStatus) override {};
     void onTimer(TimerHeapInternalTimer<K, W>* timer);
@@ -226,10 +226,26 @@ void SlicingWindowOperator<K, W>::onTimer(TimerHeapInternalTimer<K, W>* timer)
 }
 
 template <typename K, typename W>
-void SlicingWindowOperator<K, W>::prepareSnapshotPreBarrier(int64_t checkpointId)
+void SlicingWindowOperator<K, W>::PrepareSnapshotPreBarrier(long checkpointId)
 {
-    INFO_RELEASE("SlicingWindowOperator prepareSnapshotPreBarrier:" << checkpointId);
-    windowProcessor_->prepareCheckpoint();
+    const std::string operatorId = OneInputStreamOperator::GetOperatorID().toString();
+    LOG("SlicingWindowOperator pre-barrier preparation start: operatorId=" << operatorId
+                                                                           << ", checkpointId=" << checkpointId);
+    try {
+        windowProcessor_->prepareCheckpoint();
+        LOG("SlicingWindowOperator pre-barrier preparation complete: operatorId=" << operatorId
+                                                                                  << ", checkpointId=" << checkpointId);
+    } catch (const std::exception& exception) {
+        ERROR_RELEASE(
+            "SlicingWindowOperator pre-barrier preparation failed: operatorId="
+            << operatorId << ", checkpointId=" << checkpointId << ", error=" << exception.what());
+        throw;
+    } catch (...) {
+        ERROR_RELEASE(
+            "SlicingWindowOperator pre-barrier preparation failed with unknown exception: operatorId="
+            << operatorId << ", checkpointId=" << checkpointId);
+        throw;
+    }
 }
 
 template <typename W>

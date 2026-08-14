@@ -105,8 +105,8 @@ void WindowJoinSavepointAdaptor::parseWindowInputTypes(
         const auto& type = inputTypes[idx];
         if (!type.is_string() || type.get<std::string>().empty()) {
             ERROR_RELEASE(
-                "WindowJoinSavepointAdaptor::parseWindowInputTypes -> fieldName=" << fieldName << ", fieldSize="
-                                                                                  << inputTypes.size());
+                "WindowJoinSavepointAdaptor::parseWindowInputTypes ->" << " fieldName=" << fieldName
+                                                                       << ", fieldSize=" << inputTypes.size());
             throw std::runtime_error(
                 "WindowJoinSavepointAdaptor::parseWindowInputTypes invalid input type field=" + fieldName);
         }
@@ -197,7 +197,7 @@ const WindowJoinSavepointAdaptor::WindowSidePlan& WindowJoinSavepointAdaptor::wi
     if (stateName == RIGHT_RECORDS_STATE_NAME) {
         return rightPlan_;
     }
-    ERROR_RELEASE("WindowJoinSavepointAdaptor::windowSidePlanForState -> stateName=" << stateName);
+    ERROR_RELEASE("WindowJoinSavepointAdaptor::windowSidePlanForState ->" << " stateName=" << stateName);
     throw std::runtime_error("WindowJoinSavepointAdaptor::windowSidePlanForState unsupported state=" + stateName);
 }
 
@@ -454,15 +454,15 @@ void WindowJoinSavepointAdaptor::retrieveKVRowData(
 
     // window join operator state backend type is Key:List<Value>
     // try to get the list from valueBytes
-    std::vector<std::vector<int8_t>> rows;
+    std::vector<ByteView> rows;
     deserializeRows(valueBytes, rows);
 
     // append row value to vb table and collect all comboId in the list
     std::vector<uint64_t> comboIds;
     comboIds.reserve(rows.size());
     const auto& types = columnTypesFor(kvStateId);
-    for (const auto& rowBytes : rows) {
-        RowDataView rowView{&rowBytes, &types};
+    for (const auto& rowByteView : rows) {
+        RowDataView rowView{rowByteView, &types};
         // append single value of the list
         uint64_t comboId = writer->appendRowToVectorBatch(rowView);
         if (comboId == omnistream::INVALID_COMBO_ID) {
@@ -491,8 +491,7 @@ std::vector<omniruntime::type::DataTypeId> WindowJoinSavepointAdaptor::columnTyp
     return columnTypesFor(kvStateId);
 }
 
-void WindowJoinSavepointAdaptor::deserializeRows(
-    const std::vector<int8_t>& valueBytes, std::vector<std::vector<int8_t>>& rows)
+void WindowJoinSavepointAdaptor::deserializeRows(const std::vector<int8_t>& valueBytes, std::vector<ByteView>& rows)
 {
     rows.clear();
     if (valueBytes.size() < sizeof(int32_t)) {
@@ -528,7 +527,7 @@ void WindowJoinSavepointAdaptor::deserializeRows(
 
         auto rowEnd = input.getPosition();
         // [rowLength][valueBytes]
-        rows.emplace_back(valueBytes.begin() + rowStart, valueBytes.begin() + rowEnd);
+        rows.emplace_back(valueBytes.data() + rowStart, rowEnd - rowStart);
 
         if (input.Available() <= 0) {
             break;

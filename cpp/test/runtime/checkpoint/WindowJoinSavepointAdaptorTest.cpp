@@ -73,7 +73,11 @@ class RecordingRestoreKVStateVB : public RestoreKVStateVB {
 public:
     ComboId appendRowToVectorBatch(const RowDataView& row) override
     {
-        appendedRows.push_back(*row.valueBytes);
+        const ByteView rowBytes = row.bytes();
+        const auto* rowBegin = reinterpret_cast<const int8_t*>(rowBytes.data());
+        appendedRows.emplace_back(rowBegin, rowBegin + rowBytes.size());
+        appendedRowPointers.push_back(rowBytes.data());
+        appendedRowSizes.push_back(rowBytes.size());
         appendedColumnTypes.push_back(*row.columnTypes);
         return nextComboId++;
     }
@@ -98,6 +102,8 @@ public:
     }
 
     std::vector<std::vector<int8_t>> appendedRows;
+    std::vector<const uint8_t*> appendedRowPointers;
+    std::vector<size_t> appendedRowSizes;
     std::vector<std::vector<omniruntime::type::DataTypeId>> appendedColumnTypes;
     std::vector<int8_t> writtenKeyBytes;
     std::vector<ComboId> writtenComboIds;
@@ -327,6 +333,28 @@ TEST_F(WindowJoinSavepointAdaptorTest, RetrieveKVRowDataRestoresEveryListElement
     EXPECT_EQ(writer.appendedColumnTypes[1], adaptor_.columnTypes(4));
     EXPECT_EQ(writer.writtenKeyBytes, keyBytes);
     EXPECT_EQ(writer.writtenComboIds, (std::vector<ComboId>{100, 101}));
+}
+
+TEST_F(WindowJoinSavepointAdaptorTest, RetrieveKVRowDataPassesViewsIntoSerializedListBuffer)
+{
+    prepareAdaptor();
+    auto leftMeta = makeListMeta(LEFT_STATE_NAME, {"BIGINT", "INT"});
+    adaptor_.buildOmniMainMetaInfo(4, *leftMeta);
+
+    const auto firstRow = makeSerializedRow({1, 2, 3, 4});
+    const auto secondRow = makeSerializedRow({5, 6});
+    const auto listValue = makeListValue({firstRow, secondRow});
+    RecordingRestoreKVStateVB writer;
+
+    adaptor_.retrieveKVRowData({1}, listValue, 4, &writer);
+
+    ASSERT_EQ(writer.appendedRowPointers.size(), 2U);
+    ASSERT_EQ(writer.appendedRowSizes.size(), 2U);
+    const auto* listBegin = reinterpret_cast<const uint8_t*>(listValue.data());
+    EXPECT_EQ(writer.appendedRowPointers[0], listBegin);
+    EXPECT_EQ(writer.appendedRowPointers[1], listBegin + firstRow.size() + 1);
+    EXPECT_EQ(writer.appendedRowSizes[0], firstRow.size());
+    EXPECT_EQ(writer.appendedRowSizes[1], secondRow.size());
 }
 
 TEST_F(WindowJoinSavepointAdaptorTest, RetrieveKVRowDataRejectsInvalidArgumentsAndMalformedList)

@@ -35,6 +35,7 @@
 #include "core/utils/key_type_traits.h"
 #include "CopyOnWriteStateTable.h"
 #include "table/data/RowData.h"
+#include "streaming/runtime/streamrecord/StreamElement.h"
 #include "runtime/state/InternalKeyContextImpl.h"
 #include "table/utils/VectorBatchDeserializationUtils.h"
 #include "table/typeutils/SortedVectorLong.h"
@@ -817,8 +818,25 @@ void HeapKeyedStateBackendBuilder<K>::restoreVbEntryToHeap(
     for (size_t i = 0; i < valueBytes.size(); i++) {
         valueBuf[i] = static_cast<uint8_t>(valueBytes[i]);
     }
+    if (valueBuf.size() <= sizeof(int8_t) || valueBuf[0] != static_cast<uint8_t>(StreamElementTag::VECTOR_BATCH)) {
+        ERROR_RELEASE(
+            "Invalid VectorBatch state value while restoring state '" << info.stateName << "': size=" << valueBuf.size()
+                                                                      << ", missing VectorBatch tag");
+        THROW_RUNTIME_ERROR(
+            "Invalid VectorBatch state value while restoring state '" << info.stateName << "': size=" << valueBuf.size()
+                                                                      << ", missing VectorBatch tag");
+    }
     uint8_t* cursor = valueBuf.data() + sizeof(int8_t);
-    auto* vectorBatch = VectorBatchDeserializationUtils::deserializeVectorBatch(cursor);
+    omnistream::VectorBatch* vectorBatch = nullptr;
+    try {
+        vectorBatch = VectorBatchDeserializationUtils::deserializeVectorBatch(cursor, valueBuf.size() - sizeof(int8_t));
+    } catch (const std::exception& error) {
+        ERROR_RELEASE(
+            "Heap VectorBatch restore failed: state='"
+            << info.stateName << "', keyGroup=" << vbKeyGroup << ", sequenceNumber=" << sequenceNumberU32
+            << ", serializedSize=" << valueBuf.size() << ", reason=" << error.what());
+        throw;
+    }
 
     uintptr_t vbStateTablePtr = backend->getStateTablePtr(info.stateName);
     if (vbStateTablePtr == 0) {
