@@ -396,11 +396,7 @@ HeapKeyedStateBackend<K>* HeapKeyedStateBackendBuilder<K>::build()
                         << metaInfo.getName() << "' at kvStateId=" << i
                         << ", entries will be restored when the typed timer queue is created");
                     stateInfos.push_back(
-                        {backendStateType,
-                         metaInfo.getName(),
-                         nullptr,
-                         nullptr,
-                         metaInfo.getTypeSerializer("VALUE_SERIALIZER")});
+                        {backendStateType, metaInfo.getName(), nullptr, nullptr, metaInfo.getValueSerializer()});
                     continue;
                 }
 
@@ -419,8 +415,8 @@ HeapKeyedStateBackend<K>* HeapKeyedStateBackendBuilder<K>::build()
                     metaInfo.getOption(StateMetaInfoSnapshot::CommonOptionsKeys::KEYED_STATE_TYPE);
                 StateDescriptor::Type stateType = StateDescriptor::StringToType(stateTypeStr);
 
-                TypeSerializer* nsSerializer = metaInfo.getTypeSerializer("NAMESPACE_SERIALIZER");
-                TypeSerializer* valSerializer = metaInfo.getTypeSerializer("VALUE_SERIALIZER");
+                TypeSerializer* nsSerializer = metaInfo.getNamespaceSerializer();
+                TypeSerializer* valSerializer = metaInfo.getValueSerializer();
 
                 if (nsSerializer == nullptr || valSerializer == nullptr) {
                     INFO_RELEASE(

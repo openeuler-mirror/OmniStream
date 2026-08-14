@@ -193,7 +193,7 @@ omnistream::ComboId VectorBatchRestoreUtil::appendRowToVectorBatch(
 StateMetaInfoSnapshot VectorBatchRestoreUtil::buildOmniMainMetaInfo(
     const StateMetaInfoSnapshot& flinkMetaInfo, TypeSerializer* valueSerializer)
 {
-    TypeSerializer* nsSerializer = flinkMetaInfo.getTypeSerializer("NAMESPACE_SERIALIZER");
+    TypeSerializer* nsSerializer = flinkMetaInfo.getNamespaceSerializer();
     if (nsSerializer == nullptr) {
         INFO_RELEASE("VectorBatchRestoreUtil: NAMESPACE_SERIALIZER not found for state=" << flinkMetaInfo.getName());
         throw std::runtime_error(
@@ -206,10 +206,7 @@ StateMetaInfoSnapshot VectorBatchRestoreUtil::buildOmniMainMetaInfo(
         stateType = StateDescriptor::Type::VALUE;
     }
 
-    // 直接构造 StateMetaInfoSnapshot，使用 commonSerializerKeyToString (UPPERCASE) key，
-    // 与 fromMetaInfoSnapshot() 的读取 key 保持一致。
-    // 避免通过 RegisteredKeyValueStateBackendMetaInfo::computeSnapshot() 间接构造时
-    // 因 key 大小写不一致导致序列化器丢失。
+    // StateMetaInfoSnapshot 内部统一保存 Flink canonical serializer key。
     std::unordered_map<std::string, std::string> optionsMap;
     optionsMap[StateMetaInfoSnapshot::commonOptionsKeyToString(
         StateMetaInfoSnapshot::CommonOptionsKeys::KEYED_STATE_TYPE)] = std::to_string(static_cast<int>(stateType));

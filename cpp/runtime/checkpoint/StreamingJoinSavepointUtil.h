@@ -30,7 +30,6 @@
 #include "core/typeinfo/BasicTypeInfo.h"
 #include "core/typeutils/LongSerializer.h"
 #include "core/typeutils/MapSerializer.h"
-#include "core/typeutils/SerializerJsonInfo.h"
 #include "core/typeutils/TupleSerializer.h"
 #include "core/typeutils/XxH128_hashSerializer.h"
 #include "core/utils/ByteView.h"
@@ -194,7 +193,6 @@ public:
     static std::vector<int8_t> copySerializerBuffer(DataOutputSerializer& serializer);
 
 private:
-
     // 校验序列化变长字段是否完整位于 RowData payload 范围内。
     // 使用减法比较可避免不可信状态字节中的 offset 与 len 相加产生溢出。
     static bool isValidStringFieldRange(int offset, int len, int rowBytesLen);
@@ -662,8 +660,7 @@ inline std::shared_ptr<StateMetaInfoSnapshot> StreamingJoinSavepointUtil::create
     const std::vector<std::string>& inputTypeNames,
     bool outerJoinState)
 {
-    TypeSerializer* namespaceSerializer = sourceMetaInfo.getTypeSerializer(
-        {StateMetaInfoSnapshot::COMMON_NAMESPACE_SERIALIZER_KEY, SerializerJsonInfo::NAMESPACE_SERIALIZER_KEY});
+    TypeSerializer* namespaceSerializer = sourceMetaInfo.getNamespaceSerializer();
     if (namespaceSerializer == nullptr) {
         INFO_RELEASE(
             "Error: StreamingJoinSavepointUtil::createFlinkMapStateSnapshot ->"
@@ -928,30 +925,25 @@ inline bool StreamingJoinSavepointUtil::isValidFlinkSerializedRowPayload(
 
 // ===== WindowJoin 兼容格式适配器类型检测 =====
 
-inline std::string StreamingJoinSavepointUtil::validateWindowJoinFields(
-    const nlohmann::json& description)
+inline std::string StreamingJoinSavepointUtil::validateWindowJoinFields(const nlohmann::json& description)
 {
-    if (!description.contains(LEFT_INPUT_TYPES_FIELD) ||
-        !description.contains(RIGHT_INPUT_TYPES_FIELD)) {
+    if (!description.contains(LEFT_INPUT_TYPES_FIELD) || !description.contains(RIGHT_INPUT_TYPES_FIELD)) {
         return "WindowJoin compatible savepoint requires leftInputTypes and rightInputTypes";
     }
     if (!isAllOfSupportedInputTypes(description, LEFT_INPUT_TYPES_FIELD) ||
         !isAllOfSupportedInputTypes(description, RIGHT_INPUT_TYPES_FIELD)) {
         return "WindowJoin compatible savepoint only supports BIGINT, VARCHAR/STRING and TIMESTAMP input fields";
     }
-    if (!description.contains(LEFT_JOIN_KEY_FIELD) ||
-        !description.contains(RIGHT_JOIN_KEY_FIELD)) {
+    if (!description.contains(LEFT_JOIN_KEY_FIELD) || !description.contains(RIGHT_JOIN_KEY_FIELD)) {
         return "WindowJoin compatible savepoint requires leftJoinKey and rightJoinKey fields";
     }
-    if (!description.contains(LEFT_WINDOW_END_INDEX_FIELD) ||
-        !description.contains(RIGHT_WINDOW_END_INDEX_FIELD)) {
+    if (!description.contains(LEFT_WINDOW_END_INDEX_FIELD) || !description.contains(RIGHT_WINDOW_END_INDEX_FIELD)) {
         return "WindowJoin compatible savepoint requires leftWindowEndIndex and rightWindowEndIndex";
     }
     return "";
 }
 
-inline FlinkSavepointAdaptorType StreamingJoinSavepointUtil::getWindowJoinAdaptorType(
-    const nlohmann::json& description)
+inline FlinkSavepointAdaptorType StreamingJoinSavepointUtil::getWindowJoinAdaptorType(const nlohmann::json& description)
 {
     // 验证 WindowJoin 特有字段完整性
     if (!validateWindowJoinFields(description).empty()) {
@@ -961,8 +953,7 @@ inline FlinkSavepointAdaptorType StreamingJoinSavepointUtil::getWindowJoinAdapto
     return FlinkSavepointAdaptorType::WindowJoinAdaptor;
 }
 
-inline std::string StreamingJoinSavepointUtil::buildWindowJoinUnsupportedReason(
-    const nlohmann::json& description)
+inline std::string StreamingJoinSavepointUtil::buildWindowJoinUnsupportedReason(const nlohmann::json& description)
 {
     const std::string reason = validateWindowJoinFields(description);
     if (!reason.empty()) {

@@ -115,7 +115,7 @@ protected:
 StateMetaInfoSnapshot makeFlinkMetaInfo(const std::string& stateName)
 {
     std::unordered_map<std::string, TypeSerializer*> serializers = {
-        {StateMetaInfoSnapshot::COMMON_NAMESPACE_SERIALIZER_KEY, VoidNamespaceSerializer::INSTANCE}};
+        {StateMetaInfoSnapshot::NAMESPACE_SERIALIZER_KEY, VoidNamespaceSerializer::INSTANCE}};
     return StateMetaInfoSnapshot(
         stateName,
         StateMetaInfoSnapshot::BackendStateType::KEY_VALUE,

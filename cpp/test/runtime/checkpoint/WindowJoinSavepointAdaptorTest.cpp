@@ -165,8 +165,8 @@ protected:
 
         std::unordered_map<std::string, std::string> options{{StateMetaInfoSnapshot::KEYED_STATE_TYPE, "LIST"}};
         std::unordered_map<std::string, TypeSerializer*> serializers{
-            {StateMetaInfoSnapshot::COMMON_NAMESPACE_SERIALIZER_KEY, namespaceSerializer},
-            {StateMetaInfoSnapshot::COMMON_VALUE_SERIALIZER_KEY, valueSerializer},
+            {StateMetaInfoSnapshot::NAMESPACE_SERIALIZER_KEY, namespaceSerializer},
+            {StateMetaInfoSnapshot::VALUE_SERIALIZER_KEY, valueSerializer},
         };
         return std::make_shared<StateMetaInfoSnapshot>(
             name,
@@ -299,8 +299,7 @@ TEST_F(WindowJoinSavepointAdaptorTest, BuildOmniMainMetaInfoMapsStateIdAndUsesCo
 
     EXPECT_EQ(omniMeta.getName(), LEFT_STATE_NAME);
     EXPECT_EQ(omniMeta.getOption(StateMetaInfoSnapshot::KEYED_STATE_TYPE), "2");
-    auto* listSerializer =
-        dynamic_cast<ListSerializer*>(omniMeta.getTypeSerializer(StateMetaInfoSnapshot::COMMON_VALUE_SERIALIZER_KEY));
+    auto* listSerializer = dynamic_cast<ListSerializer*>(omniMeta.getValueSerializer());
     ASSERT_NE(listSerializer, nullptr);
     ASSERT_NE(listSerializer->getElementSerializer(), nullptr);
     EXPECT_EQ(listSerializer->getElementSerializer()->getBackendId(), BackendDataType::BIGINT_BK);

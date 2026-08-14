@@ -17,8 +17,8 @@ std::shared_ptr<StateMetaInfoSnapshot> RegisteredKeyValueStateBackendMetaInfo::c
         StateMetaInfoSnapshot::CommonOptionsKeys::KEYED_STATE_TYPE)] = std::to_string((int)stateType);
 
     std::unordered_map<std::string, TypeSerializer*> serializerMap;
-    serializerMap.emplace("stateSerializer", getStateSerializer());
-    serializerMap.emplace("namespaceSerializer", getNamespaceSerializer());
+    serializerMap.emplace(StateMetaInfoSnapshot::VALUE_SERIALIZER_KEY, getStateSerializer());
+    serializerMap.emplace(StateMetaInfoSnapshot::NAMESPACE_SERIALIZER_KEY, getNamespaceSerializer());
 
     std::unordered_map<std::string, std::shared_ptr<TypeSerializerSnapshot>> serializerConfigSnapshotsMap;
     return std::make_shared<StateMetaInfoSnapshot>(
@@ -34,11 +34,6 @@ RegisteredKeyValueStateBackendMetaInfo::RegisteredKeyValueStateBackendMetaInfo(c
 {
     auto stateTypeString = snapshot.getOption(StateMetaInfoSnapshot::CommonOptionsKeys::KEYED_STATE_TYPE);
     stateType = StateDescriptor::StringToType(stateTypeString);
-    auto namespaceSerializerKey = StateMetaInfoSnapshot::CommonSerializerKeys::NAMESPACE_SERIALIZER;
-    auto valueSerializerKey = StateMetaInfoSnapshot::CommonSerializerKeys::VALUE_SERIALIZER;
-
-    namespaceSerializer =
-        snapshot.getTypeSerializer(StateMetaInfoSnapshot::commonSerializerKeyToString(namespaceSerializerKey));
-    stateSerializer =
-        snapshot.getTypeSerializer(StateMetaInfoSnapshot::commonSerializerKeyToString(valueSerializerKey));
+    namespaceSerializer = snapshot.getNamespaceSerializer();
+    stateSerializer = snapshot.getValueSerializer();
 }

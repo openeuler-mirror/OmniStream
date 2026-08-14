@@ -137,9 +137,8 @@ void GroupWindowAggSavepointAdaptor::validateSerializers(
     const StateMetaInfoValidator& validator, const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& metaInfos) const
 {
     const auto& windowAggMeta = validator.get(WINDOW_AGG_STATE_NAME);
-    auto* namespaceSerializer = windowAggMeta->getTypeSerializer({"NAMESPACE_SERIALIZER", "namespaceSerializer"});
-    auto* valueSerializer =
-        windowAggMeta->getTypeSerializer({"VALUE_SERIALIZER", "valueSerializer", "stateSerializer"});
+    auto* namespaceSerializer = windowAggMeta->getNamespaceSerializer();
+    auto* valueSerializer = windowAggMeta->getValueSerializer();
     if (namespaceSerializer == nullptr || namespaceSerializer->getBackendId() != BackendDataType::TIME_WINDOW_BK ||
         valueSerializer == nullptr || valueSerializer->getBackendId() != BackendDataType::ROW_BK) {
         ERROR_RELEASE(
@@ -151,8 +150,7 @@ void GroupWindowAggSavepointAdaptor::validateSerializers(
 
     if (requireSessionWindowMapping_) {
         const auto& mappingMeta = validator.get(SESSION_WINDOW_MAPPING_STATE_NAME);
-        auto* mappingSerializer =
-            mappingMeta->getTypeSerializer({"VALUE_SERIALIZER", "valueSerializer", "stateSerializer"});
+        auto* mappingSerializer = mappingMeta->getValueSerializer();
         auto* mapSerializer = dynamic_cast<MapSerializer*>(mappingSerializer);
         if (mapSerializer == nullptr || mapSerializer->getKeySerializer() == nullptr ||
             mapSerializer->getValueSerializer() == nullptr ||
@@ -169,7 +167,7 @@ void GroupWindowAggSavepointAdaptor::validateSerializers(
         if (meta == nullptr || meta->getBackendStateType() != StateMetaInfoSnapshot::BackendStateType::PRIORITY_QUEUE) {
             continue;
         }
-        auto* timerSerializer = meta->getTypeSerializer({"VALUE_SERIALIZER", "stateSerializer"});
+        auto* timerSerializer = meta->getValueSerializer();
         const std::string serializerName =
             timerSerializer == nullptr || timerSerializer->getName() == nullptr ? "" : timerSerializer->getName();
         if (timerSerializer == nullptr || serializerName != "TimerSerializer") {
@@ -220,7 +218,7 @@ VectorBatchSavePlan GroupWindowAggSavepointAdaptor::buildSavePlan(FullSnapshotRe
         spec.stateType = backendType == StateMetaInfoSnapshot::BackendStateType::PRIORITY_QUEUE
                              ? VectorBatchStateType::PQ
                              : VectorBatchStateType::KV;
-        spec.valueSerializer = meta->getTypeSerializer({"VALUE_SERIALIZER", "valueSerializer", "stateSerializer"});
+        spec.valueSerializer = meta->getValueSerializer();
 
         const auto stateType =
             StateDescriptor::StringToType(meta->getOption(StateMetaInfoSnapshot::CommonOptionsKeys::KEYED_STATE_TYPE));

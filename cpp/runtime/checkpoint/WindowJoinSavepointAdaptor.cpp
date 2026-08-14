@@ -149,8 +149,8 @@ void WindowJoinSavepointAdaptor::validateForRestore(
 
     // validate namespace serializer and value serializer
     for (const auto* stateName : {LEFT_RECORDS_STATE_NAME, RIGHT_RECORDS_STATE_NAME}) {
-        TypeSerializer* namespaceSerializer = validator.get(stateName)->getTypeSerializer("NAMESPACE_SERIALIZER");
-        TypeSerializer* valueSerializer = validator.get(stateName)->getTypeSerializer("VALUE_SERIALIZER");
+        TypeSerializer* namespaceSerializer = validator.get(stateName)->getNamespaceSerializer();
+        TypeSerializer* valueSerializer = validator.get(stateName)->getValueSerializer();
 
         // namespace serializer must be LongSerializer
         if (namespaceSerializer == nullptr || namespaceSerializer->getBackendId() != BackendDataType::BIGINT_BK) {

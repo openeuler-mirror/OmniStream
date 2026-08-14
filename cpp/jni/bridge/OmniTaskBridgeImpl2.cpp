@@ -397,11 +397,12 @@ std::shared_ptr<SnapshotResult<StreamStateHandle>> OmniTaskBridgeImpl2::CallMate
     nlohmann::json stateMetaInfoJson = nlohmann::json::array();
     for (const auto& snapshot : snapshots) {
         nlohmann::json jsonObj;
-        jsonObj["name"] = snapshot->getName();
-        jsonObj["backendStateType"] = static_cast<int>(StateMetaInfoSnapshot::getCode(snapshot->getBackendStateType()));
-        jsonObj["options"] = snapshot->getOptionsImmutable();
-        jsonObj["serializer"] = snapshot->getSerializerJson();
-        jsonObj["keySerializer"] = keySerializer;
+        jsonObj[StateMetaInfoSnapshot::NAME_KEY] = snapshot->getName();
+        jsonObj[StateMetaInfoSnapshot::BACKEND_STATE_TYPE_KEY] =
+            static_cast<int>(StateMetaInfoSnapshot::getCode(snapshot->getBackendStateType()));
+        jsonObj[StateMetaInfoSnapshot::OPTIONS_KEY] = snapshot->getOptionsImmutable();
+        jsonObj[StateMetaInfoSnapshot::SERIALIZER_KEY] = snapshot->getSerializerJson();
+        jsonObj[StateMetaInfoSnapshot::KEYED_BACKEND_KEY_SERIALIZER_KEY] = keySerializer;
         stateMetaInfoJson.push_back(std::move(jsonObj));
     }
     std::string stateMetaInfoStr = stateMetaInfoJson.dump();
@@ -747,43 +748,56 @@ std::vector<StateMetaInfoSnapshot> convertResult(const std::string& cppResult, b
     }
     for (const auto& oneSnapshot : parsed) {
         std::unordered_map<std::string, std::string> tmpOptions;
-        if (!oneSnapshot.contains("backendStateType") || !oneSnapshot.at("backendStateType").is_string() ||
-            !oneSnapshot.contains("name") || !oneSnapshot.at("name").is_string() ||
-            !oneSnapshot.contains("optionsImmutable") || !oneSnapshot.at("optionsImmutable").is_object()) {
+        if (!oneSnapshot.contains(StateMetaInfoSnapshot::BACKEND_STATE_TYPE_KEY) ||
+            !oneSnapshot.at(StateMetaInfoSnapshot::BACKEND_STATE_TYPE_KEY).is_string() ||
+            !oneSnapshot.contains(StateMetaInfoSnapshot::NAME_KEY) ||
+            !oneSnapshot.at(StateMetaInfoSnapshot::NAME_KEY).is_string() ||
+            !oneSnapshot.contains(StateMetaInfoSnapshot::OPTIONS_IMMUTABLE_KEY) ||
+            !oneSnapshot.at(StateMetaInfoSnapshot::OPTIONS_IMMUTABLE_KEY).is_object()) {
             throw std::runtime_error("snapshot json format invalid.");
         }
-        for (const auto& [key, value] : oneSnapshot.at("optionsImmutable").items()) {
+        for (const auto& [key, value] : oneSnapshot.at(StateMetaInfoSnapshot::OPTIONS_IMMUTABLE_KEY).items()) {
             if (value.is_string()) {
                 tmpOptions[key] = value.get<std::string>();
             }
         }
         std::unordered_map<std::string, TypeSerializer*> tmpSerializers;
-        const std::string stateName = oneSnapshot.at("name").get<std::string>();
-        if (oneSnapshot.contains("serializer") && oneSnapshot.at("serializer").is_object()) {
-            const auto& serializers = oneSnapshot.at("serializer");
-            if (serializers.contains("namespaceSerializer") && serializers.at("namespaceSerializer").is_object()) {
+        const std::string stateName = oneSnapshot.at(StateMetaInfoSnapshot::NAME_KEY).get<std::string>();
+        if (oneSnapshot.contains(StateMetaInfoSnapshot::SERIALIZER_KEY) &&
+            oneSnapshot.at(StateMetaInfoSnapshot::SERIALIZER_KEY).is_object()) {
+            const auto& serializers = oneSnapshot.at(StateMetaInfoSnapshot::SERIALIZER_KEY);
+            if (serializers.contains(SerializerJsonInfo::NAMESPACE_SERIALIZER_KEY) &&
+                serializers.at(SerializerJsonInfo::NAMESPACE_SERIALIZER_KEY).is_object()) {
                 auto namespaceSerializer = CreateTypeInfoIfValid(
-                    serializers.at("namespaceSerializer"),
+                    serializers.at(SerializerJsonInfo::NAMESPACE_SERIALIZER_KEY),
                     stateName,
-                    "namespaceSerializer",
+                    SerializerJsonInfo::NAMESPACE_SERIALIZER_KEY,
                     tolerateUnsupportedSerializer);
                 if (namespaceSerializer != nullptr) {
-                    tmpSerializers.emplace("NAMESPACE_SERIALIZER", namespaceSerializer->getTypeSerializer());
+                    tmpSerializers.emplace(
+                        StateMetaInfoSnapshot::NAMESPACE_SERIALIZER_KEY, namespaceSerializer->getTypeSerializer());
                 }
-            } else if (serializers.contains("namespaceSerializer")) {
-                std::string error = "namespaceSerializer json is invalid, state=" + stateName;
+            } else if (serializers.contains(SerializerJsonInfo::NAMESPACE_SERIALIZER_KEY)) {
+                std::string error =
+                    std::string(SerializerJsonInfo::NAMESPACE_SERIALIZER_KEY) + " json is invalid, state=" + stateName;
                 if (!tolerateUnsupportedSerializer) {
                     throw std::runtime_error(error);
                 }
             }
-            if (serializers.contains("stateSerializer") && serializers.at("stateSerializer").is_object()) {
+            if (serializers.contains(SerializerJsonInfo::STATE_SERIALIZER_KEY) &&
+                serializers.at(SerializerJsonInfo::STATE_SERIALIZER_KEY).is_object()) {
                 auto stateSerializer = CreateTypeInfoIfValid(
-                    serializers.at("stateSerializer"), stateName, "stateSerializer", tolerateUnsupportedSerializer);
+                    serializers.at(SerializerJsonInfo::STATE_SERIALIZER_KEY),
+                    stateName,
+                    SerializerJsonInfo::STATE_SERIALIZER_KEY,
+                    tolerateUnsupportedSerializer);
                 if (stateSerializer != nullptr) {
-                    tmpSerializers.emplace("VALUE_SERIALIZER", stateSerializer->getTypeSerializer());
+                    tmpSerializers.emplace(
+                        StateMetaInfoSnapshot::VALUE_SERIALIZER_KEY, stateSerializer->getTypeSerializer());
                 }
-            } else if (serializers.contains("stateSerializer")) {
-                std::string error = "stateSerializer json is invalid, state=" + stateName;
+            } else if (serializers.contains(SerializerJsonInfo::STATE_SERIALIZER_KEY)) {
+                std::string error =
+                    std::string(SerializerJsonInfo::STATE_SERIALIZER_KEY) + " json is invalid, state=" + stateName;
                 if (!tolerateUnsupportedSerializer) {
                     throw std::runtime_error(error);
                 }
@@ -791,14 +805,14 @@ std::vector<StateMetaInfoSnapshot> convertResult(const std::string& cppResult, b
         }
         // Currently we don't take snapshot of serializers
         StateMetaInfoSnapshot::BackendStateType bst;
-        auto backendStateTypeStr = oneSnapshot.at("backendStateType").get<std::string>();
-        if (backendStateTypeStr == "KEY_VALUE") {
+        auto backendStateTypeStr = oneSnapshot.at(StateMetaInfoSnapshot::BACKEND_STATE_TYPE_KEY).get<std::string>();
+        if (backendStateTypeStr == StateMetaInfoSnapshot::KEY_VALUE_TYPE) {
             bst = StateMetaInfoSnapshot::BackendStateType::KEY_VALUE;
-        } else if (backendStateTypeStr == "PRIORITY_QUEUE") {
+        } else if (backendStateTypeStr == StateMetaInfoSnapshot::PRIORITY_QUEUE_TYPE) {
             bst = StateMetaInfoSnapshot::BackendStateType::PRIORITY_QUEUE;
-        } else if (backendStateTypeStr == "OPERATOR") {
+        } else if (backendStateTypeStr == StateMetaInfoSnapshot::OPERATOR_TYPE) {
             bst = StateMetaInfoSnapshot::BackendStateType::OPERATOR;
-        } else if (backendStateTypeStr == "BROADCAST") {
+        } else if (backendStateTypeStr == StateMetaInfoSnapshot::BROADCAST_TYPE) {
             INFO_RELEASE("Unsupport BackendStateType.");
             continue;
         } else {
@@ -1610,11 +1624,12 @@ void OmniTaskBridgeImpl2::WriteSavepointMetadata(
     // TODO 需要增加key序列化器和namespace序列化器以保证omnistream创建的savepoint在flink可恢复
     for (const auto& snapshot : snapshots) {
         nlohmann::json jsonObj;
-        jsonObj["name"] = snapshot->getName();
-        jsonObj["backendStateType"] = static_cast<int>(StateMetaInfoSnapshot::getCode(snapshot->getBackendStateType()));
-        jsonObj["options"] = snapshot->getOptionsImmutable();
-        jsonObj["serializer"] = snapshot->getSerializerJson();
-        jsonObj["keySerializer"] = keySerializer;
+        jsonObj[StateMetaInfoSnapshot::NAME_KEY] = snapshot->getName();
+        jsonObj[StateMetaInfoSnapshot::BACKEND_STATE_TYPE_KEY] =
+            static_cast<int>(StateMetaInfoSnapshot::getCode(snapshot->getBackendStateType()));
+        jsonObj[StateMetaInfoSnapshot::OPTIONS_KEY] = snapshot->getOptionsImmutable();
+        jsonObj[StateMetaInfoSnapshot::SERIALIZER_KEY] = snapshot->getSerializerJson();
+        jsonObj[StateMetaInfoSnapshot::KEYED_BACKEND_KEY_SERIALIZER_KEY] = keySerializer;
         stateMetaInfoJson.push_back(std::move(jsonObj));
     }
     std::string stateMetaInfoStr = stateMetaInfoJson.dump();
@@ -1659,10 +1674,11 @@ void OmniTaskBridgeImpl2::WriteOperatorMetaData(
             continue;
         }
         nlohmann::json jsonObj;
-        jsonObj["name"] = snapshot->getName();
-        jsonObj["backendStateType"] = static_cast<int>(StateMetaInfoSnapshot::getCode(snapshot->getBackendStateType()));
-        jsonObj["options"] = snapshot->getOptionsImmutable();
-        jsonObj["serializer"] = snapshot->getSerializerJson();
+        jsonObj[StateMetaInfoSnapshot::NAME_KEY] = snapshot->getName();
+        jsonObj[StateMetaInfoSnapshot::BACKEND_STATE_TYPE_KEY] =
+            static_cast<int>(StateMetaInfoSnapshot::getCode(snapshot->getBackendStateType()));
+        jsonObj[StateMetaInfoSnapshot::OPTIONS_KEY] = snapshot->getOptionsImmutable();
+        jsonObj[StateMetaInfoSnapshot::SERIALIZER_KEY] = snapshot->getSerializerJson();
         operatorStateMetaInfoJson.push_back(std::move(jsonObj));
     }
 
@@ -1671,10 +1687,11 @@ void OmniTaskBridgeImpl2::WriteOperatorMetaData(
             continue;
         }
         nlohmann::json jsonObj;
-        jsonObj["name"] = snapshot->getName();
-        jsonObj["backendStateType"] = static_cast<int>(StateMetaInfoSnapshot::getCode(snapshot->getBackendStateType()));
-        jsonObj["options"] = snapshot->getOptionsImmutable();
-        jsonObj["serializer"] = snapshot->getSerializerJson();
+        jsonObj[StateMetaInfoSnapshot::NAME_KEY] = snapshot->getName();
+        jsonObj[StateMetaInfoSnapshot::BACKEND_STATE_TYPE_KEY] =
+            static_cast<int>(StateMetaInfoSnapshot::getCode(snapshot->getBackendStateType()));
+        jsonObj[StateMetaInfoSnapshot::OPTIONS_KEY] = snapshot->getOptionsImmutable();
+        jsonObj[StateMetaInfoSnapshot::SERIALIZER_KEY] = snapshot->getSerializerJson();
         broadcastStateMetaInfoJson.push_back(std::move(jsonObj));
     }
 
