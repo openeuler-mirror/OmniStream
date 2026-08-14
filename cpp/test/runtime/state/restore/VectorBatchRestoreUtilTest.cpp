@@ -95,6 +95,29 @@ TEST(VectorBatchRestoreUtilTest, AppendRowToVectorBatchReturnsValidComboId)
     delete vbState.currentBatch;
 }
 
+TEST(VectorBatchRestoreUtilTest, AppendRowToVectorBatchAcceptsByteViewSubrange)
+{
+    VbBatchState vbState;
+    constexpr int32_t keyGroupId = 3;
+    auto columnTypes = makeLongColumnTypes(1);
+    const auto valueBytes = serializeBinaryRow(1, {42L});
+    std::vector<int8_t> backingBytes{9, 8, 7};
+    backingBytes.insert(backingBytes.end(), valueBytes.begin(), valueBytes.end());
+    backingBytes.insert(backingBytes.end(), {6, 5, 4});
+    const ByteView rowBytes(backingBytes.data() + 3, valueBytes.size());
+
+    const ComboId comboId =
+        VectorBatchRestoreUtil::appendRowToVectorBatch(vbState, rowBytes, columnTypes, 1024, keyGroupId);
+
+    ASSERT_NE(comboId, INVALID_COMBO_ID);
+    ASSERT_NE(vbState.currentBatch, nullptr);
+    EXPECT_EQ(vbState.currentBatch->GetValueAt<int64_t>(0, 0), 42L);
+    EXPECT_EQ(vbState.currentRowId, 1);
+    EXPECT_EQ(vbState.currentKeyGroupId, keyGroupId);
+
+    delete vbState.currentBatch;
+}
+
 TEST(VectorBatchRestoreUtilTest, AppendRowToVectorBatchCreatesBatchIfNull)
 {
     VbBatchState vbState;
@@ -146,6 +169,34 @@ TEST(VectorBatchRestoreUtilTest, AppendRowReturnsNegativeForEmptyValueBytes)
     ComboId comboId =
         VectorBatchRestoreUtil::appendRowToVectorBatch(vbState, emptyBytes, columnTypes, 1024, keyGroupId);
     EXPECT_EQ(comboId, INVALID_COMBO_ID);
+}
+
+TEST(VectorBatchRestoreUtilTest, AppendRowReturnsNegativeForEmptyByteView)
+{
+    VbBatchState vbState;
+    constexpr int32_t keyGroupId = 3;
+    auto columnTypes = makeLongColumnTypes(1);
+
+    const ComboId comboId =
+        VectorBatchRestoreUtil::appendRowToVectorBatch(vbState, ByteView{}, columnTypes, 1024, keyGroupId);
+
+    EXPECT_EQ(comboId, INVALID_COMBO_ID);
+    EXPECT_EQ(vbState.currentBatch, nullptr);
+}
+
+TEST(VectorBatchRestoreUtilTest, RowDataViewExposesVectorAndByteViewStorage)
+{
+    const std::vector<int8_t> vectorBytes{1, 2, 3, 4};
+    const std::vector<int8_t> backingBytes{9, 8, 7, 6, 5};
+    const auto columnTypes = makeLongColumnTypes(1);
+
+    const RowDataView vectorRow{&vectorBytes, &columnTypes};
+    const RowDataView byteViewRow{ByteView(backingBytes.data() + 1, 3), &columnTypes};
+
+    EXPECT_EQ(vectorRow.bytes().data(), reinterpret_cast<const uint8_t*>(vectorBytes.data()));
+    EXPECT_EQ(vectorRow.bytes().size(), vectorBytes.size());
+    EXPECT_EQ(byteViewRow.bytes().data(), reinterpret_cast<const uint8_t*>(backingBytes.data() + 1));
+    EXPECT_EQ(byteViewRow.bytes().size(), 3U);
 }
 
 TEST(VectorBatchRestoreUtilTest, AppendRowReturnsNegativeForZeroColumnTypes)

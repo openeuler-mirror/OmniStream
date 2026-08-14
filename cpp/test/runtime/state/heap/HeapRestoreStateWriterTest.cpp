@@ -359,6 +359,21 @@ TEST_F(HeapRestoreStateWriterTest, KvStateVbSetKeyGroupIdDoesNotThrow)
     EXPECT_NO_THROW(kvVb->setKeyGroupId(3));
 }
 
+TEST_F(HeapRestoreStateWriterTest, KvStateVbAppendsRowFromByteView)
+{
+    constexpr int keyGroupId = 3;
+    auto metaInfo = makeKvMetaInfo("vbByteViewState");
+    const std::vector<omniruntime::type::DataTypeId> columnTypes = {omniruntime::type::DataTypeId::OMNI_LONG};
+    auto kvVb = delegate_->createKVStateVB(0, metaInfo, columnTypes, 1024);
+    kvVb->setKeyGroupId(keyGroupId);
+    const auto rowBytes = makeRowValueBytes(42L);
+    const RowDataView row{ByteView(rowBytes.data(), rowBytes.size()), &columnTypes};
+
+    EXPECT_NE(kvVb->appendRowToVectorBatch(row), INVALID_COMBO_ID);
+
+    kvVb->discard();
+}
+
 TEST_F(HeapRestoreStateWriterTest, KvStateVbWritesComboIdListWithWindowNamespace)
 {
     constexpr int keyGroupId = 3;

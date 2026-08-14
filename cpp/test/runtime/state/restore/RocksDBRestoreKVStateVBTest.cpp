@@ -13,6 +13,7 @@
 
 #include <atomic>
 #include <filesystem>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -22,8 +23,24 @@
 #include "core/typeutils/LongSerializer.h"
 #include "core/utils/ByteView.h"
 #include "runtime/state/restore/RocksDBRestoreKVStateVB.h"
+#include "table/data/binary/BinaryRowData.h"
+#include "table/typeutils/BinaryRowDataSerializer.h"
 
 namespace {
+
+std::vector<int8_t> serializeBinaryRow(int64_t value)
+{
+    std::unique_ptr<BinaryRowData> row(BinaryRowData::createBinaryRowDataWithMem(1));
+    row->setLong(0, value);
+    BinaryRowDataSerializer serializer(1);
+    DataOutputSerializer output;
+    OutputBufferStatus outputStatus;
+    output.setBackendBuffer(&outputStatus);
+    serializer.serialize(row.get(), output);
+    return std::vector<int8_t>(
+        reinterpret_cast<int8_t*>(output.getData()),
+        reinterpret_cast<int8_t*>(output.getData() + output.getPosition()));
+}
 
 class RocksDBRestoreKVStateVBTest : public ::testing::Test {
 protected:
@@ -157,4 +174,25 @@ TEST_F(RocksDBRestoreKVStateVBTest, ComboIdListIsWrittenUsingFlinkListEncoding)
     EXPECT_EQ(std::vector<int8_t>(restoredValue.begin(), restoredValue.end()), expectedValue);
     EXPECT_EQ(mainEntryCount, 1);
     EXPECT_EQ(vbBatchCount, 0);
+}
+
+TEST_F(RocksDBRestoreKVStateVBTest, AppendsRowFromByteView)
+{
+    int64_t mainEntryCount = 0;
+    int64_t vbBatchCount = 0;
+    omnistream::RocksDBWriterContext context;
+    context.db = db_;
+    context.writeBatchSize = 2 * 1024 * 1024;
+    context.keyGroupPrefixBytes = 1;
+    context.keyGroupId = 3;
+    context.mainEntryCount = &mainEntryCount;
+    context.vbBatchCount = &vbBatchCount;
+    const std::vector<omniruntime::type::DataTypeId> columnTypes = {omniruntime::type::DataTypeId::OMNI_LONG};
+    const auto rowBytes = serializeBinaryRow(42L);
+    const omnistream::RowDataView row{ByteView(rowBytes.data(), rowBytes.size()), &columnTypes};
+
+    omnistream::RocksDBRestoreKVStateVB<int> writer(context, mainCf_, vbCf_, 0, columnTypes, 1024);
+    EXPECT_NE(writer.appendRowToVectorBatch(row), omnistream::INVALID_COMBO_ID);
+
+    writer.discard();
 }
