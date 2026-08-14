@@ -62,6 +62,13 @@ public:
 
     void discard() override
     {
+        if (mainWriter_ != nullptr) {
+            uint32_t pendingEntries = mainWriter_->Discard();
+            if (pendingEntries > 0) {
+                INFO_RELEASE(
+                    "RocksDBRestoreKVState: discard kvStateId=" << kvStateId_ << ", pendingEntries=" << pendingEntries);
+            }
+        }
         mainWriter_.reset();
     }
 
