@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "core/utils/ByteView.h"
 #include "OmniOperatorJIT/core/src/type/data_type.h"
 #include "runtime/state/restore/RestoreKVState.h"
 #include "table/data/vectorbatch/VectorBatchStorageInfo.h"
@@ -42,6 +43,34 @@ struct VbBatchState {
 struct RowDataView {
     const std::vector<int8_t>* valueBytes = nullptr;
     const std::vector<omniruntime::type::DataTypeId>* columnTypes = nullptr;
+    ByteView valueByteView{};
+    bool useByteView;
+
+    RowDataView(const std::vector<int8_t>* bytes, const std::vector<omniruntime::type::DataTypeId>* types)
+        : valueBytes(bytes),
+          columnTypes(types),
+          valueByteView(),
+          useByteView(false)
+    {
+    }
+    RowDataView(const ByteView view, const std::vector<omniruntime::type::DataTypeId>* types)
+        : valueBytes(nullptr),
+          columnTypes(types),
+          valueByteView(view),
+          useByteView(true)
+    {
+    }
+    RowDataView() : valueBytes(nullptr), columnTypes(nullptr), valueByteView(), useByteView(false)
+    {
+    }
+
+    ByteView bytes() const
+    {
+        if (useByteView) {
+            return valueByteView;
+        }
+        return valueBytes == nullptr ? ByteView{} : ByteView(valueBytes->data(), valueBytes->size());
+    }
 };
 
 // ============================================================================

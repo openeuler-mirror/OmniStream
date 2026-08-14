@@ -93,7 +93,7 @@ private:
     static constexpr const char* RIGHT_RECORDS_STATE_NAME = "right-records";
 
     // format: [[length:4byte][rowValue]],[[length:4byte][rowValue]],...[[length:4byte][rowValue]]
-    static void deserializeRows(const std::vector<int8_t>& valueBytes, std::vector<std::vector<int8_t>>& rows);
+    static void deserializeRows(const std::vector<int8_t>& valueBytes, std::vector<ByteView>& rows);
 
     const std::vector<omniruntime::type::DataTypeId>& columnTypesFor(int kvStateId) const;
     const char* stateNameFor(int kvStateId) const;
