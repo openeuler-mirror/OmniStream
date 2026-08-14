@@ -548,4 +548,26 @@ TEST_F(RocksDBVectorBatchStateAccessorTest, AccessorCreatedByResourcesReadsFromR
     ASSERT_NO_FATAL_FAILURE(writeVectorBatch(kAnotherBatchId, newerValue));
 }
 
+// 构造函数必须拒绝非正 keyGroupPrefixBytes，避免后续读取使用无效的 prefix 宽度。
+TEST_F(RocksDBVectorBatchStateAccessorTest, ConstructorThrowsForNonPositiveKeyGroupPrefixBytes)
+{
+    takeSnapshot();
+    VectorBatchAccessorOptions options = optionsWithCacheBytes(64 * 1024);
+
+    EXPECT_THROW(
+        (RocksDBVectorBatchStateAccessor(db_, cfHandle_, snapshot_, 0, keyGroup_, options)), std::runtime_error);
+    EXPECT_THROW(
+        (RocksDBVectorBatchStateAccessor(db_, cfHandle_, snapshot_, -1, keyGroup_, options)), std::runtime_error);
+}
+
+// getSerializedBatch 传入空 value 指针时应返回 false，不尝试读取 RocksDB 或修改输出参数。
+TEST_F(RocksDBVectorBatchStateAccessorTest, GetSerializedBatchReturnsFalseForNullValuePtr)
+{
+    writeVectorBatch(kBatchId, serializeVectorBatch(1));
+    takeSnapshot();
+    auto accessor = createAccessor();
+
+    EXPECT_FALSE(accessor->getSerializedBatch(kBatchId, nullptr));
+}
+
 } // namespace

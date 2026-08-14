@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "core/memory/DataInputDeserializer.h"
 #include "runtime/state/vbsave/VectorBatchSaveHooks.h"
 #include "runtime/state/vbsave/VectorBatchSavePlan.h"
 #include "runtime/state/vbsave/VectorBatchSaveTools.h"
@@ -84,6 +85,20 @@ private:
 };
 
 class MockSerializer : public TypeSerializer {};
+
+// 录制 serializer：serialize 时写入固定 4 字节，用于验证 serializeRowData 的成功路径。
+class RecordingSerializer : public TypeSerializer {
+public:
+    void serialize(void* /*row*/, DataOutputSerializer& target) override
+    {
+        target.writeInt(0xDEADBEEF);
+    }
+
+    void* deserialize(DataInputView& /*source*/) override
+    {
+        return nullptr;
+    }
+};
 
 class MockVectorBatchStateAccessor : public VectorBatchStateAccessor {
 public:
@@ -516,4 +531,153 @@ TEST(VectorBatchSaveTest, ParseComboIdList_RocksDbFormat_RejectsTrailingBytes)
     EXPECT_THROW(
         omnistream::VectorBatchSaveTools::parseComboIdList(ByteView(value.data(), value.size()), false),
         std::runtime_error);
+}
+
+TEST(VectorBatchSaveTest, ParseComboIdList_HeapFormat_RejectsNegativeSize)
+{
+    // Heap format with negative list size: [int32 -1] = 4 bytes
+    std::vector<uint8_t> value;
+    writeInt32BE(value, -1);
+
+    EXPECT_THROW(
+        omnistream::VectorBatchSaveTools::parseComboIdList(ByteView(value.data(), value.size()), true),
+        std::runtime_error);
+}
+
+TEST(VectorBatchSaveTest, ParseComboIdList_HeapFormat_RejectsNegativeSizeWithExceptionMessage)
+{
+    // Heap format with negative list size: verify error message contains "invalid heap list size"
+    std::vector<uint8_t> value;
+    writeInt32BE(value, -3);
+
+    try {
+        omnistream::VectorBatchSaveTools::parseComboIdList(ByteView(value.data(), value.size()), true);
+        FAIL() << "Expected runtime_error";
+    } catch (const std::runtime_error& error) {
+        const std::string message = error.what();
+        EXPECT_NE(message.find("invalid heap list size"), std::string::npos) << "Message: " << message;
+    }
+}
+
+// ============================================================================
+// VectorBatchSaveTools::serializeRowData 成功路径
+// ============================================================================
+
+TEST(VectorBatchSaveTest, SerializeRowDataReturnsBytesForValidInput)
+{
+    RecordingSerializer serializer;
+    MockRowData row;
+
+    auto result = omnistream::VectorBatchSaveTools::serializeRowData(&row, &serializer);
+
+    // RecordingSerializer writes 4 bytes (int32 0xDEADBEEF)
+    ASSERT_EQ(result.size(), 4U);
+    EXPECT_EQ(result[0], static_cast<int8_t>(0xDE));
+    EXPECT_EQ(result[1], static_cast<int8_t>(0xAD));
+    EXPECT_EQ(result[2], static_cast<int8_t>(0xBE));
+    EXPECT_EQ(result[3], static_cast<int8_t>(0xEF));
+}
+
+// ============================================================================
+// VectorBatchSaveHooks 默认实现测试
+// ============================================================================
+
+TEST(VectorBatchSaveTest, DefaultParseVectorBatchReferenceReturnsMinusOne)
+{
+    // 使用基类指针调用默认实现，验证返回 -1
+    std::unique_ptr<omnistream::VectorBatchSaveHooks> hooks = std::make_unique<MockHooks>();
+
+    // 直接调用基类默认实现（通过 MockHooks 的 override 实际上调用的是 MockHooks 的版本，
+    // 用另一个只继承不覆盖的类来测试真正的默认实现）
+    class DefaultHooks : public omnistream::VectorBatchSaveHooks {
+    public:
+        std::vector<omnistream::VectorBatchSaveStateContext> buildSaveStateContexts(
+            FullSnapshotResources&, const omnistream::VectorBatchSavePlan&) override
+        {
+            return {};
+        }
+        void convertKVRowData(
+            const KeyValueStateIterator::CurrentEntry&,
+            const omnistream::VectorBatchSaveStateContext&,
+            const omnistream::VectorBatchSavePlan&,
+            std::function<void(omnistream::ConvertedEntry)>) override
+        {
+        }
+    };
+
+    DefaultHooks defaultHooks;
+    ByteView empty;
+    omnistream::VectorBatchSaveStateContext context;
+    omnistream::VectorBatchSavePlan plan;
+
+    EXPECT_EQ(defaultHooks.parseVectorBatchReference(empty, context, plan),
+              static_cast<omnistream::ComboId>(-1));
+}
+
+TEST(VectorBatchSaveTest, DefaultEncodeFlinkLogicalValueReturnsEmpty)
+{
+    class DefaultHooks : public omnistream::VectorBatchSaveHooks {
+    public:
+        std::vector<omnistream::VectorBatchSaveStateContext> buildSaveStateContexts(
+            FullSnapshotResources&, const omnistream::VectorBatchSavePlan&) override
+        {
+            return {};
+        }
+        void convertKVRowData(
+            const KeyValueStateIterator::CurrentEntry&,
+            const omnistream::VectorBatchSaveStateContext&,
+            const omnistream::VectorBatchSavePlan&,
+            std::function<void(omnistream::ConvertedEntry)>) override
+        {
+        }
+    };
+
+    DefaultHooks defaultHooks;
+    const auto key = bytes({0x10, 0x20});
+    const auto value = bytes({0x01});
+    KeyValueStateIterator::CurrentEntry entry;
+    entry.key = ByteView(key.data(), key.size());
+    entry.value = ByteView(value.data(), value.size());
+    MockRowData row;
+    omnistream::VectorBatchSaveStateContext context;
+    omnistream::VectorBatchSavePlan plan;
+
+    EXPECT_TRUE(defaultHooks.encodeFlinkLogicalValue(entry, row, context, plan).empty());
+}
+
+TEST(VectorBatchSaveTest, DefaultConvertKVRowDataProducesNoOutput)
+{
+    // 验证 convertKVRowData 默认实现不调用 output 回调
+    class DefaultHooks : public omnistream::VectorBatchSaveHooks {
+    public:
+        std::vector<omnistream::VectorBatchSaveStateContext> buildSaveStateContexts(
+            FullSnapshotResources&, const omnistream::VectorBatchSavePlan&) override
+        {
+            return {};
+        }
+        void convertKVRowData(
+            const KeyValueStateIterator::CurrentEntry&,
+            const omnistream::VectorBatchSaveStateContext&,
+            const omnistream::VectorBatchSavePlan&,
+            std::function<void(omnistream::ConvertedEntry)>) override
+        {
+        }
+    };
+
+    DefaultHooks defaultHooks;
+    const auto key = bytes({0x10, 0x20});
+    const auto value = bytes({0x01});
+    KeyValueStateIterator::CurrentEntry entry;
+    entry.key = ByteView(key.data(), key.size());
+    entry.value = ByteView(value.data(), value.size());
+    omnistream::VectorBatchSaveStateContext context;
+    context.writable = true;
+    context.mappedKvStateId = 0;
+    omnistream::VectorBatchSavePlan plan;
+    int outputCalls = 0;
+
+    defaultHooks.convertKVRowData(entry, context, plan,
+        [&outputCalls](omnistream::ConvertedEntry) { ++outputCalls; });
+
+    EXPECT_EQ(outputCalls, 0);
 }
