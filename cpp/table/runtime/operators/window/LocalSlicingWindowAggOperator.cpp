@@ -131,10 +131,22 @@ void LocalSlicingWindowAggOperator::ProcessWatermark(Watermark* mark)
     if (mark->getTimestamp() > currentWatermark) {
         currentWatermark = mark->getTimestamp();
         if (currentWatermark >= nextTriggerWatermark && bundle.size() > 0) {
-            if (!SendAccResults(mark)) {
-                output->emitWatermark(mark);
-                return;
+            try {
+                flushBundle("WATERMARK", currentWatermark);
+            } catch (const std::exception& exception) {
+                ERROR_RELEASE(
+                    "LocalSlicingWindowAggOperator watermark flush failed: operatorId="
+                    << OneInputStreamOperator::GetOperatorID().toString() << ", watermark=" << currentWatermark
+                    << ", bundleKeyCount=" << bundle.size() << ", error=" << exception.what());
+                throw;
+            } catch (...) {
+                ERROR_RELEASE(
+                    "LocalSlicingWindowAggOperator watermark flush failed with unknown exception: operatorId="
+                    << OneInputStreamOperator::GetOperatorID().toString() << ", watermark=" << currentWatermark
+                    << ", bundleKeyCount=" << bundle.size());
+                throw;
             }
+            nextTriggerWatermark = getNextTriggerWatermark(currentWatermark, windowInterval);
         }
     }
     LOG("LocalSlicingWindowAggOperator::processWatermark end: " << mark->getTimestamp());
@@ -144,11 +156,49 @@ void LocalSlicingWindowAggOperator::ProcessWatermark(Watermark* mark)
     output->emitWatermark(mark);
 }
 
-bool LocalSlicingWindowAggOperator::SendAccResults(Watermark* mark)
+void LocalSlicingWindowAggOperator::PrepareSnapshotPreBarrier(long checkpointId)
 {
+    const std::string operatorId = OneInputStreamOperator::GetOperatorID().toString();
+    size_t bufferedInputRowCount = 0;
+    for (const auto& entry : bundle) {
+        bufferedInputRowCount += entry.second.size();
+    }
+    LOG("LocalSlicingWindowAggOperator pre-barrier flush start: operatorId="
+        << operatorId << ", checkpointId=" << checkpointId << ", trigger=CHECKPOINT"
+        << ", bundleKeyCount=" << bundle.size() << ", bufferedInputRowCount=" << bufferedInputRowCount);
+
+    try {
+        const int emittedAccumulatorCount = flushBundle("CHECKPOINT", checkpointId);
+        LOG("LocalSlicingWindowAggOperator pre-barrier flush complete: operatorId="
+            << operatorId << ", checkpointId=" << checkpointId << ", trigger=CHECKPOINT"
+            << ", emittedAccumulatorCount=" << emittedAccumulatorCount
+            << ", remainingBundleKeyCount=" << bundle.size());
+    } catch (const std::exception& exception) {
+        ERROR_RELEASE(
+            "LocalSlicingWindowAggOperator pre-barrier flush failed: operatorId="
+            << operatorId << ", checkpointId=" << checkpointId << ", trigger=CHECKPOINT"
+            << ", bundleKeyCount=" << bundle.size() << ", error=" << exception.what());
+        throw;
+    } catch (...) {
+        ERROR_RELEASE(
+            "LocalSlicingWindowAggOperator pre-barrier flush failed with unknown exception: operatorId="
+            << operatorId << ", checkpointId=" << checkpointId << ", trigger=CHECKPOINT"
+            << ", bundleKeyCount=" << bundle.size());
+        throw;
+    }
+}
+
+int LocalSlicingWindowAggOperator::flushBundle(const char* trigger, int64_t triggerValue)
+{
+    if (bundle.empty()) {
+        return 0;
+    }
+
+    const std::string operatorId = OneInputStreamOperator::GetOperatorID().toString();
     int numRows = invertOrder.size();
     int numColumns = outputTypes.size();
-    auto outputBatch = omnistream::VectorBatch::CreateVectorBatch(numRows, outputTypes);
+    std::unique_ptr<omnistream::VectorBatch> outputBatch(
+        omnistream::VectorBatch::CreateVectorBatch(numRows, outputTypes));
     // 开始遍历每一个key
 
     int currentRowNum = 0;
@@ -158,12 +208,12 @@ bool LocalSlicingWindowAggOperator::SendAccResults(Watermark* mark)
         if (entireRows.empty()) {
             continue;
         }
-        RowData* accumulators = BinaryRowData::createBinaryRowDataWithMem(accumulatorArity);
+        std::unique_ptr<BinaryRowData> accumulators(BinaryRowData::createBinaryRowDataWithMem(accumulatorArity));
         for (auto& func : functions) {
-            func->createAccumulators(dynamic_cast<BinaryRowData*>(accumulators));
+            func->createAccumulators(accumulators.get());
         }
         for (auto& func : functions) {
-            func->setAccumulators(accumulators);
+            func->setAccumulators(accumulators.get());
         }
         AccumulateOrRetract(entireRows);
         windowRow->setField(0, currentKey.getWindow());
@@ -173,27 +223,27 @@ bool LocalSlicingWindowAggOperator::SendAccResults(Watermark* mark)
         for (int colIndex = 0; colIndex < numColumns; ++colIndex) {
             switch (outputTypes[colIndex]) {
                 case DataTypeId::OMNI_LONG: {
-                    SetLong(outputBatch, currentRowNum, colIndex, resultRow);
+                    SetLong(outputBatch.get(), currentRowNum, colIndex, resultRow);
                     break;
                 }
                 case DataTypeId::OMNI_TIMESTAMP: {
-                    SetLong(outputBatch, currentRowNum, colIndex, resultRow);
+                    SetLong(outputBatch.get(), currentRowNum, colIndex, resultRow);
                     break;
                 }
                 case DataTypeId::OMNI_INT: {
-                    SetInt(outputBatch, currentRowNum, colIndex, resultRow);
+                    SetInt(outputBatch.get(), currentRowNum, colIndex, resultRow);
                     break;
                 }
                 case DataTypeId::OMNI_DOUBLE: {
-                    SetLong(outputBatch, currentRowNum, colIndex, resultRow);
+                    SetLong(outputBatch.get(), currentRowNum, colIndex, resultRow);
                     break;
                 }
                 case DataTypeId::OMNI_BOOLEAN: {
-                    SetInt(outputBatch, currentRowNum, colIndex, resultRow);
+                    SetInt(outputBatch.get(), currentRowNum, colIndex, resultRow);
                     break;
                 }
                 case DataTypeId::OMNI_VARCHAR: {
-                    SetStringVectorBatch(outputBatch, currentRowNum, colIndex, resultRow);
+                    SetStringVectorBatch(outputBatch.get(), currentRowNum, colIndex, resultRow);
                     break;
                 }
                 default: {
@@ -203,13 +253,32 @@ bool LocalSlicingWindowAggOperator::SendAccResults(Watermark* mark)
         }
         outputBatch->setRowKind(currentRowNum, resultRow->getRowKind());
         currentRowNum++;
-        delete accumulators;
     }
-    collector->collect(outputBatch);
+    LOG("LocalSlicingWindowAggOperator bundle dispatch start: operatorId=" << operatorId << ", trigger=" << trigger
+                                                                           << ", triggerValue=" << triggerValue
+                                                                           << ", accumulatorCount=" << currentRowNum);
+    try {
+        collector->collect(outputBatch.get());
+    } catch (const std::exception& exception) {
+        ERROR_RELEASE(
+            "LocalSlicingWindowAggOperator bundle dispatch failed: operatorId="
+            << operatorId << ", trigger=" << trigger << ", triggerValue=" << triggerValue
+            << ", accumulatorCount=" << currentRowNum << ", error=" << exception.what());
+        throw;
+    } catch (...) {
+        ERROR_RELEASE(
+            "LocalSlicingWindowAggOperator bundle dispatch failed with unknown exception: operatorId="
+            << operatorId << ", trigger=" << trigger << ", triggerValue=" << triggerValue
+            << ", accumulatorCount=" << currentRowNum);
+        throw;
+    }
+    LOG("LocalSlicingWindowAggOperator bundle dispatch complete: operatorId="
+        << operatorId << ", trigger=" << trigger << ", triggerValue=" << triggerValue
+        << ", accumulatorCount=" << currentRowNum);
+    outputBatch.release();
     bundle.clear();
     invertOrder.clear();
-    nextTriggerWatermark = getNextTriggerWatermark(currentWatermark, windowInterval);
-    return true;
+    return currentRowNum;
 }
 
 void LocalSlicingWindowAggOperator::eraseMsg(std::vector<std::unique_ptr<RowData>>& entireRows)
