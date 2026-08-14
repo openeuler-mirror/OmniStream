@@ -243,6 +243,14 @@ void RocksDBRestoreKVStateVB<K>::discardVectorBatch()
 template <typename K>
 void RocksDBRestoreKVStateVB<K>::discardMainWriter()
 {
+    if (mainWriter_ != nullptr) {
+        uint32_t pendingEntries = mainWriter_->Discard();
+        if (pendingEntries > 0) {
+            INFO_RELEASE(
+                "RocksDBRestoreKVStateVB: discard main writer kvStateId=" << kvStateId_
+                                                                          << ", pendingEntries=" << pendingEntries);
+        }
+    }
     mainWriter_.reset();
 }
 } // namespace omnistream
