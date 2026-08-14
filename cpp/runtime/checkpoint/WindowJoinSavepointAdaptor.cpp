@@ -83,9 +83,7 @@ void WindowJoinSavepointAdaptor::prepareWindowSidePlans(const nlohmann::json& op
 }
 
 void WindowJoinSavepointAdaptor::parseWindowInputTypes(
-    WindowSidePlan& sidePlan,
-    const nlohmann::json& description,
-    const std::string& fieldName)
+    WindowSidePlan& sidePlan, const nlohmann::json& description, const std::string& fieldName)
 {
     sidePlan.inputTypeNames.clear();
     sidePlan.inputTypes.clear();
@@ -107,8 +105,8 @@ void WindowJoinSavepointAdaptor::parseWindowInputTypes(
         const auto& type = inputTypes[idx];
         if (!type.is_string() || type.get<std::string>().empty()) {
             ERROR_RELEASE(
-                "WindowJoinSavepointAdaptor::parseWindowInputTypes ->"
-                << " fieldName=" << fieldName << ", fieldSize=" << inputTypes.size());
+                "WindowJoinSavepointAdaptor::parseWindowInputTypes ->" << " fieldName=" << fieldName
+                                                                       << ", fieldSize=" << inputTypes.size());
             throw std::runtime_error(
                 "WindowJoinSavepointAdaptor::parseWindowInputTypes invalid input type field=" + fieldName);
         }
@@ -123,8 +121,8 @@ void WindowJoinSavepointAdaptor::parseWindowInputTypes(
         nlohmann::json options = LogicTypeUtils::optionsFromFlinkType(stripped);
         options["nullable"] = nullable;
         int typeId = LogicalType::flinkTypeToOmniTypeId(stripped);
-        LogicalType* logicalType = BasicLogicalType::getTypeBy(
-            static_cast<omniruntime::type::DataTypeId>(typeId), options);
+        LogicalType* logicalType =
+            BasicLogicalType::getTypeBy(static_cast<omniruntime::type::DataTypeId>(typeId), options);
         sidePlan.inputTypes.push_back(logicalType);
         if (!LogicalType::isSharedLogicalType(logicalType)) {
             sidePlan.ownedInputTypes.emplace_back(logicalType);
@@ -199,11 +197,8 @@ const WindowJoinSavepointAdaptor::WindowSidePlan& WindowJoinSavepointAdaptor::wi
     if (stateName == RIGHT_RECORDS_STATE_NAME) {
         return rightPlan_;
     }
-    ERROR_RELEASE(
-        "WindowJoinSavepointAdaptor::windowSidePlanForState ->"
-        << " stateName=" << stateName);
-    throw std::runtime_error(
-        "WindowJoinSavepointAdaptor::windowSidePlanForState unsupported state=" + stateName);
+    ERROR_RELEASE("WindowJoinSavepointAdaptor::windowSidePlanForState ->" << " stateName=" << stateName);
+    throw std::runtime_error("WindowJoinSavepointAdaptor::windowSidePlanForState unsupported state=" + stateName);
 }
 
 // ===== 保存方向：构建保存计划 =====
@@ -281,14 +276,12 @@ std::vector<VectorBatchSaveStateContext> WindowJoinSavepointAdaptor::buildSaveSt
 {
     std::vector<VectorBatchSaveStateContext> contexts(snapshotResources.getMetaInfoSnapshots().size());
     for (const auto& spec : plan.stateContextSpecs) {
-        if (spec.sourceKvStateId < 0 ||
-            static_cast<size_t>(spec.sourceKvStateId) >= contexts.size()) {
+        if (spec.sourceKvStateId < 0 || static_cast<size_t>(spec.sourceKvStateId) >= contexts.size()) {
             ERROR_RELEASE(
-                "WindowJoinSavepointAdaptor::buildSaveStateContexts ->"
-                << " sourceKvStateId=" << spec.sourceKvStateId);
+                "WindowJoinSavepointAdaptor::buildSaveStateContexts ->" << " sourceKvStateId=" << spec.sourceKvStateId);
             throw std::runtime_error(
-                "WindowJoinSavepointAdaptor: sourceKvStateId=" +
-                std::to_string(spec.sourceKvStateId) + " out of range");
+                "WindowJoinSavepointAdaptor: sourceKvStateId=" + std::to_string(spec.sourceKvStateId) +
+                " out of range");
         }
         auto& ctx = contexts[spec.sourceKvStateId];
         ctx.writable = true;
@@ -305,8 +298,7 @@ std::vector<VectorBatchSaveStateContext> WindowJoinSavepointAdaptor::buildSaveSt
                     "WindowJoinSavepointAdaptor::buildSaveStateContexts ->"
                     << " failed to create VB accessor for state=" << spec.logicalStateName);
                 throw std::runtime_error(
-                    "WindowJoinSavepointAdaptor: failed to create VB accessor for state=" +
-                    spec.logicalStateName);
+                    "WindowJoinSavepointAdaptor: failed to create VB accessor for state=" + spec.logicalStateName);
             }
         }
     }
@@ -317,8 +309,7 @@ std::vector<VectorBatchSaveStateContext> WindowJoinSavepointAdaptor::buildSaveSt
 
 // 将一组 RowData 字节序列化为 Flink MapState<Long, List<RowData>> 的 value 格式
 std::vector<int8_t> WindowJoinSavepointAdaptor::serializeFlinkRowDataList(
-    const std::vector<std::vector<int8_t>>& rowDataBytesList,
-    const std::vector<std::string>& /*inputTypeNames*/)
+    const std::vector<std::vector<int8_t>>& rowDataBytesList, const std::vector<std::string>& /*inputTypeNames*/)
 {
     // Flink ListDelimitedSerializer 格式（与 Flink 1.16 源码一致）:
     //   [element_1 bytes][delimiter=','][element_2 bytes][delimiter=',']...[element_N bytes]
@@ -330,7 +321,7 @@ std::vector<int8_t> WindowJoinSavepointAdaptor::serializeFlinkRowDataList(
     for (size_t i = 0; i < rowDataBytesList.size(); ++i) {
         totalSize += rowDataBytesList[i].size();
         if (i > 0) {
-            totalSize += 1;  // delimiter before this element
+            totalSize += 1; // delimiter before this element
         }
     }
 
@@ -355,8 +346,7 @@ void WindowJoinSavepointAdaptor::save(
     std::string keySerializer)
 {
     VectorBatchSavePlan plan = buildWindowSavePlan(snapshotResources);
-    VectorBatchSaveFlow::executeSave(*this, plan, stream, keyGroupOffsets,
-                                     snapshotResources, std::move(keySerializer));
+    VectorBatchSaveFlow::executeSave(*this, plan, stream, keyGroupOffsets, snapshotResources, std::move(keySerializer));
 }
 
 void WindowJoinSavepointAdaptor::convertKVRowData(
@@ -366,17 +356,14 @@ void WindowJoinSavepointAdaptor::convertKVRowData(
     std::function<void(ConvertedEntry)> output)
 {
     // 解析 comboId 列表
-    auto comboIds = VectorBatchSaveTools::parseComboIdList(
-        ByteView(entry.value.data(), entry.value.size()), plan.isHeapBackend);
+    auto comboIds =
+        VectorBatchSaveTools::parseComboIdList(ByteView(entry.value.data(), entry.value.size()), plan.isHeapBackend);
 
     // 解引用 VB 获取 RowData
     if (!context.vbAccessor) {
         ERROR_RELEASE(
-            "WindowJoinSavepointAdaptor::convertKVRowData - null vbAccessor for state="
-            << context.logicalStateName);
-        throw std::runtime_error(
-            "WindowJoinSavepointAdaptor: null vbAccessor for state=" +
-            context.logicalStateName);
+            "WindowJoinSavepointAdaptor::convertKVRowData - null vbAccessor for state=" << context.logicalStateName);
+        throw std::runtime_error("WindowJoinSavepointAdaptor: null vbAccessor for state=" + context.logicalStateName);
     }
 
     const auto& sidePlan = windowSidePlanForState(context.logicalStateName);
@@ -392,15 +379,12 @@ void WindowJoinSavepointAdaptor::convertKVRowData(
         if (!row) {
             ERROR_RELEASE(
                 "WindowJoinSavepointAdaptor::convertKVRowData - null row for comboId="
-                << comboId << ", batchId=" << batchId << ", rowId=" << rowId
-                << ", valueSize=" << entry.value.size()
+                << comboId << ", batchId=" << batchId << ", rowId=" << rowId << ", valueSize=" << entry.value.size()
                 << ", comboIdCount=" << comboIds.size());
             throw std::runtime_error(
-                "WindowJoinSavepointAdaptor: null row for comboId=" +
-                std::to_string(comboId) + ", batchId=" +
-                std::to_string(batchId) + ", rowId=" + std::to_string(rowId) +
-                ", valueSize=" + std::to_string(entry.value.size()) +
-                ", comboIdCount=" + std::to_string(comboIds.size()));
+                "WindowJoinSavepointAdaptor: null row for comboId=" + std::to_string(comboId) +
+                ", batchId=" + std::to_string(batchId) + ", rowId=" + std::to_string(rowId) + ", valueSize=" +
+                std::to_string(entry.value.size()) + ", comboIdCount=" + std::to_string(comboIds.size()));
         }
 
         auto rowDataBytes = VectorBatchSaveTools::serializeRowData(row.get(), context.valueSerializer);
