@@ -337,6 +337,10 @@ private:
             return value;
         };
         auto arrayBytes = [&](int32_t count, size_t elementSize, const char* field) {
+            if (elementSize == 0) {
+                fail(std::string("invalid ") + field + " elementSize=0");
+                return size_t{0};
+            }
             if (count < 0 || static_cast<size_t>(count) > std::numeric_limits<size_t>::max() / elementSize) {
                 fail(std::string("invalid ") + field + " count=" + std::to_string(count));
             }
