@@ -580,6 +580,29 @@ TEST(LocalWindowAggTest, SumAggTest)
     std::cout << "LocalWindowAggTest  SumAggTest" << std::endl;
 }
 
+TEST(LocalWindowAggTest, FlushesPendingBundleBeforeCheckpointBarrier)
+{
+    const json parsedJson = json::parse(sliceDescription);
+    auto output = std::make_unique<OutputTestVectorBatch>();
+    auto windowAggOperator =
+        std::make_unique<LocalSlicingWindowAggOperator>(parsedJson["operators"][0]["description"], output.get());
+    windowAggOperator->open();
+
+    auto* streamRecord = new StreamRecord(newVectorBatchOneKeyOneValue1());
+    windowAggOperator->processBatch(streamRecord);
+    ASSERT_TRUE(output->getAll().empty());
+
+    windowAggOperator->PrepareSnapshotPreBarrier(101);
+    ASSERT_EQ(output->getAll().size(), 1);
+    EXPECT_GT(output->getAll().front()->GetRowCount(), 0);
+
+    // A repeated pre-barrier callback must not emit the already flushed bundle again.
+    windowAggOperator->PrepareSnapshotPreBarrier(101);
+    EXPECT_EQ(output->getAll().size(), 1);
+
+    windowAggOperator->close();
+}
+
 TEST(LocalWindowAggTest, SlicingTest)
 {
     json parsedJson = json::parse(sliceDescription);
