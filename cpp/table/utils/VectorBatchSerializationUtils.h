@@ -179,9 +179,10 @@ public:
     {
         // nullData
         auto nullData = UnsafeBaseVector::GetNulls(baseVector);
-        auto nullByteSize = omniruntime::vec::NullsBuffer::CalculateNbytes(rowCount);
+        // Nulls belong to the dictionary vector (ids), not to the dictionary
+        // string container. dictSize and valueSize are allowed to differ.
+        auto nullByteSize = omniruntime::vec::NullsBuffer::CalculateNbytes(valueSize);
 
-        size_t len = nullByteSize;
         auto ret = memcpy_s(buffer, bufferSize, nullData, nullByteSize);
         if (ret != EOK) {
             throw std::runtime_error("memcpy_s failed");
