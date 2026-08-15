@@ -14,21 +14,21 @@
 void* JoinTupleSerializer::deserialize(DataInputView& source)
 {
     int32_t f0 = source.readInt();
-    int64_t f1 = source.readLong();
+    int32_t f1 = source.readInt();
 
-    auto* res = new std::tuple<int32_t, int64_t>(f0, f1);
+    auto* res = new std::tuple<int32_t, int32_t>(f0, f1);
 
     return static_cast<void*>(res);
 }
 
 void JoinTupleSerializer::serialize(void* record, DataOutputSerializer& target)
 {
-    auto* obj = reinterpret_cast<std::tuple<int32_t, int64_t>*>(record);
+    auto* obj = reinterpret_cast<std::tuple<int32_t, int32_t>*>(record);
     int32_t f0 = std::get<0>(*obj);
-    int64_t f1 = std::get<1>(*obj);
+    int32_t f1 = std::get<1>(*obj);
 
     target.writeInt(f0);
-    target.writeLong(f1);
+    target.writeInt(f1);
 }
 
 JoinTupleSerializer* JoinTupleSerializer::INSTANCE = new JoinTupleSerializer();
