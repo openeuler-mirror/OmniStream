@@ -478,6 +478,8 @@ public:
                 keyOutputSerializer.setPosition(keyPrefixLength);
                 if constexpr (std::is_pointer_v<UK>) {
                     getUserKeySerializer()->serialize(userKey, keyOutputSerializer);
+                } else if constexpr (is_shared_ptr_v<UK>) {
+                    getUserKeySerializer()->serialize(userKey.get(), keyOutputSerializer);
                 } else {
                     UK mutableUserKey = userKey;
                     getUserKeySerializer()->serialize(&mutableUserKey, keyOutputSerializer);
@@ -1352,13 +1354,8 @@ public:
             try {
                 userValue_ = value;
                 stateTable_->outputView_.clear();
-                stateTable_->outputView_.writeBoolean(userValue_.has_value());
                 if (userValue_.has_value()) {
-                    if constexpr (std::is_pointer_v<UV>) {
-                        stateTable_->getStateSerializer()->serialize(userValue_.value(), stateTable_->outputView_);
-                    } else {
-                        stateTable_->getStateSerializer()->serialize(&userValue_.value(), stateTable_->outputView_);
-                    }
+                    stateTable_->serializerValue(stateTable_->outputView_, userValue_.value());
                 }
                 rawValueBytes_ = std::unique_ptr<std::vector<uint8_t>>(stateTable_->outputView_.getCopyOfBuffer());
 
@@ -1662,6 +1659,8 @@ private:
 
         if constexpr (std::is_pointer_v<UK>) {
             getUserKeySerializer()->serialize(userKey, outputSerializer);
+        } else if constexpr (is_shared_ptr_v<UK>) {
+            getUserKeySerializer()->serialize(userKey.get(), outputSerializer);
         } else {
             getUserKeySerializer()->serialize(&userKey, outputSerializer);
         }
@@ -1714,7 +1713,7 @@ private:
             reinterpret_cast<const char*>(outputSerializer.getData()), outputSerializer.length());
     }
 
-    ROCKSDB_NAMESPACE::Slice serializerValue(DataOutputSerializer& valueOutputSerializer, UV userValue)
+    ROCKSDB_NAMESPACE::Slice serializerValue(DataOutputSerializer& valueOutputSerializer, const UV& userValue)
     {
         // value序列化
         TypeSerializer* vSerializer = getStateSerializer();
@@ -1722,6 +1721,9 @@ private:
         if constexpr (std::is_pointer_v<UV>) {
             valueOutputSerializer.writeBoolean(userValue == nullptr);
             vSerializer->serialize(userValue, valueOutputSerializer);
+        } else if constexpr (is_shared_ptr_v<UV>) {
+            valueOutputSerializer.writeBoolean(userValue == nullptr);
+            vSerializer->serialize(userValue.get(), valueOutputSerializer);
         } else {
             valueOutputSerializer.writeBoolean(&userValue == nullptr);
             vSerializer->serialize(&userValue, valueOutputSerializer);
@@ -1745,6 +1747,16 @@ private:
         if constexpr (std::is_pointer_v<UK>) {
             auto userKey = static_cast<UK>(keySerializer->deserialize(*dataInputView));
             return userKey;
+        } else if constexpr (is_shared_ptr_v<UK>) {
+            using BaseType = unwrap_shared_ptr_t<UK>;
+            auto* deserialized = keySerializer->deserialize(*dataInputView);
+            if constexpr (std::is_same_v<BaseType, RowData>) {
+                // BinaryRowDataSerializer returns a reusable RowData*, so we need to copy
+                auto* copy = static_cast<RowData*>(deserialized)->copy();
+                return UK(copy);
+            } else {
+                NOT_IMPL_EXCEPTION;
+            }
         } else {
             UK* userKeyPtr = static_cast<UK*>(keySerializer->deserialize(*dataInputView));
             UK userKey = std::move(*userKeyPtr);
