@@ -28,8 +28,6 @@
 #include "core/typeutils/TypeSerializer.h"
 #include "core/typeutils/MapSerializer.h"
 #include "core/typeutils/ListSerializer.h"
-#include "core/typeutils/XxH128_hashSerializer.h"
-#include "core/typeutils/JoinTupleSerializer.h"
 #include "core/api/common/state/RestoreStateDescriptor.h"
 #include "core/memory/DataInputDeserializer.h"
 #include "core/utils/key_type_traits.h"
@@ -234,6 +232,17 @@ private:
             } else if constexpr (std::is_pointer_v<UK>) {
                 UK rawKey = static_cast<UK>(keySer->deserialize(input));
                 key = copyRestoredPointerForState<UK>(rawKey);
+            } else if constexpr (is_shared_ptr_v<UK>) {
+                using BaseType = unwrap_shared_ptr_t<UK>;
+                auto* keyBuffer = static_cast<BaseType*>(keySer->deserialize(input));
+                if (keyBuffer == nullptr) {
+                    THROW_RUNTIME_ERROR("Deserialized null shared row map key");
+                }
+                if constexpr (std::is_same_v<BaseType, RowData>) {
+                    key = std::shared_ptr<RowData>(static_cast<RowData*>(keyBuffer)->copy());
+                } else {
+                    NOT_IMPL_EXCEPTION;
+                }
             } else {
                 void* rawK = keySer->deserialize(input);
                 key = *static_cast<UK*>(rawK);
@@ -732,27 +741,25 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
                 reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<RowData*, int32_t>*>*>(
                     stateTablePtr);
             table->put(*static_cast<K*>(rawKey), keyGroupId, *static_cast<VoidNamespace*>(rawNs), mapVal);
+        } else if (mapKeyId == BackendDataType::SHARED_ROW_BK && mapValId == BackendDataType::INT_BK) {
+            auto* mapVal = deserializeEmhashMap<std::shared_ptr<RowData>, int32_t>(mapKeySer, mapValSer, valInput);
+            auto* table = reinterpret_cast<
+                CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<std::shared_ptr<RowData>, int32_t>*>*>(
+                stateTablePtr);
+            table->put(*static_cast<K*>(rawKey), keyGroupId, *static_cast<VoidNamespace*>(rawNs), mapVal);
         } else if (mapKeyId == BackendDataType::ROW_BK && mapValId == BackendDataType::ROW_BK) {
             auto* mapVal = deserializeEmhashMap<RowData*, RowData*>(mapKeySer, mapValSer, valInput);
             auto* table =
                 reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<RowData*, RowData*>*>*>(
                     stateTablePtr);
             table->put(*static_cast<K*>(rawKey), keyGroupId, *static_cast<VoidNamespace*>(rawNs), mapVal);
-        } else if (mapKeyId == BackendDataType::XXHASH128_BK && mapValId == BackendDataType::TUPLE_INT32_INT64) {
-            auto* mapVal =
-                deserializeEmhashMap<XXH128_hash_t, std::tuple<int32_t, int64_t>>(mapKeySer, mapValSer, valInput);
-            auto* table = reinterpret_cast<CopyOnWriteStateTable<
-                K,
-                VoidNamespace,
-                emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int64_t>>*>*>(stateTablePtr);
-            table->put(*static_cast<K*>(rawKey), keyGroupId, *static_cast<VoidNamespace*>(rawNs), mapVal);
-        } else if (mapKeyId == BackendDataType::XXHASH128_BK && mapValId == BackendDataType::TUPLE_INT32_INT32_INT64) {
-            auto* mapVal = deserializeEmhashMap<XXH128_hash_t, std::tuple<int32_t, int32_t, int64_t>>(
+        } else if (mapKeyId == BackendDataType::SHARED_ROW_BK && mapValId == BackendDataType::TUPLE_INT32_INT32) {
+            auto* mapVal = deserializeEmhashMap<std::shared_ptr<RowData>, std::tuple<int32_t, int32_t>>(
                 mapKeySer, mapValSer, valInput);
             auto* table = reinterpret_cast<CopyOnWriteStateTable<
                 K,
                 VoidNamespace,
-                emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int32_t, int64_t>>*>*>(stateTablePtr);
+                emhash7::HashMap<std::shared_ptr<RowData>, std::tuple<int32_t, int32_t>>*>*>(stateTablePtr);
             table->put(*static_cast<K*>(rawKey), keyGroupId, *static_cast<VoidNamespace*>(rawNs), mapVal);
         } else if (mapKeyId == BackendDataType::TIME_WINDOW_BK && mapValId == BackendDataType::TIME_WINDOW_BK) {
             auto* mapVal = deserializeEmhashMap<TimeWindow, TimeWindow>(mapKeySer, mapValSer, valInput);
