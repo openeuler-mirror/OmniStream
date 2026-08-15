@@ -205,24 +205,22 @@ public:
                     } else if (keyId == BackendDataType::ROW_BK && valueId == BackendDataType::INT_BK) {
                         delete reinterpret_cast<RocksdbMapStateTable<K, VoidNamespace, RowData*, int32_t>*>(
                             stateTablePtr);
+                    } else if (keyId == BackendDataType::SHARED_ROW_BK && valueId == BackendDataType::INT_BK) {
+                        delete reinterpret_cast<
+                            RocksdbMapStateTable<K, VoidNamespace, std::shared_ptr<RowData>, int32_t>*>(stateTablePtr);
                     } else if (keyId == BackendDataType::ROW_BK && valueId == BackendDataType::ROW_BK) {
                         delete reinterpret_cast<RocksdbMapStateTable<K, VoidNamespace, RowData*, RowData*>*>(
                             stateTablePtr);
-                    } else if (
-                        keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT64) {
-                        delete reinterpret_cast<
-                            RocksdbMapStateTable<K, VoidNamespace, XXH128_hash_t, std::tuple<int32_t, int64_t>>*>(
-                            stateTablePtr);
-                    } else if (
-                        keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT32_INT64) {
-                        delete reinterpret_cast<RocksdbMapStateTable<
-                            K,
-                            VoidNamespace,
-                            XXH128_hash_t,
-                            std::tuple<int32_t, int32_t, int64_t>>*>(stateTablePtr);
                     } else if (keyId == BackendDataType::TIME_WINDOW_BK && valueId == BackendDataType::TIME_WINDOW_BK) {
                         delete reinterpret_cast<RocksdbMapStateTable<K, VoidNamespace, TimeWindow, TimeWindow>*>(
                             stateTablePtr);
+                    } else if (
+                        keyId == BackendDataType::SHARED_ROW_BK && valueId == BackendDataType::TUPLE_INT32_INT32) {
+                        delete reinterpret_cast<RocksdbMapStateTable<
+                            K,
+                            VoidNamespace,
+                            std::shared_ptr<RowData>,
+                            std::tuple<int32_t, int32_t>>*>(stateTablePtr);
                     } else if (keyId == BackendDataType::ROW_BK && valueId == BackendDataType::ROW_LIST_BK) {
                         delete reinterpret_cast<
                             RocksdbMapStateTable<K, VoidNamespace, RowData*, std::vector<RowData*>*>*>(stateTablePtr);
@@ -388,9 +386,6 @@ private:
 
     uintptr_t GetListState(TypeSerializer* namespaceSerializer, StateDescriptor* stateDesc);
 
-    // temp solution. How to properly deconstruct all state properly
-    bool toDeconstruct = false;
-
     void registerKvStateInformation(
         StateDescriptor* stateDesc, TypeSerializer* namespaceSerializer, TypeSerializer* stateSerializer);
 };
@@ -475,9 +470,7 @@ uintptr_t RocksdbKeyedStateBackend<K>::GetMapState(TypeSerializer* namespaceSeri
     auto keyId = stateDesc->getKeyDataId();
     auto valueId = stateDesc->getValueDataId();
 
-    // currently only deconstructor for HeapMapState<RowData*, VoidNamespace, RowData*, int> is implemented
-    this->toDeconstruct = (keyId == BackendDataType::ROW_BK && valueId == BackendDataType::INT_BK);
-    STD_LOG("stateType_ is StateDescriptor::Type::MAP " << ", keyId " << keyId_ << " , value id " << valueId_);
+    INFO_RELEASE("stateDescType is StateDescriptor::Type::MAP " << ", keyId " << keyId << " , value id " << valueId);
 
     // Currently only StreamingJoinOperator with BinaryRow uses MapState. It's namespace is VoidNamespace
     if (namespaceSerializer->getBackendId() != BackendDataType::VOID_NAMESPACE_BK) {
@@ -496,15 +489,15 @@ uintptr_t RocksdbKeyedStateBackend<K>::GetMapState(TypeSerializer* namespaceSeri
     } else if (keyId == BackendDataType::ROW_BK && valueId == BackendDataType::INT_BK) {
         return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, RowData*, int32_t>(
             namespaceSerializer, stateDesc);
+    } else if (keyId == BackendDataType::SHARED_ROW_BK && valueId == BackendDataType::INT_BK) {
+        return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, std::shared_ptr<RowData>, int32_t>(
+            namespaceSerializer, stateDesc);
     } else if (keyId == BackendDataType::ROW_BK && valueId == BackendDataType::ROW_BK) {
         return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, RowData*, RowData*>(
             namespaceSerializer, stateDesc);
-    } else if (keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT64) {
-        return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, XXH128_hash_t, std::tuple<int32_t, int64_t>>(
-            namespaceSerializer, stateDesc);
-    } else if (keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT32_INT64) {
+    } else if (keyId == BackendDataType::SHARED_ROW_BK && valueId == BackendDataType::TUPLE_INT32_INT32) {
         return (uintptr_t)
-            createOrUpdateInternalMapState<VoidNamespace, XXH128_hash_t, std::tuple<int32_t, int32_t, int64_t>>(
+            createOrUpdateInternalMapState<VoidNamespace, std::shared_ptr<RowData>, std::tuple<int32_t, int32_t>>(
                 namespaceSerializer, stateDesc);
     } else if (keyId == BackendDataType::TIME_WINDOW_BK && valueId == BackendDataType::TIME_WINDOW_BK) {
         return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, TimeWindow, TimeWindow>(
@@ -528,8 +521,8 @@ uintptr_t RocksdbKeyedStateBackend<K>::GetMapState(TypeSerializer* namespaceSeri
 template <typename K>
 uintptr_t RocksdbKeyedStateBackend<K>::GetValueState(TypeSerializer* namespaceSerializer, StateDescriptor* stateDesc)
 {
-    // For Agg and JoinKeyContainsUniqueKeysH
     auto dataId = stateDesc->getBackendId();
+    INFO_RELEASE("stateDescType is StateDescriptor::Type::VALUE " << ", dataId " << dataId);
     if (namespaceSerializer->getBackendId() == BackendDataType::BIGINT_BK && dataId == BackendDataType::ROW_BK) {
         return (uintptr_t)createOrUpdateInternalValueState<int64_t, RowData*>(namespaceSerializer, stateDesc);
     } else if (
@@ -555,6 +548,7 @@ template <typename K>
 uintptr_t RocksdbKeyedStateBackend<K>::GetListState(TypeSerializer* namespaceSerializer, StateDescriptor* stateDesc)
 {
     auto dataId = stateDesc->getBackendId();
+    INFO_RELEASE("stateDescType is StateDescriptor::Type::LIST " << ", dataId " << dataId);
     if (namespaceSerializer->getBackendId() == BackendDataType::BIGINT_BK && dataId == BackendDataType::BIGINT_BK) {
         return (uintptr_t)createOrUpdateInternalListState<int64_t, int64_t>(namespaceSerializer, stateDesc);
     } else if (
