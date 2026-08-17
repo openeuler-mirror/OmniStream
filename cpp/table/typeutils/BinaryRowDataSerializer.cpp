@@ -39,14 +39,27 @@ void* BinaryRowDataSerializer::deserialize(DataInputView& source)
 {
     int length = source.readInt();
 
+    LOG_DEBUG(
+        "BinaryRowDataSerializer::deserialize length=" << length << ", SEG_SIZE=" << SEG_SIZE << ", numFields="
+                                                       << numFields_ << ", fixedPartSize=" << fixedLengthPartSize_);
+
     auto bytes = reUse_->getSegment();
     LOG(" bytes: " << reinterpret_cast<long>(bytes) << " capacity: " << length << " offset : " << 0 << " offset : " << 0
                    << " length: " << length);
     if (length > SEG_SIZE) {
-        LOG_DEBUG(
-            "BinaryRowDataSerializer::deserialize WARNING length=" << length << " > SEG_SIZE=" << SEG_SIZE
-                                                                   << " numFields=" << numFields_
-                                                                   << " fixedPartSize=" << fixedLengthPartSize_);
+        ERROR_RELEASE(
+            "BinaryRowDataSerializer::deserialize row exceeds fixed buffer"
+            << ", length=" << length << ", SEG_SIZE=" << SEG_SIZE << ", numFields=" << numFields_
+            << ", fixedPartSize=" << fixedLengthPartSize_);
+        throw std::runtime_error(
+            "BinaryRowDataSerializer::deserialize row length " + std::to_string(length) + " exceeds fixed buffer " +
+            std::to_string(SEG_SIZE));
+    }
+    if (length <= 0) {
+        ERROR_RELEASE(
+            "BinaryRowDataSerializer::deserialize invalid row length"
+            << ", length=" << length << ", numFields=" << numFields_ << ", fixedPartSize=" << fixedLengthPartSize_);
+        throw std::runtime_error("BinaryRowDataSerializer::deserialize invalid row length " + std::to_string(length));
     }
     source.readFully(bytes, length, 0, length);
     // PRINT_HEX(bytes, 0, length)
