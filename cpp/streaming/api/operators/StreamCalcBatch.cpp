@@ -62,16 +62,6 @@ void StreamCalcBatch::processBatch(StreamRecord* input)
         manuallyAddNewVectors(record);
     }
 
-    for (int32_t i = 0; i < inputTypes_.GetSize(); i++) {
-        auto *colVec = record->Get(i);
-        if (colVec != nullptr) {
-            auto typeId = colVec->GetTypeId();
-            if (typeId == DataTypeId::OMNI_DECIMAL64 || typeId == DataTypeId::OMNI_DECIMAL128) {
-                colVec->SetDataType(inputTypes_.GetType(i));
-            }
-        }
-    }
-
     if (isSimpleProjection_ && (!hasFilter)) {
         // Just shuffle the input columns
         record->RearrangeColumns(outputIndexes_);
@@ -194,15 +184,7 @@ void StreamCalcBatch::parseDescription(json& descriptionJson)
     std::vector<omniruntime::type::DataTypePtr> types;
     for (std::string otype : inputTypeStrs) {
         auto omniType = LogicalType::flinkTypeToOmniTypeId(otype);
-        if (omniType == DataTypeId::OMNI_DECIMAL64) {
-            auto ps = LogicalType::parseDecimalPrecisionScale(otype);
-            types.push_back(std::make_shared<omniruntime::type::Decimal64DataType>(ps.first, ps.second));
-        } else if (omniType == DataTypeId::OMNI_DECIMAL128) {
-            auto ps = LogicalType::parseDecimalPrecisionScale(otype);
-            types.push_back(std::make_shared<omniruntime::type::Decimal128DataType>(ps.first, ps.second));
-        } else {
-            types.push_back(std::make_shared<omniruntime::type::DataType>(omniType));
-        }
+        types.push_back(std::make_shared<omniruntime::type::DataType>(omniType));
     }
     inputTypes_ = omniruntime::type::DataTypes(types);
     if (descriptionJson.contains("condition") && (!descriptionJson["condition"].is_null())) {

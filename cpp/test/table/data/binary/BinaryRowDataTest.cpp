@@ -569,3 +569,48 @@ TEST(BinaryRowDataTest, RawValueInvalidOffsetAndSizeThrows)
     row.setOffsetAndSize(row.getNullBitsSizeInBytes(), 23, 2);
     EXPECT_THROW(row.getRawValue(0), std::runtime_error);
 }
+
+TEST(BinaryRowDataTest, Decimal128RoundTrip)
+{
+    BinaryRowData* row = BinaryRowData::createBinaryRowDataWithMem(1);
+    uint64_t low = 0xFEDCBA9876543210ULL;
+    int64_t high = 0x0123456789ABCDEFLL;
+    row->setDecimal128(0, low, high);
+
+    auto* value = row->getDecimal128(0);
+    ASSERT_NE(value, nullptr);
+    EXPECT_EQ(value->LowBits(), low);
+    EXPECT_EQ(value->HighBits(), high);
+    delete value;
+    delete row;
+}
+
+TEST(BinaryRowDataTest, Decimal128RoundTripNegativeValue)
+{
+    BinaryRowData* row = BinaryRowData::createBinaryRowDataWithMem(1);
+    uint64_t low = 0xFFFFFFFFFFFFFFFFULL;
+    int64_t high = -1;
+    row->setDecimal128(0, low, high);
+
+    auto* value = row->getDecimal128(0, 0);
+    ASSERT_NE(value, nullptr);
+    EXPECT_EQ(value->LowBits(), low);
+    EXPECT_EQ(value->HighBits(), high);
+    delete value;
+    delete row;
+}
+
+TEST(BinaryRowDataTest, Decimal128OneArgOverloadDelegates)
+{
+    BinaryRowData* row = BinaryRowData::createBinaryRowDataWithMem(1);
+    uint64_t low = 12345;
+    int64_t high = 0;
+    row->setDecimal128(0, low, high);
+
+    auto* value = row->getDecimal128(0);
+    ASSERT_NE(value, nullptr);
+    EXPECT_EQ(value->LowBits(), low);
+    EXPECT_EQ(value->HighBits(), high);
+    delete value;
+    delete row;
+}

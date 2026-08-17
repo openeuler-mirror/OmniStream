@@ -73,6 +73,40 @@ std::string FormatMapElement(omniruntime::vec::BaseVector *child, int64_t index)
             throw std::runtime_error("FormatMapElement: unsupported map element type");
     }
 }
+
+// 仿 JDK BigDecimal.toString() 的科学计数法判定逻辑。
+// 入参 digits: 调用方已处理符号后的纯数字字符串（本函数不识别符号）。
+// 入参 scale:  小数位数；可为 0 或负数。
+// 返回:       若 scale>=0 且 adjusted>=-6 则纯小数形式；否则科学计数法。
+//             其中 adjusted = -scale + (digits.length() - 1)。
+std::string FormatDecimalLikeJdk(std::string digits, int32_t scale)
+{
+    if (digits.empty() || scale == 0) {
+        return digits;
+    }
+    int len = static_cast<int>(digits.size());
+    long adjusted = -static_cast<long>(scale) + (len - 1);
+
+    if (scale >= 0 && adjusted >= -6) {
+        if (scale >= len) {
+            return "0." + std::string(scale - len, '0') + digits;
+        }
+        return digits.substr(0, len - scale) + "." + digits.substr(len - scale);
+    }
+    std::ostringstream oss;
+    oss << digits[0];
+    if (len > 1) {
+        oss << '.' << digits.substr(1);
+    }
+    if (adjusted != 0) {
+        oss << 'E';
+        if (adjusted > 0) {
+            oss << '+';
+        }
+        oss << adjusted;
+    }
+    return oss.str();
+}
 } // namespace
 
 namespace omnistream {
@@ -293,16 +327,9 @@ std::string VectorBatch::transformDecimal128(
 {
     std::string valueStr =
         (reinterpret_cast<omniruntime::vec::Vector<Decimal128>*>(vectors[vectorID])->GetValue(rowID)).ToString();
-    if (static_cast<int>(decimalInfo.size()) > vectorID && decimalInfo[vectorID].second > 0) {
+    if (static_cast<int>(decimalInfo.size()) > vectorID && decimalInfo[vectorID].second >= 0) {
         int32_t scale = decimalInfo[vectorID].second;
-        int len = static_cast<int>(valueStr.length());
-        // Case when scale is greater than or equal to the number length
-        if (scale >= len) {
-            valueStr = "0." + std::string(scale - len, '0') + valueStr;
-        } else {
-            // Insert the decimal point at the correct position
-            valueStr = valueStr.substr(0, len - scale) + "." + valueStr.substr(len - scale);
-        }
+        valueStr = FormatDecimalLikeJdk(valueStr, scale);
     }
     return valueStr;
 }
@@ -312,22 +339,14 @@ std::string VectorBatch::transformDecimal64(
 {
     std::string valueStr =
         std::to_string(reinterpret_cast<omniruntime::vec::Vector<long>*>(vectors[vectorID])->GetValue(rowID));
-    if (static_cast<int>(decimalInfo.size()) > vectorID && decimalInfo[vectorID].second > 0) {
+    if (static_cast<int>(decimalInfo.size()) > vectorID && decimalInfo[vectorID].second >= 0) {
         int32_t scale = decimalInfo[vectorID].second;
-        int len = static_cast<int>(valueStr.length());
-        // Case when scale is greater than or equal to the number length
         bool negtiveFlag = false;
-        if (len > 0 && valueStr[0] == '-') {
-            valueStr = valueStr.substr(1, len);
+        if (!valueStr.empty() && valueStr[0] == '-') {
+            valueStr = valueStr.substr(1);
             negtiveFlag = true;
-            len -= 1;
         }
-        if (scale >= len) {
-            valueStr = "0." + std::string(scale - len, '0') + valueStr;
-        } else {
-            // Insert the decimal point at the correct position
-            valueStr = valueStr.substr(0, len - scale) + "." + valueStr.substr(len - scale);
-        }
+        valueStr = FormatDecimalLikeJdk(valueStr, scale);
         if (negtiveFlag) {
             valueStr = "-" + valueStr;
         }
