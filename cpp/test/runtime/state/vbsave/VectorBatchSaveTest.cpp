@@ -339,7 +339,7 @@ TEST(VectorBatchSaveTest, SerializeRowDataWithBinaryRowData)
     EXPECT_GE(result.size(), static_cast<size_t>(4));
 
     // 反序列化回来验证内容正确
-    DataInputDeserializer input(result.data(), static_cast<int>(result.size()), 0);
+    DataInputDeserializer input(reinterpret_cast<const uint8_t*>(result.data()), static_cast<int>(result.size()), 0);
     int size = input.readInt();
     EXPECT_GT(size, 0);
     EXPECT_EQ(size + static_cast<int>(sizeof(int32_t)), static_cast<int>(result.size()));
