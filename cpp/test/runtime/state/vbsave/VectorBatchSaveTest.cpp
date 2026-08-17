@@ -10,6 +10,9 @@
 #include "runtime/state/vbsave/VectorBatchSaveHooks.h"
 #include "runtime/state/vbsave/VectorBatchSavePlan.h"
 #include "runtime/state/vbsave/VectorBatchSaveTools.h"
+#include "core/memory/DataInputDeserializer.h"
+#include "table/data/binary/BinaryRowData.h"
+#include "table/typeutils/BinaryRowDataSerializer.h"
 
 namespace {
 
@@ -120,6 +123,25 @@ public:
         const omnistream::VectorBatchSavePlan& /*plan*/) override
     {
         return std::vector<int8_t>(entry.value.begin(), entry.value.end());
+    }
+
+    void convertKVRowData(
+        const KeyValueStateIterator::CurrentEntry& /*entry*/,
+        const omnistream::VectorBatchSaveStateContext& /*context*/,
+        const omnistream::VectorBatchSavePlan& /*plan*/,
+        std::function<void(omnistream::ConvertedEntry)> /*output*/) override
+    {
+    }
+};
+
+// 不覆盖 encodeFlinkLogicalValue / parseVectorBatchReference 的最小模拟类，
+// 用于测试 VectorBatchSaveHooks 的默认实现行为。
+class MinimalHooks : public omnistream::VectorBatchSaveHooks {
+public:
+    std::vector<omnistream::VectorBatchSaveStateContext> buildSaveStateContexts(
+        FullSnapshotResources& /*snapshotResources*/, const omnistream::VectorBatchSavePlan& /*plan*/) override
+    {
+        return {};
     }
 
     void convertKVRowData(
@@ -297,4 +319,174 @@ TEST(VectorBatchSaveTest, DefaultEncodeFlinkLogicalKeyKeepsOriginalKeyBytes)
     omnistream::VectorBatchSavePlan plan;
 
     EXPECT_EQ(hooks.encodeFlinkLogicalKey(entry, row, context, plan), key);
+}
+
+// ============================================================================
+// VectorBatchSaveTools — serializeRowData 快乐路径
+// ============================================================================
+
+TEST(VectorBatchSaveTest, SerializeRowDataWithBinaryRowData)
+{
+    BinaryRowData* row = BinaryRowData::createBinaryRowDataWithMem(1);
+    row->setLong(0, 42);
+
+    BinaryRowDataSerializer serializer(1);
+    auto result = omnistream::VectorBatchSaveTools::serializeRowData(row, &serializer);
+
+    // BinaryRowDataSerializer 写入格式：int32 (size) + 二进制数据，
+    // 因此结果至少包含 4 字节以上的 payload。
+    ASSERT_FALSE(result.empty());
+    EXPECT_GE(result.size(), static_cast<size_t>(4));
+
+    // 反序列化回来验证内容正确
+    DataInputDeserializer input(reinterpret_cast<const uint8_t*>(result.data()), static_cast<int>(result.size()), 0);
+    int size = input.readInt();
+    EXPECT_GT(size, 0);
+    EXPECT_EQ(size + static_cast<int>(sizeof(int32_t)), static_cast<int>(result.size()));
+
+    delete row;
+}
+
+TEST(VectorBatchSaveTest, SerializeRowDataWithMultiFieldRow)
+{
+    BinaryRowData* row = BinaryRowData::createBinaryRowDataWithMem(3);
+    row->setLong(0, 100);
+    row->setLong(1, 200);
+    row->setLong(2, 300);
+
+    BinaryRowDataSerializer serializer(3);
+    auto result = omnistream::VectorBatchSaveTools::serializeRowData(row, &serializer);
+
+    ASSERT_FALSE(result.empty());
+
+    // 反序列化验证
+    DataInputDeserializer input(reinterpret_cast<const uint8_t*>(result.data()), static_cast<int>(result.size()), 0);
+    int size = input.readInt();
+    EXPECT_GT(size, 0);
+
+    delete row;
+}
+
+// ============================================================================
+// VectorBatchSavePlan — VectorBatchSaveStateContext move 语义
+// ============================================================================
+
+TEST(VectorBatchSaveTest, SaveStateContextMoveConstructorResetsSource)
+{
+    auto accessor = std::make_shared<MockVectorBatchStateAccessor>();
+    MockSerializer serializer;
+
+    omnistream::VectorBatchSaveStateContext ctx;
+    ctx.writable = true;
+    ctx.mappedKvStateId = 5;
+    ctx.logicalStateName = "testState";
+    ctx.valueSerializer = &serializer;
+    ctx.vbAccessor = accessor;
+    ctx.stateType = omnistream::VectorBatchStateType::KV_WITH_VB;
+
+    omnistream::VectorBatchSaveStateContext moved(std::move(ctx));
+
+    // 目标对象应正确获取所有字段
+    EXPECT_TRUE(moved.isValid());
+    EXPECT_EQ(moved.mappedKvStateId, 5);
+    EXPECT_EQ(moved.logicalStateName, "testState");
+    EXPECT_EQ(moved.valueSerializer, &serializer);
+    EXPECT_EQ(moved.vbAccessor.get(), accessor.get());
+    EXPECT_EQ(moved.stateType, omnistream::VectorBatchStateType::KV_WITH_VB);
+
+    // 源对象应被重置为默认值
+    EXPECT_FALSE(ctx.isValid());
+    EXPECT_EQ(ctx.mappedKvStateId, -1);
+    EXPECT_EQ(ctx.valueSerializer, nullptr);
+    EXPECT_EQ(ctx.stateType, omnistream::VectorBatchStateType::KV);
+    EXPECT_FALSE(ctx.writable);
+}
+
+TEST(VectorBatchSaveTest, SaveStateContextMoveAssignmentResetsSource)
+{
+    auto accessor = std::make_shared<MockVectorBatchStateAccessor>();
+    MockSerializer serializer;
+
+    omnistream::VectorBatchSaveStateContext ctx;
+    ctx.writable = true;
+    ctx.mappedKvStateId = 3;
+    ctx.logicalStateName = "sourceState";
+    ctx.valueSerializer = &serializer;
+    ctx.vbAccessor = accessor;
+    ctx.stateType = omnistream::VectorBatchStateType::KV_LIST_WITH_VB;
+
+    omnistream::VectorBatchSaveStateContext target;
+    target = std::move(ctx);
+
+    // 目标对象应正确获取所有字段
+    EXPECT_TRUE(target.isValid());
+    EXPECT_EQ(target.mappedKvStateId, 3);
+    EXPECT_EQ(target.logicalStateName, "sourceState");
+    EXPECT_EQ(target.valueSerializer, &serializer);
+    EXPECT_EQ(target.vbAccessor.get(), accessor.get());
+    EXPECT_EQ(target.stateType, omnistream::VectorBatchStateType::KV_LIST_WITH_VB);
+
+    // 源对象应被重置为默认值
+    EXPECT_FALSE(ctx.isValid());
+    EXPECT_EQ(ctx.mappedKvStateId, -1);
+    EXPECT_EQ(ctx.valueSerializer, nullptr);
+    EXPECT_EQ(ctx.stateType, omnistream::VectorBatchStateType::KV);
+    EXPECT_FALSE(ctx.writable);
+}
+
+TEST(VectorBatchSaveTest, SaveStateContextMoveAssignmentSelfAssignmentSafe)
+{
+    auto accessor = std::make_shared<MockVectorBatchStateAccessor>();
+    MockSerializer serializer;
+
+    omnistream::VectorBatchSaveStateContext ctx;
+    ctx.writable = true;
+    ctx.mappedKvStateId = 7;
+    ctx.logicalStateName = "self";
+    ctx.valueSerializer = &serializer;
+    ctx.vbAccessor = accessor;
+    ctx.stateType = omnistream::VectorBatchStateType::PQ;
+
+    // 自我赋值安全：通过将同一对象的地址赋给引用，再 move 赋值
+    // 注意：由于 &ctx = &ctx 恒成立，operator= 的 this != &other 检查应跳过。
+    ctx = std::move(ctx);
+
+    EXPECT_TRUE(ctx.isValid());
+    EXPECT_EQ(ctx.mappedKvStateId, 7);
+}
+
+// ============================================================================
+// VectorBatchSaveHooks — 默认方法实现
+// ============================================================================
+
+TEST(VectorBatchSaveTest, DefaultEncodeFlinkLogicalValueReturnsEmpty)
+{
+    const auto key = bytes({0x10, 0x20});
+    const auto value = bytes({0x01, 0x02, 0x03});
+    KeyValueStateIterator::CurrentEntry entry;
+    entry.key = ByteView(key.data(), key.size());
+    entry.value = ByteView(value.data(), value.size());
+
+    MinimalHooks hooks;
+    MockRowData row;
+    omnistream::VectorBatchSaveStateContext context;
+    omnistream::VectorBatchSavePlan plan;
+
+    // 默认实现应返回空 vector
+    std::vector<int8_t> result = hooks.encodeFlinkLogicalValue(entry, row, context, plan);
+    EXPECT_TRUE(result.empty());
+}
+
+TEST(VectorBatchSaveTest, DefaultParseVectorBatchReferenceReturnsMinusOne)
+{
+    const auto value = bytes({0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08});
+    KeyValueStateIterator::CurrentEntry entry;
+    entry.value = ByteView(value.data(), value.size());
+
+    MinimalHooks hooks;
+    omnistream::VectorBatchSaveStateContext context;
+    omnistream::VectorBatchSavePlan plan;
+
+    // 默认实现应返回 -1
+    EXPECT_EQ(hooks.parseVectorBatchReference(entry.value, context, plan), -1);
 }
