@@ -9,6 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <cstdint>
@@ -16,16 +17,38 @@
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "core/memory/DataOutputSerializer.h"
 #include "core/typeutils/ListSerializer.h"
 #include "core/typeutils/LongSerializer.h"
+#include "runtime/checkpoint/CheckpointOptions.h"
+#include "runtime/checkpoint/OperatorSavepointAdaptor.h"
+#include "runtime/checkpoint/SavepointType.h"
+#include "runtime/state/FullSnapshotResources.h"
+#include "runtime/state/KeyValueStateIterator.h"
+#include "runtime/state/restore/RestoreBackendDelegate.h"
+#include "runtime/state/restore/vb/VectorBatchRestoreHooks.h"
+#include "runtime/state/vbsave/VectorBatchSaveHooks.h"
+#include "runtime/state/vbsave/VectorBatchSavePlan.h"
+#include "table/types/logical/LogicalType.h"
+
+// Pre-include the adaptor's direct dependencies so the access-control macro
+// below only exposes WindowJoinSavepointAdaptor internals to this white-box UT.
+#define private public
 #include "runtime/checkpoint/WindowJoinSavepointAdaptor.h"
+#undef private
+
 #include "runtime/state/metainfo/StateMetaInfoSnapshot.h"
 #include "runtime/state/restore/RestoreKVStateVB.h"
+#include "runtime/state/restore/SavepointRestoreResultIterator.h"
+#include "table/data/GenericRowData.h"
+#include "table/data/util/ComboIdUtil.h"
+#include "table/data/util/VectorBatchUtil.h"
 #include "table/typeutils/RowDataSerializer.h"
 #include "table/types/logical/RowType.h"
+#include "test/runtime/state/MockSavepointBridge.h"
 
 using namespace omnistream;
 
@@ -33,6 +56,10 @@ namespace {
 
 constexpr const char* LEFT_STATE_NAME = "left-records";
 constexpr const char* RIGHT_STATE_NAME = "right-records";
+
+using ::testing::_;
+using ::testing::NiceMock;
+using ::testing::Return;
 
 std::vector<int8_t> copyOutput(DataOutputSerializer& output)
 {
@@ -68,6 +95,187 @@ std::vector<int8_t> makeListValue(const std::vector<std::vector<int8_t>>& rows, 
     }
     return value;
 }
+
+std::vector<int8_t> makeRocksComboIdList(const std::vector<ComboId>& comboIds)
+{
+    DataOutputSerializer output;
+    for (size_t i = 0; i < comboIds.size(); ++i) {
+        if (i != 0) {
+            output.writeByte(',');
+        }
+        ComboIdUtil::writeComboId(output, comboIds[i]);
+    }
+    return copyOutput(output);
+}
+
+std::vector<int8_t> makeHeapComboIdList(const std::vector<ComboId>& comboIds)
+{
+    DataOutputSerializer output;
+    output.writeInt(static_cast<uint32_t>(comboIds.size()));
+    for (ComboId comboId : comboIds) {
+        ComboIdUtil::writeComboId(output, comboId);
+    }
+    return copyOutput(output);
+}
+
+class StubVectorBatchStateAccessor : public VectorBatchStateAccessor {
+public:
+    explicit StubVectorBatchStateAccessor(int arity = 1) : arity_(arity)
+    {
+    }
+
+    bool getSerializedBatch(VectorBatchId, ByteView*) override
+    {
+        return false;
+    }
+
+    std::unique_ptr<RowData> getRow(VectorBatchId batchId, int32_t rowId) override
+    {
+        requestedRows.emplace_back(batchId, rowId);
+        if (returnNullRow) {
+            return nullptr;
+        }
+        auto row = std::make_unique<GenericRowData>(arity_);
+        for (int i = 0; i < arity_; ++i) {
+            row->setField(i, nullptr);
+        }
+        return row;
+    }
+
+    void close() override
+    {
+        closeCount++;
+    }
+
+    bool returnNullRow = false;
+    int closeCount = 0;
+    std::vector<std::pair<VectorBatchId, int32_t>> requestedRows;
+
+private:
+    int arity_;
+};
+
+class EmptyKeyValueStateIterator : public KeyValueStateIterator {
+public:
+    void next() override
+    {
+    }
+
+    int keyGroup() const override
+    {
+        return -1;
+    }
+
+    ByteView key() const override
+    {
+        return {};
+    }
+
+    ByteView value() const override
+    {
+        return {};
+    }
+
+    int kvStateId() const override
+    {
+        return -1;
+    }
+
+    const CurrentEntry& current() const override
+    {
+        return entry_;
+    }
+
+    bool isNewKeyValueState() const override
+    {
+        return false;
+    }
+
+    bool isNewKeyGroup() const override
+    {
+        return false;
+    }
+
+    bool isValid() const override
+    {
+        return false;
+    }
+
+    void close() override
+    {
+        closed = true;
+    }
+
+    bool closed = false;
+
+private:
+    CurrentEntry entry_;
+};
+
+class TestFullSnapshotResources : public FullSnapshotResources {
+public:
+    const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& getMetaInfoSnapshots() override
+    {
+        return metaInfos;
+    }
+
+    KeyGroupRange* getKeyGroupRange() override
+    {
+        return &keyGroupRange;
+    }
+
+    TypeSerializer* getKeySerializer() override
+    {
+        return nullptr;
+    }
+
+    std::shared_ptr<KeyValueStateIterator> createKVStateIterator() override
+    {
+        return iterator;
+    }
+
+    bool isHeapBackend() const override
+    {
+        return heapBackend;
+    }
+
+    std::shared_ptr<VectorBatchStateAccessor> createVectorBatchStateAccessor(
+        const std::string& logicalStateName, const VectorBatchAccessorOptions& options) override
+    {
+        accessorRequests.emplace_back(logicalStateName, options.maxDecodedBatchCacheBytes);
+        return accessor;
+    }
+
+    void cleanup() override
+    {
+    }
+
+    std::vector<std::shared_ptr<StateMetaInfoSnapshot>> metaInfos;
+    KeyGroupRange keyGroupRange{0, 0};
+    bool heapBackend = false;
+    std::shared_ptr<VectorBatchStateAccessor> accessor;
+    std::shared_ptr<KeyValueStateIterator> iterator;
+    std::vector<std::pair<std::string, size_t>> accessorRequests;
+};
+
+class EmptyRestoreBackend : public RestoreBackendDelegate {
+public:
+    std::unique_ptr<RestoreKVState> createKVState(int, const StateMetaInfoSnapshot&) override
+    {
+        return nullptr;
+    }
+
+    std::unique_ptr<RestoreKVStateVB> createKVStateVB(
+        int, const StateMetaInfoSnapshot&, const std::vector<omniruntime::type::DataTypeId>&, int) override
+    {
+        return nullptr;
+    }
+
+    std::unique_ptr<RestorePQState> createPQState(int, const StateMetaInfoSnapshot&) override
+    {
+        return nullptr;
+    }
+};
 
 class RecordingRestoreKVStateVB : public RestoreKVStateVB {
 public:
@@ -185,11 +393,364 @@ protected:
             std::unordered_map<std::string, std::shared_ptr<TypeSerializerSnapshot>>{});
     }
 
+    std::shared_ptr<StateMetaInfoSnapshot> makeMeta(
+        const std::string& name, StateMetaInfoSnapshot::BackendStateType backendStateType)
+    {
+        return std::make_shared<StateMetaInfoSnapshot>(
+            name,
+            backendStateType,
+            std::unordered_map<std::string, std::string>{},
+            std::unordered_map<std::string, std::shared_ptr<TypeSerializerSnapshot>>{});
+    }
+
+    std::shared_ptr<StateMetaInfoSnapshot> makeListMetaWithRawSerializers(
+        const std::string& name, TypeSerializer* namespaceSerializer, TypeSerializer* valueSerializer)
+    {
+        std::unordered_map<std::string, std::string> options{{StateMetaInfoSnapshot::KEYED_STATE_TYPE, "LIST"}};
+        std::unordered_map<std::string, TypeSerializer*> serializers{
+            {StateMetaInfoSnapshot::NAMESPACE_SERIALIZER_KEY, namespaceSerializer},
+            {StateMetaInfoSnapshot::VALUE_SERIALIZER_KEY, valueSerializer},
+        };
+        return std::make_shared<StateMetaInfoSnapshot>(
+            name,
+            StateMetaInfoSnapshot::BackendStateType::KEY_VALUE,
+            options,
+            std::unordered_map<std::string, std::shared_ptr<TypeSerializerSnapshot>>{},
+            serializers);
+    }
+
     WindowJoinSavepointAdaptor adaptor_;
     std::vector<std::unique_ptr<TypeSerializer>> ownedSerializers_;
 };
 
 } // namespace
+
+TEST_F(WindowJoinSavepointAdaptorTest, PrepareForSaveBuildsBothSidePlansAndPreservesNullability)
+{
+    adaptor_.prepareForSave({
+        {"leftInputTypes", {"BIGINT", "INT NOT NULL"}},
+        {"rightInputTypes", {"VARCHAR"}},
+    });
+
+    ASSERT_EQ(adaptor_.leftPlan_.inputTypeNames, (std::vector<std::string>{"BIGINT", "INT NOT NULL"}));
+    ASSERT_EQ(adaptor_.leftPlan_.inputTypes.size(), 2U);
+    EXPECT_EQ(adaptor_.leftPlan_.inputTypes[0], BasicLogicalType::BIGINT);
+    EXPECT_TRUE(adaptor_.leftPlan_.inputTypes[0]->isNullable());
+    EXPECT_FALSE(adaptor_.leftPlan_.inputTypes[1]->isNullable());
+    EXPECT_EQ(adaptor_.leftPlan_.ownedInputTypes.size(), 1U);
+
+    ASSERT_EQ(adaptor_.rightPlan_.inputTypeNames, (std::vector<std::string>{"VARCHAR"}));
+    ASSERT_EQ(adaptor_.rightPlan_.inputTypes.size(), 1U);
+    EXPECT_EQ(adaptor_.rightPlan_.ownedInputTypes.size(), 1U);
+}
+
+TEST_F(WindowJoinSavepointAdaptorTest, PrepareForSaveRejectsMissingNonArrayEmptyAndInvalidSchemas)
+{
+    const nlohmann::json validLeft{{"leftInputTypes", {"BIGINT"}}, {"rightInputTypes", {"INT"}}};
+    EXPECT_NO_THROW(adaptor_.prepareForSave(validLeft));
+
+    EXPECT_THROW(adaptor_.prepareForSave({{"rightInputTypes", {"INT"}}}), std::runtime_error);
+    EXPECT_THROW(
+        adaptor_.prepareForSave({{"leftInputTypes", "BIGINT"}, {"rightInputTypes", {"INT"}}}), std::runtime_error);
+    EXPECT_THROW(adaptor_.prepareForSave({{"leftInputTypes", {1}}, {"rightInputTypes", {"INT"}}}), std::runtime_error);
+    EXPECT_THROW(adaptor_.prepareForSave({{"leftInputTypes", {""}}, {"rightInputTypes", {"INT"}}}), std::runtime_error);
+    EXPECT_THROW(
+        adaptor_.prepareForSave({{"leftInputTypes", nlohmann::json::array()}, {"rightInputTypes", {"INT"}}}),
+        std::runtime_error);
+
+    EXPECT_THROW(adaptor_.prepareForSave({{"leftInputTypes", {"BIGINT"}}}), std::runtime_error);
+    EXPECT_THROW(adaptor_.prepareForSave({{"leftInputTypes", {"BIGINT"}}, {"rightInputTypes", 1}}), std::runtime_error);
+    EXPECT_THROW(
+        adaptor_.prepareForSave({{"leftInputTypes", {"BIGINT"}}, {"rightInputTypes", {nullptr}}}), std::runtime_error);
+    EXPECT_THROW(
+        adaptor_.prepareForSave({{"leftInputTypes", {"BIGINT"}}, {"rightInputTypes", {""}}}), std::runtime_error);
+    EXPECT_THROW(
+        adaptor_.prepareForSave({{"leftInputTypes", {"BIGINT"}}, {"rightInputTypes", nlohmann::json::array()}}),
+        std::runtime_error);
+}
+
+TEST_F(WindowJoinSavepointAdaptorTest, ValidateForSaveAcceptsWindowStatesSideTablesAndTimers)
+{
+    std::vector<std::shared_ptr<StateMetaInfoSnapshot>> metas{
+        makeListMeta(LEFT_STATE_NAME, {"BIGINT", "INT"}),
+        makeMeta(std::string(LEFT_STATE_NAME) + "vb", StateMetaInfoSnapshot::BackendStateType::KEY_VALUE),
+        makeListMeta(RIGHT_STATE_NAME, {"VARCHAR"}),
+        makeMeta(std::string(RIGHT_STATE_NAME) + "vb", StateMetaInfoSnapshot::BackendStateType::KEY_VALUE),
+        makePriorityQueueMeta(),
+    };
+
+    EXPECT_NO_THROW(adaptor_.validateForSave(metas));
+
+    metas.push_back(makeMeta("unexpected", StateMetaInfoSnapshot::BackendStateType::KEY_VALUE));
+    EXPECT_THROW(adaptor_.validateForSave(metas), std::runtime_error);
+}
+
+TEST_F(WindowJoinSavepointAdaptorTest, BuildWindowSavePlanFiltersSideTablesAndMapsWindowAndTimerStates)
+{
+    adaptor_.prepareForSave({
+        {"leftInputTypes", {"BIGINT", "INT NOT NULL"}},
+        {"rightInputTypes", {"VARCHAR"}},
+    });
+
+    TestFullSnapshotResources resources;
+    resources.heapBackend = true;
+    resources.metaInfos = {
+        nullptr,
+        makeMeta(std::string(LEFT_STATE_NAME) + "vb", StateMetaInfoSnapshot::BackendStateType::KEY_VALUE),
+        makeListMeta("unrelated", {"BIGINT"}),
+        makePriorityQueueMeta(),
+        makeListMeta(LEFT_STATE_NAME, {"BIGINT", "INT"}),
+        makeListMeta(RIGHT_STATE_NAME, {"VARCHAR"}),
+    };
+
+    auto plan = adaptor_.buildWindowSavePlan(resources);
+
+    EXPECT_EQ(plan.keyGroupRange, resources.getKeyGroupRange());
+    EXPECT_TRUE(plan.isHeapBackend);
+    ASSERT_EQ(plan.targetMetaInfos.size(), 3U);
+    EXPECT_EQ(plan.targetMetaInfos[0]->getName(), "_timer_state/window");
+    EXPECT_EQ(plan.targetMetaInfos[1]->getName(), LEFT_STATE_NAME);
+    EXPECT_EQ(plan.targetMetaInfos[2]->getName(), RIGHT_STATE_NAME);
+    EXPECT_EQ(plan.mainStateIds, (std::vector<int>{3, 4, 5}));
+    EXPECT_EQ(plan.kvStateIdMapping.at(3), 0);
+    EXPECT_EQ(plan.kvStateIdMapping.at(4), 1);
+    EXPECT_EQ(plan.kvStateIdMapping.at(5), 2);
+    ASSERT_EQ(plan.stateContextSpecs.size(), 3U);
+    EXPECT_EQ(plan.stateContextSpecs[0].stateType, VectorBatchStateType::PQ);
+    EXPECT_EQ(plan.stateContextSpecs[1].stateType, VectorBatchStateType::KV_WITH_VB);
+    EXPECT_EQ(plan.stateContextSpecs[1].accessorOptions.maxDecodedBatchCacheBytes, 64UL * 1024 * 1024);
+    EXPECT_EQ(plan.stateContextSpecs[2].logicalStateName, RIGHT_STATE_NAME);
+    EXPECT_EQ(plan.ownedSerializers.size(), 2U);
+}
+
+TEST_F(WindowJoinSavepointAdaptorTest, WindowSidePlanLookupCoversBothSidesAndRejectsUnknownState)
+{
+    adaptor_.prepareForSave({
+        {"leftInputTypes", {"BIGINT"}},
+        {"rightInputTypes", {"VARCHAR"}},
+    });
+
+    EXPECT_EQ(adaptor_.windowSidePlanForState(LEFT_STATE_NAME).stateName, LEFT_STATE_NAME);
+    EXPECT_EQ(adaptor_.windowSidePlanForState(RIGHT_STATE_NAME).stateName, RIGHT_STATE_NAME);
+    EXPECT_THROW(adaptor_.windowSidePlanForState("unknown"), std::runtime_error);
+}
+
+TEST_F(WindowJoinSavepointAdaptorTest, BuildSaveStateContextsBuildsVbAndPriorityQueueContexts)
+{
+    TestFullSnapshotResources resources;
+    resources.metaInfos = {
+        makeListMeta(LEFT_STATE_NAME, {"BIGINT"}),
+        makePriorityQueueMeta(),
+    };
+    auto accessor = std::make_shared<StubVectorBatchStateAccessor>();
+    resources.accessor = accessor;
+
+    VectorBatchSavePlan plan;
+    plan.kvStateIdMapping = {{0, 2}, {1, 3}};
+    VectorBatchSavePlan::StateContextSpec leftSpec;
+    leftSpec.sourceKvStateId = 0;
+    leftSpec.logicalStateName = LEFT_STATE_NAME;
+    leftSpec.valueSerializer = LongSerializer::INSTANCE;
+    leftSpec.stateType = VectorBatchStateType::KV_WITH_VB;
+    leftSpec.accessorOptions.maxDecodedBatchCacheBytes = 1234;
+    plan.stateContextSpecs.push_back(leftSpec);
+    VectorBatchSavePlan::StateContextSpec timerSpec;
+    timerSpec.sourceKvStateId = 1;
+    timerSpec.logicalStateName = "_timer_state/window";
+    timerSpec.stateType = VectorBatchStateType::PQ;
+    plan.stateContextSpecs.push_back(timerSpec);
+
+    {
+        auto contexts = adaptor_.buildSaveStateContexts(resources, plan);
+        ASSERT_EQ(contexts.size(), 2U);
+        EXPECT_TRUE(contexts[0].writable);
+        EXPECT_EQ(contexts[0].mappedKvStateId, 2);
+        EXPECT_EQ(contexts[0].valueSerializer, LongSerializer::INSTANCE);
+        EXPECT_EQ(contexts[0].vbAccessor, accessor);
+        EXPECT_TRUE(contexts[1].writable);
+        EXPECT_EQ(contexts[1].mappedKvStateId, 3);
+        EXPECT_EQ(contexts[1].stateType, VectorBatchStateType::PQ);
+        EXPECT_EQ(contexts[1].vbAccessor, nullptr);
+        ASSERT_EQ(resources.accessorRequests.size(), 1U);
+        EXPECT_EQ(resources.accessorRequests[0], std::make_pair(std::string(LEFT_STATE_NAME), size_t{1234}));
+    }
+    EXPECT_EQ(accessor->closeCount, 1);
+}
+
+TEST_F(WindowJoinSavepointAdaptorTest, BuildSaveStateContextsRejectsInvalidSourceIdsAndMissingAccessor)
+{
+    TestFullSnapshotResources resources;
+    resources.metaInfos = {makeListMeta(LEFT_STATE_NAME, {"BIGINT"})};
+
+    VectorBatchSavePlan invalidPlan;
+    VectorBatchSavePlan::StateContextSpec spec;
+    spec.sourceKvStateId = -1;
+    spec.logicalStateName = LEFT_STATE_NAME;
+    spec.valueSerializer = LongSerializer::INSTANCE;
+    spec.stateType = VectorBatchStateType::KV_WITH_VB;
+    invalidPlan.stateContextSpecs.push_back(spec);
+    EXPECT_THROW(adaptor_.buildSaveStateContexts(resources, invalidPlan), std::runtime_error);
+
+    invalidPlan.stateContextSpecs[0].sourceKvStateId = 1;
+    EXPECT_THROW(adaptor_.buildSaveStateContexts(resources, invalidPlan), std::runtime_error);
+
+    invalidPlan.stateContextSpecs[0].sourceKvStateId = 0;
+    invalidPlan.kvStateIdMapping[0] = 0;
+    EXPECT_THROW(adaptor_.buildSaveStateContexts(resources, invalidPlan), std::runtime_error);
+}
+
+TEST_F(WindowJoinSavepointAdaptorTest, SerializeFlinkRowDataListHandlesEmptySingleAndMultipleRows)
+{
+    EXPECT_TRUE(adaptor_.serializeFlinkRowDataList({}, {}).empty());
+    EXPECT_EQ(adaptor_.serializeFlinkRowDataList({{1, 2}}, {"BIGINT"}), (std::vector<int8_t>{1, 2}));
+    EXPECT_EQ(
+        adaptor_.serializeFlinkRowDataList({{1, 2}, {3}, {4, 5}}, {"BIGINT"}),
+        (std::vector<int8_t>{1, 2, ',', 3, ',', 4, 5}));
+}
+
+TEST_F(WindowJoinSavepointAdaptorTest, ConvertKVRowDataDereferencesEveryComboIdAndSerializesFlinkList)
+{
+    adaptor_.prepareForSave({
+        {"leftInputTypes", {"BIGINT", "INT"}},
+        {"rightInputTypes", {"VARCHAR"}},
+    });
+    TestFullSnapshotResources resources;
+    resources.metaInfos = {makeListMeta(LEFT_STATE_NAME, {"BIGINT", "INT"})};
+    auto plan = adaptor_.buildWindowSavePlan(resources);
+    ASSERT_EQ(plan.stateContextSpecs.size(), 1U);
+
+    auto accessor = std::make_shared<StubVectorBatchStateAccessor>(2);
+    VectorBatchSaveStateContext context;
+    context.logicalStateName = LEFT_STATE_NAME;
+    context.valueSerializer = plan.stateContextSpecs[0].valueSerializer;
+    context.vbAccessor = accessor;
+
+    const ComboId first = VectorBatchUtil::getComboId(2, 3, 4);
+    const ComboId second = VectorBatchUtil::getComboId(2, 5, 6);
+    const std::vector<int8_t> keyBytes{9, 8, 7};
+    const auto valueBytes = makeRocksComboIdList({first, second});
+    KeyValueStateIterator::CurrentEntry entry;
+    entry.key = ByteView(keyBytes.data(), keyBytes.size());
+    entry.value = ByteView(valueBytes.data(), valueBytes.size());
+
+    bool emitted = false;
+    ConvertedEntry converted;
+    adaptor_.convertKVRowData(entry, context, plan, [&](ConvertedEntry result) {
+        emitted = true;
+        converted = std::move(result);
+    });
+
+    EXPECT_TRUE(emitted);
+    EXPECT_EQ(converted.context, &context);
+    EXPECT_EQ(converted.keyBytes, keyBytes);
+    ASSERT_EQ(accessor->requestedRows.size(), 2U);
+    EXPECT_EQ(
+        accessor->requestedRows[0],
+        std::make_pair(VectorBatchUtil::getVectorBatchId(first), VectorBatchUtil::getRowId(first)));
+    EXPECT_EQ(
+        accessor->requestedRows[1],
+        std::make_pair(VectorBatchUtil::getVectorBatchId(second), VectorBatchUtil::getRowId(second)));
+    std::vector<ByteView> rows;
+    adaptor_.deserializeRows(converted.valueBytes, rows);
+    EXPECT_EQ(rows.size(), 2U);
+}
+
+TEST_F(WindowJoinSavepointAdaptorTest, ConvertKVRowDataSupportsEmptyHeapListOnRightSide)
+{
+    adaptor_.prepareForSave({
+        {"leftInputTypes", {"BIGINT"}},
+        {"rightInputTypes", {"VARCHAR"}},
+    });
+    VectorBatchSavePlan plan;
+    plan.isHeapBackend = true;
+    auto accessor = std::make_shared<StubVectorBatchStateAccessor>();
+    VectorBatchSaveStateContext context;
+    context.logicalStateName = RIGHT_STATE_NAME;
+    context.valueSerializer = LongSerializer::INSTANCE;
+    context.vbAccessor = accessor;
+    const std::vector<int8_t> keyBytes{1};
+    const auto valueBytes = makeHeapComboIdList({});
+    KeyValueStateIterator::CurrentEntry entry;
+    entry.key = ByteView(keyBytes.data(), keyBytes.size());
+    entry.value = ByteView(valueBytes.data(), valueBytes.size());
+
+    ConvertedEntry converted;
+    adaptor_.convertKVRowData(entry, context, plan, [&](ConvertedEntry result) { converted = std::move(result); });
+
+    EXPECT_EQ(converted.keyBytes, keyBytes);
+    EXPECT_TRUE(converted.valueBytes.empty());
+    EXPECT_TRUE(accessor->requestedRows.empty());
+}
+
+TEST_F(WindowJoinSavepointAdaptorTest, ConvertKVRowDataRejectsMissingAccessorUnknownStateAndMissingRow)
+{
+    adaptor_.prepareForSave({
+        {"leftInputTypes", {"BIGINT"}},
+        {"rightInputTypes", {"VARCHAR"}},
+    });
+    const ComboId comboId = VectorBatchUtil::getComboId(1, 2, 3);
+    const auto rocksValue = makeRocksComboIdList({comboId});
+    const std::vector<int8_t> keyBytes{1};
+    KeyValueStateIterator::CurrentEntry rocksEntry;
+    rocksEntry.key = ByteView(keyBytes.data(), keyBytes.size());
+    rocksEntry.value = ByteView(rocksValue.data(), rocksValue.size());
+    VectorBatchSavePlan rocksPlan;
+
+    VectorBatchSaveStateContext missingAccessor;
+    missingAccessor.logicalStateName = LEFT_STATE_NAME;
+    EXPECT_THROW(
+        adaptor_.convertKVRowData(rocksEntry, missingAccessor, rocksPlan, [](ConvertedEntry) {}), std::runtime_error);
+
+    const auto emptyHeapValue = makeHeapComboIdList({});
+    KeyValueStateIterator::CurrentEntry heapEntry;
+    heapEntry.key = ByteView(keyBytes.data(), keyBytes.size());
+    heapEntry.value = ByteView(emptyHeapValue.data(), emptyHeapValue.size());
+    VectorBatchSavePlan heapPlan;
+    heapPlan.isHeapBackend = true;
+    VectorBatchSaveStateContext unknownState;
+    unknownState.logicalStateName = "unknown";
+    unknownState.vbAccessor = std::make_shared<StubVectorBatchStateAccessor>();
+    EXPECT_THROW(
+        adaptor_.convertKVRowData(heapEntry, unknownState, heapPlan, [](ConvertedEntry) {}), std::runtime_error);
+
+    auto nullRowAccessor = std::make_shared<StubVectorBatchStateAccessor>();
+    nullRowAccessor->returnNullRow = true;
+    VectorBatchSaveStateContext missingRow;
+    missingRow.logicalStateName = LEFT_STATE_NAME;
+    missingRow.valueSerializer = LongSerializer::INSTANCE;
+    missingRow.vbAccessor = nullRowAccessor;
+    EXPECT_THROW(
+        adaptor_.convertKVRowData(rocksEntry, missingRow, rocksPlan, [](ConvertedEntry) {}), std::runtime_error);
+}
+
+TEST_F(WindowJoinSavepointAdaptorTest, SaveDelegatesEmptySnapshotToVectorBatchSaveFlow)
+{
+    auto bridge = std::make_shared<NiceMock<MockSavepointBridge>>();
+    EXPECT_CALL(*bridge, AcquireSavepointOutputStream(1L, _)).WillOnce(Return(kMockProvider));
+    EXPECT_CALL(*bridge, CreateSavepointOutputDirectBuffer(_, _)).WillOnce(Return(static_cast<jobject>(nullptr)));
+    EXPECT_CALL(*bridge, WriteSavepointMetadata(kMockProvider, _, "key-serializer"));
+    EXPECT_CALL(*bridge, GetSavepointOutputStreamPos(kMockProvider)).WillOnce(Return(0L));
+
+    std::unique_ptr<SavepointType> savepointType(SavepointType::savepoint(SavepointFormatType::CANONICAL));
+    std::unique_ptr<CheckpointOptions> checkpointOptions(
+        CheckpointOptions::AlignedNoTimeout(*savepointType, CheckpointStorageLocationReference::GetDefault()));
+    CheckpointStateOutputStreamProxy stream(bridge, 1L, checkpointOptions.get());
+
+    TestFullSnapshotResources resources;
+    auto iterator = std::make_shared<EmptyKeyValueStateIterator>();
+    resources.iterator = iterator;
+    KeyGroupRangeOffsets offsets(resources.keyGroupRange);
+
+    EXPECT_NO_THROW(adaptor_.save(stream, offsets, resources, "key-serializer"));
+    EXPECT_TRUE(iterator->closed);
+}
+
+TEST_F(WindowJoinSavepointAdaptorTest, RestoreAcceptsEmptyRestoreIterator)
+{
+    SavepointRestoreResultIterator iterator;
+    EmptyRestoreBackend backend;
+    EXPECT_NO_THROW(adaptor_.restore(iterator, backend));
+}
 
 TEST_F(WindowJoinSavepointAdaptorTest, PrepareForRestoreParsesBothInputSchemas)
 {
@@ -215,6 +776,23 @@ TEST_F(WindowJoinSavepointAdaptorTest, PrepareForRestoreRejectsMissingInputSchem
 {
     EXPECT_THROW(adaptor_.prepareForRestore({{"leftInputTypes", {"BIGINT"}}}), std::runtime_error);
     EXPECT_THROW(adaptor_.prepareForRestore({{"rightInputTypes", {"BIGINT"}}}), std::runtime_error);
+    EXPECT_THROW(
+        adaptor_.prepareForRestore({{"leftInputTypes", nlohmann::json::array()}, {"rightInputTypes", {"BIGINT"}}}),
+        std::runtime_error);
+    EXPECT_THROW(
+        adaptor_.prepareForRestore({{"leftInputTypes", {"BIGINT"}}, {"rightInputTypes", nlohmann::json::array()}}),
+        std::runtime_error);
+}
+
+TEST_F(WindowJoinSavepointAdaptorTest, PrepareForRestoreClearsPreviousStateIdMappings)
+{
+    prepareAdaptor();
+    auto leftMeta = makeListMeta(LEFT_STATE_NAME, {"BIGINT", "INT"});
+    adaptor_.buildOmniMainMetaInfo(3, *leftMeta);
+    EXPECT_EQ(adaptor_.columnTypes(3).size(), 2U);
+
+    prepareAdaptor();
+    EXPECT_THROW(adaptor_.columnTypes(3), std::runtime_error);
 }
 
 TEST_F(WindowJoinSavepointAdaptorTest, ValidateForRestoreAcceptsWindowListStatesAndTimers)
@@ -232,6 +810,17 @@ TEST_F(WindowJoinSavepointAdaptorTest, ValidateForRestoreAcceptsWindowListStates
 TEST_F(WindowJoinSavepointAdaptorTest, ValidateForRestoreRejectsInvalidSerializers)
 {
     prepareAdaptor();
+
+    auto validValue = std::make_unique<ListSerializer>(
+        new RowDataSerializer(new omnistream::RowType(false, std::vector<std::string>{"BIGINT", "INT"})));
+    auto* validValuePtr = validValue.get();
+    ownedSerializers_.push_back(std::move(validValue));
+    std::vector<std::shared_ptr<StateMetaInfoSnapshot>> nullNamespaceMetas{
+        makeListMetaWithRawSerializers(LEFT_STATE_NAME, nullptr, validValuePtr),
+        makeListMeta(RIGHT_STATE_NAME, {"VARCHAR"}),
+    };
+    EXPECT_THROW(adaptor_.validateForRestore(nullNamespaceMetas), std::runtime_error);
+
     auto wrongNamespace = std::make_unique<IntSerializer>();
     auto* wrongNamespacePtr = wrongNamespace.get();
     ownedSerializers_.push_back(std::move(wrongNamespace));
@@ -283,11 +872,13 @@ TEST_F(WindowJoinSavepointAdaptorTest, GetStateTypeClassifiesWindowStatesAndTime
     auto rightMeta = makeListMeta(RIGHT_STATE_NAME, {"VARCHAR"});
     auto otherMeta = makeListMeta("other", {"BIGINT"});
     auto timerMeta = makePriorityQueueMeta();
+    auto operatorMeta = makeMeta("operator", StateMetaInfoSnapshot::BackendStateType::OPERATOR);
 
     EXPECT_EQ(adaptor_.getStateType(*leftMeta), RestoreStateType::KV_WITH_VB);
     EXPECT_EQ(adaptor_.getStateType(*rightMeta), RestoreStateType::KV_WITH_VB);
     EXPECT_EQ(adaptor_.getStateType(*timerMeta), RestoreStateType::PQ);
     EXPECT_EQ(adaptor_.getStateType(*otherMeta), RestoreStateType::UNSUPPORT);
+    EXPECT_EQ(adaptor_.getStateType(*operatorMeta), RestoreStateType::UNSUPPORT);
 }
 
 TEST_F(WindowJoinSavepointAdaptorTest, BuildOmniMainMetaInfoMapsStateIdAndUsesComboIdListSerializer)
@@ -368,9 +959,29 @@ TEST_F(WindowJoinSavepointAdaptorTest, RetrieveKVRowDataRejectsInvalidArgumentsA
 
     EXPECT_THROW(adaptor_.retrieveKVRowData(keyBytes, row, 4, nullptr), std::runtime_error);
     EXPECT_THROW(adaptor_.retrieveKVRowData({}, row, 4, &writer), std::runtime_error);
+    EXPECT_THROW(adaptor_.retrieveKVRowData({}, row, 99, &writer), std::runtime_error);
     EXPECT_THROW(adaptor_.retrieveKVRowData(keyBytes, {0, 0, 0}, 4, &writer), std::runtime_error);
     EXPECT_THROW(adaptor_.retrieveKVRowData(keyBytes, makeListValue({row, row}, ';'), 4, &writer), std::runtime_error);
     EXPECT_THROW(adaptor_.columnTypes(99), std::runtime_error);
+}
+
+TEST_F(WindowJoinSavepointAdaptorTest, RetrieveKVRowDataRejectsInvalidComboIdForEitherSide)
+{
+    prepareAdaptor();
+    auto leftMeta = makeListMeta(LEFT_STATE_NAME, {"BIGINT", "INT"});
+    auto rightMeta = makeListMeta(RIGHT_STATE_NAME, {"VARCHAR"});
+    adaptor_.buildOmniMainMetaInfo(4, *leftMeta);
+    adaptor_.buildOmniMainMetaInfo(5, *rightMeta);
+    const auto row = makeSerializedRow({1, 2});
+    const std::vector<int8_t> keyBytes{1};
+
+    RecordingRestoreKVStateVB leftWriter;
+    leftWriter.nextComboId = INVALID_COMBO_ID;
+    EXPECT_THROW(adaptor_.retrieveKVRowData(keyBytes, row, 4, &leftWriter), std::runtime_error);
+
+    RecordingRestoreKVStateVB rightWriter;
+    rightWriter.nextComboId = INVALID_COMBO_ID;
+    EXPECT_THROW(adaptor_.retrieveKVRowData(keyBytes, row, 5, &rightWriter), std::runtime_error);
 }
 
 // ===== Tests for deserializeRows (Flink ListDelimitedSerializer format) =====
@@ -465,6 +1076,25 @@ TEST_F(WindowJoinSavepointAdaptorTest, DeserializeRows_RejectsTruncatedRow)
 
     RecordingRestoreKVStateVB writer;
     EXPECT_THROW(adaptor_.retrieveKVRowData({1}, truncatedValue, 4, &writer), std::runtime_error);
+}
+
+TEST_F(WindowJoinSavepointAdaptorTest, DeserializeRows_RejectsPartialNextLengthAndTrailingDelimiter)
+{
+    prepareAdaptor();
+    auto leftMeta = makeListMeta(LEFT_STATE_NAME, {"BIGINT", "INT"});
+    adaptor_.buildOmniMainMetaInfo(4, *leftMeta);
+    const auto row = makeSerializedRow({1, 2});
+    RecordingRestoreKVStateVB writer;
+
+    auto partialLength = row;
+    partialLength.push_back(static_cast<int8_t>(','));
+    partialLength.push_back(0);
+    partialLength.push_back(0);
+    EXPECT_THROW(adaptor_.retrieveKVRowData({1}, partialLength, 4, &writer), std::runtime_error);
+
+    auto trailingDelimiter = row;
+    trailingDelimiter.push_back(static_cast<int8_t>(','));
+    EXPECT_THROW(adaptor_.retrieveKVRowData({1}, trailingDelimiter, 4, &writer), std::runtime_error);
 }
 
 TEST_F(WindowJoinSavepointAdaptorTest, DeserializeRows_RejectsNegativeRowLength)
