@@ -21,6 +21,8 @@
 
 #include "OmniStreamTask.h"
 #include <iostream>
+#include <chrono>
+#include <thread>
 
 #include <streaming/runtime/partitioner/V2/StreamPartitionerV2.h>
 #include "runtime/io/network/api/writer/V2/RecordWriterDelegateV2.h"
@@ -277,11 +279,11 @@ void OmniStreamTask::restoreGates()
         INFO_RELEASE("restoreGates before recovery mailbox loop");
         mailboxProcessor_->runMailboxLoop();
         INFO_RELEASE("restoreGates after recovery mailbox loop");
-        bool allRecovered = true;
+        bool allRecovered = false;
         do {
+            allRecovered = true;
             for (const auto& inputGate : inputGateVec) {
                 auto recoveredFlags = inputGate->getStateConsumedFuture1();
-                allRecovered = true;
                 for (bool done : recoveredFlags) {
                     if (!done) {
                         allRecovered = false;
@@ -289,13 +291,14 @@ void OmniStreamTask::restoreGates()
                     }
                 }
 
-                if (!allRecovered) {
-                    INFO_RELEASE("restoreGates: some recovered channels are not fully consumed yet");
-                    continue;
+                if (allRecovered) {
+                    INFO_RELEASE("restoreGates requestPartitions directly after recovery loop");
+                    inputGate->RequestPartitions();
                 }
-
-                INFO_RELEASE("restoreGates requestPartitions directly after recovery loop");
-                inputGate->RequestPartitions();
+            }
+            if (!allRecovered) {
+                INFO_RELEASE("restoreGates: some recovered channels are not fully consumed yet");
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
         } while (!allRecovered);
 
@@ -386,7 +389,9 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller* controller)
             if (--numberOfInnerRecover == 0) {
                 mailboxProcessor_->suspend();
             }
-            return;
+            // Break so the remaining gates are polled before availability check;
+            // returning here makes the mailbox loop spin forever.
+            break;
         case DataInputStatus::END_OF_RECOVERY: return;
         case DataInputStatus::END_OF_DATA: EndData(StopMode::DRAIN); return;
         case DataInputStatus::NOT_PROCESSED: return;
