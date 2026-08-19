@@ -1,3 +1,14 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -67,6 +78,52 @@ public:
     MOCK_METHOD(void, cleanup, (), (override));
 };
 
+class EmptySaveHooks : public omnistream::VectorBatchSaveHooks {
+public:
+    std::vector<omnistream::VectorBatchSaveStateContext> buildSaveStateContexts(
+        FullSnapshotResources&, const omnistream::VectorBatchSavePlan&) override
+    {
+        return {};
+    }
+
+    template <typename Emit>
+    void convertKVRowData(
+        const KeyValueStateIterator::CurrentEntry&,
+        const omnistream::VectorBatchSaveStateContext&,
+        const omnistream::VectorBatchSavePlan&,
+        Emit&&)
+    {
+    }
+};
+
+class PassThroughSaveHooks : public omnistream::VectorBatchSaveHooks {
+public:
+    explicit PassThroughSaveHooks(std::shared_ptr<omnistream::VectorBatchSaveStateContext> context)
+        : context_(std::move(context))
+    {
+    }
+
+    std::vector<omnistream::VectorBatchSaveStateContext> buildSaveStateContexts(
+        FullSnapshotResources&, const omnistream::VectorBatchSavePlan&) override
+    {
+        std::vector<omnistream::VectorBatchSaveStateContext> result;
+        result.push_back(std::move(*context_));
+        return result;
+    }
+
+    template <typename Emit>
+    void convertKVRowData(
+        const KeyValueStateIterator::CurrentEntry&,
+        const omnistream::VectorBatchSaveStateContext&,
+        const omnistream::VectorBatchSavePlan&,
+        Emit&&)
+    {
+    }
+
+private:
+    std::shared_ptr<omnistream::VectorBatchSaveStateContext> context_;
+};
+
 // ============================================================================
 // Test fixture
 // ============================================================================
@@ -119,23 +176,7 @@ TEST_F(VectorBatchSaveFlowTest, ExecuteSaveFailsWhenIteratorIsNull)
     plan.targetMetaInfos = {makeMetaInfo("testState")};
     plan.mainStateIds = {0};
 
-    class MinimalHooks : public omnistream::VectorBatchSaveHooks {
-    public:
-        std::vector<omnistream::VectorBatchSaveStateContext> buildSaveStateContexts(
-            FullSnapshotResources&, const omnistream::VectorBatchSavePlan&) override
-        {
-            return {};
-        }
-        void convertKVRowData(
-            const KeyValueStateIterator::CurrentEntry&,
-            const omnistream::VectorBatchSaveStateContext&,
-            const omnistream::VectorBatchSavePlan&,
-            std::function<void(omnistream::ConvertedEntry)>) override
-        {
-        }
-    };
-
-    MinimalHooks hooks;
+    EmptySaveHooks hooks;
     MockFullSnapshotResources resources;
     EXPECT_CALL(resources, createKVStateIterator()).WillOnce(Return(nullptr));
 
@@ -157,25 +198,10 @@ TEST_F(VectorBatchSaveFlowTest, ExecuteSaveFailsWhenKvStateIdOutOfRange)
     plan.targetMetaInfos = {makeMetaInfo("testState")};
     plan.mainStateIds = {0};
 
-    class EmptyCtxHooks : public omnistream::VectorBatchSaveHooks {
-    public:
-        std::vector<omnistream::VectorBatchSaveStateContext> buildSaveStateContexts(
-            FullSnapshotResources&, const omnistream::VectorBatchSavePlan&) override
-        {
-            return {};
-        }
-        void convertKVRowData(
-            const KeyValueStateIterator::CurrentEntry&,
-            const omnistream::VectorBatchSaveStateContext&,
-            const omnistream::VectorBatchSavePlan&,
-            std::function<void(omnistream::ConvertedEntry)>) override
-        {
-        }
-    };
-
-    EmptyCtxHooks hooks;
+    EmptySaveHooks hooks;
     MockFullSnapshotResources resources;
 
+    // 有效迭代器，entry.kvStateId = 0
     auto mockIterator = std::make_shared<NiceMock<MockKeyValueStateIterator>>();
     const auto key = std::vector<int8_t>{0x10, 0x20};
     const auto value = std::vector<int8_t>{0x01};
@@ -187,12 +213,14 @@ TEST_F(VectorBatchSaveFlowTest, ExecuteSaveFailsWhenKvStateIdOutOfRange)
     entry.newKeyGroup = false;
     entry.newKeyValueState = false;
 
+    // 进入循环后 getContext 抛出异常，catch 块中会调用 close()，但 isValid 只被调用一次
     EXPECT_CALL(*mockIterator, isValid()).WillOnce(Return(true));
     EXPECT_CALL(*mockIterator, current()).WillRepeatedly(ReturnRef(entry));
     EXPECT_CALL(*mockIterator, next()).Times(0);
     EXPECT_CALL(*mockIterator, close()).Times(1);
     EXPECT_CALL(resources, createKVStateIterator()).WillOnce(Return(mockIterator));
 
+    // buildSaveStateContexts 返回空数组，kvStateId=0 超出范围
     EXPECT_THROW(
         omnistream::VectorBatchSaveFlow::executeSave(hooks, plan, stream, offsets, resources, ""), std::runtime_error);
 }
@@ -211,34 +239,13 @@ TEST_F(VectorBatchSaveFlowTest, ExecuteSavePassesThroughKvStateEntry)
     plan.targetMetaInfos = {makeMetaInfo("testState")};
     plan.mainStateIds = {0};
 
+    // 为 kvStateId=0 提供有效上下文
     auto ctx = std::make_shared<omnistream::VectorBatchSaveStateContext>();
     ctx->writable = true;
     ctx->mappedKvStateId = 0;
     ctx->stateType = omnistream::VectorBatchStateType::KV;
 
-    class PassThroughHooks : public omnistream::VectorBatchSaveHooks {
-    public:
-        explicit PassThroughHooks(std::shared_ptr<omnistream::VectorBatchSaveStateContext> ctx) : ctx_(std::move(ctx))
-        {
-        }
-        std::vector<omnistream::VectorBatchSaveStateContext> buildSaveStateContexts(
-            FullSnapshotResources&, const omnistream::VectorBatchSavePlan&) override
-        {
-            std::vector<omnistream::VectorBatchSaveStateContext> result;
-            result.push_back(std::move(*ctx_));
-            return result;
-        }
-        void convertKVRowData(
-            const KeyValueStateIterator::CurrentEntry&,
-            const omnistream::VectorBatchSaveStateContext&,
-            const omnistream::VectorBatchSavePlan&,
-            std::function<void(omnistream::ConvertedEntry)>) override
-        {
-        }
-        std::shared_ptr<omnistream::VectorBatchSaveStateContext> ctx_;
-    };
-
-    PassThroughHooks hooks(ctx);
+    PassThroughSaveHooks hooks(ctx);
     MockFullSnapshotResources resources;
 
     auto mockIterator = std::make_shared<NiceMock<MockKeyValueStateIterator>>();
@@ -259,6 +266,7 @@ TEST_F(VectorBatchSaveFlowTest, ExecuteSavePassesThroughKvStateEntry)
     EXPECT_CALL(resources, createKVStateIterator()).WillOnce(Return(mockIterator));
     EXPECT_CALL(*bridge_, WriteSavepointOutputStreamDirect(_, _, _)).Times(testing::AtLeast(0));
 
+    // 正常执行不应抛出异常
     EXPECT_NO_THROW(omnistream::VectorBatchSaveFlow::executeSave(hooks, plan, stream, offsets, resources, ""));
 }
 
@@ -274,42 +282,21 @@ TEST_F(VectorBatchSaveFlowTest, ExecuteSaveSkipsNonMainStateEntries)
 
     omnistream::VectorBatchSavePlan plan;
     plan.targetMetaInfos = {makeMetaInfo("testState")};
-    plan.mainStateIds = {0};
+    plan.mainStateIds = {0}; // 只关心 kvStateId=0
 
     auto ctx = std::make_shared<omnistream::VectorBatchSaveStateContext>();
     ctx->writable = true;
     ctx->mappedKvStateId = 0;
     ctx->stateType = omnistream::VectorBatchStateType::KV;
 
-    class PassThroughHooks : public omnistream::VectorBatchSaveHooks {
-    public:
-        explicit PassThroughHooks(std::shared_ptr<omnistream::VectorBatchSaveStateContext> ctx) : ctx_(std::move(ctx))
-        {
-        }
-        std::vector<omnistream::VectorBatchSaveStateContext> buildSaveStateContexts(
-            FullSnapshotResources&, const omnistream::VectorBatchSavePlan&) override
-        {
-            std::vector<omnistream::VectorBatchSaveStateContext> result;
-            result.push_back(std::move(*ctx_));
-            return result;
-        }
-        void convertKVRowData(
-            const KeyValueStateIterator::CurrentEntry&,
-            const omnistream::VectorBatchSaveStateContext&,
-            const omnistream::VectorBatchSavePlan&,
-            std::function<void(omnistream::ConvertedEntry)>) override
-        {
-        }
-        std::shared_ptr<omnistream::VectorBatchSaveStateContext> ctx_;
-    };
-
-    PassThroughHooks hooks(ctx);
+    PassThroughSaveHooks hooks(ctx);
     MockFullSnapshotResources resources;
 
     auto mockIterator = std::make_shared<NiceMock<MockKeyValueStateIterator>>();
     const auto key = std::vector<int8_t>{0x10, 0x20};
     const auto value = std::vector<int8_t>{0x01};
 
+    // 第一个 entry：kvStateId=1（非 mainStateId），第二个 entry：kvStateId=0（mainStateId）
     KeyValueStateIterator::CurrentEntry entry1;
     entry1.key = ByteView(key.data(), key.size());
     entry1.value = ByteView(value.data(), value.size());
@@ -326,7 +313,9 @@ TEST_F(VectorBatchSaveFlowTest, ExecuteSaveSkipsNonMainStateEntries)
     entry2.newKeyGroup = false;
     entry2.newKeyValueState = false;
 
+    // 三次 isValid：true, true, false
     EXPECT_CALL(*mockIterator, isValid()).WillOnce(Return(true)).WillOnce(Return(true)).WillOnce(Return(false));
+    // 第一次 current() 返回 entry1（跳过），第二次返回 entry2（处理）
     EXPECT_CALL(*mockIterator, current()).WillOnce(ReturnRef(entry1)).WillOnce(ReturnRef(entry2));
     EXPECT_CALL(*mockIterator, next()).Times(2);
     EXPECT_CALL(*mockIterator, close()).Times(1);

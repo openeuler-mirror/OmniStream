@@ -12,7 +12,6 @@
 #pragma once
 
 #include <cstdint>
-#include <functional>
 #include <vector>
 
 #include "common.h"
@@ -62,14 +61,6 @@ public:
     {
         return {};
     }
-
-    // 执行单条 source entry 的完整 VB 转换流程。
-    // Adaptor 解析 comboId 列表、解引用 RowData、编码 key/value，并通过 output 回调输出 0-N 条结果。
-    virtual void convertKVRowData(
-        const KeyValueStateIterator::CurrentEntry& entry,
-        const VectorBatchSaveStateContext& context,
-        const VectorBatchSavePlan& plan,
-        std::function<void(ConvertedEntry)> output) = 0;
 };
 
 } // namespace omnistream

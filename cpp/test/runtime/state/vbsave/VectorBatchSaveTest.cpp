@@ -124,14 +124,6 @@ public:
     {
         return std::vector<int8_t>(entry.value.begin(), entry.value.end());
     }
-
-    void convertKVRowData(
-        const KeyValueStateIterator::CurrentEntry& /*entry*/,
-        const omnistream::VectorBatchSaveStateContext& /*context*/,
-        const omnistream::VectorBatchSavePlan& /*plan*/,
-        std::function<void(omnistream::ConvertedEntry)> /*output*/) override
-    {
-    }
 };
 
 // 不覆盖 encodeFlinkLogicalValue / parseVectorBatchReference 的最小模拟类，
@@ -142,14 +134,6 @@ public:
         FullSnapshotResources& /*snapshotResources*/, const omnistream::VectorBatchSavePlan& /*plan*/) override
     {
         return {};
-    }
-
-    void convertKVRowData(
-        const KeyValueStateIterator::CurrentEntry& /*entry*/,
-        const omnistream::VectorBatchSaveStateContext& /*context*/,
-        const omnistream::VectorBatchSavePlan& /*plan*/,
-        std::function<void(omnistream::ConvertedEntry)> /*output*/) override
-    {
     }
 };
 

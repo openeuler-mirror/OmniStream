@@ -26,6 +26,7 @@
 #include "runtime/state/vbsave/VectorBatchSaveFlow.h"
 #include "runtime/state/vbsave/VectorBatchSaveTools.h"
 #include "state/bridge/OmniTaskBridge.h"
+#include "table/data/util/VectorBatchUtil.h"
 #include "table/types/logical/RowType.h"
 
 namespace omnistream {
@@ -229,11 +230,12 @@ std::vector<int8_t> DeduplicateSavepointAdaptor::encodeFlinkLogicalValue(
     return VectorBatchSaveTools::serializeRowData(&row, context.valueSerializer);
 }
 
+template <typename Emit>
 void DeduplicateSavepointAdaptor::convertKVRowData(
     const KeyValueStateIterator::CurrentEntry& entry,
     const VectorBatchSaveStateContext& context,
     const VectorBatchSavePlan& plan,
-    std::function<void(ConvertedEntry)> output)
+    Emit&& output)
 {
     // Deduplicate 为 1:1 映射，解析 comboId、解引用 VB RowData、编码后输出
     auto comboId = parseVectorBatchReference(ByteView(entry.value.data(), entry.value.size()), context, plan);

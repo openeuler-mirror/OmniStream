@@ -87,15 +87,8 @@ void AppendOnlyTopNSavepointAdaptor::save(
     FullSnapshotResources& snapshotResources,
     std::string keySerializer)
 {
-    INFO_RELEASE(
-        "AppendOnlyTopNSavepointAdaptor::save - start, sourceMetaCount="
-        << snapshotResources.getMetaInfoSnapshots().size());
-
     auto plan = buildTopNSavePlan(snapshotResources);
-    INFO_RELEASE("AppendOnlyTopNSavepointAdaptor::save - plan built, targetMetaCount=" << plan.targetMetaInfos.size());
-
     VectorBatchSaveFlow::executeSave(*this, plan, stream, keyGroupOffsets, snapshotResources, std::move(keySerializer));
-    INFO_RELEASE("AppendOnlyTopNSavepointAdaptor::save complete");
 }
 
 void AppendOnlyTopNSavepointAdaptor::restore(
@@ -146,11 +139,12 @@ std::vector<VectorBatchSaveStateContext> AppendOnlyTopNSavepointAdaptor::buildSa
     return contexts;
 }
 
+template <typename Emit>
 void AppendOnlyTopNSavepointAdaptor::convertKVRowData(
     const KeyValueStateIterator::CurrentEntry& entry,
     const VectorBatchSaveStateContext& context,
     const VectorBatchSavePlan& plan,
-    std::function<void(ConvertedEntry)> output)
+    Emit&& output)
 {
     // TopN 状态：主表 value 是 comboId 列表，每个 comboId 对应一个 Flink MapState entry
     std::vector<int64_t> comboIds = deserializeComboIdList(entry.value);

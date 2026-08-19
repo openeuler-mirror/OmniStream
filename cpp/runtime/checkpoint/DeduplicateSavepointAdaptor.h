@@ -96,11 +96,12 @@ public:
 
     // ===== VectorBatchSaveHooks: convertKVRowData =====
     // 解析 comboId → 解引用 VB RowData → 编码 key/value → 输出 ConvertedEntry（1:1 映射）。
+    template <typename Emit>
     void convertKVRowData(
         const KeyValueStateIterator::CurrentEntry& entry,
         const VectorBatchSaveStateContext& context,
         const VectorBatchSavePlan& plan,
-        std::function<void(ConvertedEntry)> output) override;
+        Emit&& output);
 
     int batchSize(int kvStateId) const
     {
@@ -143,4 +144,5 @@ private:
     // 恢复方向列类型（从 operatorDescription 解析，prepareForRestore 缓存）
     std::vector<omniruntime::type::DataTypeId> restoreColumnTypes_;
 };
+
 } // namespace omnistream
