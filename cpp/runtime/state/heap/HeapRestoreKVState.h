@@ -259,44 +259,27 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
             "HeapRestoreKVState: null MAP value is not supported for '" + stateInfo_.stateName + "'");
     }
 
-    if (mapKeyId == BackendDataType::XXHASH128_BK && mapValId == BackendDataType::TUPLE_INT32_INT64) {
-        using UK = XXH128_hash_t;
-        using UV = std::tuple<int32_t, int64_t>;
+    if (mapKeyId == BackendDataType::SHARED_ROW_BK && mapValId == BackendDataType::TUPLE_INT32_INT32) {
+        using UK = std::shared_ptr<RowData>;
+        using UV = std::tuple<int32_t, int32_t>;
         auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<UK, UV>*>*>(
             stateInfo_.mainTablePtr);
 
-        std::unique_ptr<UK> ukPtr(static_cast<UK*>(mapKeySer->deserialize(keyInput)));
-        UK uk = *ukPtr;
+        auto* rawUk = static_cast<RowData*>(mapKeySer->deserialize(keyInput));
+        if (rawUk == nullptr) {
+            throw std::runtime_error("HeapRestoreKVState: deserialized null shared row map key");
+        }
+        UK uk(static_cast<RowData*>(rawUk->copy()));
+        if (!mapKeySer->isReusable()) {
+            delete rawUk;
+        }
         std::unique_ptr<UV> uvPtr(static_cast<UV*>(mapValSer->deserialize(valInput)));
-        UV uv = *uvPtr;
-
         auto* kvMap = table->get(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs));
         if (kvMap == nullptr) {
             kvMap = new emhash7::HashMap<UK, UV>();
-            (*kvMap)[uk] = uv;
             table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), kvMap);
-        } else {
-            (*kvMap)[uk] = uv;
         }
-    } else if (mapKeyId == BackendDataType::XXHASH128_BK && mapValId == BackendDataType::TUPLE_INT32_INT32_INT64) {
-        using UK = XXH128_hash_t;
-        using UV = std::tuple<int32_t, int32_t, int64_t>;
-        auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<UK, UV>*>*>(
-            stateInfo_.mainTablePtr);
-
-        std::unique_ptr<UK> ukPtr(static_cast<UK*>(mapKeySer->deserialize(keyInput)));
-        UK uk = *ukPtr;
-        std::unique_ptr<UV> uvPtr(static_cast<UV*>(mapValSer->deserialize(valInput)));
-        UV uv = *uvPtr;
-
-        auto* kvMap = table->get(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs));
-        if (kvMap == nullptr) {
-            kvMap = new emhash7::HashMap<UK, UV>();
-            (*kvMap)[uk] = uv;
-            table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), kvMap);
-        } else {
-            (*kvMap)[uk] = uv;
-        }
+        (*kvMap)[std::move(uk)] = *uvPtr;
     } else if (mapKeyId == BackendDataType::INT_BK && mapValId == BackendDataType::INT_BK) {
         using UK = int;
         using UV = int;
@@ -403,6 +386,30 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
             table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), kvMap);
         } else {
             (*kvMap)[uk] = uv;
+        }
+    } else if (mapKeyId == BackendDataType::SHARED_ROW_BK && mapValId == BackendDataType::INT_BK) {
+        using UK = std::shared_ptr<RowData>;
+        using UV = int32_t;
+        auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<UK, UV>*>*>(
+            stateInfo_.mainTablePtr);
+
+        auto* rawUk = static_cast<RowData*>(mapKeySer->deserialize(keyInput));
+        if (rawUk == nullptr) {
+            throw std::runtime_error("HeapRestoreKVState: deserialized null shared row map key");
+        }
+        UK uk(static_cast<RowData*>(rawUk->copy()));
+        if (!mapKeySer->isReusable()) {
+            delete rawUk;
+        }
+        std::unique_ptr<UV> uvPtr(static_cast<UV*>(mapValSer->deserialize(valInput)));
+        UV uv = *uvPtr;
+        auto* kvMap = table->get(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs));
+        if (kvMap == nullptr) {
+            kvMap = new emhash7::HashMap<UK, UV>();
+            (*kvMap)[std::move(uk)] = uv;
+            table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), kvMap);
+        } else {
+            (*kvMap)[std::move(uk)] = uv;
         }
     } else if (mapKeyId == BackendDataType::ROW_BK && mapValId == BackendDataType::ROW_BK) {
         using UK = RowData*;

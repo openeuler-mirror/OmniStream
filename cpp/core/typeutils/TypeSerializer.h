@@ -18,13 +18,15 @@
 enum class BackendDataType {
     BIGINT_BK,
     INT_BK,
-    XXHASH128_BK,            // For Join
-    TUPLE_INT32_INT64,       // For Join
-    TUPLE_INT32_INT32_INT64, // For OuterJoin
+    XXHASH128_BK,            // todo: maybe could be deleted, this is an unused type
+    TUPLE_INT32_INT64,       // todo: maybe could be deleted, this is an unused type
+    TUPLE_INT32_INT32,       // std::tuple<int32_t, int32_t>
+    TUPLE_INT32_INT32_INT64, // todo: maybe could be deleted, this is an unused type
     VOID_NAMESPACE_BK,
     VARCHAR_BK,
     TIME_WINDOW_BK,
-    ROW_BK,
+    ROW_BK,           // RowData*
+    SHARED_ROW_BK,    // std::shared_ptr<RowData>
     TUPLE_OBJ_OBJ_BK, // for Datastream Tuple
     OBJECT_BK,
     LONG_BK,
@@ -44,10 +46,12 @@ inline std::ostream& operator<<(std::ostream& os, const BackendDataType& type)
         case BackendDataType::XXHASH128_BK: return os << "XXHASH128_BK";
         case BackendDataType::TUPLE_INT32_INT64: return os << "TUPLE_INT32_INT64";
         case BackendDataType::TUPLE_INT32_INT32_INT64: return os << "TUPLE_INT32_INT32_INT64";
+        case BackendDataType::TUPLE_INT32_INT32: return os << "TUPLE_INT32_INT32";
         case BackendDataType::VOID_NAMESPACE_BK: return os << "VOID_NAMESPACE_BK";
         case BackendDataType::VARCHAR_BK: return os << "VARCHAR_BK";
         case BackendDataType::TIME_WINDOW_BK: return os << "TIME_WINDOW_BK";
         case BackendDataType::ROW_BK: return os << "ROW_BK";
+        case BackendDataType::SHARED_ROW_BK: return os << "SHARED_ROW_BK";
         case BackendDataType::TUPLE_OBJ_OBJ_BK: return os << "TUPLE_OBJ_OBJ_BK";
         case BackendDataType::OBJECT_BK: return os << "OBJECT_BK";
         case BackendDataType::LONG_BK: return os << "LONG_BK";

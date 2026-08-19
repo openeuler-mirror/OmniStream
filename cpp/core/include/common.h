@@ -147,6 +147,17 @@ std::vector<uint8_t> Base64_decode(const std::string& encoded_string);
         std::cout.flush();                                                                                           \
     } while (false)
 
+#define WARN_RELEASE(msg)                                                                                            \
+    do {                                                                                                             \
+        auto now = std::chrono::system_clock::now();                                                                 \
+        time_t currentTime = std::chrono::system_clock::to_time_t(now);                                              \
+        char timeBuffer[80];                                                                                         \
+        strftime(timeBuffer, sizeof(timeBuffer), "%Y-%m-%d %H:%M:%S", localtime(&currentTime));                      \
+        std::cout << "[" << "WARN" << "] [ #" << std::this_thread::get_id() << "] " << timeBuffer << "  :" << ">>>>" \
+                  << msg << std::endl;                                                                               \
+        std::cout.flush();                                                                                           \
+    } while (false)
+
 #define ERROR_RELEASE(msg)                                                                                            \
     do {                                                                                                              \
         auto now = std::chrono::system_clock::now();                                                                  \

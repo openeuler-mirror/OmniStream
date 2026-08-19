@@ -15,7 +15,7 @@
 #include <vector>
 #include <arm_sve.h>
 
-#include "table/runtime/operators/join/AbstractStreamingJoinOperator.h"
+#include "table/runtime/operators/join/stream/AbstractStreamingJoinOperator.h"
 #include "table/data/JoinedRowData.h"
 #include "table/data/GenericRowData.h"
 #include "table/data/util/RowDataUtil.h"

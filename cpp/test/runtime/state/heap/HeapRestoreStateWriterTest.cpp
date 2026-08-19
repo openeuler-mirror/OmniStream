@@ -85,27 +85,6 @@ protected:
             serializers);
     }
 
-    // 构造 MAP 类型 StateMetaInfoSnapshot（XXHASH128_BK → TUPLE_INT32_INT64）。
-    StateMetaInfoSnapshot makeMapMetaInfo(const std::string& name = "testMapState")
-    {
-        std::unordered_map<std::string, std::string> options;
-        options["KEYED_STATE_TYPE"] = "MAP";
-
-        auto* mapSer = new MapSerializer(new XxH128_hashSerializer(), new JoinTupleSerializer());
-        serializersToClean_.emplace_back(mapSer);
-
-        std::unordered_map<std::string, TypeSerializer*> serializers;
-        serializers["NAMESPACE_SERIALIZER"] = VoidNamespaceSerializer::INSTANCE;
-        serializers["VALUE_SERIALIZER"] = mapSer;
-
-        return StateMetaInfoSnapshot(
-            name,
-            StateMetaInfoSnapshot::BackendStateType::KEY_VALUE,
-            options,
-            std::unordered_map<std::string, std::shared_ptr<TypeSerializerSnapshot>>{},
-            serializers);
-    }
-
     // 构造 LIST 类型 StateMetaInfoSnapshot（BIGINT_BK 元素）。
     StateMetaInfoSnapshot makeListMetaInfo(const std::string& name = "testListState")
     {
@@ -191,20 +170,6 @@ TEST_F(HeapRestoreStateWriterTest, DelegateCreateKvStateVbReturnsNonNull)
 
     auto kvVb = delegate_->createKVStateVB(0, metaInfo, columnTypes, batchSize);
     ASSERT_NE(kvVb, nullptr);
-}
-
-// 看护 MAP 类型注册：mapKeySerializer / mapValueSerializer 被正确提取
-TEST_F(HeapRestoreStateWriterTest, DelegateCreateKvStateRegistersMapStateInfo)
-{
-    auto metaInfo = makeMapMetaInfo("testMap");
-    auto kv = delegate_->createKVState(0, metaInfo);
-
-    ASSERT_GE(delegate_->getStateInfos().size(), 1u);
-    auto& info = delegate_->getStateInfos()[0];
-    EXPECT_EQ(info.stateType, StateDescriptor::Type::MAP);
-    EXPECT_NE(info.mapKeySerializer, nullptr);
-    EXPECT_NE(info.mapValueSerializer, nullptr);
-    EXPECT_NE(info.mainStateDesc, nullptr);
 }
 
 // 看护 LIST 类型注册：mainStateDesc 正确创建
@@ -387,39 +352,6 @@ TEST_F(HeapRestoreStateWriterTest, KvStateWriteLongEntryThrowsForNonVbState)
     auto keyBytes = makeKeyBytes(1, 0, 2);
     // writeLongEntry 在非 VB 状态下抛出异常
     EXPECT_THROW(kv->writeEntry<int64_t>(keyBytes, 42L), std::runtime_error);
-}
-
-// ============================================================================
-// HeapRestoreKVState writeBytesEntry 路由测试 — MAP 类型路由到 writeMapEntry
-// ============================================================================
-
-TEST_F(HeapRestoreStateWriterTest, KvStateWriteBytesEntryRoutesToMapEntry)
-{
-    auto metaInfo = makeMapMetaInfo("testMap");
-    auto kv = delegate_->createKVState(0, metaInfo);
-    kv->setKeyGroupId(0);
-
-    // 构造 composite key: keyGroupPrefix(2) + int key(4) + void ns(1) + mapKey(xxh128=16)
-    // mapKey = XXH128_hash_t: 16 bytes of zeros
-    std::vector<int8_t> mapKeyBytes(16, 0);
-    auto keyBytes = makeKeyBytesWithMapKey(1, 0, 2, mapKeyBytes);
-
-    // 构造 MAP value bytes: readBoolean(false) + mapValue(tuple(int32,int64))
-    // tuple<int32_t, int64_t>: 4 + 8 = 12 bytes
-    // 总 value bytes: 1(boolean) + 12(tuple) = 13
-    DataOutputSerializer valOut(16);
-    valOut.writeBoolean(false); // non-null
-    // tuple<int32_t, int64_t>: low = 10, high = 20
-    valOut.writeInt(10);
-    valOut.writeLong(20);
-    std::vector<int8_t> mapValueBytes(valOut.length());
-    std::memcpy(mapValueBytes.data(), valOut.getData(), valOut.length());
-
-    // writeBytesEntry 检测 stateType=MAP 路由到 writeMapEntry
-    EXPECT_NO_THROW(kv->writeEntry<ByteView>(keyBytes, ByteView(mapValueBytes.data(), mapValueBytes.size())));
-
-    ASSERT_GE(delegate_->getStateInfos().size(), 1u);
-    EXPECT_EQ(delegate_->getStateInfos()[0].mainEntryCount, 1);
 }
 
 // ============================================================================

@@ -105,18 +105,16 @@ public:
                     "~HeapKeyedStateBackend(), desc->getType():"
                     << static_cast<int>(desc->getType()) << ", desc->getKeyDataId():" << static_cast<int>(keyId)
                     << ", desc->getValueDataId():" << static_cast<int>(valueId));
-                if (keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT64) {
-                    auto stateTable = reinterpret_cast<CopyOnWriteStateTable<
-                        K,
-                        VoidNamespace,
-                        emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int64_t>>*>*>(stateTablePtr);
+                if (keyId == BackendDataType::SHARED_ROW_BK && valueId == BackendDataType::INT_BK) {
+                    auto* stateTable = reinterpret_cast<
+                        CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<std::shared_ptr<RowData>, int32_t>*>*>(
+                        stateTablePtr);
                     delete stateTable;
-                } else if (
-                    keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT32_INT64) {
-                    auto stateTable = reinterpret_cast<CopyOnWriteStateTable<
+                } else if (keyId == BackendDataType::SHARED_ROW_BK && valueId == BackendDataType::TUPLE_INT32_INT32) {
+                    auto* stateTable = reinterpret_cast<CopyOnWriteStateTable<
                         K,
                         VoidNamespace,
-                        emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int32_t, int64_t>>*>*>(stateTablePtr);
+                        emhash7::HashMap<std::shared_ptr<RowData>, std::tuple<int32_t, int32_t>>*>*>(stateTablePtr);
                     delete stateTable;
                 } else if (
                     (keyId == BackendDataType::OBJECT_BK || keyId == BackendDataType::POJO_BK) &&
@@ -367,11 +365,13 @@ template <typename K>
 uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(
     TypeSerializer* namespaceSerializer, StateDescriptor* stateDesc)
 {
-    if (stateDesc->getType() == StateDescriptor::Type::MAP) {
+    auto stateDescType = stateDesc->getType();
+    if (stateDescType == StateDescriptor::Type::MAP) {
         auto keyId = stateDesc->getKeyDataId();
         auto valueId = stateDesc->getValueDataId();
 
-        STD_LOG("stateType_ is StateDescriptor::Type::MAP " << ", keyId " << keyId_ << " , value id " << valueId_);
+        INFO_RELEASE(
+            "stateDescType is StateDescriptor::Type::MAP " << ", keyId " << keyId << " , value id " << valueId);
 
         if (namespaceSerializer->getBackendId() != BackendDataType::VOID_NAMESPACE_BK) {
             NOT_IMPL_EXCEPTION;
@@ -389,16 +389,18 @@ uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(
         } else if (keyId == BackendDataType::ROW_BK && valueId == BackendDataType::INT_BK) {
             return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, RowData*, int32_t>(
                 namespaceSerializer, stateDesc);
+        } else if (keyId == BackendDataType::SHARED_ROW_BK && valueId == BackendDataType::INT_BK) {
+            return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, std::shared_ptr<RowData>, int32_t>(
+                namespaceSerializer, stateDesc);
         } else if (keyId == BackendDataType::ROW_BK && valueId == BackendDataType::ROW_BK) {
             return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, RowData*, RowData*>(
                 namespaceSerializer, stateDesc);
-        } else if (keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT64) {
+        } else if (keyId == BackendDataType::ROW_BK && valueId == BackendDataType::TUPLE_INT32_INT32) {
+            return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, RowData*, std::tuple<int32_t, int32_t>>(
+                namespaceSerializer, stateDesc);
+        } else if (keyId == BackendDataType::SHARED_ROW_BK && valueId == BackendDataType::TUPLE_INT32_INT32) {
             return (uintptr_t)
-                createOrUpdateInternalMapState<VoidNamespace, XXH128_hash_t, std::tuple<int32_t, int64_t>>(
-                    namespaceSerializer, stateDesc);
-        } else if (keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT32_INT64) {
-            return (uintptr_t)
-                createOrUpdateInternalMapState<VoidNamespace, XXH128_hash_t, std::tuple<int32_t, int32_t, int64_t>>(
+                createOrUpdateInternalMapState<VoidNamespace, std::shared_ptr<RowData>, std::tuple<int32_t, int32_t>>(
                     namespaceSerializer, stateDesc);
         } else if (keyId == BackendDataType::TIME_WINDOW_BK && valueId == BackendDataType::TIME_WINDOW_BK) {
             return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, TimeWindow, TimeWindow>(
@@ -418,9 +420,9 @@ uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(
         } else {
             NOT_IMPL_EXCEPTION;
         }
-    } else if (stateDesc->getType() == StateDescriptor::Type::VALUE) {
-        // For Agg and JoinKeyContainsUniqueKeys
+    } else if (stateDescType == StateDescriptor::Type::VALUE) {
         auto dataId = stateDesc->getBackendId();
+        INFO_RELEASE("stateDescType is StateDescriptor::Type::VALUE " << ", dataId " << dataId);
         if (namespaceSerializer->getBackendId() == BackendDataType::BIGINT_BK && dataId == BackendDataType::ROW_BK) {
             return (uintptr_t)createOrUpdateInternalValueState<int64_t, RowData*>(namespaceSerializer, stateDesc);
         } else if (
@@ -446,8 +448,9 @@ uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(
         } else {
             NOT_IMPL_EXCEPTION;
         }
-    } else if (stateDesc->getType() == StateDescriptor::Type::LIST) {
+    } else if (stateDescType == StateDescriptor::Type::LIST) {
         auto dataId = stateDesc->getBackendId();
+        INFO_RELEASE("stateDescType is StateDescriptor::Type::LIST " << ", dataId " << dataId);
         if (namespaceSerializer->getBackendId() == BackendDataType::BIGINT_BK && dataId == BackendDataType::BIGINT_BK) {
             return (uintptr_t)createOrUpdateInternalListState<int64_t, int64_t>(namespaceSerializer, stateDesc);
         } else if (
@@ -458,7 +461,7 @@ uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(
             NOT_IMPL_EXCEPTION;
         }
     } else {
-        NOT_IMPL_EXCEPTION;
+        THROW_LOGIC_EXCEPTION("unknown stateDescType: " << static_cast<int>(stateDescType));
     }
 }
 
