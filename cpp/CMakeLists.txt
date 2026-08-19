@@ -9,9 +9,32 @@ set(CMAKE_CXX_STANDARD 17)
 if(DEFINED ENV{OMNI_HOME})
     set(CMAKE_INSTALL_PREFIX $ENV{OMNI_HOME} CACHE PATH "Install path prefix" FORCE)
 endif()
-option(WITH_OMNISTATESTORE "Enable to build with OmniStateStore" OFF)
+option(WITH_OMNISTATESTORE "Enable to build with OmniStateStore" ON)
 add_library(project_config INTERFACE)
 if(WITH_OMNISTATESTORE)
+    set(OMNISTATESTORE_ROOT "" CACHE PATH "OmniStateStore source or installation directory")
+    set(_OMNISTATESTORE_SEARCH_PATHS
+            "${CMAKE_SOURCE_DIR}/../3rdparty/OmniStateStore"
+            "${CMAKE_SOURCE_DIR}/../../OmniStateStore")
+    if(OMNISTATESTORE_ROOT)
+        list(PREPEND _OMNISTATESTORE_SEARCH_PATHS "${OMNISTATESTORE_ROOT}")
+    endif()
+    if(DEFINED ENV{OMNISTATESTORE_ROOT})
+        list(PREPEND _OMNISTATESTORE_SEARCH_PATHS "$ENV{OMNISTATESTORE_ROOT}")
+    endif()
+
+    find_path(OMNISTATESTORE_INCLUDE_DIR
+            NAMES boost_state_table.h
+            PATHS ${_OMNISTATESTORE_SEARCH_PATHS}
+            PATH_SUFFIXES src/core/include include)
+    if(NOT OMNISTATESTORE_INCLUDE_DIR)
+        message(FATAL_ERROR
+                "WITH_OMNISTATESTORE is enabled, but boost_state_table.h was not found. "
+                "Set OMNISTATESTORE_ROOT to the OmniStateStore source or installation directory.")
+    endif()
+
+    message(STATUS "OmniStateStore include directory: ${OMNISTATESTORE_INCLUDE_DIR}")
+    target_include_directories(project_config INTERFACE "${OMNISTATESTORE_INCLUDE_DIR}")
     target_compile_definitions(project_config INTERFACE WITH_OMNISTATESTORE)
 endif()
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/core/        DESTINATION include/core        FILES_MATCHING PATTERN "*.h")

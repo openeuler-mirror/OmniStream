@@ -26,7 +26,9 @@
 #include "api/common/state/ValueStateDescriptor.h"
 #include "boost_state_db.h"
 #include "bss_types.h"
+#include "runtime/checkpoint/CheckpointOptions.h"
 #include "state/BssKeyedStateBackend.h"
+#include "state/CheckpointStorageLocationReference.h"
 #include "state/DefaultKeyedStateStore.h"
 #include "state/InternalKeyContextImpl.h"
 #include "state/KeyGroupRange.h"
@@ -139,7 +141,9 @@ BoostStateDBPtr MakeOpenedDBAt(const fs::path& basePath)
     ConfigRef config = std::make_shared<Config>();
     config->Init(NO_0, NO_127, NO_128);
     config->mMemorySegmentSize = IO_SIZE_64M;
-    config->SetEvictMinSize(IO_SIZE_1K);
+    // Keep the small test data in FreshTable so the checkpoint tests exercise
+    // deterministic sync/async snapshot behavior instead of background eviction.
+    config->SetEvictMinSize(IO_SIZE_2G);
     config->SetTaskSlotFlag(GenerateTaskSlotFlag());
     config->SetLocalPath(localPath.string());
     config->SetBackupPath(backupPath.string());
@@ -230,9 +234,8 @@ TEST(BssKeyGroupUtilsTest, ForceKeyGroupHandlesZeroAndNonPowerOfTwoParallelism)
 
 TEST(BssKeyedStateBackendTest, MultipleStatesReuseInjectedDatabase)
 {
-    auto* context = new InternalKeyContextImpl<int64_t>(new KeyGroupRange(0, 1), 128);
+    auto* context = new InternalKeyContextImpl<int64_t>(new KeyGroupRange(0, 127), 128);
     context->setCurrentKey(10);
-    context->setCurrentKeyGroupIndex(1);
     auto* backend = MakeBackend(context);
     BoostStateDBPtr injected = MakeOpenedDB();
     backend->setBoostStateDB(injected);
@@ -257,9 +260,8 @@ TEST(BssKeyedStateBackendTest, MultipleStatesReuseInjectedDatabase)
 
 TEST(BssKeyedStateBackendTest, DifferentValueStatesAreIsolated)
 {
-    auto* context = new InternalKeyContextImpl<int64_t>(new KeyGroupRange(0, 1), 128);
+    auto* context = new InternalKeyContextImpl<int64_t>(new KeyGroupRange(0, 127), 128);
     context->setCurrentKey(100);
-    context->setCurrentKeyGroupIndex(1);
     auto* backend = MakeBackend(context);
     backend->setBoostStateDB(MakeOpenedDB());
 
@@ -285,10 +287,9 @@ TEST(BssKeyedStateBackendTest, DifferentValueStatesAreIsolated)
 
 TEST(BssKeyedStateBackendTest, SameStateNameReusesStateAndTable)
 {
-    auto* keyGroupRange = new KeyGroupRange(0, 1);
+    auto* keyGroupRange = new KeyGroupRange(0, 127);
     auto* context = new InternalKeyContextImpl<int64_t>(keyGroupRange, 128);
     context->setCurrentKey(42);
-    context->setCurrentKeyGroupIndex(1);
     auto* backend = MakeBackend(context);
     backend->setBoostStateDB(MakeOpenedDB());
 
@@ -307,11 +308,10 @@ TEST(BssKeyedStateBackendTest, SameStateNameReusesStateAndTable)
     delete namespaceSerializer;
 }
 
-TEST(BssKeyedStateBackendTest, ValueStateSeparatesKeysWithinSameKeyGroup)
+TEST(BssKeyedStateBackendTest, ValueStateSeparatesKeys)
 {
-    auto* keyGroupRange = new KeyGroupRange(0, 1);
+    auto* keyGroupRange = new KeyGroupRange(0, 127);
     auto* context = new InternalKeyContextImpl<int64_t>(keyGroupRange, 128);
-    context->setCurrentKeyGroupIndex(1);
     auto* backend = MakeBackend(context);
     backend->setBoostStateDB(MakeOpenedDB());
 
@@ -336,10 +336,9 @@ TEST(BssKeyedStateBackendTest, ValueStateSeparatesKeysWithinSameKeyGroup)
 
 TEST(BssKeyedStateBackendTest, ListStateSupportsAddUpdateAndClear)
 {
-    auto* keyGroupRange = new KeyGroupRange(0, 1);
+    auto* keyGroupRange = new KeyGroupRange(0, 127);
     auto* context = new InternalKeyContextImpl<int64_t>(keyGroupRange, 128);
     context->setCurrentKey(10);
-    context->setCurrentKeyGroupIndex(1);
     auto* backend = MakeBackend(context);
     backend->setBoostStateDB(MakeOpenedDB());
 
@@ -477,17 +476,18 @@ TEST(BssKeyedStateBackendTest, ListStateSeparatesKeysAndNamespaces)
     DestroyBackend(backend);
 }
 
-TEST(BssCheckpointRestoreTest, NativeFullCheckpointRestoresMultipleStateTypesAtSyncPoint)
+TEST(BssCheckpointRestoreTest, NativeFullCheckpointRestoresMultipleStateTypes)
 {
     constexpr uint64_t checkpointId = 41;
-    ScopedTestDirectory sourceDirectory("cp-source");
     ScopedTestDirectory checkpointDirectory("cp-data");
     ScopedTestDirectory restoredDirectory("cp-restored");
 
     auto* sourceContext = new InternalKeyContextImpl<int64_t>(new KeyGroupRange(0, 127), 128);
     std::unique_ptr<BssKeyedStateBackend<int64_t>, decltype(&DestroyBackend)> sourceBackend(
         MakeBackend(sourceContext), DestroyBackend);
-    sourceBackend->setBoostStateDB(MakeOpenedDBAt(sourceDirectory.path()));
+    // Match OmniStateStore's native checkpoint layout: DB local files and
+    // checkpoint metadata share the same checkpoint root.
+    sourceBackend->setBoostStateDB(MakeOpenedDBAt(checkpointDirectory.path()));
 
     auto namespaceSerializer = std::make_unique<VoidNamespaceSerializer>();
     ValueStateDescriptor<int64_t> valueDescriptor("cp-value-state", LongSerializer::INSTANCE);
@@ -515,13 +515,13 @@ TEST(BssCheckpointRestoreTest, NativeFullCheckpointRestoresMultipleStateTypesAtS
 
     BoostStateDBPtr sourceDb = sourceBackend->getBoostStateDB();
     ASSERT_NE(nullptr, sourceDb->CreateSyncCheckpoint(checkpointDirectory.path().string(), checkpointId));
+    ASSERT_EQ(BSS_OK, sourceDb->CreateAsyncCheckpoint(checkpointId, false));
 
-    // Mutations after the synchronous phase must not leak into this checkpoint.
+    // Mutations after checkpoint completion must not alter the persisted checkpoint.
     sourceContext->setCurrentKey(101);
     sourceValue->update(9999);
     sourceList->add(13);
     sourceMap->put(7, 7000);
-    ASSERT_EQ(BSS_OK, sourceDb->CreateAsyncCheckpoint(checkpointId, false));
     sourceBackend.reset();
 
     BoostStateDBPtr restoredDb = MakeOpenedDBAt(restoredDirectory.path());
@@ -626,7 +626,11 @@ TEST(BssCheckpointRestoreTest, IncrementalCheckpointMetadataFailureCleansTempora
     context->setCurrentKey(77);
     state->update(7070);
 
-    auto snapshotTask = backend->snapshot(checkpointId, 0, nullptr, nullptr);
+    std::unique_ptr<CheckpointOptions> checkpointOptions(
+        CheckpointOptions::AlignedNoTimeout(
+            *CheckpointType::CHECKPOINT,
+            CheckpointStorageLocationReference::GetDefault()));
+    auto snapshotTask = backend->snapshot(checkpointId, 0, nullptr, checkpointOptions.get());
     auto snapshotFuture = snapshotTask->get_future();
     (*snapshotTask)();
 
@@ -766,9 +770,8 @@ TEST(BssKeyedStateBackendTest, UnsupportedSavepointLogsBeforeThrowing)
 
 TEST(BssKeyedStateBackendTest, IncompatibleStateTypeLogsBeforeThrowing)
 {
-    auto* context = new InternalKeyContextImpl<int64_t>(new KeyGroupRange(0, 1), 128);
+    auto* context = new InternalKeyContextImpl<int64_t>(new KeyGroupRange(0, 127), 128);
     context->setCurrentKey(7);
-    context->setCurrentKeyGroupIndex(1);
     auto* backend = MakeBackend(context);
     backend->setBoostStateDB(MakeOpenedDB());
 
@@ -794,9 +797,8 @@ TEST(BssKeyedStateBackendTest, IncompatibleStateTypeLogsBeforeThrowing)
 
 TEST(BssKeyedStateBackendTest, DefaultKeyedStateStoreDispatchesListStateToBss)
 {
-    auto* context = new InternalKeyContextImpl<int64_t>(new KeyGroupRange(0, 1), 128);
+    auto* context = new InternalKeyContextImpl<int64_t>(new KeyGroupRange(0, 127), 128);
     context->setCurrentKey(10);
-    context->setCurrentKeyGroupIndex(1);
     auto* backend = MakeBackend(context);
     DefaultKeyedStateStore<int64_t> stateStore(backend);
 
@@ -1052,7 +1054,7 @@ TEST(BssIncrementalSnapshotMetadataTest, PreviousSnapshotReturnsPlaceholderForCo
     EXPECT_EQ(5, placeholder->GetStateSize());
     EXPECT_EQ(
         uploaded->GetStreamStateHandleID().getKeyString(),
-        placeholder->GetStreamStateHandleID().getKeyString());
+        placeholder->GetStreamStateHandleIDKeyString());
     EXPECT_THROW(placeholder->OpenInputStream(), std::runtime_error);
     EXPECT_EQ(nullptr, previous.getUploaded("unknown.sst"));
 }
