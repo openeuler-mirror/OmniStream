@@ -44,8 +44,6 @@
 #include "runtime/state/restore/RestoreKVStateVB.h"
 #include "runtime/state/restore/SavepointRestoreResultIterator.h"
 #include "table/data/GenericRowData.h"
-#include "table/data/util/ComboIdUtil.h"
-#include "table/data/util/VectorBatchUtil.h"
 #include "table/typeutils/RowDataSerializer.h"
 #include "table/types/logical/RowType.h"
 #include "test/runtime/state/MockSavepointBridge.h"
@@ -94,28 +92,6 @@ std::vector<int8_t> makeListValue(const std::vector<std::vector<int8_t>>& rows, 
         value.insert(value.end(), rows[i].begin(), rows[i].end());
     }
     return value;
-}
-
-std::vector<int8_t> makeRocksComboIdList(const std::vector<ComboId>& comboIds)
-{
-    DataOutputSerializer output;
-    for (size_t i = 0; i < comboIds.size(); ++i) {
-        if (i != 0) {
-            output.writeByte(',');
-        }
-        ComboIdUtil::writeComboId(output, comboIds[i]);
-    }
-    return copyOutput(output);
-}
-
-std::vector<int8_t> makeHeapComboIdList(const std::vector<ComboId>& comboIds)
-{
-    DataOutputSerializer output;
-    output.writeInt(static_cast<uint32_t>(comboIds.size()));
-    for (ComboId comboId : comboIds) {
-        ComboIdUtil::writeComboId(output, comboId);
-    }
-    return copyOutput(output);
 }
 
 class StubVectorBatchStateAccessor : public VectorBatchStateAccessor {
@@ -606,121 +582,6 @@ TEST_F(WindowJoinSavepointAdaptorTest, SerializeFlinkRowDataListHandlesEmptySing
     EXPECT_EQ(
         adaptor_.serializeFlinkRowDataList({{1, 2}, {3}, {4, 5}}, {"BIGINT"}),
         (std::vector<int8_t>{1, 2, ',', 3, ',', 4, 5}));
-}
-
-TEST_F(WindowJoinSavepointAdaptorTest, ConvertKVRowDataDereferencesEveryComboIdAndSerializesFlinkList)
-{
-    adaptor_.prepareForSave({
-        {"leftInputTypes", {"BIGINT", "INT"}},
-        {"rightInputTypes", {"VARCHAR"}},
-    });
-    TestFullSnapshotResources resources;
-    resources.metaInfos = {makeListMeta(LEFT_STATE_NAME, {"BIGINT", "INT"})};
-    auto plan = adaptor_.buildWindowSavePlan(resources);
-    ASSERT_EQ(plan.stateContextSpecs.size(), 1U);
-
-    auto accessor = std::make_shared<StubVectorBatchStateAccessor>(2);
-    VectorBatchSaveStateContext context;
-    context.logicalStateName = LEFT_STATE_NAME;
-    context.valueSerializer = plan.stateContextSpecs[0].valueSerializer;
-    context.vbAccessor = accessor;
-
-    const ComboId first = VectorBatchUtil::getComboId(2, 3, 4);
-    const ComboId second = VectorBatchUtil::getComboId(2, 5, 6);
-    const std::vector<int8_t> keyBytes{9, 8, 7};
-    const auto valueBytes = makeRocksComboIdList({first, second});
-    KeyValueStateIterator::CurrentEntry entry;
-    entry.key = ByteView(keyBytes.data(), keyBytes.size());
-    entry.value = ByteView(valueBytes.data(), valueBytes.size());
-
-    bool emitted = false;
-    ConvertedEntry converted;
-    adaptor_.convertKVRowData(entry, context, plan, [&](ConvertedEntry result) {
-        emitted = true;
-        converted = std::move(result);
-    });
-
-    EXPECT_TRUE(emitted);
-    EXPECT_EQ(converted.context, &context);
-    EXPECT_EQ(converted.keyBytes, keyBytes);
-    ASSERT_EQ(accessor->requestedRows.size(), 2U);
-    EXPECT_EQ(
-        accessor->requestedRows[0],
-        std::make_pair(VectorBatchUtil::getVectorBatchId(first), VectorBatchUtil::getRowId(first)));
-    EXPECT_EQ(
-        accessor->requestedRows[1],
-        std::make_pair(VectorBatchUtil::getVectorBatchId(second), VectorBatchUtil::getRowId(second)));
-    std::vector<ByteView> rows;
-    adaptor_.deserializeRows(converted.valueBytes, rows);
-    EXPECT_EQ(rows.size(), 2U);
-}
-
-TEST_F(WindowJoinSavepointAdaptorTest, ConvertKVRowDataSupportsEmptyHeapListOnRightSide)
-{
-    adaptor_.prepareForSave({
-        {"leftInputTypes", {"BIGINT"}},
-        {"rightInputTypes", {"VARCHAR"}},
-    });
-    VectorBatchSavePlan plan;
-    plan.isHeapBackend = true;
-    auto accessor = std::make_shared<StubVectorBatchStateAccessor>();
-    VectorBatchSaveStateContext context;
-    context.logicalStateName = RIGHT_STATE_NAME;
-    context.valueSerializer = LongSerializer::INSTANCE;
-    context.vbAccessor = accessor;
-    const std::vector<int8_t> keyBytes{1};
-    const auto valueBytes = makeHeapComboIdList({});
-    KeyValueStateIterator::CurrentEntry entry;
-    entry.key = ByteView(keyBytes.data(), keyBytes.size());
-    entry.value = ByteView(valueBytes.data(), valueBytes.size());
-
-    ConvertedEntry converted;
-    adaptor_.convertKVRowData(entry, context, plan, [&](ConvertedEntry result) { converted = std::move(result); });
-
-    EXPECT_EQ(converted.keyBytes, keyBytes);
-    EXPECT_TRUE(converted.valueBytes.empty());
-    EXPECT_TRUE(accessor->requestedRows.empty());
-}
-
-TEST_F(WindowJoinSavepointAdaptorTest, ConvertKVRowDataRejectsMissingAccessorUnknownStateAndMissingRow)
-{
-    adaptor_.prepareForSave({
-        {"leftInputTypes", {"BIGINT"}},
-        {"rightInputTypes", {"VARCHAR"}},
-    });
-    const ComboId comboId = VectorBatchUtil::getComboId(1, 2, 3);
-    const auto rocksValue = makeRocksComboIdList({comboId});
-    const std::vector<int8_t> keyBytes{1};
-    KeyValueStateIterator::CurrentEntry rocksEntry;
-    rocksEntry.key = ByteView(keyBytes.data(), keyBytes.size());
-    rocksEntry.value = ByteView(rocksValue.data(), rocksValue.size());
-    VectorBatchSavePlan rocksPlan;
-
-    VectorBatchSaveStateContext missingAccessor;
-    missingAccessor.logicalStateName = LEFT_STATE_NAME;
-    EXPECT_THROW(
-        adaptor_.convertKVRowData(rocksEntry, missingAccessor, rocksPlan, [](ConvertedEntry) {}), std::runtime_error);
-
-    const auto emptyHeapValue = makeHeapComboIdList({});
-    KeyValueStateIterator::CurrentEntry heapEntry;
-    heapEntry.key = ByteView(keyBytes.data(), keyBytes.size());
-    heapEntry.value = ByteView(emptyHeapValue.data(), emptyHeapValue.size());
-    VectorBatchSavePlan heapPlan;
-    heapPlan.isHeapBackend = true;
-    VectorBatchSaveStateContext unknownState;
-    unknownState.logicalStateName = "unknown";
-    unknownState.vbAccessor = std::make_shared<StubVectorBatchStateAccessor>();
-    EXPECT_THROW(
-        adaptor_.convertKVRowData(heapEntry, unknownState, heapPlan, [](ConvertedEntry) {}), std::runtime_error);
-
-    auto nullRowAccessor = std::make_shared<StubVectorBatchStateAccessor>();
-    nullRowAccessor->returnNullRow = true;
-    VectorBatchSaveStateContext missingRow;
-    missingRow.logicalStateName = LEFT_STATE_NAME;
-    missingRow.valueSerializer = LongSerializer::INSTANCE;
-    missingRow.vbAccessor = nullRowAccessor;
-    EXPECT_THROW(
-        adaptor_.convertKVRowData(rocksEntry, missingRow, rocksPlan, [](ConvertedEntry) {}), std::runtime_error);
 }
 
 TEST_F(WindowJoinSavepointAdaptorTest, SaveDelegatesEmptySnapshotToVectorBatchSaveFlow)

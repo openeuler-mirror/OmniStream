@@ -17,6 +17,7 @@
 #include "StateMetaInfoValidator.h"
 #include "core/api/common/state/StateDescriptor.h"
 #include "core/memory/DataInputDeserializer.h"
+#include "core/memory/DataOutputSerializer.h"
 #include "core/typeutils/MapSerializer.h"
 #include "runtime/state/heap/HeapFullSnapshotResources.h"
 #include "runtime/state/restore/SavepointRestoreResultIterator.h"
@@ -257,11 +258,12 @@ std::vector<VectorBatchSaveStateContext> GroupWindowAggSavepointAdaptor::buildSa
     return contexts;
 }
 
+template <typename Emit>
 void GroupWindowAggSavepointAdaptor::convertKVRowData(
     const KeyValueStateIterator::CurrentEntry& entry,
     const VectorBatchSaveStateContext& context,
     const VectorBatchSavePlan&,
-    std::function<void(ConvertedEntry)> output)
+    Emit&& output)
 {
     if (context.stateType != VectorBatchStateType::KV_MAP_TRANSFORM || context.mapKeySerializer == nullptr ||
         context.mapValueSerializer == nullptr) {

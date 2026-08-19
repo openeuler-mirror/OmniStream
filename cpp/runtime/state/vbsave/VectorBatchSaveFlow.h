@@ -40,8 +40,9 @@ namespace omnistream {
 // 具体 Adaptor 提供算子语义，VB 状态支持一条 source entry 输出 0-N 条 target entry。
 class VectorBatchSaveFlow final {
 public:
+    template <typename Hooks>
     static void executeSave(
-        VectorBatchSaveHooks& hooks,
+        Hooks& hooks,
         const VectorBatchSavePlan& plan,
         CheckpointStateOutputStreamProxy& stream,
         KeyGroupRangeOffsets& keyGroupOffsets,

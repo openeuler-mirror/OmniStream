@@ -261,11 +261,12 @@ std::unique_ptr<BinaryRowData> GroupAggSavepointAdaptor::compactAccumulator(RowD
     return target;
 }
 
+template <typename Emit>
 void GroupAggSavepointAdaptor::convertKVRowData(
     const KeyValueStateIterator::CurrentEntry& entry,
     const VectorBatchSaveStateContext& context,
     const VectorBatchSavePlan&,
-    std::function<void(ConvertedEntry)> output)
+    Emit&& output)
 {
     if (context.stateType == VectorBatchStateType::KV_MAP_TRANSFORM) {
         if (context.mapKeySerializer == nullptr || context.mapValueSerializer == nullptr) {
