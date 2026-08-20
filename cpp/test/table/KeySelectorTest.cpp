@@ -1,13 +1,15 @@
 #include <gtest/gtest.h>
+#include <memory>
 #include "table/data/vectorbatch/VectorBatch.h"
 #include "table/data/binary/BinaryRowData.h"
 #include "table/runtime/keyselector/KeySelector.h"
 #include <OmniOperatorJIT/core/test/util/test_util.h>
+#include <utility>
 
 TEST(KeySelectorTest, SelectFromVB)
 {
     // Create the input VB
-    auto rawVB = new omniruntime::vec::VectorBatch(5);
+    auto rawVB = std::make_unique<omniruntime::vec::VectorBatch>(5);
     std::vector<long> col0{0, 1, 2, 3, 4};
     std::vector<std::string> col1{"hello_world_0", "hello_world_1", "hello_world_2", "hello_world_3", "hello_world_4"};
     std::vector<int> col2{20, 21, 22, 23, 24};
@@ -20,7 +22,7 @@ TEST(KeySelectorTest, SelectFromVB)
     rawVB->Append(vec);
     vec = omniruntime::TestUtil::CreateVector(col3.size(), col3.data());
     rawVB->Append(vec);
-    omnistream::VectorBatch vb(rawVB, nullptr, nullptr);
+    omnistream::VectorBatch vb(std::move(rawVB), nullptr, nullptr);
 
     // build a new row as key
     std::vector<int> keyCols{0, 1, 2, 3};
@@ -57,7 +59,7 @@ TEST(KeySelectorTest, SelectFromVB)
 TEST(KeySelectorTest, DeserializeToVB)
 {
     // Create the input VB
-    auto rawVB = new omniruntime::vec::VectorBatch(1);
+    auto rawVB = std::make_unique<omniruntime::vec::VectorBatch>(1);
     auto vec0 = new omniruntime::vec::Vector<int64_t>(1);
     auto vec1 = new omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>(1);
     auto vec2 = new omniruntime::vec::Vector<int32_t>(1);
@@ -66,7 +68,7 @@ TEST(KeySelectorTest, DeserializeToVB)
     rawVB->Append(vec1);
     rawVB->Append(vec2);
     rawVB->Append(vec3);
-    omnistream::VectorBatch vb(rawVB, nullptr, nullptr);
+    omnistream::VectorBatch vb(std::move(rawVB), nullptr, nullptr);
     long key0 = 3;
     std::string key1 = "hello_world_3";
     int key2 = 23;
