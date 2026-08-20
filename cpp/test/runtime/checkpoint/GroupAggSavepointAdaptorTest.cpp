@@ -398,57 +398,16 @@ TEST(GroupAggSavepointAdaptorTest, BuildSavePlanRejectsUnsupportedBackendAndMiss
     EXPECT_THROW(adaptor.buildSavePlan(unprepared), std::runtime_error);
 }
 
-TEST(GroupAggSavepointAdaptorTest, BuildSavePlanTransformsOnlyHeapMapState)
+TEST(GroupAggSavepointAdaptorTest, BuildSavePlanTreatsMapStateAsKv)
 {
     GroupAggSavepointAdaptor adaptor;
     auto mapSerializer = std::make_unique<MapSerializer>(new IntSerializer(), new IntSerializer());
     auto mapMeta = makeKeyValue(DISTINCT_STATE_NAME, "MAP", VoidNamespaceSerializer::INSTANCE, mapSerializer.get());
 
-    TestFullSnapshotResources rocksResources({mapMeta});
-    auto rocksPlan = adaptor.buildSavePlan(rocksResources);
-    ASSERT_EQ(rocksPlan.stateContextSpecs.size(), 1U);
-    EXPECT_EQ(rocksPlan.stateContextSpecs[0].stateType, VectorBatchStateType::KV);
-    EXPECT_EQ(rocksPlan.stateContextSpecs[0].mapKeySerializer, nullptr);
-
-    KeyGroupRange range(0, 0);
-    auto heapResources = makeHeapResources({mapMeta}, range);
-    auto heapPlan = adaptor.buildSavePlan(*heapResources);
-    ASSERT_EQ(heapPlan.stateContextSpecs.size(), 1U);
-    EXPECT_EQ(heapPlan.stateContextSpecs[0].stateType, VectorBatchStateType::KV_MAP_TRANSFORM);
-    EXPECT_EQ(heapPlan.stateContextSpecs[0].mapKeySerializer, mapSerializer->getKeySerializer());
-    EXPECT_EQ(heapPlan.stateContextSpecs[0].mapValueSerializer, mapSerializer->getValueSerializer());
-
-    auto valueMeta = makeKeyValue("ordinary-value");
-    auto heapValueResources = makeHeapResources({valueMeta}, range);
-    auto heapValuePlan = adaptor.buildSavePlan(*heapValueResources);
-    ASSERT_EQ(heapValuePlan.stateContextSpecs.size(), 1U);
-    EXPECT_EQ(heapValuePlan.stateContextSpecs[0].stateType, VectorBatchStateType::KV);
-}
-
-TEST(GroupAggSavepointAdaptorTest, BuildSavePlanRejectsInvalidHeapMapSerializers)
-{
-    GroupAggSavepointAdaptor adaptor;
-    KeyGroupRange range(0, 0);
-
-    auto notMap = makeKeyValue(DISTINCT_STATE_NAME, "MAP");
-    auto notMapResources = makeHeapResources({notMap}, range);
-    EXPECT_THROW(adaptor.buildSavePlan(*notMapResources), std::runtime_error);
-
-    auto missingKeySerializer = std::make_unique<MapSerializer>(new IntSerializer(), new IntSerializer());
-    delete missingKeySerializer->keySerializer;
-    missingKeySerializer->keySerializer = nullptr;
-    auto missingKey =
-        makeKeyValue(DISTINCT_STATE_NAME, "MAP", VoidNamespaceSerializer::INSTANCE, missingKeySerializer.get());
-    auto missingKeyResources = makeHeapResources({missingKey}, range);
-    EXPECT_THROW(adaptor.buildSavePlan(*missingKeyResources), std::runtime_error);
-
-    auto missingValueSerializer = std::make_unique<MapSerializer>(new IntSerializer(), new IntSerializer());
-    delete missingValueSerializer->valueSerializer;
-    missingValueSerializer->valueSerializer = nullptr;
-    auto missingValue =
-        makeKeyValue(DISTINCT_STATE_NAME, "MAP", VoidNamespaceSerializer::INSTANCE, missingValueSerializer.get());
-    auto missingValueResources = makeHeapResources({missingValue}, range);
-    EXPECT_THROW(adaptor.buildSavePlan(*missingValueResources), std::runtime_error);
+    TestFullSnapshotResources resources({mapMeta});
+    auto plan = adaptor.buildSavePlan(resources);
+    ASSERT_EQ(plan.stateContextSpecs.size(), 1U);
+    EXPECT_EQ(plan.stateContextSpecs[0].stateType, VectorBatchStateType::KV);
 }
 
 TEST(GroupAggSavepointAdaptorTest, BuildSaveStateContextsCopiesEveryPlanField)
@@ -467,9 +426,8 @@ TEST(GroupAggSavepointAdaptorTest, BuildSaveStateContextsCopiesEveryPlanField)
     VectorBatchSavePlan::StateContextSpec second;
     second.sourceKvStateId = 2;
     second.logicalStateName = "two";
-    second.stateType = VectorBatchStateType::KV_MAP_TRANSFORM;
-    second.mapKeySerializer = IntSerializer::INSTANCE;
-    second.mapValueSerializer = LongSerializer::INSTANCE;
+    second.stateType = VectorBatchStateType::KV;
+    second.valueSerializer = LongSerializer::INSTANCE;
     plan.stateContextSpecs.push_back(first);
     plan.stateContextSpecs.push_back(second);
 
@@ -485,8 +443,8 @@ TEST(GroupAggSavepointAdaptorTest, BuildSaveStateContextsCopiesEveryPlanField)
     EXPECT_FALSE(contexts[1].isValid());
     EXPECT_TRUE(contexts[2].writable);
     EXPECT_EQ(contexts[2].mappedKvStateId, 5);
-    EXPECT_EQ(contexts[2].mapKeySerializer, IntSerializer::INSTANCE);
-    EXPECT_EQ(contexts[2].mapValueSerializer, LongSerializer::INSTANCE);
+    EXPECT_EQ(contexts[2].stateType, VectorBatchStateType::KV);
+    EXPECT_EQ(contexts[2].valueSerializer, LongSerializer::INSTANCE);
 }
 
 TEST(GroupAggSavepointAdaptorTest, BuildSaveStateContextsRejectsBadSourceIdOrMissingMapping)

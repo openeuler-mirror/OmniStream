@@ -649,25 +649,29 @@ void HeapRestoreKVState<K>::writeListEntry(const std::vector<int8_t>& keyBytes, 
     auto rawNs = keyGuard.getRawNamespace();
 
     auto* listSer = dynamic_cast<ListSerializer*>(stateInfo_.valueSerializer);
-    TypeSerializer* elemSer = listSer ? listSer->getElementSerializer() : nullptr;
+    // If valueSerializer is ListSerializer, extract the element serializer;
+    // otherwise, use it directly as the element serializer (e.g. WindowJoin stores LongSerializer).
+    TypeSerializer* elemSer = listSer ? listSer->getElementSerializer() : stateInfo_.valueSerializer;
     if (elemSer == nullptr) {
         INFO_RELEASE(
-            "HeapRestoreKVState: Error: LIST state serializer is not ListSerializer for '" << stateInfo_.stateName
-                                                                                           << "'");
+            "HeapRestoreKVState: Error: LIST state has null element serializer for '" << stateInfo_.stateName << "'");
         throw std::runtime_error(
-            "HeapRestoreKVState: LIST state serializer is not ListSerializer for '" + stateInfo_.stateName + "'");
+            "HeapRestoreKVState: LIST state has null element serializer for '" + stateInfo_.stateName + "'");
     }
 
     BackendDataType elemId = elemSer->getBackendId();
     DataInputDeserializer valInput(value.data(), static_cast<int>(value.size()));
 
     if (elemId == BackendDataType::BIGINT_BK) {
-        int size = valInput.readInt();
+        // ListDelimitedSerializer format: [int64_1][','][int64_2][',']...[int64_N]
+        // No size prefix, elements separated by ',' delimiter
         std::unique_ptr<std::vector<int64_t>> vec(new std::vector<int64_t>());
-        vec->reserve(size);
-        for (int i = 0; i < size; i++) {
+        while (valInput.Available() > 0) {
             std::unique_ptr<int64_t> elemPtr(static_cast<int64_t*>(elemSer->deserialize(valInput)));
             vec->push_back(*elemPtr);
+            if (valInput.Available() > 0) {
+                valInput.readByte(); // consume ',' delimiter
+            }
         }
 
         auto* table =

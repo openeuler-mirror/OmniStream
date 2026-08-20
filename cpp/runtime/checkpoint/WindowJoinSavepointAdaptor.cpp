@@ -21,8 +21,6 @@
 #include "core/memory/DataOutputSerializer.h"
 #include "core/typeutils/ListSerializer.h"
 #include "core/typeutils/LongSerializer.h"
-#include "core/typeutils/MapSerializer.h"
-#include "core/typeutils/SerializerJsonInfo.h"
 #include "runtime/checkpoint/StateMetaInfoValidator.h"
 #include "runtime/checkpoint/StreamingJoinSavepointUtil.h"
 #include "runtime/state/VoidNamespaceSerializer.h"
@@ -33,7 +31,6 @@
 #include "runtime/state/restore/vb/VectorBatchRestoreUtil.h"
 #include "runtime/state/vbsave/VectorBatchSaveFlow.h"
 #include "runtime/state/vbsave/VectorBatchSaveTools.h"
-#include "state/bridge/OmniTaskBridge.h"
 #include "table/types/logical/RowType.h"
 #include "table/types/logical/LogicTypeUtils.h"
 #include "table/data/util/VectorBatchUtil.h"
@@ -208,7 +205,6 @@ VectorBatchSavePlan WindowJoinSavepointAdaptor::buildWindowSavePlan(FullSnapshot
     VectorBatchSavePlan plan;
     const auto& metaInfos = snapshotResources.getMetaInfoSnapshots();
     plan.keyGroupRange = snapshotResources.getKeyGroupRange();
-    plan.isHeapBackend = snapshotResources.isHeapBackend();
 
     int newKvStateId = 0;
     for (size_t i = 0; i < metaInfos.size(); ++i) {
@@ -357,8 +353,7 @@ void WindowJoinSavepointAdaptor::convertKVRowData(
     Emit&& output)
 {
     // 解析 comboId 列表
-    auto comboIds =
-        VectorBatchSaveTools::parseComboIdList(ByteView(entry.value.data(), entry.value.size()), plan.isHeapBackend);
+    auto comboIds = VectorBatchSaveTools::parseComboIdList(ByteView(entry.value.data(), entry.value.size()));
 
     // 解引用 VB 获取 RowData
     if (!context.vbAccessor) {
