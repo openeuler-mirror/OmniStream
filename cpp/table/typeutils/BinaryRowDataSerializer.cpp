@@ -12,12 +12,16 @@
 #include "BinaryRowDataSerializer.h"
 #include "../data/binary/BinarySegmentUtils.h"
 
+namespace {
+constexpr int MAX_ROW_SIZE_IN_BYTES = 64 * 1024 * 1024;
+}
+
 BinaryRowDataSerializer::BinaryRowDataSerializer(int numFields) : numFields_(numFields)
 {
     fixedLengthPartSize_ = BinaryRowData::calculateFixPartSizeInBytes(numFields_);
     reUse_ = new BinaryRowData(numFields_);
     auto* bytes = new uint8_t[SEG_SIZE];
-    reUse_->pointTo(bytes, 0, SEG_SIZE, SEG_SIZE);
+    reUse_->own(bytes, 0, SEG_SIZE, SEG_SIZE);
 }
 
 BinaryRowDataSerializer::BinaryRowDataSerializer(int numFields, const std::vector<std::string>& inputTypes)
@@ -27,7 +31,7 @@ BinaryRowDataSerializer::BinaryRowDataSerializer(int numFields, const std::vecto
     fixedLengthPartSize_ = BinaryRowData::calculateFixPartSizeInBytes(numFields_);
     reUse_ = new BinaryRowData(numFields_);
     auto* bytes = new uint8_t[SEG_SIZE];
-    reUse_->pointTo(bytes, 0, SEG_SIZE, SEG_SIZE);
+    reUse_->own(bytes, 0, SEG_SIZE, SEG_SIZE);
 }
 
 BinaryRowDataSerializer::~BinaryRowDataSerializer()
@@ -39,13 +43,20 @@ void* BinaryRowDataSerializer::deserialize(DataInputView& source)
 {
     int length = source.readInt();
 
+    source.validateLength(length, MAX_ROW_SIZE_IN_BYTES);
+
+    if (length > reUse_->getBufferCapacity()) {
+        auto* expandedRow = new BinaryRowData(numFields_);
+        auto* expandedBytes = new uint8_t[length];
+        expandedRow->own(expandedBytes, 0, length, length);
+        delete reUse_;
+        reUse_ = expandedRow;
+    }
+
     auto bytes = reUse_->getSegment();
     LOG(" bytes: " << reinterpret_cast<long>(bytes) << " capacity: " << length << " offset : " << 0
                    << " length: " << length);
-    if (length > SEG_SIZE) {
-        LOG("Warning! Deserialize bytes length is " << length << ". Bigger than " << SEG_SIZE);
-    }
-    source.readFully(bytes, length, 0, length);
+    source.readFully(bytes, reUse_->getBufferCapacity(), 0, length);
     // PRINT_HEX(bytes, 0, length)
     reUse_->setSizeInBytes(length);
 

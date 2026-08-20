@@ -17,7 +17,6 @@
 #include <string>
 #include <vector>
 #include <nlohmann/json.hpp>
-#include <xxhash.h>
 
 #include "OperatorSavepointAdaptor.h"
 #include "core/utils/ByteView.h"
@@ -33,12 +32,12 @@ class RestoreKVStateVB;
 
 // StreamingJoin NoUniqueKey 兼容 savepoint 适配器。
 //
-// Omni 运行时将左右两侧状态拆成两类存储：
-//   主 MapState：key 后缀保存 XXH128(row)，value 保存 count/(numAssociations)/comboId。
-//   VB 侧表：通过 comboId 引用完整 RowData。
-// Flink 标准 StreamingJoin 则期望每侧只有一个逻辑 MapState：map key 内包含完整 RowData 字节，
-// map value 只保存 count 相关字段。该适配器负责在算子边界完成两种格式互转，并复用
-// VectorBatchSaveFlow 读取 VB 侧表。
+// 当前 Omni 和 Flink StreamingJoin 都以完整 RowData 作为 MapState user key：
+//   Inner/非保留侧：RowData -> count
+//   Outer 保留侧：RowData -> (count, numAssociations)
+// 两者的 entry payload 布局一致，差异只在 Omni Heap 快照会把同一 keyed key 下的 MapState
+// entry 聚合到一个 value 中。该适配器负责转换 metadata，并在保存 Heap 状态时展开聚合 Map；
+// 当前协议不再读取或写入 XXH128、ComboId 和 VectorBatch side table。
 class StreamingJoinSavepointAdaptor : public OperatorSavepointAdaptor, public VectorBatchSaveHooks {
 public:
     // 使用工厂判定出的 adaptorType 创建 StreamingJoin 格式互通适配器，算子描述在 prepare 阶段解析。
@@ -55,7 +54,7 @@ public:
     // 解析 Flink -> Omni restore 所需的左右输入类型和 Join 状态布局。
     void prepareForRestore(const nlohmann::json& operatorDescription) override;
 
-    // 校验 Omni 源状态包含左右主状态和 VB 侧表，并验证 Omni serializer 布局。
+    // 校验 Omni 源状态包含左右主状态，并验证当前 RowData serializer 布局。
     void validateForSave(const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& metaInfos) override;
 
     // 校验 Flink 源状态只包含左右 logical MapState，并验证 Flink serializer 布局。
@@ -68,36 +67,17 @@ public:
         FullSnapshotResources& snapshotResources,
         std::string keySerializer) override;
 
-    // 将 Flink StreamingJoin logical MapState 恢复为 Omni 主状态和 VB 侧表。
+    // 将 Flink StreamingJoin logical MapState 恢复为当前 Omni RowData MapState。
     void restore(SavepointRestoreResultIterator& restoreIterator, RestoreBackendDelegate& backend) override;
 
     /*========== OperatorSavepointAdaptor ==========*/
     /*========== VectorBatchSaveHooks ==========*/
 
-    // 根据保存计划创建各主状态对应的 VB accessor 和格式转换上下文。
+    // 根据保存计划创建无 VB accessor 的 MapState 转换上下文。
     std::vector<VectorBatchSaveStateContext> buildSaveStateContexts(
         FullSnapshotResources& snapshotResources, const VectorBatchSavePlan& plan) override;
 
-    // 从 Omni Join tuple value 中读取 comboId，作为 VB 侧表完整行数据的引用。
-    omnistream::ComboId parseVectorBatchReference(
-        ByteView value, const VectorBatchSaveStateContext& context, const VectorBatchSavePlan& plan) override;
-
-    // 将 Omni keyed key 前缀和 VB RowData 编码为 Flink logical MapState key。
-    std::vector<int8_t> encodeFlinkLogicalKey(
-        const KeyValueStateIterator::CurrentEntry& entry,
-        RowData& row,
-        const VectorBatchSaveStateContext& context,
-        const VectorBatchSavePlan& plan) override;
-
-    // 将 Omni Join tuple 中的计数字段编码为 Flink logical MapState value。
-    std::vector<int8_t> encodeFlinkLogicalValue(
-        const KeyValueStateIterator::CurrentEntry& entry,
-        RowData& row,
-        const VectorBatchSaveStateContext& context,
-        const VectorBatchSavePlan& plan) override;
-
-    // Join 主状态的一个 source entry 可能引用多个 VB row；这里把每个 comboId
-    // 解引用为一个 Flink logical MapState entry，供 VectorBatchSaveFlow 写出。
+    // RocksDB source entry 直接透传；Heap 聚合 Map value 展开为多个 Flink MapState entry。
     template <typename Emit>
     void convertKVRowData(
         const KeyValueStateIterator::CurrentEntry& entry,
@@ -118,7 +98,7 @@ public:
 
     int batchSize(int kvStateId) const;
 
-    // 解析 Flink logical key/value 中的 RowData 和计数信息，并通过 VB writer 写入 Omni VB 与 map entry。
+    // 当前 StreamingJoin 不使用该 KV_WITH_VB hook；若错误分发到旧流程则 fail-fast。
     void retrieveKVRowData(
         const std::vector<int8_t>& keyBytes,
         const std::vector<int8_t>& valueBytes,
@@ -148,7 +128,7 @@ private:
     // 从算子描述的数组字段中解析输入字段类型名称，并拒绝缺失、非数组或非字符串元素。
     void parseInputTypes(SidePlan& sidePlan, const nlohmann::json& description, const std::string& fieldName);
 
-    // 将 Heap 聚合或普通 Omni MapState entry 统一展开并直接回调输出。
+    // 将 Heap 聚合或 RocksDB expanded MapState entry 统一展开并回调输出。
     template <typename Emit>
     void parseSourceMapEntries(
         const KeyValueStateIterator::CurrentEntry& entry, const SidePlan& sidePlan, Emit&& emit) const;
@@ -161,13 +141,6 @@ private:
 
     // 返回 restore writer 创建阶段为 kvStateId 绑定的 Join 单侧计划。
     const SidePlan& restoreSidePlan(int kvStateId) const;
-
-    // restore 方向根据 Flink RowData bytes 计算运行态 StreamingJoin 主 MapState 使用的 XXH128(row)。
-    XXH128_hash_t calculateRestoreRowHash(
-        const std::vector<int8_t>& rowBytes, const std::vector<omniruntime::type::DataTypeId>& columnTypes) const;
-
-    // VB 反序列化行缓存上限，避免 save 转换过程中重复解码同一批数据。
-    static constexpr std::size_t VB_SAVE_CACHE_BYTES = 64UL * 1024 * 1024;
 
     // 创建 adaptor 时确定的 StreamingJoin 兼容类型，用于区分 inner 和 left outer 状态布局。
     FlinkSavepointAdaptorType adaptorType_;

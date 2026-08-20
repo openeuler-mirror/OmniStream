@@ -168,6 +168,7 @@ public:
             return RestoreStateType::PQ;
         if (metaInfo.getBackendStateType() == StateMetaInfoSnapshot::BackendStateType::KEY_VALUE) {
             if (metaInfo.getName() == "test-vb-state") return RestoreStateType::KV_WITH_VB;
+            if (metaInfo.getName() == "test-transformed-state") return RestoreStateType::KV_TRANSFORMED;
             return RestoreStateType::KV;
         }
         return RestoreStateType::UNSUPPORT;
@@ -223,6 +224,9 @@ TEST(VectorBatchRestoreFlowTest, MockDerivedGetStateTypeReturnsCorrectTypes)
 
     auto kvVbMeta = makeSnapshot("test-vb-state", StateMetaInfoSnapshot::BackendStateType::KEY_VALUE);
     EXPECT_EQ(derived.getStateType(*kvVbMeta), RestoreStateType::KV_WITH_VB);
+
+    auto transformedMeta = makeSnapshot("test-transformed-state", StateMetaInfoSnapshot::BackendStateType::KEY_VALUE);
+    EXPECT_EQ(derived.getStateType(*transformedMeta), RestoreStateType::KV_TRANSFORMED);
 
     auto opMeta = makeSnapshot("test-op", StateMetaInfoSnapshot::BackendStateType::OPERATOR);
     EXPECT_EQ(derived.getStateType(*opMeta), RestoreStateType::UNSUPPORT);

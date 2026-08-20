@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstddef>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -195,6 +196,16 @@ public:
             THROW_LOGIC_EXCEPTION("Invalid raw keyed state position: " << position << ", dataSize=" << data_.size());
         }
         position_ = position;
+    }
+
+    int remaining() const override
+    {
+        if (position_ >= data_.size()) {
+            return 0;
+        }
+        const size_t remainingBytes = data_.size() - position_;
+        return remainingBytes > static_cast<size_t>(std::numeric_limits<int>::max()) ? std::numeric_limits<int>::max()
+                                                                                     : static_cast<int>(remainingBytes);
     }
 
 private:

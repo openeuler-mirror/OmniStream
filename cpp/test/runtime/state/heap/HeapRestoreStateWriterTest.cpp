@@ -27,6 +27,7 @@
 #include "runtime/state/VoidNamespaceSerializer.h"
 #include "runtime/state/InternalKeyContextImpl.h"
 #include "runtime/state/KeyGroupRange.h"
+#include "runtime/state/OperatorRuntimeStateSchemaProvider.h"
 #include "runtime/state/heap/HeapRestoreBackendDelegate.h"
 #include "runtime/state/heap/HeapRestoreKVState.h"
 #include "runtime/state/heap/HeapRestoreKVStateVB.h"
@@ -36,6 +37,9 @@
 #include "runtime/state/restore/RestoreKVState.h"
 #include "runtime/state/restore/RestoreKVStateVB.h"
 #include "runtime/state/restore/RestorePQState.h"
+#include "table/data/binary/BinaryRowData.h"
+#include "table/typeutils/RowDataSerializer.h"
+#include "table/types/logical/RowType.h"
 
 using namespace omnistream;
 
@@ -445,6 +449,60 @@ TEST_F(HeapRestoreStateWriterTest, KvStateWriteMapEntryBigintBigint)
 
     ASSERT_GE(delegate_->getStateInfos().size(), 1u);
     EXPECT_EQ(delegate_->getStateInfos()[0].mainEntryCount, 1);
+}
+
+// Flink SP metadata keeps ROW_BK, while StreamingJoin owns shared_ptr<RowData>
+// in memory. The restore writer must dispatch by the runtime table descriptor.
+TEST_F(HeapRestoreStateWriterTest, KvStateWriteMapEntryUsesRuntimeSchemaForSharedRowKey)
+{
+    nlohmann::json operatorDescription{
+        {"joinType", "InnerJoin"}, {"leftInputSpec", "NoUniqueKey"}, {"rightInputSpec", "NoUniqueKey"}};
+    auto provider = OperatorRuntimeStateSchemaProviderFactory::create(operatorDescription);
+    ASSERT_NE(provider, nullptr);
+    HeapRestoreBackendDelegate<int> runtimeDelegate(backend_.get(), keySerializer_, 2, provider.get());
+
+    omnistream::RowType rowType(true, std::vector<std::string>{"BIGINT"});
+    auto* mapSer = new MapSerializer(new RowDataSerializer(&rowType), new IntSerializer());
+    serializersToClean_.emplace_back(mapSer);
+    auto metaInfo = makeKvMetaInfoWithSerializer("left-records", mapSer, "MAP");
+    auto kv = runtimeDelegate.createKVState(0, metaInfo);
+    kv->setKeyGroupId(0);
+
+    const auto& stateInfo = runtimeDelegate.getStateInfos()[0];
+    ASSERT_NE(stateInfo.mainStateDesc, nullptr);
+    EXPECT_EQ(mapSer->getKeySerializer()->getBackendId(), BackendDataType::ROW_BK);
+    EXPECT_FALSE(mapSer->getKeySerializer()->isReusable());
+    EXPECT_EQ(stateInfo.mainStateDesc->getKeyDataId(), BackendDataType::SHARED_ROW_BK);
+
+    for (int32_t value : {200, 201}) {
+        std::unique_ptr<BinaryRowData> mapKey(BinaryRowData::createBinaryRowDataWithMem(1));
+        mapKey->setLong(0, value - 100L);
+        DataOutputSerializer mapKeyOut(32);
+        mapSer->getKeySerializer()->serialize(mapKey.get(), mapKeyOut);
+        std::vector<int8_t> mapKeySuffix(mapKeyOut.length());
+        std::memcpy(mapKeySuffix.data(), mapKeyOut.getData(), mapKeyOut.length());
+        auto keyBytes = makeKeyBytesWithMapKey(3, 0, 2, mapKeySuffix);
+
+        DataOutputSerializer valOut(8);
+        valOut.writeBoolean(false);
+        valOut.writeInt(value);
+        std::vector<int8_t> mapValueBytes(valOut.length());
+        std::memcpy(mapValueBytes.data(), valOut.getData(), valOut.length());
+
+        ASSERT_NO_THROW(kv->writeEntry<ByteView>(keyBytes, ByteView(mapValueBytes.data(), mapValueBytes.size())));
+    }
+
+    using SharedRowMap = emhash7::HashMap<std::shared_ptr<RowData>, int32_t>;
+    auto* table = reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, SharedRowMap*>*>(stateInfo.mainTablePtr);
+    ASSERT_NE(table, nullptr);
+    VoidNamespace ns;
+    auto* restoredMap = table->get(3, 0, ns);
+    ASSERT_NE(restoredMap, nullptr);
+    ASSERT_EQ(restoredMap->size(), 2u);
+    for (const auto& entry : *restoredMap) {
+        EXPECT_NE(entry.first, nullptr);
+        EXPECT_TRUE(entry.second == 200 || entry.second == 201);
+    }
 }
 
 // ============================================================================

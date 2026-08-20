@@ -58,6 +58,11 @@ public:
             return 0;
         }
     }
+
+    int remaining() const override
+    {
+        return position_ < end_ ? end_ - position_ : 0;
+    }
     double readDouble() override;
 
     const uint8_t* getData() override

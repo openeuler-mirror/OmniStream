@@ -23,8 +23,13 @@
 #include "core/api/common/state/RestoreStateDescriptor.h"
 #include "core/api/common/state/StateDescriptor.h"
 #include "runtime/state/HeapKeyedStateBackend.h"
+#include "runtime/state/OperatorRuntimeStateSchemaProvider.h"
 #include "runtime/state/heap/HeapRestoreBackendDelegate.h"
 #include "runtime/state/metainfo/StateMetaInfoSnapshot.h"
+#include "core/typeutils/JoinTupleSerializer.h"
+#include "core/typeutils/MapSerializer.h"
+#include "table/typeutils/RowDataSerializer.h"
+#include "table/types/logical/RowType.h"
 
 namespace {
 
@@ -117,6 +122,30 @@ TEST(HeapRestoreBackendDelegateTest, CreateMainTableDescriptorForMapTypeReturnsM
 
     EXPECT_EQ(desc->getType(), StateDescriptor::Type::MAP);
     EXPECT_EQ(desc->getName(), "testMap");
+    delete desc;
+}
+
+TEST(HeapRestoreBackendDelegateTest, RuntimeSchemaProviderOverridesStreamingJoinMapKeyType)
+{
+    omnistream::RowType rowType(true, std::vector<std::string>{"BIGINT"});
+    MapSerializer mapSerializer(new RowDataSerializer(&rowType), new JoinTupleSerializer());
+    auto snapshot =
+        makeSnapshot("left-records", StateMetaInfoSnapshot::BackendStateType::KEY_VALUE, "MAP", &mapSerializer);
+    auto* persistedDesc = omnistream::HeapRestoreBackendDelegate<long>::createMainTableDescriptor(*snapshot);
+    ASSERT_NE(persistedDesc, nullptr);
+    EXPECT_EQ(persistedDesc->getKeyDataId(), BackendDataType::ROW_BK);
+    delete persistedDesc;
+
+    nlohmann::json operatorDescription{
+        {"joinType", "LeftOuterJoin"}, {"leftInputSpec", "NoUniqueKey"}, {"rightInputSpec", "NoUniqueKey"}};
+    auto provider = omnistream::OperatorRuntimeStateSchemaProviderFactory::create(operatorDescription);
+    ASSERT_NE(provider, nullptr);
+
+    auto* desc = omnistream::HeapRestoreBackendDelegate<long>::createMainTableDescriptor(*snapshot, provider.get());
+    ASSERT_NE(desc, nullptr);
+    EXPECT_EQ(desc->getKeyDataId(), BackendDataType::SHARED_ROW_BK);
+    EXPECT_EQ(desc->getValueDataId(), BackendDataType::TUPLE_INT32_INT32);
+    EXPECT_EQ(mapSerializer.getKeySerializer()->getBackendId(), BackendDataType::ROW_BK);
     delete desc;
 }
 

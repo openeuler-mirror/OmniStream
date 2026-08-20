@@ -1,7 +1,7 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
- * You may obtain a copy of Mulan PSL v2 at:
+ * You may obtain a copy of the Mulan PSL v2 at:
  *          http://license.coscl.org.cn/MulanPSL2
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
  * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
@@ -11,28 +11,84 @@
 
 #include <gtest/gtest.h>
 
-#include <cstdint>
 #include <memory>
 #include <string>
-#include <string_view>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 
 #include "core/memory/DataOutputSerializer.h"
+#include "core/typeinfo/BasicTypeInfo.h"
+#include "core/typeutils/LongSerializer.h"
+#include "core/typeutils/JoinTupleSerializer.h"
+#include "core/typeutils/JoinTupleSerializer2.h"
+#include "core/typeutils/MapSerializer.h"
+#include "core/typeutils/TupleSerializer.h"
+#include "core/typeutils/XxH128_hashSerializer.h"
 #include "runtime/checkpoint/StreamingJoinSavepointAdaptor.h"
 #include "runtime/checkpoint/StreamingJoinSavepointUtil.h"
+#include "runtime/state/FullSnapshotResources.h"
+#include "runtime/state/RegisteredKeyValueStateBackendMetaInfo.h"
 #include "runtime/state/VoidNamespaceSerializer.h"
-#include "runtime/state/metainfo/StateMetaInfoSnapshot.h"
-#include "runtime/state/restore/RestoreKVStateVB.h"
-#include "runtime/state/restore/vb/VectorBatchRestoreUtil.h"
 #include "table/data/binary/BinaryRowData.h"
-#include "table/data/util/VectorBatchUtil.h"
-#include "table/data/vectorbatch/VectorBatch.h"
 #include "table/typeutils/BinaryRowDataSerializer.h"
+#include "table/typeutils/RowDataSerializer.h"
+#include "table/types/logical/RowType.h"
 
 using namespace omnistream;
 
 namespace {
+
+nlohmann::json leftOuterDescription()
+{
+    return {
+        {"leftInputTypes", {"BIGINT", "VARCHAR"}},
+        {"rightInputTypes", {"BIGINT"}},
+    };
+}
+
+nlohmann::json innerDescription()
+{
+    return {
+        {"leftInputTypes", {"BIGINT"}},
+        {"rightInputTypes", {"BIGINT"}},
+    };
+}
+
+TypeSerializer* createFlinkOuterValueSerializer()
+{
+    BasicTypeInfo firstIntType(TYPE_NAME_INT_SERIALIZER);
+    BasicTypeInfo secondIntType(TYPE_NAME_INT_SERIALIZER);
+    std::vector<TypeInformation*> tupleFieldTypes{&firstIntType, &secondIntType};
+    return new Tuple2Serializer(tupleFieldTypes);
+}
+
+std::shared_ptr<StateMetaInfoSnapshot> makeMapMetaInfo(
+    const std::string& stateName, const std::vector<std::string>& inputTypes, TypeSerializer* valueSerializer)
+{
+    omnistream::RowType rowType(true, inputTypes);
+    auto* mapSerializer = new MapSerializer(new RowDataSerializer(&rowType), valueSerializer);
+    RegisteredKeyValueStateBackendMetaInfo metaInfo(
+        StateDescriptor::Type::MAP, stateName, VoidNamespaceSerializer::INSTANCE, mapSerializer);
+    return metaInfo.snapshot();
+}
+
+std::vector<std::shared_ptr<StateMetaInfoSnapshot>> makeFlinkLeftOuterMetaInfos()
+{
+    return {
+        makeMapMetaInfo(
+            StreamingJoinSavepointUtil::LEFT_STATE_NAME, {"BIGINT", "VARCHAR"}, createFlinkOuterValueSerializer()),
+        makeMapMetaInfo(StreamingJoinSavepointUtil::RIGHT_STATE_NAME, {"BIGINT"}, new IntSerializer()),
+    };
+}
+
+std::vector<std::shared_ptr<StateMetaInfoSnapshot>> makeOmniLeftOuterMetaInfos()
+{
+    return {
+        makeMapMetaInfo(StreamingJoinSavepointUtil::LEFT_STATE_NAME, {"BIGINT", "VARCHAR"}, new JoinTupleSerializer()),
+        makeMapMetaInfo(StreamingJoinSavepointUtil::RIGHT_STATE_NAME, {"BIGINT"}, new IntSerializer()),
+    };
+}
 
 std::vector<int8_t> copyOutput(DataOutputSerializer& output)
 {
@@ -41,156 +97,194 @@ std::vector<int8_t> copyOutput(DataOutputSerializer& output)
         reinterpret_cast<int8_t*>(output.getData() + output.getPosition()));
 }
 
-class RecordingRestoreKVStateVB : public RestoreKVStateVB {
-public:
-    ~RecordingRestoreKVStateVB() override
-    {
-        delete vbState.currentBatch;
-    }
-
-    ComboId appendRowToVectorBatch(const RowDataView& row) override
-    {
-        appendedRowBytes = *row.valueBytes;
-        appendedColumnTypes = *row.columnTypes;
-        return VectorBatchRestoreUtil::appendRowToVectorBatch(
-            vbState, appendedRowBytes, appendedColumnTypes, 16, keyGroupId);
-    }
-
-    int getKeyGroupPrefixBytes() const override
-    {
-        return 1;
-    }
-
-    void resetBatchId() override
-    {
-        vbState.currentBatchId = 0;
-    }
-
-    void setKeyGroupId(int newKeyGroupId) override
-    {
-        keyGroupId = newKeyGroupId;
-    }
-
-    VbBatchState vbState;
-    std::vector<int8_t> appendedRowBytes;
-    std::vector<omniruntime::type::DataTypeId> appendedColumnTypes;
-    std::vector<int8_t> writtenKeyBytes;
-    std::vector<int8_t> writtenValueBytes;
-    int32_t keyGroupId = 7;
-
-protected:
-    void flushVectorBatchIfNotEmpty() override
-    {
-    }
-
-    void flushMainWriter() override
-    {
-    }
-
-    void discardVectorBatch() override
-    {
-    }
-
-    void discardMainWriter() override
-    {
-    }
-
-    void writeLongEntry(const std::vector<int8_t>&, int64_t) override
-    {
-    }
-
-    void writeBytesEntry(const std::vector<int8_t>& keyBytes, ByteView value) override
-    {
-        writtenKeyBytes = keyBytes;
-        writtenValueBytes.assign(
-            reinterpret_cast<const int8_t*>(value.data()),
-            reinterpret_cast<const int8_t*>(value.data() + value.size()));
-    }
-};
-
-StateMetaInfoSnapshot makeFlinkMetaInfo(const std::string& stateName)
+std::vector<int8_t> makeRowBytes(int64_t value)
 {
-    std::unordered_map<std::string, TypeSerializer*> serializers = {
-        {StateMetaInfoSnapshot::NAMESPACE_SERIALIZER_KEY, VoidNamespaceSerializer::INSTANCE}};
-    return StateMetaInfoSnapshot(
-        stateName,
-        StateMetaInfoSnapshot::BackendStateType::KEY_VALUE,
-        {},
-        std::unordered_map<std::string, std::shared_ptr<TypeSerializerSnapshot>>{},
-        serializers);
-}
-
-std::vector<int8_t> makeFlinkMapKey(std::vector<int8_t>& expectedRowBytes, size_t& expectedPrefixSize)
-{
-    std::unique_ptr<BinaryRowData> currentKey(BinaryRowData::createBinaryRowDataWithMem(1));
-    currentKey->setLong(0, 101);
-    BinaryRowDataSerializer currentKeySerializer(1);
-
-    std::unique_ptr<BinaryRowData> mapKey(BinaryRowData::createBinaryRowDataWithMem(3));
-    mapKey->setLong(0, 202);
-    mapKey->setStringView(1, std::string_view("join"));
-    mapKey->setLong(2, 1700000000123L);
-    BinaryRowDataSerializer mapKeySerializer(3);
-
+    std::unique_ptr<BinaryRowData> row(BinaryRowData::createBinaryRowDataWithMem(1));
+    row->setLong(0, value);
+    BinaryRowDataSerializer serializer(1);
     DataOutputSerializer output;
     OutputBufferStatus outputStatus;
     output.setBackendBuffer(&outputStatus);
-    output.write(7);
-    currentKeySerializer.serialize(currentKey.get(), output);
-    VoidNamespaceSerializer::INSTANCE->serialize(static_cast<void*>(nullptr), output);
-    expectedPrefixSize = static_cast<size_t>(output.getPosition());
-    mapKeySerializer.serialize(mapKey.get(), output);
-
-    auto keyBytes = copyOutput(output);
-    expectedRowBytes.assign(keyBytes.begin() + expectedPrefixSize, keyBytes.end());
-    return keyBytes;
+    serializer.serialize(row.get(), output);
+    return copyOutput(output);
 }
+
+std::vector<int8_t> makeExpandedValue(int32_t count, int32_t numAssociations, bool outer)
+{
+    DataOutputSerializer output;
+    OutputBufferStatus outputStatus;
+    output.setBackendBuffer(&outputStatus);
+    output.writeBoolean(false);
+    output.writeInt(count);
+    if (outer) {
+        output.writeInt(numAssociations);
+    }
+    return copyOutput(output);
+}
+
+std::vector<int8_t> makeAggregatedValue(
+    const std::vector<std::tuple<std::vector<int8_t>, int32_t, int32_t>>& entries, bool outer)
+{
+    DataOutputSerializer output;
+    OutputBufferStatus outputStatus;
+    output.setBackendBuffer(&outputStatus);
+    output.writeInt(static_cast<int32_t>(entries.size()));
+    for (const auto& [rowBytes, count, numAssociations] : entries) {
+        std::vector<uint8_t> unsignedRowBytes(rowBytes.begin(), rowBytes.end());
+        output.write(unsignedRowBytes);
+        output.writeBoolean(false);
+        output.writeInt(count);
+        if (outer) {
+            output.writeInt(numAssociations);
+        }
+    }
+    return copyOutput(output);
+}
+
+VectorBatchSaveStateContext makeTransformContext(const std::string& stateName)
+{
+    VectorBatchSaveStateContext context;
+    context.writable = true;
+    context.mappedKvStateId = 0;
+    context.logicalStateName = stateName;
+    context.valueSerializer = IntSerializer::INSTANCE;
+    context.stateType = VectorBatchStateType::KV_TRANSFORM;
+    return context;
+}
+
+class NoVbSnapshotResources : public FullSnapshotResources {
+public:
+    explicit NoVbSnapshotResources(size_t stateCount) : metaInfos_(stateCount)
+    {
+    }
+
+    const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& getMetaInfoSnapshots() override
+    {
+        return metaInfos_;
+    }
+
+    KeyGroupRange* getKeyGroupRange() override
+    {
+        return nullptr;
+    }
+
+    TypeSerializer* getKeySerializer() override
+    {
+        return nullptr;
+    }
+
+    std::shared_ptr<KeyValueStateIterator> createKVStateIterator() override
+    {
+        return nullptr;
+    }
+
+    std::shared_ptr<VectorBatchStateAccessor> createVectorBatchStateAccessor(
+        const std::string&, const VectorBatchAccessorOptions&) override
+    {
+        accessorCreateCount++;
+        return nullptr;
+    }
+
+    void cleanup() override
+    {
+    }
+
+    int accessorCreateCount = 0;
+
+private:
+    std::vector<std::shared_ptr<StateMetaInfoSnapshot>> metaInfos_;
+};
 
 } // namespace
 
-TEST(StreamingJoinSavepointAdaptorTest, RestoreWritesVectorBatchHashAndComboIdToMainState)
+TEST(StreamingJoinSavepointAdaptorTest, FlinkRestoreBuildsStandardRowStateMetadata)
 {
     StreamingJoinSavepointAdaptor adaptor(FlinkSavepointAdaptorType::StreamingLeftOuterJoinNoUniqueKeyAdaptor);
-    adaptor.prepareForRestore({
-        {"leftInputTypes", {"BIGINT", "VARCHAR", "TIMESTAMP(3)"}},
-        {"rightInputTypes", {"BIGINT"}},
-    });
+    adaptor.prepareForRestore(leftOuterDescription());
 
-    constexpr int leftStateId = 3;
-    auto omniMeta =
-        adaptor.buildOmniMainMetaInfo(leftStateId, makeFlinkMetaInfo(StreamingJoinSavepointUtil::LEFT_STATE_NAME));
-    EXPECT_EQ(omniMeta.getName(), StreamingJoinSavepointUtil::LEFT_STATE_NAME);
+    auto flinkMetaInfos = makeFlinkLeftOuterMetaInfos();
+    EXPECT_NO_THROW(adaptor.validateForRestore(flinkMetaInfos));
+    EXPECT_EQ(adaptor.getStateType(*flinkMetaInfos[0]), RestoreStateType::KV_TRANSFORMED);
+    EXPECT_EQ(adaptor.getStateType(*flinkMetaInfos[1]), RestoreStateType::KV_TRANSFORMED);
 
-    std::vector<int8_t> expectedRowBytes;
-    size_t expectedPrefixSize = 0;
-    auto flinkKey = makeFlinkMapKey(expectedRowBytes, expectedPrefixSize);
-    StreamingJoinSavepointUtil::ParsedJoinValue flinkValue;
-    flinkValue.count = 9;
-    flinkValue.numAssociations = 4;
-    auto flinkValueBytes = StreamingJoinSavepointUtil::serializeFlinkMapValue(flinkValue, true);
+    auto leftOmniMeta = adaptor.buildOmniMainMetaInfo(0, *flinkMetaInfos[0]);
+    auto* leftMapSerializer = dynamic_cast<MapSerializer*>(leftOmniMeta.getValueSerializer());
+    ASSERT_NE(leftMapSerializer, nullptr);
+    EXPECT_EQ(leftMapSerializer->getKeySerializer()->getBackendId(), BackendDataType::ROW_BK);
+    EXPECT_EQ(leftMapSerializer->getValueSerializer()->getBackendId(), BackendDataType::TUPLE_INT32_INT32);
+    auto rightOmniMeta = adaptor.buildOmniMainMetaInfo(1, *flinkMetaInfos[1]);
+    auto* rightMapSerializer = dynamic_cast<MapSerializer*>(rightOmniMeta.getValueSerializer());
+    ASSERT_NE(rightMapSerializer, nullptr);
+    EXPECT_EQ(rightMapSerializer->getKeySerializer()->getBackendId(), BackendDataType::ROW_BK);
+    EXPECT_EQ(rightMapSerializer->getValueSerializer()->getBackendId(), BackendDataType::INT_BK);
+}
 
-    RecordingRestoreKVStateVB writer;
-    adaptor.retrieveKVRowData(flinkKey, flinkValueBytes, leftStateId, &writer);
+TEST(StreamingJoinSavepointAdaptorTest, NativeJoinTupleMetadataStaysPojoAndCompatibleSnapshotUsesFlinkTuple)
+{
+    JoinTupleSerializer serializer;
+    auto serializerJson = nlohmann::json::parse(serializer.toJson());
+    EXPECT_EQ(serializerJson.at("type").get<int>(), static_cast<int>(SerializerType::POJO));
+    EXPECT_EQ(serializerJson.at("element_type").get<std::string>(), TYPE_NAME_JOIN_TUPLE_CLASS);
 
-    EXPECT_EQ(writer.appendedRowBytes, expectedRowBytes);
-    EXPECT_EQ(writer.appendedColumnTypes, adaptor.columnTypes(leftStateId));
-    ASSERT_NE(writer.vbState.currentBatch, nullptr);
-    ASSERT_EQ(writer.vbState.currentRowId, 1);
+    auto omniMetaInfos = makeOmniLeftOuterMetaInfos();
+    auto flinkMetaInfo = StreamingJoinSavepointUtil::createFlinkMapStateSnapshot(
+        StreamingJoinSavepointUtil::LEFT_STATE_NAME, *omniMetaInfos[0], {"BIGINT", "VARCHAR"}, true);
+    auto* flinkMapSerializer = dynamic_cast<MapSerializer*>(flinkMetaInfo->getValueSerializer());
+    ASSERT_NE(flinkMapSerializer, nullptr);
+    auto flinkValueJson = nlohmann::json::parse(flinkMapSerializer->getValueSerializer()->toJson());
+    EXPECT_EQ(flinkValueJson.at("type").get<int>(), static_cast<int>(SerializerType::TUPLE));
+    EXPECT_EQ(flinkValueJson.at("element_type").get<std::string>(), "org.apache.flink.api.java.tuple.Tuple2");
+    ASSERT_TRUE(flinkValueJson.at("fieldSerializers").is_array());
+    EXPECT_EQ(flinkValueJson.at("fieldSerializers").size(), 2);
+}
 
-    // Restore writer 在提交尾批前会按实际写入行数裁剪 VectorBatch，测试使用相同语义计算 row hash。
-    std::unique_ptr<omnistream::VectorBatch> actualBatch(
-        VectorBatchRestoreUtil::sliceVectorBatch(writer.vbState.currentBatch, 0, writer.vbState.currentRowId));
-    ASSERT_NE(actualBatch, nullptr);
-    auto rowHashes = actualBatch->getXXH128s();
-    ASSERT_FALSE(rowHashes.empty());
-    auto expectedMainKey = StreamingJoinSavepointUtil::serializeOmniMapKey(
-        ByteView::fromBuffer(flinkKey.data(), expectedPrefixSize), rowHashes[0]);
-    EXPECT_EQ(writer.writtenKeyBytes, expectedMainKey);
+TEST(StreamingJoinSavepointAdaptorTest, SaveValidationAcceptsCurrentSchemaAndRejectsLegacyHashSchema)
+{
+    StreamingJoinSavepointAdaptor adaptor(FlinkSavepointAdaptorType::StreamingLeftOuterJoinNoUniqueKeyAdaptor);
+    adaptor.prepareForSave(leftOuterDescription());
 
-    auto restoredValue = StreamingJoinSavepointUtil::parseOmniJoinValue(
-        ByteView::fromBuffer(writer.writtenValueBytes.data(), writer.writtenValueBytes.size()));
-    EXPECT_EQ(restoredValue.count, flinkValue.count);
-    EXPECT_EQ(restoredValue.numAssociations, flinkValue.numAssociations);
-    EXPECT_EQ(restoredValue.comboId, VectorBatchUtil::getComboId(writer.keyGroupId, 0, 0));
-    EXPECT_TRUE(restoredValue.outerJoinState);
+    auto currentMetaInfos = makeOmniLeftOuterMetaInfos();
+    EXPECT_NO_THROW(adaptor.validateForSave(currentMetaInfos));
+
+    auto legacyLeft = std::make_shared<StateMetaInfoSnapshot>(
+        StreamingJoinSavepointUtil::LEFT_STATE_NAME,
+        StateMetaInfoSnapshot::BackendStateType::KEY_VALUE,
+        std::unordered_map<std::string, std::string>{{"KEYED_STATE_TYPE", "MAP"}},
+        std::unordered_map<std::string, std::shared_ptr<TypeSerializerSnapshot>>{},
+        std::unordered_map<std::string, TypeSerializer*>{
+            {StateMetaInfoSnapshot::NAMESPACE_SERIALIZER_KEY, VoidNamespaceSerializer::INSTANCE},
+            {StateMetaInfoSnapshot::VALUE_SERIALIZER_KEY,
+             new MapSerializer(new XxH128_hashSerializer(), new JoinTupleSerializer2())}});
+    std::vector<std::shared_ptr<StateMetaInfoSnapshot>> legacyMetaInfos{legacyLeft, currentMetaInfos[1]};
+    EXPECT_THROW(adaptor.validateForSave(legacyMetaInfos), std::runtime_error);
+}
+
+TEST(StreamingJoinSavepointAdaptorTest, SaveContextsNeverCreateVectorBatchAccessor)
+{
+    StreamingJoinSavepointAdaptor adaptor(FlinkSavepointAdaptorType::StreamingJoinNoUniqueKeyAdaptor);
+    NoVbSnapshotResources resources(2);
+    VectorBatchSavePlan plan;
+    plan.kvStateIdMapping.emplace(0, 0);
+    plan.kvStateIdMapping.emplace(1, 1);
+    plan.stateContextSpecs.push_back(
+        {0,
+         StreamingJoinSavepointUtil::LEFT_STATE_NAME,
+         IntSerializer::INSTANCE,
+         {},
+         VectorBatchStateType::KV_TRANSFORM});
+    plan.stateContextSpecs.push_back(
+        {1,
+         StreamingJoinSavepointUtil::RIGHT_STATE_NAME,
+         IntSerializer::INSTANCE,
+         {},
+         VectorBatchStateType::KV_TRANSFORM});
+
+    auto contexts = adaptor.buildSaveStateContexts(resources, plan);
+
+    ASSERT_EQ(contexts.size(), 2);
+    EXPECT_TRUE(contexts[0].isValid());
+    EXPECT_TRUE(contexts[1].isValid());
+    EXPECT_EQ(contexts[0].vbAccessor, nullptr);
+    EXPECT_EQ(contexts[1].vbAccessor, nullptr);
+    EXPECT_EQ(resources.accessorCreateCount, 0);
 }

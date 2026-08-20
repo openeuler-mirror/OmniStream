@@ -23,7 +23,7 @@
 namespace omnistream {
 
 // 恢复方向公共调度流程：遍历 Flink logical source entries，通过 Adaptor 提供的
-// 按 StateType 分发到 KV / KV_WITH_VB / PQ 子流程。
+// 按 StateType 分发到 KV / KV_TRANSFORMED / KV_WITH_VB / PQ 子流程。
 // Derived 需实现:  getStateType / buildOmniMainMetaInfo / retrieveKVRowData
 
 class VectorBatchRestoreFlow final {
@@ -54,6 +54,11 @@ public:
                 switch (stateType) {
                     case RestoreStateType::KV: {
                         kvWriters[i] = backend.createKVState(i, metaInfos[i]);
+                        break;
+                    }
+                    case RestoreStateType::KV_TRANSFORMED: {
+                        auto mainMetaInfo = derived.buildOmniMainMetaInfo(i, metaInfos[i]);
+                        kvWriters[i] = backend.createKVState(i, mainMetaInfo);
                         break;
                     }
                     case RestoreStateType::KV_WITH_VB: {
@@ -88,7 +93,8 @@ public:
                         }
 
                         switch (stIt->second) {
-                            case RestoreStateType::KV: {
+                            case RestoreStateType::KV:
+                            case RestoreStateType::KV_TRANSFORMED: {
                                 auto& w = kvWriters[kvStateId];
                                 w->setKeyGroupId(keyGroupId);
                                 ByteView valueView(entry.getValue().data(), entry.getValue().size());

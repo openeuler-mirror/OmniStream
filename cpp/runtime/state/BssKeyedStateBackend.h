@@ -224,6 +224,11 @@ uintptr_t BssKeyedStateBackend<K>::GetMapState(TypeSerializer* namespaceSerializ
     } else if (keyId == BackendDataType::ROW_BK && valueId == BackendDataType::INT_BK) {
         return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, RowData*, int32_t>(
             namespaceSerializer, stateDesc);
+    } else if (
+        keyId == BackendDataType::SHARED_ROW_BK &&
+        (valueId == BackendDataType::INT_BK || valueId == BackendDataType::TUPLE_INT32_INT32)) {
+        THROW_LOGIC_EXCEPTION(
+            "BSS does not support StreamingJoin shared RowData MapState; use Heap or RocksDB backend");
     } else if (keyId == BackendDataType::ROW_BK && valueId == BackendDataType::ROW_BK) {
         return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, RowData*, RowData*>(
             namespaceSerializer, stateDesc);

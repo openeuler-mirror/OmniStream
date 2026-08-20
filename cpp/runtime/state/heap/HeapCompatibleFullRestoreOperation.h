@@ -43,7 +43,8 @@ public:
         int numberOfKeyGroups,
         std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge,
         FlinkSavepointAdaptorInfo adaptorInfo,
-        std::unique_ptr<omnistream::OperatorSavepointAdaptor> preparedAdaptor)
+        std::unique_ptr<omnistream::OperatorSavepointAdaptor> preparedAdaptor,
+        const omnistream::OperatorRuntimeStateSchemaProvider* runtimeSchemaProvider = nullptr)
         : constructionBackend_(constructionBackend),
           keyGroupRange_(keyGroupRange),
           restoreStateHandles_(std::move(restoreStateHandles)),
@@ -51,7 +52,8 @@ public:
           numberOfKeyGroups_(numberOfKeyGroups),
           omniTaskBridge_(std::move(omniTaskBridge)),
           adaptorInfo_(std::move(adaptorInfo)),
-          preparedAdaptor_(std::move(preparedAdaptor))
+          preparedAdaptor_(std::move(preparedAdaptor)),
+          runtimeSchemaProvider_(runtimeSchemaProvider)
     {
     }
 
@@ -86,7 +88,8 @@ public:
         omnistream::HeapRestoreBackendDelegate<K> backendDelegate(
             constructionBackend_,
             keySerializerProvider_,
-            CompositeKeySerializationUtils::computeRequiredBytesInKeyGroupPrefix(numberOfKeyGroups_));
+            CompositeKeySerializationUtils::computeRequiredBytesInKeyGroupPrefix(numberOfKeyGroups_),
+            runtimeSchemaProvider_);
         preparedAdaptor_->restore(*restoreIterator, backendDelegate);
     }
 
@@ -116,4 +119,5 @@ private:
     std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge_;
     FlinkSavepointAdaptorInfo adaptorInfo_;
     std::unique_ptr<omnistream::OperatorSavepointAdaptor> preparedAdaptor_;
+    const omnistream::OperatorRuntimeStateSchemaProvider* runtimeSchemaProvider_;
 };

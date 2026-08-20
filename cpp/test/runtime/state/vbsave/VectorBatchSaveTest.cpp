@@ -97,7 +97,10 @@ public:
 
     void close() override
     {
+        ++closeCalls;
     }
+
+    int closeCalls = 0;
 };
 
 class MockHooks : public omnistream::VectorBatchSaveHooks {
@@ -255,9 +258,6 @@ TEST(VectorBatchSaveTest, SaveStateContextRequiresAccessorOnlyForVectorBatchStat
     context.vbAccessor = accessor;
     EXPECT_TRUE(context.isValid());
 
-    context.stateType = omnistream::VectorBatchStateType::KV_LIST_WITH_VB;
-    EXPECT_TRUE(context.isValid());
-
     context.writable = false;
     EXPECT_FALSE(context.isValid());
 }
@@ -386,7 +386,7 @@ TEST(VectorBatchSaveTest, SaveStateContextMoveConstructorResetsSource)
     EXPECT_FALSE(ctx.writable);
 }
 
-TEST(VectorBatchSaveTest, SaveStateContextMoveAssignmentResetsSource)
+TEST(VectorBatchSaveTest, SaveStateContextMoveAssignmentClosesTargetAndResetsSource)
 {
     auto accessor = std::make_shared<MockVectorBatchStateAccessor>();
     MockSerializer serializer;
@@ -397,7 +397,7 @@ TEST(VectorBatchSaveTest, SaveStateContextMoveAssignmentResetsSource)
     ctx.logicalStateName = "sourceState";
     ctx.valueSerializer = &serializer;
     ctx.vbAccessor = accessor;
-    ctx.stateType = omnistream::VectorBatchStateType::KV_LIST_WITH_VB;
+    ctx.stateType = omnistream::VectorBatchStateType::KV_WITH_VB;
 
     omnistream::VectorBatchSaveStateContext target;
     target = std::move(ctx);
@@ -408,7 +408,7 @@ TEST(VectorBatchSaveTest, SaveStateContextMoveAssignmentResetsSource)
     EXPECT_EQ(target.logicalStateName, "sourceState");
     EXPECT_EQ(target.valueSerializer, &serializer);
     EXPECT_EQ(target.vbAccessor.get(), accessor.get());
-    EXPECT_EQ(target.stateType, omnistream::VectorBatchStateType::KV_LIST_WITH_VB);
+    EXPECT_EQ(target.stateType, omnistream::VectorBatchStateType::KV_WITH_VB);
 
     // 源对象应被重置为默认值
     EXPECT_FALSE(ctx.isValid());
