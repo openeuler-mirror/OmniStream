@@ -320,14 +320,13 @@ TEST_F(SavepointAdaptorExecuteSaveTest, StreamingJoinSaveExecutesConvertKVRowDat
 {
     omnistream::StreamingJoinSavepointAdaptor adaptor(FlinkSavepointAdaptorType::StreamingJoinNoUniqueKeyAdaptor);
     adaptor.prepareForSave({{"leftInputTypes", {"BIGINT"}}, {"rightInputTypes", {"BIGINT"}}});
-    const auto comboId = omnistream::VectorBatchUtil::getComboId(0, 13, 2);
-    omnistream::StreamingJoinSavepointUtil::ParsedJoinValue joinValue;
-    joinValue.count = 3;
-    XXH128_hash_t rowHash{};
-    const std::vector<int8_t> keyPrefix{0x01};
-    auto keyBytes = omnistream::StreamingJoinSavepointUtil::serializeOmniMapKey(
-        ByteView(keyPrefix.data(), keyPrefix.size()), rowHash);
-    auto valueBytes = omnistream::StreamingJoinSavepointUtil::serializeOmniJoinValue(joinValue, comboId);
+    std::vector<int8_t> keyBytes{0x01};
+    DataOutputSerializer valueOutput;
+    OutputBufferStatus valueOutputStatus{};
+    valueOutput.setBackendBuffer(&valueOutputStatus);
+    valueOutput.writeBoolean(false);
+    valueOutput.writeInt(3);
+    auto valueBytes = copyOutput(valueOutput);
     auto iterator = std::make_shared<SingleEntryIterator>(std::move(keyBytes), std::move(valueBytes), 0);
     auto accessor = std::make_shared<RecordingVectorBatchAccessor>();
     TestSnapshotResources resources;
@@ -338,12 +337,8 @@ TEST_F(SavepointAdaptorExecuteSaveTest, StreamingJoinSaveExecutesConvertKVRowDat
 
     EXPECT_GT(saveAndGetPosition(adaptor, resources), 0U);
     EXPECT_TRUE(iterator->closed);
-    ASSERT_EQ(accessor->requestedRows.size(), 1U);
-    EXPECT_EQ(
-        accessor->requestedRows[0],
-        std::make_pair(
-            omnistream::VectorBatchUtil::getVectorBatchId(comboId), omnistream::VectorBatchUtil::getRowId(comboId)));
-    EXPECT_EQ(accessor->closeCalls, 1);
+    EXPECT_TRUE(accessor->requestedRows.empty());
+    EXPECT_EQ(accessor->closeCalls, 0);
 }
 
 } // namespace

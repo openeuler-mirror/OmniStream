@@ -26,8 +26,8 @@
 #include "runtime/state/KeyGroupRange.h"
 #include "streaming/api/operators/StreamingRuntimeContext.h"
 #include "table/data/binary/BinaryRowData.h"
-#include "table/typeutils/BinaryRowDataSerializer.h"
 #include "table/typeutils/InternalTypeInfo.h"
+#include "table/typeutils/RowDataSerializer.h"
 #include "table/types/logical/RowType.h"
 
 namespace omnistream {
@@ -43,8 +43,8 @@ protected:
         backend_ = new HeapKeyedStateBackend<long>(keySerializer_, keyContext_);
         stateStore_ = new DefaultKeyedStateStore<long>(backend_);
         runtimeContext_ = new StreamingRuntimeContext<long>(stateStore_, nullptr);
-        recordSerializer_ = new BinaryRowDataSerializer(1);
         recordRowType_ = new RowType(false, std::vector<RowField>{RowField("value", BasicLogicalType::BIGINT)});
+        recordSerializer_ = new RowDataSerializer(recordRowType_);
         recordType_ = new InternalTypeInfo(recordRowType_, recordSerializer_);
     }
 
@@ -97,7 +97,7 @@ protected:
     HeapKeyedStateBackend<long>* backend_{};
     DefaultKeyedStateStore<long>* stateStore_{};
     StreamingRuntimeContext<long>* runtimeContext_{};
-    BinaryRowDataSerializer* recordSerializer_{};
+    RowDataSerializer* recordSerializer_{};
     RowType* recordRowType_{};
     InternalTypeInfo* recordType_{};
 };

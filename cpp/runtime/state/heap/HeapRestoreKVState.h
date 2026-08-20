@@ -247,8 +247,12 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
         throw std::runtime_error("HeapRestoreKVState: MAP state missing key/value serializers");
     }
 
-    BackendDataType mapKeyId = mapKeySer->getBackendId();
-    BackendDataType mapValId = mapValSer->getBackendId();
+    // Serializer ids describe the checkpoint bytes, while the descriptor ids
+    // describe the concrete in-memory table selected by the runtime schema
+    // provider. Dispatch must follow the table layout; serializers are only
+    // used below to decode the persisted bytes.
+    BackendDataType mapKeyId = stateInfo_.mainStateDesc->getKeyDataId();
+    BackendDataType mapValId = stateInfo_.mainStateDesc->getValueDataId();
 
     DataInputDeserializer valInput(value.data(), static_cast<int>(value.size()));
     if (valInput.readBoolean()) {
@@ -269,10 +273,9 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
         if (rawUk == nullptr) {
             throw std::runtime_error("HeapRestoreKVState: deserialized null shared row map key");
         }
+        // RowDataSerializer owns the returned BinaryRowData reuse buffer even
+        // when MapSerializer marks its child serializer as non-reusable.
         UK uk(static_cast<RowData*>(rawUk->copy()));
-        if (!mapKeySer->isReusable()) {
-            delete rawUk;
-        }
         std::unique_ptr<UV> uvPtr(static_cast<UV*>(mapValSer->deserialize(valInput)));
         auto* kvMap = table->get(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs));
         if (kvMap == nullptr) {
@@ -397,10 +400,9 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
         if (rawUk == nullptr) {
             throw std::runtime_error("HeapRestoreKVState: deserialized null shared row map key");
         }
+        // Keep the serializer-owned buffer alive; only the copied row belongs
+        // to the restored shared_ptr key.
         UK uk(static_cast<RowData*>(rawUk->copy()));
-        if (!mapKeySer->isReusable()) {
-            delete rawUk;
-        }
         std::unique_ptr<UV> uvPtr(static_cast<UV*>(mapValSer->deserialize(valInput)));
         UV uv = *uvPtr;
         auto* kvMap = table->get(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs));

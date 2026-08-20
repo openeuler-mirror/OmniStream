@@ -29,16 +29,16 @@ namespace omnistream {
 // RestoreStateType — 保存/恢复流程的状态类型分发
 // ============================================================================
 enum class VectorBatchStateType {
-    KV,              // 普通 KV 状态（无 VB side table）
-    KV_WITH_VB,      // 带 VectorBatch side table 的 KV 状态（单 comboId）
-    KV_LIST_WITH_VB, // 带 VectorBatch side table 的 KV 状态（comboId List，如 Top1/TopN）
-    PQ,              // PriorityQueue 状态
+    KV,           // 普通 KV 状态（无转换、无 VB side table）
+    KV_TRANSFORM, // 需要 Adaptor 转换 entry，但不访问 VB side table
+    KV_WITH_VB,   // 带 VectorBatch side table 的 KV 状态（单 comboId）
+    PQ,           // PriorityQueue 状态
 };
 
 // ============================================================================
 // VectorBatchSaveStateContext — 保存阶段按 source kvStateId 下标访问的状态上下文
 // 由 Adaptor 在 buildSaveStateContexts() 中构造，VectorBatchSaveFlow 根据 entry.kvStateId 读取。
-// stateType 为 KV 时走非 VB 路径（直接 pass-through entry key/value）。
+// stateType 为 KV 时直接 pass-through；KV_TRANSFORM 由 adaptor 转换但不创建 VB accessor。
 // ============================================================================
 
 struct VectorBatchSaveStateContext {
@@ -99,7 +99,8 @@ struct VectorBatchSaveStateContext {
             valueSerializer == nullptr) {
             return false;
         }
-        if (stateType != VectorBatchStateType::KV && stateType != VectorBatchStateType::PQ && vbAccessor == nullptr) {
+        if (stateType != VectorBatchStateType::KV && stateType != VectorBatchStateType::KV_TRANSFORM &&
+            stateType != VectorBatchStateType::PQ && vbAccessor == nullptr) {
             return false;
         }
         return true;

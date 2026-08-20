@@ -21,11 +21,12 @@
 
 #include "common.h"
 
+#include "core/typeutils/MapSerializer.h"
 #include "runtime/state/metainfo/StateMetaInfoSnapshot.h"
 #include "core/api/common/state/StateDescriptor.h"
 
 namespace omnistream {
-// state metadata 校验器 按 name 建立索引，提供 keyed state 类型级校验和白名单收口。
+// state metadata 校验器 按 name 建立索引，提供 keyed state 类型及 serializer 校验和白名单收口。
 // 不读取 payload、不创建 VectorBatch accessor、不打开输出流、不写 construction backend。
 class StateMetaInfoValidator {
 public:
@@ -57,6 +58,18 @@ public:
         requireKeyedState(stateName, StateDescriptor::Type::MAP);
     }
 
+    // 要求 keyed map state 的 namespace、map key 和 map value serializer backend type
+    // 分别属于调用方给定的白名单。
+    void requireKeyedMapState(
+        const std::string& stateName,
+        BackendDataType namespaceBackendType,
+        const std::set<BackendDataType>& keyBackendTypes,
+        const std::set<BackendDataType>& valueBackendTypes)
+    {
+        requireKeyedMapState(stateName);
+        requireMapStateSerializers(stateName, get(stateName), namespaceBackendType, keyBackendTypes, valueBackendTypes);
+    }
+
     // 要求指定 name 的 keyed list state 存在且 backend type 为 KEY_VALUE。
     void requireKeyedListState(const std::string& stateName)
     {
@@ -74,6 +87,17 @@ public:
     void requireKeyedMapStateWithVB(const std::string& stateName)
     {
         requireKeyedMapState(stateName);
+        consumeVbSideTable(stateName);
+    }
+
+    // 校验 keyed map state serializer backend type，并消费其可选 VB side table。
+    void requireKeyedMapStateWithVB(
+        const std::string& stateName,
+        BackendDataType namespaceBackendType,
+        const std::set<BackendDataType>& keyBackendTypes,
+        const std::set<BackendDataType>& valueBackendTypes)
+    {
+        requireKeyedMapState(stateName, namespaceBackendType, keyBackendTypes, valueBackendTypes);
         consumeVbSideTable(stateName);
     }
 
@@ -253,6 +277,45 @@ private:
             INFO_RELEASE(oss.str());
             throw std::runtime_error(oss.str());
         }
+    }
+
+    static void requireMapStateSerializers(
+        const std::string& stateName,
+        const std::shared_ptr<StateMetaInfoSnapshot>& meta,
+        BackendDataType namespaceBackendType,
+        const std::set<BackendDataType>& keyBackendTypes,
+        const std::set<BackendDataType>& valueBackendTypes)
+    {
+        auto* namespaceSerializer = meta->getNamespaceSerializer();
+        auto* mapSerializer = dynamic_cast<MapSerializer*>(meta->getValueSerializer());
+        if (namespaceSerializer == nullptr || namespaceSerializer->getBackendId() != namespaceBackendType ||
+            mapSerializer == nullptr || mapSerializer->getKeySerializer() == nullptr ||
+            mapSerializer->getValueSerializer() == nullptr) {
+            throwSerializerMismatch(stateName, "MapState");
+        }
+
+        requireAllowedBackendType(stateName, "map key", mapSerializer->getKeySerializer(), keyBackendTypes);
+        requireAllowedBackendType(stateName, "map value", mapSerializer->getValueSerializer(), valueBackendTypes);
+    }
+
+    static void requireAllowedBackendType(
+        const std::string& stateName,
+        const std::string& serializerRole,
+        const TypeSerializer* serializer,
+        const std::set<BackendDataType>& backendTypes)
+    {
+        if (backendTypes.find(serializer->getBackendId()) == backendTypes.end()) {
+            throwSerializerMismatch(stateName, serializerRole);
+        }
+    }
+
+    [[noreturn]] static void throwSerializerMismatch(const std::string& stateName, const std::string& serializerRole)
+    {
+        std::ostringstream oss;
+        oss << "Error: StateMetaInfoValidator: state '" << stateName << "' " << serializerRole
+            << " serializer metadata mismatch";
+        INFO_RELEASE(oss.str());
+        throw std::runtime_error(oss.str());
     }
 };
 } // namespace omnistream

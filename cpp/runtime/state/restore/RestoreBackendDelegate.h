@@ -23,10 +23,11 @@
 namespace omnistream {
 
 enum class RestoreStateType {
-    KV,         // 普通 KV 状态（无 VB side table）
-    KV_WITH_VB, // 带 VectorBatch side table 的 KV 状态
-    PQ,         // PriorityQueue 状态
-    UNSUPPORT,  // 未支持的状态
+    KV,             // 普通 KV 状态（源/目标 metadata 相同，无 VB side table）
+    KV_TRANSFORMED, // payload 直接透传，但使用 Adaptor 构造的目标 metadata
+    KV_WITH_VB,     // 带 VectorBatch side table 的 KV 状态
+    PQ,             // PriorityQueue 状态
+    UNSUPPORT,      // 未支持的状态
 };
 
 // ============================================================================

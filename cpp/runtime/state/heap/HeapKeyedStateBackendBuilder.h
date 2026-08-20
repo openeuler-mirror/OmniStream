@@ -39,6 +39,7 @@
 #include "table/typeutils/SortedVectorLong.h"
 #include "core/utils/MathUtils.h"
 #include "runtime/state/StateRestoreValidation.h"
+#include "runtime/state/OperatorRuntimeStateSchemaProvider.h"
 
 template <typename K>
 class HeapKeyedStateBackendBuilder {
@@ -148,18 +149,30 @@ private:
         const StateMetaInfoSnapshot& metaInfo,
         StateDescriptor::Type stateType,
         TypeSerializer* nsSerializer,
-        TypeSerializer* valSerializer)
+        TypeSerializer* valSerializer,
+        const omnistream::OperatorRuntimeStateSchemaProvider* runtimeSchemaProvider)
     {
         if (stateType == StateDescriptor::Type::MAP) {
             auto* mapSer = dynamic_cast<MapSerializer*>(valSerializer);
             if (mapSer) {
+                BackendDataType keyBackendType = mapSer->getKeySerializer()->getBackendId();
+                BackendDataType valueBackendType = mapSer->getValueSerializer()->getBackendId();
+                std::optional<omnistream::OperatorRuntimeStateSchemaProvider::MapStateSchema> runtimeSchema;
+                if (runtimeSchemaProvider != nullptr) {
+                    runtimeSchema = runtimeSchemaProvider->resolveMapStateSchema(
+                        metaInfo.getName(), keyBackendType, valueBackendType);
+                }
+                if (runtimeSchema.has_value()) {
+                    keyBackendType = runtimeSchema->keyBackendType;
+                    valueBackendType = runtimeSchema->valueBackendType;
+                }
                 return new RestoreStateDescriptor(
                     metaInfo.getName(),
                     stateType,
                     valSerializer,
                     BackendDataType::INVALID_BK,
-                    mapSer->getKeySerializer()->getBackendId(),
-                    mapSer->getValueSerializer()->getBackendId());
+                    keyBackendType,
+                    valueBackendType);
             }
             // Fallback: OBJECT×OBJECT if MapSerializer cast fails
             return new RestoreStateDescriptor(
@@ -309,6 +322,8 @@ template <typename K>
 HeapKeyedStateBackend<K>* HeapKeyedStateBackendBuilder<K>::build()
 {
     std::unique_ptr<omnistream::OperatorSavepointAdaptor> compatiblePreparedAdaptor;
+    std::unique_ptr<omnistream::OperatorRuntimeStateSchemaProvider> runtimeSchemaProvider =
+        omnistream::OperatorRuntimeStateSchemaProviderFactory::create(operatorDescription_);
     if (!restoreStateHandles.empty()) {
         if (restoreMode_ == RestoreSavepointMode::FLINK_COMPATIBLE) {
             if (adaptorInfo_.type == FlinkSavepointAdaptorType::None) {
@@ -367,7 +382,8 @@ HeapKeyedStateBackend<K>* HeapKeyedStateBackendBuilder<K>::build()
             numberOfKeyGroups,
             omniTaskBridge,
             adaptorInfo_,
-            std::move(compatiblePreparedAdaptor));
+            std::move(compatiblePreparedAdaptor),
+            runtimeSchemaProvider.get());
         restoreOp.restore();
         auto* builtBackend = backend.release();
         keyContext.release();
@@ -437,12 +453,14 @@ HeapKeyedStateBackend<K>* HeapKeyedStateBackendBuilder<K>::build()
                 }
                 auto stateName = metaInfo.getName();
                 if (stateName.size() >= 2 && stateName.compare(stateName.size() - 2, 2, "vb") == 0) {
-                    StateDescriptor* desc = createRestoreDescriptor(metaInfo, stateType, nsSerializer, valSerializer);
+                    StateDescriptor* desc =
+                        createRestoreDescriptor(metaInfo, stateType, nsSerializer, valSerializer, nullptr);
                     stateInfos.push_back({backendStateType, stateName, desc, nsSerializer, valSerializer});
                     continue;
                 }
 
-                StateDescriptor* desc = createRestoreDescriptor(metaInfo, stateType, nsSerializer, valSerializer);
+                StateDescriptor* desc = createRestoreDescriptor(
+                    metaInfo, stateType, nsSerializer, valSerializer, runtimeSchemaProvider.get());
 
                 // Create the state table via the existing type dispatch mechanism
                 backend->createOrUpdateInternalState(nsSerializer, desc);

@@ -114,7 +114,7 @@ public:
                 pendingNewKeyValueState = false;
             };
 
-            // Step 7: 遍历，普通 KV/PQ 直接透传，VB 状态由 Adaptor 解引用 comboId 列表并输出 0-N 条结果。
+            // Step 7: 遍历，普通 KV/PQ 直接透传；其余状态由 Adaptor 转换并输出 0-N 条结果。
             auto convertEntry = [&](const KeyValueStateIterator::CurrentEntry& entry, auto&& output) {
                 const auto& ctx = getContext(entry.kvStateId);
                 if (ctx.stateType == VectorBatchStateType::KV || ctx.stateType == VectorBatchStateType::PQ) {

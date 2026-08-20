@@ -21,6 +21,7 @@
 #include "core/typeutils/VoidSerializer.h"
 #include "core/api/common/state/RestoreStateDescriptor.h"
 #include "runtime/state/HeapKeyedStateBackend.h"
+#include "runtime/state/OperatorRuntimeStateSchemaProvider.h"
 #include "runtime/state/heap/HeapRestoreKVState.h"
 #include "runtime/state/heap/HeapRestoreKVStateVB.h"
 #include "runtime/state/heap/HeapRestorePQState.h"
@@ -52,7 +53,10 @@ public:
     };
 
     HeapRestoreBackendDelegate(
-        HeapKeyedStateBackend<K>* backend, std::shared_ptr<TypeSerializer> keySerializer, int keyGroupPrefixBytes);
+        HeapKeyedStateBackend<K>* backend,
+        std::shared_ptr<TypeSerializer> keySerializer,
+        int keyGroupPrefixBytes,
+        const OperatorRuntimeStateSchemaProvider* runtimeSchemaProvider = nullptr);
 
     // --- RestoreBackendDelegate 工厂接口 ---
 
@@ -88,6 +92,9 @@ public:
 
     static StateDescriptor* createMainTableDescriptor(const StateMetaInfoSnapshot& mainMetaInfo);
 
+    static StateDescriptor* createMainTableDescriptor(
+        const StateMetaInfoSnapshot& mainMetaInfo, const OperatorRuntimeStateSchemaProvider* runtimeSchemaProvider);
+
 private:
     RestoreStateInfo& ensureStateRegistered(
         int kvStateId,
@@ -97,6 +104,7 @@ private:
     HeapKeyedStateBackend<K>* backend_;
     std::shared_ptr<TypeSerializer> keySerializer_;
     int keyGroupPrefixBytes_;
+    const OperatorRuntimeStateSchemaProvider* runtimeSchemaProvider_;
     std::deque<RestoreStateInfo> stateInfos_;
 };
 
@@ -106,10 +114,14 @@ private:
 
 template <typename K>
 HeapRestoreBackendDelegate<K>::HeapRestoreBackendDelegate(
-    HeapKeyedStateBackend<K>* backend, std::shared_ptr<TypeSerializer> keySerializer, int keyGroupPrefixBytes)
+    HeapKeyedStateBackend<K>* backend,
+    std::shared_ptr<TypeSerializer> keySerializer,
+    int keyGroupPrefixBytes,
+    const OperatorRuntimeStateSchemaProvider* runtimeSchemaProvider)
     : backend_(backend),
       keySerializer_(std::move(keySerializer)),
-      keyGroupPrefixBytes_(keyGroupPrefixBytes)
+      keyGroupPrefixBytes_(keyGroupPrefixBytes),
+      runtimeSchemaProvider_(runtimeSchemaProvider)
 {
 }
 
@@ -154,7 +166,7 @@ typename HeapRestoreBackendDelegate<K>::RestoreStateInfo& HeapRestoreBackendDele
         }
     }
 
-    info.mainStateDesc = createMainTableDescriptor(mainMetaInfo);
+    info.mainStateDesc = createMainTableDescriptor(mainMetaInfo, runtimeSchemaProvider_);
     if (nsSerializer != nullptr) {
         backend_->createOrUpdateInternalState(nsSerializer, info.mainStateDesc);
     }
@@ -192,6 +204,13 @@ std::unique_ptr<RestorePQState> HeapRestoreBackendDelegate<K>::createPQState(
 template <typename K>
 StateDescriptor* HeapRestoreBackendDelegate<K>::createMainTableDescriptor(const StateMetaInfoSnapshot& mainMetaInfo)
 {
+    return createMainTableDescriptor(mainMetaInfo, nullptr);
+}
+
+template <typename K>
+StateDescriptor* HeapRestoreBackendDelegate<K>::createMainTableDescriptor(
+    const StateMetaInfoSnapshot& mainMetaInfo, const OperatorRuntimeStateSchemaProvider* runtimeSchemaProvider)
+{
     auto stateTypeString = mainMetaInfo.getOption(StateMetaInfoSnapshot::CommonOptionsKeys::KEYED_STATE_TYPE);
     StateDescriptor::Type stateType = StateDescriptor::StringToType(stateTypeString);
     if (stateType == StateDescriptor::Type::UNKNOWN) {
@@ -204,13 +223,23 @@ StateDescriptor* HeapRestoreBackendDelegate<K>::createMainTableDescriptor(const 
     if (stateType == StateDescriptor::Type::MAP) {
         auto* mapSer = dynamic_cast<MapSerializer*>(valSerializer);
         if (mapSer) {
+            BackendDataType keyBackendType = mapSer->getKeySerializer()->getBackendId();
+            BackendDataType valueBackendType = mapSer->getValueSerializer()->getBackendId();
+            if (runtimeSchemaProvider != nullptr) {
+                auto runtimeSchema = runtimeSchemaProvider->resolveMapStateSchema(
+                    mainMetaInfo.getName(), keyBackendType, valueBackendType);
+                if (runtimeSchema.has_value()) {
+                    keyBackendType = runtimeSchema->keyBackendType;
+                    valueBackendType = runtimeSchema->valueBackendType;
+                }
+            }
             return new RestoreStateDescriptor(
                 mainMetaInfo.getName(),
                 stateType,
                 valSerializer,
                 BackendDataType::INVALID_BK,
-                mapSer->getKeySerializer()->getBackendId(),
-                mapSer->getValueSerializer()->getBackendId());
+                keyBackendType,
+                valueBackendType);
         }
         return new RestoreStateDescriptor(
             mainMetaInfo.getName(),
