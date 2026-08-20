@@ -136,14 +136,6 @@ public:
     {
         return std::vector<int8_t>(entry.value.begin(), entry.value.end());
     }
-
-    void convertKVRowData(
-        const KeyValueStateIterator::CurrentEntry& /*entry*/,
-        const omnistream::VectorBatchSaveStateContext& /*context*/,
-        const omnistream::VectorBatchSavePlan& /*plan*/,
-        std::function<void(omnistream::ConvertedEntry)> /*output*/) override
-    {
-    }
 };
 
 std::vector<int8_t> bytes(std::initializer_list<int8_t> values)
@@ -596,13 +588,6 @@ TEST(VectorBatchSaveTest, DefaultParseVectorBatchReferenceReturnsMinusOne)
         {
             return {};
         }
-        void convertKVRowData(
-            const KeyValueStateIterator::CurrentEntry&,
-            const omnistream::VectorBatchSaveStateContext&,
-            const omnistream::VectorBatchSavePlan&,
-            std::function<void(omnistream::ConvertedEntry)>) override
-        {
-        }
     };
 
     DefaultHooks defaultHooks;
@@ -610,8 +595,7 @@ TEST(VectorBatchSaveTest, DefaultParseVectorBatchReferenceReturnsMinusOne)
     omnistream::VectorBatchSaveStateContext context;
     omnistream::VectorBatchSavePlan plan;
 
-    EXPECT_EQ(defaultHooks.parseVectorBatchReference(empty, context, plan),
-              static_cast<omnistream::ComboId>(-1));
+    EXPECT_EQ(defaultHooks.parseVectorBatchReference(empty, context, plan), static_cast<omnistream::ComboId>(-1));
 }
 
 TEST(VectorBatchSaveTest, DefaultEncodeFlinkLogicalValueReturnsEmpty)
@@ -622,13 +606,6 @@ TEST(VectorBatchSaveTest, DefaultEncodeFlinkLogicalValueReturnsEmpty)
             FullSnapshotResources&, const omnistream::VectorBatchSavePlan&) override
         {
             return {};
-        }
-        void convertKVRowData(
-            const KeyValueStateIterator::CurrentEntry&,
-            const omnistream::VectorBatchSaveStateContext&,
-            const omnistream::VectorBatchSavePlan&,
-            std::function<void(omnistream::ConvertedEntry)>) override
-        {
         }
     };
 
@@ -643,41 +620,4 @@ TEST(VectorBatchSaveTest, DefaultEncodeFlinkLogicalValueReturnsEmpty)
     omnistream::VectorBatchSavePlan plan;
 
     EXPECT_TRUE(defaultHooks.encodeFlinkLogicalValue(entry, row, context, plan).empty());
-}
-
-TEST(VectorBatchSaveTest, DefaultConvertKVRowDataProducesNoOutput)
-{
-    // 验证 convertKVRowData 默认实现不调用 output 回调
-    class DefaultHooks : public omnistream::VectorBatchSaveHooks {
-    public:
-        std::vector<omnistream::VectorBatchSaveStateContext> buildSaveStateContexts(
-            FullSnapshotResources&, const omnistream::VectorBatchSavePlan&) override
-        {
-            return {};
-        }
-        void convertKVRowData(
-            const KeyValueStateIterator::CurrentEntry&,
-            const omnistream::VectorBatchSaveStateContext&,
-            const omnistream::VectorBatchSavePlan&,
-            std::function<void(omnistream::ConvertedEntry)>) override
-        {
-        }
-    };
-
-    DefaultHooks defaultHooks;
-    const auto key = bytes({0x10, 0x20});
-    const auto value = bytes({0x01});
-    KeyValueStateIterator::CurrentEntry entry;
-    entry.key = ByteView(key.data(), key.size());
-    entry.value = ByteView(value.data(), value.size());
-    omnistream::VectorBatchSaveStateContext context;
-    context.writable = true;
-    context.mappedKvStateId = 0;
-    omnistream::VectorBatchSavePlan plan;
-    int outputCalls = 0;
-
-    defaultHooks.convertKVRowData(entry, context, plan,
-        [&outputCalls](omnistream::ConvertedEntry) { ++outputCalls; });
-
-    EXPECT_EQ(outputCalls, 0);
 }

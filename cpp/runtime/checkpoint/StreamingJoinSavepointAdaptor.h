@@ -13,7 +13,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -99,11 +98,12 @@ public:
 
     // Join 主状态的一个 source entry 可能引用多个 VB row；这里把每个 comboId
     // 解引用为一个 Flink logical MapState entry，供 VectorBatchSaveFlow 写出。
+    template <typename Emit>
     void convertKVRowData(
         const KeyValueStateIterator::CurrentEntry& entry,
         const VectorBatchSaveStateContext& context,
         const VectorBatchSavePlan& plan,
-        std::function<void(ConvertedEntry)> output) override;
+        Emit&& output);
 
     /*========== VectorBatchSaveHooks ==========*/
     /*========== Restore ==========*/
@@ -149,10 +149,9 @@ private:
     void parseInputTypes(SidePlan& sidePlan, const nlohmann::json& description, const std::string& fieldName);
 
     // 将 Heap 聚合或普通 Omni MapState entry 统一展开并直接回调输出。
+    template <typename Emit>
     void parseSourceMapEntries(
-        const KeyValueStateIterator::CurrentEntry& entry,
-        const SidePlan& sidePlan,
-        const std::function<void(ByteView keyBytes, ByteView valueBytes, omnistream::ComboId comboId)>& emit) const;
+        const KeyValueStateIterator::CurrentEntry& entry, const SidePlan& sidePlan, Emit&& emit) const;
 
     // 根据源状态元数据构造 VectorBatchSaveFlow 所需的保存计划。
     VectorBatchSavePlan buildSavePlan(FullSnapshotResources& snapshotResources);

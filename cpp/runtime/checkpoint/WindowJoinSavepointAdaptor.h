@@ -12,7 +12,6 @@
 #pragma once
 
 #include <cstddef>
-#include <functional>
 #include <memory>
 #include <cstdint>
 #include <string>
@@ -58,11 +57,12 @@ public:
     std::vector<VectorBatchSaveStateContext> buildSaveStateContexts(
         FullSnapshotResources& snapshotResources, const VectorBatchSavePlan& plan) override;
 
+    template <typename Emit>
     void convertKVRowData(
         const KeyValueStateIterator::CurrentEntry& entry,
         const VectorBatchSaveStateContext& context,
         const VectorBatchSavePlan& plan,
-        std::function<void(ConvertedEntry)> output) override;
+        Emit&& output);
 
     RestoreStateType getStateType(const StateMetaInfoSnapshot& metaInfo);
     StateMetaInfoSnapshot buildOmniMainMetaInfo(int kvStateId, const StateMetaInfoSnapshot& flinkMetaInfo);

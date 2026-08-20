@@ -349,11 +349,12 @@ void WindowJoinSavepointAdaptor::save(
     VectorBatchSaveFlow::executeSave(*this, plan, stream, keyGroupOffsets, snapshotResources, std::move(keySerializer));
 }
 
+template <typename Emit>
 void WindowJoinSavepointAdaptor::convertKVRowData(
     const KeyValueStateIterator::CurrentEntry& entry,
     const VectorBatchSaveStateContext& context,
     const VectorBatchSavePlan& plan,
-    std::function<void(ConvertedEntry)> output)
+    Emit&& output)
 {
     // 解析 comboId 列表
     auto comboIds =
