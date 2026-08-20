@@ -112,8 +112,13 @@ public:
                             "Failed to create OmniStateStore restore path: " + ec.message());
                     }
                     downloader.transferAllStateDataToDirectory(*remote, restorePath, this->omniTaskBridge);
-                    restorePaths.push_back(restorePath.string());
                     downloadedRestorePaths.push_back(restorePath);
+                    const fs::path metadataPath = restorePath / "metadata";
+                    if (!fs::is_regular_file(metadataPath)) {
+                        bss_adapter::ThrowWithLog<std::runtime_error>(
+                            "OmniStateStore checkpoint metadata is missing: " + metadataPath.string());
+                    }
+                    restorePaths.push_back(restorePath.string());
                 }
                 std::unordered_map<std::string, std::string> lazyPathMapping;
                 bss_adapter::CheckResult(

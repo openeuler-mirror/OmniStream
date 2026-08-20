@@ -168,6 +168,10 @@ public:
     {
         (void)timestamp;
         (void)checkpointStreamFactory;
+        if (checkpointOptions == nullptr || checkpointOptions->GetCheckpointType() == nullptr) {
+            bss_adapter::ThrowWithLog<std::invalid_argument>(
+                "BSS incremental snapshot requires checkpoint options and type");
+        }
         auto bssResources = std::static_pointer_cast<BssSnapshotResources>(snapshotResources);
         if (bssResources->stateMetaInfoSnapshots_.empty()) {
             return std::make_shared<BssEmptySnapshotResultSupplier>();
@@ -427,6 +431,9 @@ private:
         void cleanupIncompleteSnapshot()
         {
             try {
+                // Release the pending BSS snapshot before removing files that its
+                // coordinator may still reference.
+                parent_->db_->NotifyDBSnapshotAbort(static_cast<uint64_t>(checkpointId_));
                 if (localBackupDirectory_->exists()) {
                     localBackupDirectory_->cleanup();
                 }
