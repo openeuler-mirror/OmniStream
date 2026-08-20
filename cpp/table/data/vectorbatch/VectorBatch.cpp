@@ -36,11 +36,15 @@ VectorBatch::~VectorBatch()
     delete[] rowKinds;
 }
 
-VectorBatch::VectorBatch(omniruntime::vec::VectorBatch* baseVecBatch, int64_t* timestamps, RowKind* rowkinds)
+VectorBatch::VectorBatch(
+    std::unique_ptr<omniruntime::vec::VectorBatch> baseVecBatch, int64_t* timestamps, RowKind* rowkinds)
     : omniruntime::vec::VectorBatch(baseVecBatch->GetRowCount())
 {
     auto baseVectors = baseVecBatch->GetVectors();
     this->vectors.insert(this->vectors.end(), baseVectors, baseVectors + baseVecBatch->GetVectorCount());
+    // The vectors are now owned by this batch. Clear the source so the unique_ptr
+    // can be destroyed without deleting the transferred vectors.
+    baseVecBatch->ClearVectors();
     this->rowKinds = rowkinds;
     this->timestamps = timestamps;
     this->maxTimestamp = INT64_MIN;
