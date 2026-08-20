@@ -11,6 +11,7 @@
 
 #include "StreamExpand.h"
 #include "StreamCalc.h"
+#include <utility>
 
 StreamExpand::StreamExpand(const nlohmann::json& description, Output* output)
     : description_(description),
@@ -75,7 +76,7 @@ void StreamExpand::close()
 }
 
 omnistream::VectorBatch* StreamExpand::copyTimestampAndKind(
-    omnistream::VectorBatch* srcVb, omniruntime::vec::VectorBatch* projectedVecs)
+    omnistream::VectorBatch* srcVb, std::unique_ptr<omniruntime::vec::VectorBatch> projectedVecs)
 {
     int32_t rowCnt = srcVb->GetRowCount();
     if (rowCnt <= 0) {
@@ -87,7 +88,7 @@ omnistream::VectorBatch* StreamExpand::copyTimestampAndKind(
     RowKind* srcRowKinds = srcVb->getRowKinds();
     memcpy_s(target_timestamps, sizeof(int64_t) * rowCnt, srcTimestamps, sizeof(int64_t) * rowCnt);
     memcpy_s(target_rowKinds, sizeof(RowKind) * rowCnt, srcRowKinds, sizeof(RowKind) * rowCnt);
-    auto outputBatch = new omnistream::VectorBatch(projectedVecs, target_timestamps, target_rowKinds);
+    auto outputBatch = new omnistream::VectorBatch(std::move(projectedVecs), target_timestamps, target_rowKinds);
     return outputBatch;
 }
 
@@ -95,8 +96,9 @@ void StreamExpand::processBatch(StreamRecord* input)
 {
     auto record = reinterpret_cast<omnistream::VectorBatch*>(input->getValue());
     for (auto expr : exprEvaluators) {
-        auto projectedVecs = expr->Evaluate(record, executionContext.get(), &selectedRowsBuffer);
-        auto outputBatch = copyTimestampAndKind(record, projectedVecs);
+        auto projectedVecs = std::unique_ptr<omniruntime::vec::VectorBatch>(
+            expr->Evaluate(record, executionContext.get(), &selectedRowsBuffer));
+        auto outputBatch = copyTimestampAndKind(record, std::move(projectedVecs));
         if (outputBatch) {
             timestampedCollector_->collect(outputBatch);
         }

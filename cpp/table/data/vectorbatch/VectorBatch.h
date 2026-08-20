@@ -13,6 +13,7 @@
 #define FLINK_TNEL_VECTORBATCH_H
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <vector/vector_helper.h>
 
 #include "OmniOperatorJIT/core/src/vector/vector_batch.h"
@@ -30,8 +31,8 @@ class VectorBatch : public omniruntime::vec::VectorBatch {
 public:
     explicit VectorBatch(size_t rowCnt);
 
-    // construct a new vectorbatch with ort vectorbatch
-    VectorBatch(omniruntime::vec::VectorBatch* baseVecBatch, int64_t* timestamps, RowKind* rowkinds);
+    // Takes ownership of baseVecBatch, timestamps and rowkinds.
+    VectorBatch(std::unique_ptr<omniruntime::vec::VectorBatch> baseVecBatch, int64_t* timestamps, RowKind* rowkinds);
 
     ~VectorBatch();
 
