@@ -396,11 +396,12 @@ std::vector<int8_t> StreamingJoinSavepointAdaptor::encodeFlinkLogicalValue(
     return StreamingJoinSavepointUtil::serializeFlinkMapValue(parsed, sidePlan.outerJoinState);
 }
 
+template <typename Emit>
 void StreamingJoinSavepointAdaptor::convertKVRowData(
     const KeyValueStateIterator::CurrentEntry& entry,
     const VectorBatchSaveStateContext& context,
     const VectorBatchSavePlan& plan,
-    std::function<void(ConvertedEntry)> output)
+    Emit&& output)
 {
     if (context.vbAccessor == nullptr) {
         INFO_RELEASE(
@@ -436,10 +437,9 @@ void StreamingJoinSavepointAdaptor::convertKVRowData(
     });
 }
 
+template <typename Emit>
 void StreamingJoinSavepointAdaptor::parseSourceMapEntries(
-    const KeyValueStateIterator::CurrentEntry& entry,
-    const SidePlan& sidePlan,
-    const std::function<void(ByteView keyBytes, ByteView valueBytes, omnistream::ComboId comboId)>& emit) const
+    const KeyValueStateIterator::CurrentEntry& entry, const SidePlan& sidePlan, Emit&& emit) const
 {
     const size_t singleValueSize = sidePlan.outerJoinState ? 1 + sizeof(int32_t) + sizeof(int32_t) + sizeof(int64_t)
                                                            : 1 + sizeof(int32_t) + sizeof(int64_t);

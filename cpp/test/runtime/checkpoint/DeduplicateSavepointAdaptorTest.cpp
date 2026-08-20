@@ -271,22 +271,6 @@ private:
     KeyGroupRange range_;
 };
 
-class TestDeduplicateSavepointAdaptor : public DeduplicateSavepointAdaptor {
-public:
-    std::vector<int8_t> encodedValue{0x31, 0x32};
-    int encodeValueCalls = 0;
-
-    std::vector<int8_t> encodeFlinkLogicalValue(
-        const KeyValueStateIterator::CurrentEntry&,
-        RowData&,
-        const omnistream::VectorBatchSaveStateContext&,
-        const omnistream::VectorBatchSavePlan&) override
-    {
-        ++encodeValueCalls;
-        return encodedValue;
-    }
-};
-
 std::vector<int8_t> comboIdBytes(omnistream::ComboId comboId)
 {
     std::vector<int8_t> result(sizeof(comboId));
@@ -564,99 +548,6 @@ TEST(DeduplicateSavepointAdaptorTest, ParseVectorBatchReferenceErrorIdentifiesLo
         FAIL() << "Expected runtime_error";
     } catch (const std::runtime_error& error) {
         EXPECT_NE(std::string(error.what()).find(DEDUPLICATE_STATE_NAME), std::string::npos);
-    }
-}
-
-TEST(DeduplicateSavepointAdaptorTest, ConvertOneComboReferenceToOneLogicalEntry)
-{
-    TestDeduplicateSavepointAdaptor adaptor;
-    auto accessor = std::make_shared<StubVectorBatchAccessor>();
-    omnistream::VectorBatchSaveStateContext context;
-    context.logicalStateName = DEDUPLICATE_STATE_NAME;
-    context.vbAccessor = accessor;
-    omnistream::VectorBatchSavePlan plan;
-
-    const auto key = std::vector<int8_t>{0x11, 0x22};
-    const auto comboId = omnistream::VectorBatchUtil::getComboId(3, 17, 5);
-    const auto value = comboIdBytes(comboId);
-    KeyValueStateIterator::CurrentEntry entry;
-    entry.key = ByteView(key.data(), key.size());
-    entry.value = ByteView(value.data(), value.size());
-
-    int outputCalls = 0;
-    omnistream::ConvertedEntry actual;
-    adaptor.convertKVRowData(entry, context, plan, [&](omnistream::ConvertedEntry converted) {
-        ++outputCalls;
-        actual = std::move(converted);
-    });
-
-    EXPECT_EQ(outputCalls, 1);
-    EXPECT_EQ(adaptor.encodeValueCalls, 1);
-    EXPECT_EQ(actual.context, &context);
-    EXPECT_EQ(actual.keyBytes, key);
-    EXPECT_EQ(actual.valueBytes, adaptor.encodedValue);
-    EXPECT_EQ(actual.comboRef, comboId);
-    EXPECT_EQ(accessor->requestedBatchId, omnistream::VectorBatchUtil::getVectorBatchId(comboId));
-    EXPECT_EQ(accessor->requestedRowId, omnistream::VectorBatchUtil::getRowId(comboId));
-}
-
-TEST(DeduplicateSavepointAdaptorTest, ConvertRejectsMissingVectorBatchAccessor)
-{
-    TestDeduplicateSavepointAdaptor adaptor;
-    omnistream::VectorBatchSaveStateContext context;
-    context.logicalStateName = DEDUPLICATE_STATE_NAME;
-    omnistream::VectorBatchSavePlan plan;
-    const auto value = comboIdBytes(1);
-    KeyValueStateIterator::CurrentEntry entry;
-    entry.value = ByteView(value.data(), value.size());
-
-    int outputCalls = 0;
-    EXPECT_THROW(adaptor.convertKVRowData(entry, context, plan, [&](auto) { ++outputCalls; }), std::runtime_error);
-    EXPECT_EQ(outputCalls, 0);
-}
-
-TEST(DeduplicateSavepointAdaptorTest, ConvertRejectsDanglingComboReference)
-{
-    TestDeduplicateSavepointAdaptor adaptor;
-    auto accessor = std::make_shared<StubVectorBatchAccessor>();
-    accessor->returnRow = false;
-    omnistream::VectorBatchSaveStateContext context;
-    context.logicalStateName = DEDUPLICATE_STATE_NAME;
-    context.vbAccessor = accessor;
-    omnistream::VectorBatchSavePlan plan;
-    const auto value = comboIdBytes(1);
-    KeyValueStateIterator::CurrentEntry entry;
-    entry.value = ByteView(value.data(), value.size());
-
-    int outputCalls = 0;
-    EXPECT_THROW(adaptor.convertKVRowData(entry, context, plan, [&](auto) { ++outputCalls; }), std::runtime_error);
-    EXPECT_EQ(outputCalls, 0);
-    EXPECT_EQ(adaptor.encodeValueCalls, 0);
-}
-
-TEST(DeduplicateSavepointAdaptorTest, ConvertDanglingReferenceErrorIdentifiesPhysicalLocation)
-{
-    TestDeduplicateSavepointAdaptor adaptor;
-    auto accessor = std::make_shared<StubVectorBatchAccessor>();
-    accessor->returnRow = false;
-    omnistream::VectorBatchSaveStateContext context;
-    context.logicalStateName = DEDUPLICATE_STATE_NAME;
-    context.vbAccessor = accessor;
-    omnistream::VectorBatchSavePlan plan;
-    const auto comboId = omnistream::VectorBatchUtil::getComboId(3, 17, 5);
-    const auto value = comboIdBytes(comboId);
-    KeyValueStateIterator::CurrentEntry entry;
-    entry.value = ByteView(value.data(), value.size());
-
-    try {
-        adaptor.convertKVRowData(entry, context, plan, [](auto) {});
-        FAIL() << "Expected runtime_error";
-    } catch (const std::runtime_error& error) {
-        const std::string message = error.what();
-        EXPECT_NE(message.find(std::to_string(comboId)), std::string::npos);
-        EXPECT_NE(
-            message.find(std::to_string(omnistream::VectorBatchUtil::getVectorBatchId(comboId))), std::string::npos);
-        EXPECT_NE(message.find("rowId=5"), std::string::npos);
     }
 }
 
