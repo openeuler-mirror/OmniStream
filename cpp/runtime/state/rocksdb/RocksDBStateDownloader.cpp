@@ -288,7 +288,18 @@ void RocksDBStateDownloader::callDownloadDataForAllStateHandles(
     const fs::path& restoreInstancePath,
     std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge)
 {
+    if (handleWithPaths.empty()) {
+        return;
+    }
+    if (omniTaskBridge == nullptr) {
+        ERROR_RELEASE("State download requires an OmniTaskBridge");
+        throw std::invalid_argument("State download requires an OmniTaskBridge");
+    }
     auto env = omniTaskBridge->getJNIEnv();
+    if (env == nullptr) {
+        ERROR_RELEASE("State download requires a valid JNI environment");
+        throw std::runtime_error("State download requires a valid JNI environment");
+    }
     // 1. 查找类
     jclass downloaderClass = env->FindClass("org/apache/flink/contrib/streaming/state/RocksDBStateDownloader");
     if (env->ExceptionCheck()) {
