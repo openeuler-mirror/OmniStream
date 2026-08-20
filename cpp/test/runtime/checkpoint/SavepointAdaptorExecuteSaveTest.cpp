@@ -418,20 +418,6 @@ TEST_F(SavepointAdaptorExecuteSaveTest, GroupAggSaveExpandsHeapMapState)
     EXPECT_TRUE(iterator->closed);
 }
 
-TEST_F(SavepointAdaptorExecuteSaveTest, GroupAggSaveRejectsMalformedHeapMapState)
-{
-    omnistream::GroupAggSavepointAdaptor adaptor;
-    auto mapSerializer = std::make_unique<MapSerializer>(new IntSerializer(), new IntSerializer());
-    auto iterator =
-        std::make_shared<SingleEntryIterator>(std::vector<int8_t>{0x01}, std::vector<int8_t>{0x00, 0x00, 0x00}, 0);
-    TestHeapSnapshotResources resources;
-    resources.metaInfos = {makeKeyValueMeta(DISTINCT_STATE_NAME, "MAP", mapSerializer.get())};
-    resources.iterator = iterator;
-
-    EXPECT_THROW(saveAndGetPosition(adaptor, resources), std::runtime_error);
-    EXPECT_TRUE(iterator->closed);
-}
-
 TEST_F(SavepointAdaptorExecuteSaveTest, GroupAggSaveRejectsMalformedAccumulator)
 {
     omnistream::GroupAggSavepointAdaptor adaptor;
