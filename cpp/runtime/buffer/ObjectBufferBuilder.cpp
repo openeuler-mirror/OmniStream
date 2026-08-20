@@ -25,7 +25,9 @@
 #include <climits>
 #include <atomic>
 
+#include "table/utils/VectorBatchDeserializationUtils.h"
 #include "VectorBatchBuffer.h"
+#include "streaming/runtime/streamrecord/StreamElement.h"
 
 namespace omnistream {
 
@@ -73,6 +75,15 @@ int ObjectBufferBuilder::append(void* source)
     return 1;
 }
 
+int ObjectBufferBuilder::appendSerializedObjectSegment(const uint8_t* source, int length)
+{
+    auto appendResult = ObjectSegmentChannelStateSerde::AppendSerializedObjectSegment(
+        source, length, objSegment, positionMarker->getCached(), getWritableBytes());
+    positionMarker->move(appendResult.elementsWritten);
+    commit();
+    return appendResult.bytesConsumed;
+}
+
 StreamElement* ObjectBufferBuilder::getObject(int index)
 {
     return objSegment->getObject(index);
@@ -89,5 +100,73 @@ std::string ObjectBufferBuilder::toString()
 Segment* ObjectBufferBuilder::GetSegment()
 {
     return objSegment;
+}
+
+ObjectSegmentChannelStateSerde::AppendResult ObjectSegmentChannelStateSerde::AppendSerializedObjectSegment(
+    const uint8_t* source, int length, ObjectSegment* target, int targetOffset, int writableElements)
+{
+    // 1. 参数检查
+    // source 非空，length >= sizeof(int32_t)，builder 未 finished
+
+    uint8_t* cursor = const_cast<uint8_t*>(source);
+    uint8_t* end = cursor + length;
+
+    // 2. 读取 elementNum
+    int32_t elementNum;
+    memcpy_s(&elementNum, sizeof(int32_t), cursor, sizeof(int32_t));
+    cursor += sizeof(int32_t);
+
+    // 3. 检查 ObjectSegment 剩余槽位
+    if (elementNum < 0 || elementNum > writableElements) {
+        throw std::runtime_error("ObjectSegment restore element count exceeds capacity");
+    }
+
+    // 4. 逐个元素反序列化
+    for (int32_t i = 0; i < elementNum; i++) {
+        int8_t dataType;
+        memcpy_s(&dataType, sizeof(int8_t), cursor, sizeof(int8_t));
+        cursor += sizeof(int8_t);
+
+        StreamElementTag tag = static_cast<StreamElementTag>(dataType);
+        StreamElement* element = nullptr;
+
+        switch (tag) {
+            case StreamElementTag::TAG_UNKNOWN: element = new StreamElement(); break;
+
+            case StreamElementTag::TAG_WATERMARK: {
+                long timestamp = VectorBatchDeserializationUtils::derializeWatermark(cursor);
+                element = new Watermark(timestamp);
+                break;
+            }
+
+            case StreamElementTag::VECTOR_BATCH: {
+                VectorBatch* vb = VectorBatchDeserializationUtils::deserializeVectorBatch(cursor);
+                element = new StreamElement(StreamElementTag::VECTOR_BATCH);
+                element->setValue(vb);
+                break;
+            }
+            case StreamElementTag::TAG_REC_WITHOUT_TIMESTAMP: {
+                VectorBatch* vb = VectorBatchDeserializationUtils::deserializeVectorBatch(cursor);
+                element = new StreamRecord(vb);
+                break;
+            }
+            case StreamElementTag::TAG_REC_WITH_TIMESTAMP: {
+                long timeStamp;
+                memcpy_s(&timeStamp, sizeof(long), cursor, sizeof(long));
+                cursor += sizeof(long);
+                VectorBatch* vb = VectorBatchDeserializationUtils::deserializeVectorBatch(cursor);
+                element = new StreamRecord(vb, timeStamp);
+                break;
+            }
+
+            default: throw std::runtime_error("Unsupported ObjectSegment restore tag");
+        }
+
+        target->putObject(targetOffset++, element);
+    }
+
+    // 此处可校验 cursor == end
+    // 如果不等，说明 writer/reader 协议不一致
+    return {static_cast<int>(cursor - source), elementNum};
 }
 } // namespace omnistream
