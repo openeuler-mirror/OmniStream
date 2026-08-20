@@ -57,13 +57,7 @@ std::unordered_map<std::string, omniruntime::type::DataTypeId> LogicalType::name
 DataTypeId LogicalType::flinkTypeToOmniTypeId(const std::string& flinkType)
 {
     buildNameToIdMap();
-    // Deal with tailing "NOT NULL"
-    std::string basicStrippedType = flinkType;
-    const std::string suffix = " NOT NULL";
-    if (basicStrippedType.size() > suffix.size() &&
-        basicStrippedType.compare(basicStrippedType.size() - suffix.size(), suffix.size(), suffix) == 0) {
-        basicStrippedType.erase(basicStrippedType.size() - suffix.size());
-    }
+    std::string basicStrippedType = LogicTypeUtils::stripFlinkTypeExtras(flinkType);
 
     // Typename has fixed format
     auto it = nameToIdMap.find(basicStrippedType);
@@ -127,8 +121,10 @@ DataTypeId LogicalType::flinkTypeToOmniTypeId(const std::string& flinkType)
 LogicalType* LogicalType::flinkTypeToOmniType(const std::string& flinkType)
 {
     buildNameToIdMap();
+    const bool isNotNull = LogicTypeUtils::isNotNullType(flinkType);
     std::string basicStrippedType = LogicTypeUtils::stripFlinkTypeExtras(flinkType);
     nlohmann::json options = LogicTypeUtils::optionsFromFlinkType(basicStrippedType);
+    options["nullable"] = !isNotNull;
 
     auto it = nameToIdMap.find(basicStrippedType);
     if (it != nameToIdMap.end()) {
@@ -252,51 +248,52 @@ BasicLogicalType* BasicLogicalType::INVALID_TYPE = new BasicLogicalType(true, Da
 BasicLogicalType* BasicLogicalType::getTypeBy(DataTypeId typeId, const nlohmann::json& element)
 {
     BasicLogicalType* type = nullptr;
+    const bool nullable = element.value("nullable", true);
     switch (typeId) {
         case DataTypeId::OMNI_BOOLEAN: {
-            type = BasicLogicalType::BOOLEAN;
+            type = nullable ? BasicLogicalType::BOOLEAN : new BasicLogicalType(false, typeId, "BOOLEAN");
             break;
         }
         case DataTypeId::OMNI_INT: {
-            type = BasicLogicalType::INTEGER;
+            type = nullable ? BasicLogicalType::INTEGER : new BasicLogicalType(false, typeId, "INTEGER");
             break;
         }
         case DataTypeId::OMNI_LONG: {
-            type = BasicLogicalType::BIGINT;
+            type = nullable ? BasicLogicalType::BIGINT : new BasicLogicalType(false, typeId, "BIGINT");
             break;
         }
         case DataTypeId::OMNI_VARCHAR: {
             int length = element.value("length", std::numeric_limits<int>::max());
-            type = new VarCharType(true, length);
+            type = new VarCharType(nullable, length);
             break;
         }
         case DataTypeId::OMNI_DOUBLE: {
-            type = BasicLogicalType::DOUBLE;
+            type = nullable ? BasicLogicalType::DOUBLE : new BasicLogicalType(false, typeId, "DOUBLE");
             break;
         }
         case DataTypeId::OMNI_DATE32: {
-            type = BasicLogicalType::DATE;
+            type = nullable ? BasicLogicalType::DATE : new BasicLogicalType(false, typeId, "DATE");
             break;
         }
         case DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE: {
             int precision = element.value("precision", 0);
-            type = new TimeWithoutTimeZoneType(true, precision);
+            type = new TimeWithoutTimeZoneType(nullable, precision);
             break;
         }
         case DataTypeId::OMNI_TIMESTAMP:
         case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE: {
             int precision = element.value("precision", 0);
-            type = new TimestampWithoutTimeZoneType(true, precision);
+            type = new TimestampWithoutTimeZoneType(nullable, precision);
             break;
         }
         case DataTypeId::OMNI_TIMESTAMP_WITH_TIME_ZONE: {
             int precision = element.value("precision", 0);
-            type = new TimestampWithTimeZoneType(true, precision);
+            type = new TimestampWithTimeZoneType(nullable, precision);
             break;
         }
         case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE: {
             int precision = element.value("precision", 0);
-            type = new TimestampWithLocalTimeZoneType(true, precision);
+            type = new TimestampWithLocalTimeZoneType(nullable, precision);
             break;
         }
         /*

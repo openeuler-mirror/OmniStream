@@ -186,3 +186,19 @@ TEST(LogicalTypeTest, flinkTypeToOmniTypeIdTest)
         LogicalType::flinkTypeToOmniTypeId("TIMESTAMP_LTZ(3) NOT NULL *PROCTIME*"),
         omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE);
 }
+
+TEST(LogicalTypeTest, FlinkTypeToOmniTypePreservesNullabilityAndParameters)
+{
+    std::unique_ptr<LogicalType> timestamp(LogicalType::flinkTypeToOmniType("TIMESTAMP(3) NOT NULL"));
+    EXPECT_FALSE(timestamp->isNullable());
+    EXPECT_EQ(timestamp->toJson().at("precision"), 3);
+
+    std::unique_ptr<LogicalType> processingTime(
+        LogicalType::flinkTypeToOmniType("TIMESTAMP_LTZ(3) NOT NULL *PROCTIME*"));
+    EXPECT_FALSE(processingTime->isNullable());
+    EXPECT_EQ(processingTime->toJson().at("precision"), 3);
+
+    std::unique_ptr<LogicalType> nullableVarchar(LogicalType::flinkTypeToOmniType("VARCHAR(128)"));
+    EXPECT_TRUE(nullableVarchar->isNullable());
+    EXPECT_EQ(nullableVarchar->toJson().at("length"), 128);
+}

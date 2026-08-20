@@ -34,6 +34,16 @@ public:
         return basicStrippedType;
     }
 
+    static bool isNotNullType(const std::string& flinkType)
+    {
+        std::string typeWithoutTimeAttribute = flinkType;
+        eraseSuffix(typeWithoutTimeAttribute, " *PROCTIME*");
+        static const std::string suffix = " NOT NULL";
+        return typeWithoutTimeAttribute.size() >= suffix.size() &&
+               typeWithoutTimeAttribute.compare(
+                   typeWithoutTimeAttribute.size() - suffix.size(), suffix.size(), suffix) == 0;
+    }
+
     static nlohmann::json optionsFromFlinkType(const std::string& basicStrippedType)
     {
         nlohmann::json options = nlohmann::json::object();
