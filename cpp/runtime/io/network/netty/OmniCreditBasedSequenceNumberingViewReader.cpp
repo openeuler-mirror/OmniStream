@@ -262,7 +262,7 @@ void OmniCreditBasedSequenceNumberingViewReader::getNextBufferInternal()
     {
         if (localNettyBufferPool_) {
             // Use new two-tier pool with condition_variable-based blocking
-            if (size > bufferSize) {
+            if (size + NettyBufferInfo::elementNumBytes > bufferSize) {
                 return localNettyBufferPool_->requestBigBuffer(size);
             }
             return localNettyBufferPool_->requestBufferBlocking();
