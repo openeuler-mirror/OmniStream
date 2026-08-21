@@ -115,7 +115,11 @@ TypeInformation* TypeInfoFactory::createInternalTypeInfo(const json& rowType)
         string typeName = element["type"];
         int typeId = LogicalType::flinkTypeToOmniTypeId(typeName);
         LOG("type Id: " << typeId);
-        auto logicalType = BasicLogicalType::getTypeBy(typeId, element);
+        json options = element;
+        if (element.contains("isNull") && !element.contains("nullable")) {
+            options["nullable"] = element["isNull"];
+        }
+        auto logicalType = BasicLogicalType::getTypeBy(typeId, options);
         fields.emplace_back("f" + std::to_string(fieldIndex++), logicalType);
     }
     omnistream::RowType type(true, fields);
@@ -148,7 +152,17 @@ TypeInformation* TypeInfoFactory::createInternalTypeInfoOfRow(const json& fields
         const json& fieldType = field["fieldType"];
         string type = fieldType["type"];
         int typeId = LogicalType::flinkTypeToOmniTypeId(type);
-        auto logicalType = BasicLogicalType::getTypeBy(typeId, json::object());
+        // Preserve parameterized logical-type attributes (for example timestamp
+        // precision and varchar length) when rebuilding a serializer from
+        // compatible savepoint metadata.
+        auto logicalType = BasicLogicalType::getTypeBy(typeId, fieldType);
+        if (fieldType.contains("precision") || fieldType.contains("length")) {
+            const json restoredFieldType = logicalType->toJson();
+            INFO_RELEASE(
+                "Compatible savepoint metadata field restored: name=" << name << ", type=" << type
+                                                                      << ", source=" << fieldType.dump()
+                                                                      << ", restored=" << restoredFieldType.dump());
+        }
         rowFields.emplace_back(name, logicalType, description);
     }
     omnistream::RowType rowType(true, rowFields);
