@@ -35,11 +35,14 @@ public:
                 auto copyRow =
                     new Row(row->getKind(), row->getFieldByPosition(), row->getFieldByName(), row->getPositionByName());
                 auto copyStreamRecord = new StreamRecord(copyRow, timestamp);
+                copyStreamRecord->setExternalRow(true);
+                copyStreamRecord->setTag(streamRecord->getTag());
                 output->collect(copyStreamRecord);
                 delete row;
                 delete streamRecord;
             } else {
                 StreamRecord* copyRecord = StreamRecordHelper::deepCopyVectorBatch(streamRecord);
+                copyRecord->setTag(streamRecord->getTag());
                 output->collect(copyRecord);
             }
         }

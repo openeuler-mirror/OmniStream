@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <stdexcept>
 #include <unordered_map>
@@ -160,6 +161,24 @@ TEST_F(VectorBatchStateAccessorTest, DeserializeBatchReturnsNullForEmptyOrTagOnl
 
     ASSERT_NE(decoded.get(), nullptr);
     EXPECT_EQ(decoded->GetRowCount(), 1);
+}
+
+TEST_F(VectorBatchStateAccessorTest, DeserializeBatchRejectsTruncatedOrSizeMismatchedPayload)
+{
+    std::vector<int8_t> truncated = serializeVectorBatch(1);
+    truncated.pop_back();
+    EXPECT_THROW(
+        accessor_.deserializeBatchForTest(ByteView::fromBuffer(truncated.data(), truncated.size())),
+        std::runtime_error);
+
+    std::vector<int8_t> wrongSize = serializeVectorBatch(1);
+    int32_t declaredSize = 0;
+    std::memcpy(&declaredSize, wrongSize.data() + sizeof(int8_t), sizeof(declaredSize));
+    ++declaredSize;
+    std::memcpy(wrongSize.data() + sizeof(int8_t), &declaredSize, sizeof(declaredSize));
+    EXPECT_THROW(
+        accessor_.deserializeBatchForTest(ByteView::fromBuffer(wrongSize.data(), wrongSize.size())),
+        std::runtime_error);
 }
 
 // extractRow 应主动拒绝空 VectorBatch 和负 rowId，不能把负数转换成 size_t 后继续访问。

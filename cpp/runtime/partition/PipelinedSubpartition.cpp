@@ -15,6 +15,9 @@
 
 #include "io/network/api/serialization/EventSerializer.h"
 #include "PipelinedSubpartition.h"
+
+#include "runtime/buffer/ObjectBufferRecycler.h"
+#include "runtime/buffer/ObjectSegment.h"
 #include "event/EndOfPartitionEvent.h"
 #include "event/EndOfChannelStateEvent.h"
 #include "checkpoint/channel/ChannelStateWriter.h"
@@ -570,8 +573,22 @@ bool PipelinedSubpartition::ProcessPriorityBuffer(
                     LOG("writeOutput buffers is null ");
                     continue;
                 }
-
-                inflightBuffers.push_back(inflightbuffer);
+                Segment* segment = inflightbuffer->GetSegment();
+                if (segment->isObjectSegment()) {
+                    ObjectSegment* newSegment = new ObjectSegment(inflightbuffer->GetSize());
+                    newSegment->put(
+                        0,
+                        dynamic_cast<const ObjectSegment*>(segment),
+                        inflightbuffer->GetOffset(),
+                        inflightbuffer->GetSize());
+                    auto* copiedBuffer =
+                        new VectorBatchBuffer(newSegment, std::make_shared<DeepCopiedObjectBufferRecycler>());
+                    copiedBuffer->SetSize(inflightbuffer->GetSize());
+                    inflightbuffer->RecycleBuffer();
+                    inflightBuffers.push_back(copiedBuffer);
+                } else {
+                    inflightBuffers.push_back(inflightbuffer);
+                }
             }
         }
 

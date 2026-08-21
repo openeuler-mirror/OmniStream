@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "core/typeutils/TypeSerializer.h"
+#include "core/memory/DataInputDeserializer.h"
 #include "runtime/state/metainfo/StateMetaInfoSnapshot.h"
 #include "runtime/state/restore/RestoreKVStateVB.h"
 
@@ -43,9 +44,24 @@ public:
         ::BinaryRowData* row,
         int rowPos);
 
+    static omnistream::ComboId appendRowToVectorBatchBase(
+        VbBatchState& vbState,
+        DataInputDeserializer& valInput,
+        size_t valueByteSize,
+        const std::vector<omniruntime::type::DataTypeId>& columnTypes,
+        int batchSize,
+        int32_t keyGroupId);
+
     static omnistream::ComboId appendRowToVectorBatch(
         VbBatchState& vbState,
         const std::vector<int8_t>& valueBytes,
+        const std::vector<omniruntime::type::DataTypeId>& columnTypes,
+        int batchSize,
+        int32_t keyGroupId);
+
+    static omnistream::ComboId appendRowToVectorBatch(
+        VbBatchState& vbState,
+        const ByteView& valueBytes,
         const std::vector<omniruntime::type::DataTypeId>& columnTypes,
         int batchSize,
         int32_t keyGroupId);

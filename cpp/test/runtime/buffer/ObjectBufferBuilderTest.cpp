@@ -5,6 +5,7 @@
 #include "streaming/runtime/streamrecord/StreamRecord.h"
 
 using namespace omnistream;
+
 TEST(ObjectBufferBuilderTest, AppendAndCommintNotFull)
 {
     int size = 10;

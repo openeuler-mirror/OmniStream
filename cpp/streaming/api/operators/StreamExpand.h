@@ -13,6 +13,7 @@
 
 #include <functional>
 #include <iostream>
+#include <memory>
 #include <nlohmann/json.hpp>
 #include <variant>
 #include <vector>
@@ -70,7 +71,7 @@ public:
     void parseDescription(nlohmann::json& descriptionJson, int index);
 
     omnistream::VectorBatch* copyTimestampAndKind(
-        omnistream::VectorBatch* srcVb, omniruntime::vec::VectorBatch* projectedVecs);
+        omnistream::VectorBatch* srcVb, std::unique_ptr<omniruntime::vec::VectorBatch> projectedVecs);
 
 private:
     nlohmann::json description_;

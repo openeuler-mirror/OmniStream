@@ -59,6 +59,12 @@ public:
 
     void discard() override
     {
+        if (pqWriter_ != nullptr) {
+            uint32_t pendingEntries = pqWriter_->Discard();
+            if (pendingEntries > 0) {
+                INFO_RELEASE("RocksDBRestorePQState: discard pendingEntries=" << pendingEntries);
+            }
+        }
         pqWriter_.reset();
     }
 

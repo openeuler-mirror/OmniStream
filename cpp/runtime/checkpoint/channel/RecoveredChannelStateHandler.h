@@ -60,6 +60,8 @@ public:
     virtual void recover(const Info& info, int oldSubtaskIndex, const BufferWithContext& bufferWithContext) = 0;
 
     virtual void close() = 0;
+
+    virtual bool usesObjectSegment(const InputChannelInfo& channelInfo) = 0;
 };
 
 class ResultSubpartitionRecoveredStateHandler
@@ -79,6 +81,11 @@ public:
         const BufferWithContext& bufferWithContext) override;
 
     void close() override;
+
+    bool usesObjectSegment(const InputChannelInfo& channelInfo) override
+    {
+        return false;
+    }
 
 private:
     std::vector<std::shared_ptr<ResultPartitionWriter>> writers_;
@@ -117,6 +124,7 @@ public:
         int oldSubtaskIndex,
         const BufferWithContext& bufferWithContext) override;
     void close() override;
+    bool usesObjectSegment(const InputChannelInfo& channelInfo) override;
 
 private:
     std::shared_ptr<RecoveredInputChannel> getChannel(int gateIndex, int subPartitionIndex);

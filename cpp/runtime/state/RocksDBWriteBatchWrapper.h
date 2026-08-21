@@ -94,6 +94,16 @@ public:
         batch_->Clear();
     }
 
+    uint32_t Discard()
+    {
+        if (closed_.exchange(true)) {
+            return 0;
+        }
+        uint32_t pendingEntries = batch_->Count();
+        batch_->Clear();
+        return pendingEntries;
+    }
+
     std::shared_ptr<rocksdb::WriteOptions> GetOptions() const
     {
         return options_;

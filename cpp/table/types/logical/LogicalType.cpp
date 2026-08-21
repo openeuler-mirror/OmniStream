@@ -151,6 +151,9 @@ LogicalType* LogicalType::flinkTypeToOmniType(const std::string& flinkType)
     std::string basicStrippedType = LogicTypeUtils::stripFlinkTypeExtras(flinkType);
     nlohmann::json options = LogicTypeUtils::optionsFromFlinkType(basicStrippedType);
     const bool isNullable = !LogicTypeUtils::isNotNullType(flinkType);
+    // Nullability is encoded as a suffix in Flink's type string. Preserve it in
+    // the options consumed by every BasicLogicalType construction branch.
+    options["nullable"] = isNullable;
 
     if (LogicTypeUtils::startsWith(basicStrippedType, "RAW(")) {
         return parseRawType(flinkType, basicStrippedType, isNullable);

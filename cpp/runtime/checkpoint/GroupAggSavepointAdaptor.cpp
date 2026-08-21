@@ -20,6 +20,7 @@
 #include "core/memory/DataInputDeserializer.h"
 #include "core/typeutils/MapSerializer.h"
 #include "runtime/state/RegisteredKeyValueStateBackendMetaInfo.h"
+#include "runtime/state/VoidNamespaceSerializer.h"
 #include "runtime/state/heap/HeapFullSnapshotResources.h"
 #include "runtime/state/restore/SavepointRestoreResultIterator.h"
 #include "runtime/state/restore/RestoreBackendDelegate.h"
@@ -118,8 +119,7 @@ VectorBatchSavePlan GroupAggSavepointAdaptor::buildSavePlan(FullSnapshotResource
                              : VectorBatchStateType::KV;
 
         if (meta->getName() == ACC_STATE_NAME) {
-            TypeSerializer* namespaceSerializer =
-                meta->getTypeSerializer({"NAMESPACE_SERIALIZER", "namespaceSerializer"});
+            TypeSerializer* namespaceSerializer = meta->getNamespaceSerializer();
             if (namespaceSerializer == nullptr || flinkAccSerializer_ == nullptr || omniAccSerializer_ == nullptr) {
                 ERROR_RELEASE("The namespaceSerializer, flinkAccSerializer_, or omniAccSerializer_ is null.");
                 throw std::runtime_error("GroupAggSavepointAdaptor: missing accState serializer");
@@ -135,7 +135,7 @@ VectorBatchSavePlan GroupAggSavepointAdaptor::buildSavePlan(FullSnapshotResource
             spec.sourceValueSerializer = omniAccSerializer_.get();
         } else {
             plan.targetMetaInfos.push_back(meta);
-            spec.valueSerializer = meta->getTypeSerializer({"VALUE_SERIALIZER", "valueSerializer", "stateSerializer"});
+            spec.valueSerializer = meta->getValueSerializer();
             const auto keyedStateType = StateDescriptor::StringToType(
                 meta->getOption(StateMetaInfoSnapshot::CommonOptionsKeys::KEYED_STATE_TYPE));
             if (heapSnapshot && keyedStateType == StateDescriptor::Type::MAP) {
@@ -261,11 +261,12 @@ std::unique_ptr<BinaryRowData> GroupAggSavepointAdaptor::compactAccumulator(RowD
     return target;
 }
 
+template <typename Emit>
 void GroupAggSavepointAdaptor::convertKVRowData(
     const KeyValueStateIterator::CurrentEntry& entry,
     const VectorBatchSaveStateContext& context,
     const VectorBatchSavePlan&,
-    std::function<void(ConvertedEntry)> output)
+    Emit&& output)
 {
     if (context.stateType == VectorBatchStateType::KV_MAP_TRANSFORM) {
         if (context.mapKeySerializer == nullptr || context.mapValueSerializer == nullptr) {
@@ -390,13 +391,14 @@ StateMetaInfoSnapshot GroupAggSavepointAdaptor::buildOmniMainMetaInfo(
         throw std::runtime_error(
             "GroupAggSavepointAdaptor: buildOmniMainMetaInfo only supports accState, got " + flinkMetaInfo.getName());
     }
-    auto* namespaceSerializer = flinkMetaInfo.getTypeSerializer(
-        {"namespaceSerializer", StateMetaInfoSnapshot::COMMON_NAMESPACE_SERIALIZER_KEY});
-    auto* sourceSerializer =
-        flinkMetaInfo.getTypeSerializer({"stateSerializer", StateMetaInfoSnapshot::COMMON_VALUE_SERIALIZER_KEY});
+    auto* namespaceSerializer = flinkMetaInfo.getNamespaceSerializer();
+    auto* sourceSerializer = flinkMetaInfo.getValueSerializer();
     if (namespaceSerializer == nullptr || sourceSerializer == nullptr || omniAccSerializer_ == nullptr) {
         ERROR_RELEASE("The namespaceSerializer is null or sourceSerializer is null or omniAccSerializer_ is null.");
         throw std::runtime_error("GroupAggSavepointAdaptor: missing restore accState serializer");
+    }
+    if (namespaceSerializer->getBackendId() != BackendDataType::VOID_NAMESPACE_BK) {
+        throw std::runtime_error("GroupAggSavepointAdaptor: accState requires VoidNamespaceSerializer");
     }
     sourceSerializers_[kvStateId] = sourceSerializer;
     // 直接构造 StateMetaInfoSnapshot，使用 commonSerializerKeyToString (UPPERCASE) key，
@@ -408,15 +410,19 @@ StateMetaInfoSnapshot GroupAggSavepointAdaptor::buildOmniMainMetaInfo(
         StateMetaInfoSnapshot::CommonOptionsKeys::KEYED_STATE_TYPE)] =
         std::to_string(static_cast<int>(StateDescriptor::Type::VALUE));
 
+    // The restore adaptor and JNI metadata are temporary, while RocksDB keeps registered metadata for its lifetime.
+    // Keep an independent value serializer and use the process-lifetime namespace singleton so neither pointer in
+    // the registered accState metadata depends on the source metadata or restore adaptor.
+    auto backendValueSerializer = std::make_unique<RowDataSerializer>(new RowType(true, omniAccTypes_));
     std::unordered_map<std::string, TypeSerializer*> serializerMap;
     serializerMap.emplace(
         StateMetaInfoSnapshot::commonSerializerKeyToString(
             StateMetaInfoSnapshot::CommonSerializerKeys::NAMESPACE_SERIALIZER),
-        namespaceSerializer);
+        VoidNamespaceSerializer::INSTANCE);
     serializerMap.emplace(
         StateMetaInfoSnapshot::commonSerializerKeyToString(
             StateMetaInfoSnapshot::CommonSerializerKeys::VALUE_SERIALIZER),
-        omniAccSerializer_.get());
+        backendValueSerializer.release());
 
     std::unordered_map<std::string, std::shared_ptr<TypeSerializerSnapshot>> serializerConfigSnapshotsMap;
     return StateMetaInfoSnapshot(

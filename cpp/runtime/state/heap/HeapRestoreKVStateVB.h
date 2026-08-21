@@ -159,14 +159,15 @@ void HeapRestoreKVStateVB<K>::writeComboIdList(
 template <typename K>
 omnistream::ComboId HeapRestoreKVStateVB<K>::appendRowToVectorBatch(const RowDataView& row)
 {
-    if (row.valueBytes == nullptr || row.columnTypes == nullptr) {
+    ByteView rowData = row.bytes();
+    if (rowData.data() == nullptr || row.columnTypes == nullptr) {
         INFO_RELEASE(
             "HeapRestoreKVStateVB: Error: RowDataView has null valueBytes or columnTypes for '" << stateInfo_.stateName
                                                                                                 << "'");
         throw std::runtime_error("HeapRestoreKVStateVB: RowDataView has null valueBytes or columnTypes");
     }
-    omnistream::ComboId comboId = VectorBatchRestoreUtil::appendRowToVectorBatch(
-        vbState_, *row.valueBytes, columnTypes_, vectorBatchSize_, keyGroupId_);
+    omnistream::ComboId comboId =
+        VectorBatchRestoreUtil::appendRowToVectorBatch(vbState_, rowData, columnTypes_, vectorBatchSize_, keyGroupId_);
     if (comboId == omnistream::INVALID_COMBO_ID) {
         INFO_RELEASE("HeapRestoreKVStateVB: Error: appendRowToVectorBatch failed for '" << stateInfo_.stateName << "'");
         throw std::runtime_error("HeapRestoreKVStateVB: appendRowToVectorBatch failed");

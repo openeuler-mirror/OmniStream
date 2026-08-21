@@ -22,7 +22,6 @@
 #include "core/typeutils/JoinTupleSerializer.h"
 #include "core/typeutils/JoinTupleSerializer2.h"
 #include "core/typeutils/MapSerializer.h"
-#include "core/typeutils/SerializerJsonInfo.h"
 #include "core/typeutils/XxH128_hashSerializer.h"
 #include "runtime/checkpoint/StateMetaInfoValidator.h"
 #include "runtime/state/restore/RestoreKVStateVB.h"
@@ -157,8 +156,7 @@ StateMetaInfoSnapshot StreamingJoinSavepointAdaptor::buildOmniMainMetaInfo(
     } else {
         rightRestoreKvStateId_ = kvStateId;
     }
-    TypeSerializer* namespaceSerializer = flinkMetaInfo.getTypeSerializer(
-        {StateMetaInfoSnapshot::COMMON_NAMESPACE_SERIALIZER_KEY, SerializerJsonInfo::NAMESPACE_SERIALIZER_KEY});
+    TypeSerializer* namespaceSerializer = flinkMetaInfo.getNamespaceSerializer();
     if (namespaceSerializer == nullptr) {
         INFO_RELEASE(
             "Error: StreamingJoinSavepointAdaptor::buildOmniMainMetaInfo -> stateName="
@@ -182,19 +180,14 @@ StateMetaInfoSnapshot StreamingJoinSavepointAdaptor::buildOmniMainMetaInfo(
                                               : static_cast<TypeSerializer*>(new JoinTupleSerializer());
     auto* stateSerializer = new MapSerializer(new XxH128_hashSerializer(), joinValueSerializer);
 
-    // StreamingJoin restore 生成的状态元数据会同时交给 RocksDB 和 Heap 后端消费。
-    // RocksDB 通过公共大写 key 重建 RegisteredKeyValueStateBackendMetaInfo，Heap restore writer 则沿用小写 key；
-    // 因此这里为同一 serializer 同时注册两套兼容 key，避免 Flink SP restore 后再次触发 SP 时丢失 serializer。
     std::unordered_map<std::string, std::string> optionsMap;
     optionsMap.emplace(
         StateMetaInfoSnapshot::commonOptionsKeyToString(StateMetaInfoSnapshot::CommonOptionsKeys::KEYED_STATE_TYPE),
         std::to_string(static_cast<int>(StateDescriptor::Type::MAP)));
 
     std::unordered_map<std::string, TypeSerializer*> serializerMap;
-    serializerMap.emplace(StateMetaInfoSnapshot::COMMON_NAMESPACE_SERIALIZER_KEY, namespaceSerializer);
-    serializerMap.emplace(SerializerJsonInfo::NAMESPACE_SERIALIZER_KEY, namespaceSerializer);
-    serializerMap.emplace(StateMetaInfoSnapshot::COMMON_VALUE_SERIALIZER_KEY, stateSerializer);
-    serializerMap.emplace(SerializerJsonInfo::STATE_SERIALIZER_KEY, stateSerializer);
+    serializerMap.emplace(StateMetaInfoSnapshot::NAMESPACE_SERIALIZER_KEY, namespaceSerializer);
+    serializerMap.emplace(StateMetaInfoSnapshot::VALUE_SERIALIZER_KEY, stateSerializer);
 
     std::unordered_map<std::string, std::shared_ptr<TypeSerializerSnapshot>> serializerConfigSnapshotsMap;
     return StateMetaInfoSnapshot(
@@ -403,11 +396,12 @@ std::vector<int8_t> StreamingJoinSavepointAdaptor::encodeFlinkLogicalValue(
     return StreamingJoinSavepointUtil::serializeFlinkMapValue(parsed, sidePlan.outerJoinState);
 }
 
+template <typename Emit>
 void StreamingJoinSavepointAdaptor::convertKVRowData(
     const KeyValueStateIterator::CurrentEntry& entry,
     const VectorBatchSaveStateContext& context,
     const VectorBatchSavePlan& plan,
-    std::function<void(ConvertedEntry)> output)
+    Emit&& output)
 {
     if (context.vbAccessor == nullptr) {
         INFO_RELEASE(
@@ -443,10 +437,9 @@ void StreamingJoinSavepointAdaptor::convertKVRowData(
     });
 }
 
+template <typename Emit>
 void StreamingJoinSavepointAdaptor::parseSourceMapEntries(
-    const KeyValueStateIterator::CurrentEntry& entry,
-    const SidePlan& sidePlan,
-    const std::function<void(ByteView keyBytes, ByteView valueBytes, omnistream::ComboId comboId)>& emit) const
+    const KeyValueStateIterator::CurrentEntry& entry, const SidePlan& sidePlan, Emit&& emit) const
 {
     const size_t singleValueSize = sidePlan.outerJoinState ? 1 + sizeof(int32_t) + sizeof(int32_t) + sizeof(int64_t)
                                                            : 1 + sizeof(int32_t) + sizeof(int64_t);
@@ -506,10 +499,7 @@ VectorBatchSavePlan StreamingJoinSavepointAdaptor::buildSavePlan(FullSnapshotRes
         VectorBatchSavePlan::StateContextSpec spec;
         spec.sourceKvStateId = static_cast<int>(i);
         spec.logicalStateName = stateName;
-        spec.valueSerializer = meta->getTypeSerializer(
-            {StateMetaInfoSnapshot::COMMON_VALUE_SERIALIZER_KEY,
-             SerializerJsonInfo::VALUE_SERIALIZER_KEY,
-             SerializerJsonInfo::STATE_SERIALIZER_KEY});
+        spec.valueSerializer = meta->getValueSerializer();
         if (spec.valueSerializer == nullptr) {
             INFO_RELEASE(
                 "Error: StreamingJoinSavepointAdaptor::buildSavePlan ->"

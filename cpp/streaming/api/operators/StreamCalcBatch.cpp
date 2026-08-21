@@ -9,9 +9,11 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <memory>
 #include <regex>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include "table/data/vectorbatch/temp_batch_function.h"
 #include "StreamCalcBatch.h"
 
@@ -69,7 +71,8 @@ void StreamCalcBatch::processBatch(StreamRecord* input)
         timestampedCollector_->collect(outputBatch);
     } else {
         // This builds an omniruntime::vec::VectorBatch
-        auto projectedVecs = this->exprEvaluator->Evaluate(record, executionContext.get(), &selectedRowsBuffer);
+        auto projectedVecs = std::unique_ptr<omniruntime::vec::VectorBatch>(
+            this->exprEvaluator->Evaluate(record, executionContext.get(), &selectedRowsBuffer));
         if (hasFilter) {
             if (projectedVecs != nullptr) {
                 // get the new timestamps* and new RowKinds* by using selectedRowsBuffer. Then create a
@@ -84,7 +87,7 @@ void StreamCalcBatch::processBatch(StreamRecord* input)
                     timestamps[i] = oldtimes[rowIndex];
                     rowkinds[i] = oldkinds[rowIndex];
                 }
-                outputBatch = new omnistream::VectorBatch(projectedVecs, timestamps, rowkinds);
+                outputBatch = new omnistream::VectorBatch(std::move(projectedVecs), timestamps, rowkinds);
                 // This destructor clears both rowkind/timestamp and the data vectors
                 delete record;
 
@@ -95,7 +98,8 @@ void StreamCalcBatch::processBatch(StreamRecord* input)
             }
         } else {
             // All rows are kept. Use current timestamp* and RowKind* to create a omnistream::Vectorbatch
-            outputBatch = new omnistream::VectorBatch(projectedVecs, record->getTimestamps(), record->getRowKinds());
+            outputBatch =
+                new omnistream::VectorBatch(std::move(projectedVecs), record->getTimestamps(), record->getRowKinds());
             omniruntime::codegen::VectorHelper::FreeVecBatch(record);
             timestampedCollector_->collect(outputBatch);
         }
