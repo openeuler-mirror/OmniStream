@@ -19,6 +19,9 @@ constexpr std::string_view OPERATOR_NAME_KEYED_PROCESS_OPERATOR =
     "org.apache.flink.streaming.api.operators.KeyedProcessOperator";
 constexpr std::string_view OPERATOR_NAME_STREAM_JOIN =
     "org.apache.flink.table.runtime.operators.join.stream.StreamingJoinOperator";
+// Flink StreamExecJoin instantiates this for SEMI (EXISTS) / ANTI (NOT EXISTS) join.
+constexpr std::string_view OPERATOR_NAME_STREAM_SEMI_ANTI_JOIN =
+    "org.apache.flink.table.runtime.operators.join.stream.StreamingSemiAntiJoinOperator";
 constexpr std::string_view OPERATOR_NAME_WATERMARK_ASSIGNER =
     "org.apache.flink.table.runtime.operators.wmassigners.WatermarkAssignerOperator";
 constexpr std::string_view OPERATOR_NAME_WINDOW_INNER_JOIN =
