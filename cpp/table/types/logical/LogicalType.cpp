@@ -13,6 +13,7 @@
 #include <mutex>
 #include <stdexcept>
 
+#include "CharType.h"
 #include "LogicTypeUtils.h"
 #include "LogicalType.h"
 #include "RawType.h"
@@ -323,6 +324,7 @@ LogicalType* BasicLogicalType::getTypeBy(DataTypeId typeId, const nlohmann::json
             }
             break;
         }
+        case DataTypeId::OMNI_CHAR:
         case DataTypeId::OMNI_VARCHAR:
         case DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE:
         case DataTypeId::OMNI_TIMESTAMP:
@@ -366,6 +368,11 @@ LogicalType* BasicLogicalType::getTypeBy(std::optional<bool> nullable, DataTypeI
         }
         case DataTypeId::OMNI_LONG: {
             type = new BasicLogicalType(isNullable, DataTypeId::OMNI_LONG, "BIGINT");
+            break;
+        }
+        case DataTypeId::OMNI_CHAR: {
+            int length = options.value("length", 1);
+            type = new CharType(isNullable, length);
             break;
         }
         case DataTypeId::OMNI_VARCHAR: {

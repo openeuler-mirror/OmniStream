@@ -11,14 +11,21 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstdint>
+#include <cstring>
+#include <memory>
 #include <stdexcept>
+#include <string_view>
 #include <vector>
 
 #include "core/memory/DataOutputSerializer.h"
 #include "core/typeutils/XxH128_hashSerializer.h"
 #include "runtime/checkpoint/StreamingJoinSavepointUtil.h"
+#include "runtime/state/VoidNamespaceSerializer.h"
+#include "table/data/binary/BinaryRowData.h"
 #include "table/data/util/ComboIdUtil.h"
+#include "table/typeutils/BinaryRowDataSerializer.h"
 
 using omnistream::ComboId;
 using omnistream::ComboIdUtil;
@@ -36,6 +43,39 @@ std::vector<int8_t> copyOutput(DataOutputSerializer& output)
     return std::vector<int8_t>(
         reinterpret_cast<int8_t*>(output.getData()),
         reinterpret_cast<int8_t*>(output.getData() + output.getPosition()));
+}
+
+struct SerializedFlinkMapKey {
+    std::vector<int8_t> bytes;
+    std::vector<int8_t> rowDataBytes;
+    size_t rowLengthOffset = 0;
+};
+
+SerializedFlinkMapKey serializeFlinkMapKeyWithCharacterFields()
+{
+    std::unique_ptr<BinaryRowData> currentKey(BinaryRowData::createBinaryRowDataWithMem(1));
+    currentKey->setLong(0, 101);
+    BinaryRowDataSerializer currentKeySerializer(1);
+
+    std::unique_ptr<BinaryRowData> mapKey(BinaryRowData::createBinaryRowDataWithMem(3));
+    mapKey->setLong(0, 202);
+    mapKey->setStringView(1, std::string_view("fixed-char-value"));
+    mapKey->setStringView(2, std::string_view("variable-varchar-value"));
+    BinaryRowDataSerializer mapKeySerializer(3);
+
+    DataOutputSerializer output;
+    OutputBufferStatus outputStatus;
+    output.setBackendBuffer(&outputStatus);
+    output.write(7);
+    currentKeySerializer.serialize(currentKey.get(), output);
+    VoidNamespaceSerializer::INSTANCE->serialize(static_cast<void*>(nullptr), output);
+
+    SerializedFlinkMapKey result;
+    result.rowLengthOffset = static_cast<size_t>(output.getPosition());
+    mapKeySerializer.serialize(mapKey.get(), output);
+    result.bytes = copyOutput(output);
+    result.rowDataBytes.assign(result.bytes.begin() + result.rowLengthOffset, result.bytes.end());
+    return result;
 }
 
 std::vector<int8_t> serializeAggregatedMapEntries(
@@ -151,4 +191,36 @@ TEST(StreamingJoinSavepointUtilTest, RejectsNullTruncatedAndTrailingJoinPayloads
     aggregatedBytes.push_back(0);
     EXPECT_THROW(
         StreamingJoinSavepointUtil::parseOmniMapStateEntries(byteView(aggregatedBytes), false), std::runtime_error);
+}
+
+TEST(StreamingJoinSavepointUtilTest, SplitsFlinkMapKeyUsingCharacterDataTypeIds)
+{
+    auto serializedKey = serializeFlinkMapKeyWithCharacterFields();
+    const std::vector<omniruntime::type::DataTypeId> inputTypeIds = {
+        omniruntime::type::DataTypeId::OMNI_LONG,
+        omniruntime::type::DataTypeId::OMNI_CHAR,
+        omniruntime::type::DataTypeId::OMNI_VARCHAR};
+
+    auto parts = StreamingJoinSavepointUtil::splitFlinkMapKey(serializedKey.bytes, inputTypeIds, 1);
+
+    EXPECT_EQ(parts.keyPrefix.size(), serializedKey.rowLengthOffset);
+    EXPECT_EQ(std::memcmp(parts.keyPrefix.data(), serializedKey.bytes.data(), serializedKey.rowLengthOffset), 0);
+    EXPECT_EQ(parts.rowDataBytes, serializedKey.rowDataBytes);
+}
+
+TEST(StreamingJoinSavepointUtilTest, RejectsInvalidCharacterFieldRange)
+{
+    auto serializedKey = serializeFlinkMapKeyWithCharacterFields();
+    const std::vector<omniruntime::type::DataTypeId> inputTypeIds = {
+        omniruntime::type::DataTypeId::OMNI_LONG,
+        omniruntime::type::DataTypeId::OMNI_CHAR,
+        omniruntime::type::DataTypeId::OMNI_VARCHAR};
+    const size_t rowPayloadOffset = serializedKey.rowLengthOffset + sizeof(int32_t);
+    const size_t charFieldOffset =
+        BinaryRowData::calculateBitSetWidthInBytes(static_cast<int>(inputTypeIds.size())) + sizeof(int64_t);
+    std::fill_n(
+        serializedKey.bytes.begin() + rowPayloadOffset + charFieldOffset, sizeof(int64_t), static_cast<int8_t>(0x7F));
+
+    EXPECT_THROW(
+        StreamingJoinSavepointUtil::splitFlinkMapKey(serializedKey.bytes, inputTypeIds, 1), std::runtime_error);
 }

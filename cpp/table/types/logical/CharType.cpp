@@ -14,7 +14,7 @@
 
 using namespace omniruntime::type;
 
-CharType::CharType(bool isNull, int length) : LogicalType(isNull, DataTypeId::OMNI_LONG, "CHAR"), length(length)
+CharType::CharType(bool isNull, int length) : BasicLogicalType(isNull, DataTypeId::OMNI_CHAR, "CHAR"), length(length)
 {
 }
 
