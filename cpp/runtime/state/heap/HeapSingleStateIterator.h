@@ -263,9 +263,9 @@ private:
                     entry.serializedKey = serializeVbKey(keyGroup, it->first, it->third);
                     entry.serializedValue = serializeVbValue(it->second);
                 } catch (const std::exception& e) {
-                    INFO_RELEASE(
-                        "Error:HeapSingleStateIterator: collectVbEntries EXCEPTION at keyGroup="
-                        << keyGroup << ", error=" << e.what());
+                    ERROR_RELEASE(
+                        "HeapSingleStateIterator: collectVbEntries EXCEPTION at keyGroup=" << keyGroup
+                                                                                           << ", error=" << e.what());
                     throw;
                 }
                 if (snapshotData_ == nullptr) {
@@ -470,8 +470,8 @@ private:
                         serializeKey(keyGroup, raw.key, raw.nmspace, keySerializer, namespaceSerializer);
                     entry.serializedValue = serializeValue(raw.value, stateSerializer);
                 } catch (const std::exception& e) {
-                    INFO_RELEASE(
-                        "Error:HeapSingleStateIterator: serializeStateMap EXCEPTION at keyGroup="
+                    ERROR_RELEASE(
+                        "HeapSingleStateIterator: serializeStateMap EXCEPTION at keyGroup="
                         << keyGroup << ", entryIndex=" << mapEntryCount << ", error=" << e.what());
                     throw;
                 }
@@ -561,8 +561,7 @@ private:
         }
         auto* mapSer = dynamic_cast<MapSerializer*>(stateSerializer);
         if (mapSer == nullptr) {
-            INFO_RELEASE(
-                "Error:HeapSingleStateIterator: MAP state serializer is not MapSerializer at entry=" << entryIndex);
+            ERROR_RELEASE("HeapSingleStateIterator: MAP state serializer is not MapSerializer at entry=" << entryIndex);
             throw std::runtime_error("HeapSingleStateIterator: MAP state serializer is not MapSerializer");
         }
         TypeSerializer* mapKeySer = mapSer->getKeySerializer();

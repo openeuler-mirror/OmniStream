@@ -120,10 +120,6 @@ private:
 
             if (backendStateType == StateMetaInfoSnapshot::BackendStateType::PRIORITY_QUEUE) {
                 // PQ状态：记录待恢复，后续timer queue创建时装填
-                INFO_RELEASE(
-                    "HeapRestoreOperation: discovered PRIORITY_QUEUE state '"
-                    << metaInfo.getName() << "' at kvStateId=" << i
-                    << ", entries will be restored when the typed timer queue is created");
                 stateInfos.push_back(
                     {backendStateType, metaInfo.getName(), nullptr, nullptr, metaInfo.getValueSerializer()});
                 continue;
@@ -274,6 +270,7 @@ private:
             using KeyBaseType = unwrap_shared_ptr_t<K>;
             auto* keyBuffer = static_cast<KeyBaseType*>(keySerializer_->deserialize(keyInput));
             if (keyBuffer == nullptr) {
+                ERROR_RELEASE("HeapRestoreOperation: Heap keyed state restore deserialized a null shared row key");
                 THROW_LOGIC_EXCEPTION("Heap keyed state restore deserialized a null shared row key");
             }
             // BinaryRowDataSerializer reuses its deserialize buffer. Keep an owned copy
@@ -307,8 +304,8 @@ private:
         uintptr_t stateTablePtr = backend->getStateTablePtr(desc->getName());
 
         if (stateTablePtr == 0) {
-            INFO_RELEASE(
-                "Error:HeapRestoreOperation: state table not found for '" << desc->getName() << "', skipping entry");
+            ERROR_RELEASE(
+                "HeapRestoreOperation: state table not found for '" << desc->getName() << "', skipping entry");
             delete static_cast<K*>(rawKey);
             delete static_cast<VoidNamespace*>(rawNs);
             return;
@@ -547,7 +544,7 @@ private:
     {
         int size = input.readInt();
         if (size < 0 || size > input.Available()) {
-            INFO_RELEASE("Exception: Invalid emhash map size " << size << ", available bytes " << input.Available());
+            ERROR_RELEASE("Exception: Invalid emhash map size " << size << ", available bytes " << input.Available());
             throw std::runtime_error("Invalid emhash map size");
         }
         auto* map = new emhash7::HashMap<UK, UV>();
@@ -569,7 +566,7 @@ private:
                 delete static_cast<UK*>(rawK);
             }
             bool isNull = input.readBoolean();
-            UV val;
+            UV val{};
             if constexpr (std::is_pointer_v<UV>) {
                 if (isNull) {
                     val = nullptr;
@@ -585,7 +582,10 @@ private:
                     }
                 }
             } else {
-                // For value types, null marker should be false
+                if (isNull) {
+                    ERROR_RELEASE("HeapRestoreOperation: unexpected null MAP value for non-pointer type");
+                    throw std::runtime_error("unexpected null MAP value for non-pointer type");
+                }
                 void* rawV = valSer->deserialize(input);
                 val = *static_cast<UV*>(rawV);
                 delete static_cast<UV*>(rawV);

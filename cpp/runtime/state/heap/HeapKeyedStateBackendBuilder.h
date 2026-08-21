@@ -259,6 +259,7 @@ private:
             }
         } else {
             if (isMapValNull) {
+                ERROR_RELEASE("HeapKeyedStateBackendBuilder: unexpected null MAP value for non-pointer type");
                 throw std::runtime_error("unexpected null MAP value for non-pointer type");
             }
             void* raw = mapValSer->deserialize(valInput);
