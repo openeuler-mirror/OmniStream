@@ -240,10 +240,26 @@ public:
                         throw std::runtime_error("Unsupported encoding");
                     }
                 }
-            } else {
+            } else if (
+                tag == StreamElementTag::TAG_STREAM_STATUS || tag == StreamElementTag::TAG_RECORD_ATTRIBUTES ||
+                tag == StreamElementTag::TAG_LATENCY_MARKER || tag == StreamElementTag::TAG_INTERNAL_WATERMARK) {
+                ERROR_RELEASE(
+                    "ObjectSegment channel-state serialization does not support StreamElement tag "
+                    << static_cast<int>(tag));
+                throw std::runtime_error(
+                    "ObjectSegment channel-state serialization does not support StreamElement tag " +
+                    std::to_string(static_cast<int>(tag)));
+            } else if (tag == StreamElementTag::TAG_UNKNOWN) {
                 int8_t tagByte = static_cast<int8_t>(tag);
                 memcpy_s(buffer, totalSize - (buffer - data.data()), &tagByte, sizeof(int8_t));
                 buffer += sizeof(int8_t);
+            } else {
+                ERROR_RELEASE(
+                    "ObjectSegment channel-state serialization encountered unknown StreamElement tag "
+                    << static_cast<int>(tag));
+                throw std::runtime_error(
+                    "ObjectSegment channel-state serialization encountered unknown StreamElement tag " +
+                    std::to_string(static_cast<int>(tag)));
             }
         }
         return data;
@@ -274,8 +290,24 @@ public:
                 }
                 auto* vectorBatch = static_cast<VectorBatch*>(element->getValue());
                 totalSize += VectorBatchSerializationUtils::calculateVectorBatchSerializableSize(vectorBatch);
-            } else {
+            } else if (
+                tag == StreamElementTag::TAG_STREAM_STATUS || tag == StreamElementTag::TAG_RECORD_ATTRIBUTES ||
+                tag == StreamElementTag::TAG_LATENCY_MARKER || tag == StreamElementTag::TAG_INTERNAL_WATERMARK) {
+                ERROR_RELEASE(
+                    "ObjectSegment channel-state serialization does not support StreamElement tag "
+                    << static_cast<int>(tag));
+                throw std::runtime_error(
+                    "ObjectSegment channel-state serialization does not support StreamElement tag " +
+                    std::to_string(static_cast<int>(tag)));
+            } else if (tag == StreamElementTag::TAG_UNKNOWN) {
                 totalSize += sizeof(int8_t);
+            } else {
+                ERROR_RELEASE(
+                    "ObjectSegment channel-state serialization encountered unknown StreamElement tag "
+                    << static_cast<int>(tag));
+                throw std::runtime_error(
+                    "ObjectSegment channel-state serialization encountered unknown StreamElement tag " +
+                    std::to_string(static_cast<int>(tag)));
             }
         }
         return totalSize;

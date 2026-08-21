@@ -1,10 +1,47 @@
 #include <gtest/gtest.h>
+#include <cstdint>
+#include <cstring>
+#include <vector>
 #include "runtime/buffer/ObjectBufferBuilder.h"
 #include "runtime/buffer/ObjectBufferRecycler.h"
 #include "runtime/buffer/ObjectSegment.h"
 #include "streaming/runtime/streamrecord/StreamRecord.h"
 
 using namespace omnistream;
+
+TEST(ObjectBufferBuilderTest, AppendSerializedObjectSegmentReleasesWrittenObjectsOnFailure)
+{
+    constexpr int segmentSize = 3;
+    ObjectSegment target(segmentSize);
+    StreamElement existing;
+    target.putObject(0, &existing);
+
+    int32_t elementNum = 2;
+    int8_t watermarkTag = static_cast<int8_t>(StreamElementTag::TAG_WATERMARK);
+    long timestamp = 123;
+    int8_t unsupportedTag = static_cast<int8_t>(StreamElementTag::TAG_STREAM_STATUS);
+    std::vector<uint8_t> serialized(
+        sizeof(elementNum) + sizeof(watermarkTag) + sizeof(timestamp) + sizeof(unsupportedTag));
+    uint8_t* cursor = serialized.data();
+    std::memcpy(cursor, &elementNum, sizeof(elementNum));
+    cursor += sizeof(elementNum);
+    std::memcpy(cursor, &watermarkTag, sizeof(watermarkTag));
+    cursor += sizeof(watermarkTag);
+    std::memcpy(cursor, &timestamp, sizeof(timestamp));
+    cursor += sizeof(timestamp);
+    std::memcpy(cursor, &unsupportedTag, sizeof(unsupportedTag));
+
+    try {
+        ObjectSegmentChannelStateSerde::AppendSerializedObjectSegment(
+            serialized.data(), static_cast<int>(serialized.size()), &target, 1, 2);
+        FAIL() << "Expected unsupported StreamElement tag to throw";
+    } catch (const std::runtime_error& error) {
+        EXPECT_STREQ(error.what(), "ObjectSegment channel-state deserialization does not support StreamElement tag 4");
+    }
+    EXPECT_EQ(target.getObject(0), &existing);
+    EXPECT_EQ(target.getObject(1), nullptr);
+    EXPECT_EQ(target.getObject(2), nullptr);
+}
 
 TEST(ObjectBufferBuilderTest, AppendAndCommintNotFull)
 {

@@ -565,31 +565,49 @@ bool PipelinedSubpartition::ProcessPriorityBuffer(
         }
         auto elements = buffers.asUnmodifiableCollection();
         std::vector<Buffer*> inflightBuffers;
-        for (const auto& current : elements) {
-            auto buffer = current->getBufferConsumer();
-            if (buffer->isBuffer()) {
-                Buffer* inflightbuffer = buffer->buildForPeek();
-                if (inflightbuffer == nullptr || inflightbuffer->GetSize() == 0) {
-                    LOG("writeOutput buffers is null ");
-                    continue;
-                }
-                Segment* segment = inflightbuffer->GetSegment();
-                if (segment->isObjectSegment()) {
-                    ObjectSegment* newSegment = new ObjectSegment(inflightbuffer->GetSize());
-                    newSegment->put(
-                        0,
-                        dynamic_cast<const ObjectSegment*>(segment),
-                        inflightbuffer->GetOffset(),
-                        inflightbuffer->GetSize());
-                    auto* copiedBuffer =
-                        new VectorBatchBuffer(newSegment, std::make_shared<DeepCopiedObjectBufferRecycler>());
-                    copiedBuffer->SetSize(inflightbuffer->GetSize());
-                    inflightbuffer->RecycleBuffer();
-                    inflightBuffers.push_back(copiedBuffer);
-                } else {
-                    inflightBuffers.push_back(inflightbuffer);
+        try {
+            for (const auto& current : elements) {
+                auto buffer = current->getBufferConsumer();
+                if (buffer->isBuffer()) {
+                    Buffer* inflightbuffer = buffer->buildForPeek();
+                    if (inflightbuffer == nullptr || inflightbuffer->GetSize() == 0) {
+                        LOG("writeOutput buffers is null ");
+                        continue;
+                    }
+                    Segment* segment = inflightbuffer->GetSegment();
+                    if (segment->isObjectSegment()) {
+                        ObjectSegment* newSegment = new ObjectSegment(inflightbuffer->GetSize());
+                        try {
+                            newSegment->put(
+                                0,
+                                dynamic_cast<const ObjectSegment*>(segment),
+                                inflightbuffer->GetOffset(),
+                                inflightbuffer->GetSize());
+                        } catch (...) {
+                            delete newSegment;
+                            inflightbuffer->RecycleBuffer();
+                            delete inflightbuffer;
+                            throw;
+                        }
+                        auto* copiedBuffer =
+                            new VectorBatchBuffer(newSegment, std::make_shared<DeepCopiedObjectBufferRecycler>());
+                        copiedBuffer->SetSize(inflightbuffer->GetSize());
+                        inflightbuffer->RecycleBuffer();
+                        inflightBuffers.push_back(copiedBuffer);
+                    } else {
+                        inflightBuffers.push_back(inflightbuffer);
+                    }
                 }
             }
+        } catch (...) {
+            // Ownership has not been transferred to channelStateWriter_.
+            for (Buffer* buffer : inflightBuffers) {
+                if (buffer != nullptr) {
+                    buffer->RecycleBuffer();
+                    delete buffer;
+                }
+            }
+            throw;
         }
 
         if (!inflightBuffers.empty()) {
