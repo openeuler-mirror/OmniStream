@@ -4,6 +4,7 @@
 #ifndef NETTY_BUFFER_INFO_H
 #define NETTY_BUFFER_INFO_H
 #include <cstdint>
+#include <memory>
 #include "core/include/common.h"
 #include "NettyMemorySegment.h"
 namespace omnistream {
