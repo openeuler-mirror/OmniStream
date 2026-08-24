@@ -27,7 +27,6 @@
 #include "runtime/checkpoint/CheckpointOptions.h"
 #include "runtime/checkpoint/DeduplicateSavepointAdaptor.h"
 #include "runtime/checkpoint/GroupAggSavepointAdaptor.h"
-#include "runtime/checkpoint/GroupWindowAggSavepointAdaptor.h"
 #include "runtime/checkpoint/SavepointType.h"
 #include "runtime/checkpoint/StreamingJoinSavepointAdaptor.h"
 #include "runtime/checkpoint/StreamingJoinSavepointUtil.h"
@@ -42,7 +41,6 @@
 #include "table/data/binary/BinaryRowData.h"
 #include "table/data/util/ComboIdUtil.h"
 #include "table/data/util/VectorBatchUtil.h"
-#include "table/runtime/operators/window/TimeWindow.h"
 #include "table/types/logical/RowType.h"
 #include "table/typeutils/RowDataSerializer.h"
 #include "table/typeutils/SortedVectorLong.h"
@@ -58,7 +56,6 @@ constexpr const char* TOPN_STATE_NAME = "data-state-with-append";
 constexpr const char* DEDUPLICATE_STATE_NAME = "deduplicate-state";
 constexpr const char* ACC_STATE_NAME = "accState";
 constexpr const char* DISTINCT_STATE_NAME = "distinctAcc_0";
-constexpr const char* SESSION_WINDOW_MAPPING_STATE_NAME = "session-window-mapping";
 constexpr const char* WINDOW_LEFT_STATE_NAME = "left-records";
 
 std::vector<int8_t> copyOutput(DataOutputSerializer& output)
@@ -120,22 +117,6 @@ std::vector<int8_t> serializeBigIntRow(int64_t value)
     OutputBufferStatus outputStatus{};
     output.setBackendBuffer(&outputStatus);
     serializer.serialize(row.get(), output);
-    return copyOutput(output);
-}
-
-std::vector<int8_t> serializeTimeWindowMap(MapSerializer& serializer)
-{
-    auto* keySerializer = serializer.getKeySerializer();
-    auto* valueSerializer = serializer.getValueSerializer();
-    TimeWindow key(100, 200);
-    TimeWindow value(100, 300);
-    DataOutputSerializer output;
-    OutputBufferStatus outputStatus{};
-    output.setBackendBuffer(&outputStatus);
-    output.writeInt(1);
-    keySerializer->serialize(&key, output);
-    output.writeBoolean(false);
-    valueSerializer->serialize(&value, output);
     return copyOutput(output);
 }
 
@@ -437,20 +418,6 @@ TEST_F(SavepointAdaptorExecuteSaveTest, GroupAggSaveExpandsHeapMapState)
     EXPECT_TRUE(iterator->closed);
 }
 
-TEST_F(SavepointAdaptorExecuteSaveTest, GroupAggSaveRejectsMalformedHeapMapState)
-{
-    omnistream::GroupAggSavepointAdaptor adaptor;
-    auto mapSerializer = std::make_unique<MapSerializer>(new IntSerializer(), new IntSerializer());
-    auto iterator =
-        std::make_shared<SingleEntryIterator>(std::vector<int8_t>{0x01}, std::vector<int8_t>{0x00, 0x00, 0x00}, 0);
-    TestHeapSnapshotResources resources;
-    resources.metaInfos = {makeKeyValueMeta(DISTINCT_STATE_NAME, "MAP", mapSerializer.get())};
-    resources.iterator = iterator;
-
-    EXPECT_THROW(saveAndGetPosition(adaptor, resources), std::runtime_error);
-    EXPECT_TRUE(iterator->closed);
-}
-
 TEST_F(SavepointAdaptorExecuteSaveTest, GroupAggSaveRejectsMalformedAccumulator)
 {
     omnistream::GroupAggSavepointAdaptor adaptor;
@@ -462,21 +429,6 @@ TEST_F(SavepointAdaptorExecuteSaveTest, GroupAggSaveRejectsMalformedAccumulator)
     resources.iterator = iterator;
 
     EXPECT_THROW(saveAndGetPosition(adaptor, resources), std::exception);
-    EXPECT_TRUE(iterator->closed);
-}
-
-TEST_F(SavepointAdaptorExecuteSaveTest, GroupWindowAggSaveExecutesConvertKVRowData)
-{
-    omnistream::GroupWindowAggSavepointAdaptor adaptor;
-    adaptor.prepareForSave({{"windowKind", "SESSION"}});
-    auto mapSerializer = std::make_unique<MapSerializer>(new TimeWindow::Serializer(), new TimeWindow::Serializer());
-    auto iterator =
-        std::make_shared<SingleEntryIterator>(std::vector<int8_t>{0x01}, serializeTimeWindowMap(*mapSerializer), 0);
-    TestHeapSnapshotResources resources;
-    resources.metaInfos = {makeKeyValueMeta(SESSION_WINDOW_MAPPING_STATE_NAME, "MAP", mapSerializer.get())};
-    resources.iterator = iterator;
-
-    EXPECT_GT(saveAndGetPosition(adaptor, resources), 0U);
     EXPECT_TRUE(iterator->closed);
 }
 

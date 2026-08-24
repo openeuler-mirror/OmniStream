@@ -69,7 +69,6 @@ public:
     MOCK_METHOD(KeyGroupRange*, getKeyGroupRange, (), (override));
     MOCK_METHOD(TypeSerializer*, getKeySerializer, (), (override));
     MOCK_METHOD(std::shared_ptr<KeyValueStateIterator>, createKVStateIterator, (), (override));
-    MOCK_METHOD(bool, isHeapBackend, (), (const, override));
     MOCK_METHOD(bool, isHeapPriorityQueueStateId, (int), (const, override));
     MOCK_METHOD(int, getKeyGroupPrefixBytes, (), (const, override));
     MOCK_METHOD(

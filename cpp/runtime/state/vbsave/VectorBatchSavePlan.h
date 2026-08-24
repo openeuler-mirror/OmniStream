@@ -29,11 +29,10 @@ namespace omnistream {
 // RestoreStateType — 保存/恢复流程的状态类型分发
 // ============================================================================
 enum class VectorBatchStateType {
-    KV,               // 普通 KV 状态（无 VB side table）
-    KV_WITH_VB,       // 带 VectorBatch side table 的 KV 状态（单 comboId）
-    PQ,               // PriorityQueue 状态
-    KV_TRANSFORM,     // 普通 KV 状态，仅转换 value 字节，不依赖 VB side table
-    KV_MAP_TRANSFORM, // Heap MapState 整 map value 转换为 Flink 单 map entry 布局
+    KV,           // 普通 KV 状态（无 VB side table）
+    KV_WITH_VB,   // 带 VectorBatch side table 的 KV 状态（单 comboId）
+    PQ,           // PriorityQueue 状态
+    KV_TRANSFORM, // 普通 KV 状态，仅转换 value 字节，不依赖 VB side table
 };
 
 // ============================================================================
@@ -48,8 +47,6 @@ struct VectorBatchSaveStateContext {
     std::string logicalStateName;
     TypeSerializer* valueSerializer = nullptr;
     TypeSerializer* sourceValueSerializer = nullptr;
-    TypeSerializer* mapKeySerializer = nullptr;
-    TypeSerializer* mapValueSerializer = nullptr;
     std::shared_ptr<VectorBatchStateAccessor> vbAccessor;
     VectorBatchStateType stateType = VectorBatchStateType::KV;
 
@@ -68,8 +65,6 @@ struct VectorBatchSaveStateContext {
           logicalStateName(std::move(other.logicalStateName)),
           valueSerializer(other.valueSerializer),
           sourceValueSerializer(other.sourceValueSerializer),
-          mapKeySerializer(other.mapKeySerializer),
-          mapValueSerializer(other.mapValueSerializer),
           vbAccessor(std::move(other.vbAccessor)),
           stateType(other.stateType)
     {
@@ -77,8 +72,6 @@ struct VectorBatchSaveStateContext {
         other.mappedKvStateId = -1;
         other.valueSerializer = nullptr;
         other.sourceValueSerializer = nullptr;
-        other.mapKeySerializer = nullptr;
-        other.mapValueSerializer = nullptr;
         other.stateType = VectorBatchStateType::KV;
     }
 
@@ -91,16 +84,12 @@ struct VectorBatchSaveStateContext {
             logicalStateName = std::move(other.logicalStateName);
             valueSerializer = other.valueSerializer;
             sourceValueSerializer = other.sourceValueSerializer;
-            mapKeySerializer = other.mapKeySerializer;
-            mapValueSerializer = other.mapValueSerializer;
             vbAccessor = std::move(other.vbAccessor);
             stateType = other.stateType;
             other.writable = false;
             other.mappedKvStateId = -1;
             other.valueSerializer = nullptr;
             other.sourceValueSerializer = nullptr;
-            other.mapKeySerializer = nullptr;
-            other.mapValueSerializer = nullptr;
             other.stateType = VectorBatchStateType::KV;
         }
         return *this;
@@ -116,8 +105,6 @@ struct VectorBatchSaveStateContext {
             case VectorBatchStateType::PQ: return true;
             case VectorBatchStateType::KV_TRANSFORM:
                 return valueSerializer != nullptr && sourceValueSerializer != nullptr;
-            case VectorBatchStateType::KV_MAP_TRANSFORM:
-                return mapKeySerializer != nullptr && mapValueSerializer != nullptr;
             case VectorBatchStateType::KV_WITH_VB: return valueSerializer != nullptr && vbAccessor != nullptr;
         }
         return false;
@@ -157,15 +144,12 @@ struct VectorBatchSavePlan {
         std::string logicalStateName;
         TypeSerializer* valueSerializer = nullptr;
         TypeSerializer* sourceValueSerializer = nullptr;
-        TypeSerializer* mapKeySerializer = nullptr;
-        TypeSerializer* mapValueSerializer = nullptr;
         VectorBatchAccessorOptions accessorOptions;
         VectorBatchStateType stateType = VectorBatchStateType::KV_WITH_VB;
     };
     std::vector<StateContextSpec> stateContextSpecs;
 
     KeyGroupRange* keyGroupRange = nullptr;
-    bool isHeapBackend = false;
     std::string keySerializerJson;
 };
 

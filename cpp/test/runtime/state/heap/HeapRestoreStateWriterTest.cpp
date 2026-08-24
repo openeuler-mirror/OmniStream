@@ -268,14 +268,18 @@ protected:
     }
 
     // 序列化一个 int64_t 列表，用于 LIST 状态 writeEntry 的 value 参数。
+    // ListDelimitedSerializer 格式: [elem1][','][elem2][',']... (无 size 前缀)
     std::vector<int8_t> makeLongListValueBytes(const std::vector<int64_t>& values)
     {
         DataOutputSerializer output;
         OutputBufferStatus outputStatus{};
         output.setBackendBuffer(&outputStatus);
-        output.writeInt(static_cast<int32_t>(values.size()));
         LongSerializer elemSer;
-        for (auto v : values) {
+        for (size_t i = 0; i < values.size(); ++i) {
+            if (i > 0) {
+                output.writeByte(static_cast<uint8_t>(','));
+            }
+            auto v = values[i];
             elemSer.serialize(&v, output);
         }
         return std::vector<int8_t>(
@@ -531,11 +535,9 @@ TEST_F(HeapRestoreStateWriterTest, WriteMapEntryStoresIntIntMap)
         reinterpret_cast<int8_t*>(valOut.getData()),
         reinterpret_cast<int8_t*>(valOut.getData() + valOut.getPosition()));
 
-    EXPECT_NO_THROW(
-        kv->writeEntry(keyBytes, ByteView(valueBytes.data(), valueBytes.size())));
+    EXPECT_NO_THROW(kv->writeEntry(keyBytes, ByteView(valueBytes.data(), valueBytes.size())));
 
-    auto* table = reinterpret_cast<
-        CopyOnWriteStateTable<int, VoidNamespace, emhash7::HashMap<int, int>*>*>(
+    auto* table = reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, emhash7::HashMap<int, int>*>*>(
         backend_->getStateTablePtr("intIntMapState"));
     ASSERT_NE(table, nullptr);
     VoidNamespace nsVoid;
@@ -590,8 +592,7 @@ TEST_F(HeapRestoreStateWriterTest, WriteMapEntryStoresXXH128TupleMap)
         reinterpret_cast<int8_t*>(valOut.getData()),
         reinterpret_cast<int8_t*>(valOut.getData() + valOut.getPosition()));
 
-    EXPECT_NO_THROW(
-        kv->writeEntry(keyBytes, ByteView(valueBytes.data(), valueBytes.size())));
+    EXPECT_NO_THROW(kv->writeEntry(keyBytes, ByteView(valueBytes.data(), valueBytes.size())));
 
     auto* table = reinterpret_cast<
         CopyOnWriteStateTable<int, VoidNamespace, emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int64_t>>*>*>(
@@ -639,11 +640,10 @@ TEST_F(HeapRestoreStateWriterTest, WriteValueEntryStoresBigIntValue)
 
     auto valueBytes = makeLongValueBytes(expectedValue);
     // writeEntry<ByteView> → writeBytesEntry → writeValueEntry (BIGINT_BK)
-    EXPECT_NO_THROW(
-        kv->writeEntry(makeKeyBytes(key), ByteView(valueBytes.data(), valueBytes.size())));
+    EXPECT_NO_THROW(kv->writeEntry(makeKeyBytes(key), ByteView(valueBytes.data(), valueBytes.size())));
 
-    auto* table =
-        reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, int64_t>*>(backend_->getStateTablePtr("bigIntState"));
+    auto* table = reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, int64_t>*>(
+        backend_->getStateTablePtr("bigIntState"));
     ASSERT_NE(table, nullptr);
     VoidNamespace ns;
     auto restored = table->get(key, keyGroupId, ns);
@@ -667,8 +667,7 @@ TEST_F(HeapRestoreStateWriterTest, WriteListEntryStoresBigIntElements)
 
     auto valueBytes = makeLongListValueBytes(expectedValues);
     // writeEntry<ByteView> → writeBytesEntry → writeListEntry (BIGINT_BK element)
-    EXPECT_NO_THROW(
-        kv->writeEntry(makeKeyBytes(key), ByteView(valueBytes.data(), valueBytes.size())));
+    EXPECT_NO_THROW(kv->writeEntry(makeKeyBytes(key), ByteView(valueBytes.data(), valueBytes.size())));
 
     auto* table = reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, std::vector<int64_t>*>*>(
         backend_->getStateTablePtr("listState"));
@@ -725,8 +724,8 @@ TEST_F(HeapRestoreStateWriterTest, VbWriteLongEntryStoresInt64Value)
     // writeEntry<int64_t> → writeLongEntry (VB override 写入主表)
     EXPECT_NO_THROW(kvVb->writeEntry(makeKeyBytes(key), int64_t(expectedValue)));
 
-    auto* table =
-        reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, int64_t>*>(backend_->getStateTablePtr("vbLongState"));
+    auto* table = reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, int64_t>*>(
+        backend_->getStateTablePtr("vbLongState"));
     ASSERT_NE(table, nullptr);
     VoidNamespace ns;
     auto restored = table->get(key, keyGroupId, ns);

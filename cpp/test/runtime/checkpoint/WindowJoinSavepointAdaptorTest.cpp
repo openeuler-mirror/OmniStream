@@ -210,11 +210,6 @@ public:
         return iterator;
     }
 
-    bool isHeapBackend() const override
-    {
-        return heapBackend;
-    }
-
     std::shared_ptr<VectorBatchStateAccessor> createVectorBatchStateAccessor(
         const std::string& logicalStateName, const VectorBatchAccessorOptions& options) override
     {
@@ -228,7 +223,6 @@ public:
 
     std::vector<std::shared_ptr<StateMetaInfoSnapshot>> metaInfos;
     KeyGroupRange keyGroupRange{0, 0};
-    bool heapBackend = false;
     std::shared_ptr<VectorBatchStateAccessor> accessor;
     std::shared_ptr<KeyValueStateIterator> iterator;
     std::vector<std::pair<std::string, size_t>> accessorRequests;
@@ -469,7 +463,6 @@ TEST_F(WindowJoinSavepointAdaptorTest, BuildWindowSavePlanFiltersSideTablesAndMa
     });
 
     TestFullSnapshotResources resources;
-    resources.heapBackend = true;
     resources.metaInfos = {
         nullptr,
         makeMeta(std::string(LEFT_STATE_NAME) + "vb", StateMetaInfoSnapshot::BackendStateType::KEY_VALUE),
@@ -482,7 +475,6 @@ TEST_F(WindowJoinSavepointAdaptorTest, BuildWindowSavePlanFiltersSideTablesAndMa
     auto plan = adaptor_.buildWindowSavePlan(resources);
 
     EXPECT_EQ(plan.keyGroupRange, resources.getKeyGroupRange());
-    EXPECT_TRUE(plan.isHeapBackend);
     ASSERT_EQ(plan.targetMetaInfos.size(), 3U);
     EXPECT_EQ(plan.targetMetaInfos[0]->getName(), "_timer_state/window");
     EXPECT_EQ(plan.targetMetaInfos[1]->getName(), LEFT_STATE_NAME);
