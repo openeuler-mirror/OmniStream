@@ -177,7 +177,10 @@ std::shared_ptr<NetworkBuffer> LocalMemoryBufferPool::toNetworkBuffer(MemorySegm
     if (!memorySegment) {
         return nullptr;
     }
-    return std::make_shared<NetworkBuffer>(memorySegment, shared_from_this());
+    // NetworkBuffer has intrusive lifetime management and deletes itself when
+    // its last reference is recycled. The shared_ptr is only an API handle and
+    // must not try to delete the buffer a second time.
+    return std::shared_ptr<NetworkBuffer>(new NetworkBuffer(memorySegment, shared_from_this()), [](NetworkBuffer*) {});
 }
 
 std::shared_ptr<NetworkBuffer> LocalMemoryBufferPool::requestNetworkBuffer()

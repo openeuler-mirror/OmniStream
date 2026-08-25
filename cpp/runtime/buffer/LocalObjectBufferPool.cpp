@@ -206,7 +206,11 @@ std::shared_ptr<ObjectBuffer> LocalObjectBufferPool::toObjectBuffer(ObjectSegmen
     if (!objectSegment) {
         return nullptr;
     }
-    return std::make_shared<VectorBatchBuffer>(objectSegment, shared_from_this());
+    // VectorBatchBuffer has intrusive lifetime management and deletes itself when
+    // its last reference is recycled. The shared_ptr is only an API handle and
+    // must not try to delete the buffer a second time.
+    return std::shared_ptr<ObjectBuffer>(
+        new VectorBatchBuffer(objectSegment, shared_from_this()), [](ObjectBuffer*) {});
 }
 
 ObjectBufferBuilder* LocalObjectBufferPool::toObjectBufferBuilder(ObjectSegment* memorySegment, int targetChannel)

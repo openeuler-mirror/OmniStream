@@ -64,11 +64,6 @@ int BufferConsumer::getBufferSize() const
     return requireBuffer("getBufferSize")->GetMaxCapacity();
 }
 
-bool BufferConsumer::isRecycled() const
-{
-    return buffer == nullptr || buffer->IsRecycled();
-}
-
 bool BufferConsumer::isClose() const
 {
     return isStop;
@@ -77,11 +72,10 @@ bool BufferConsumer::isClose() const
 void BufferConsumer::close()
 {
     if (buffer == nullptr) {
-        return;
+        THROW_LOGIC_EXCEPTION("BufferConsumer::close(), buffer is nullptr");
     }
-    if (!buffer->IsRecycled()) {
-        buffer->RecycleBuffer();
-    }
+    buffer->RecycleBuffer();
+    buffer = nullptr;
     isStop = true;
 }
 

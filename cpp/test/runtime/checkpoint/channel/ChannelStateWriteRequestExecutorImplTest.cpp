@@ -94,10 +94,7 @@ public:
     {
         recycled = true;
     }
-    bool IsRecycled() const override
-    {
-        return recycled;
-    }
+
     Buffer* RetainBuffer() override
     {
         return this;
@@ -289,7 +286,6 @@ TEST(ChannelStateWriteRequestExecutorImplTest, UnreadyRequests)
     // std::this_thread::sleep_for(500ms);
     // EXPECT_TRUE(serializer->writeHeaderCalled);
     // EXPECT_TRUE(serializer->writeDataCalled);
-    // EXPECT_TRUE(buffer->IsRecycled());
     // executor.shutdown();
 }
 
