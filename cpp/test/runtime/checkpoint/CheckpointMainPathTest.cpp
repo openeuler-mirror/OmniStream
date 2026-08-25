@@ -70,10 +70,7 @@ public:
     {
         recycled = true;
     }
-    bool IsRecycled() const override
-    {
-        return recycled;
-    }
+
     Buffer* RetainBuffer() override
     {
         return this;

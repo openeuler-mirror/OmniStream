@@ -183,7 +183,6 @@ TEST(ObjectBufferBuilderTest, BufferConsumerReadable)
     EXPECT_EQ(readableBytes, size);
     EXPECT_EQ(bufferConsumer->isDataAvailable(), false);
     // bufferConsumer->close();
-    // EXPECT_EQ(bufferConsumer->IsRecycled(), true);
     delete objSegment;
     delete bufferBuilder;
 }

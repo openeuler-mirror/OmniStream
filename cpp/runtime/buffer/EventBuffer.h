@@ -39,11 +39,6 @@ public:
     {
     }
 
-    bool IsRecycled() const override
-    {
-        return true;
-    }
-
     Buffer* RetainBuffer() override
     {
         LOG("EventBuffer::RetainBuffer");
