@@ -159,8 +159,6 @@ void TaskLocalStateStore::discardLocalStateForCheckpoint(
 
     std::filesystem::path checkpointDir = getCheckpointDirectory(checkpointID);
 
-    LOG("Deleting local state directory." << checkpointDir.string() << checkpointID);
-
     try {
         std::filesystem::remove_all(checkpointDir);
     } catch (const std::exception& ex) {

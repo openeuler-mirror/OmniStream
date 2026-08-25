@@ -103,14 +103,13 @@ void SequentialChannelStateReaderImpl::readSequentiallyByInputChannel(
         LOG("readSequentiallyByInputChannel end");
     } else if (std::dynamic_pointer_cast<RelativeFileStateHandle>(streamStateHandle)) {
         auto filePath = streamStateHandle->GetStreamStateHandleID().getKeyString();
-        LOG("readSequentiallyByInputChannel file path: " << filePath);
         auto tmpPath = "/tmp/" + ExtractChkPath(filePath);
         if (omniTaskBridge_->CallDownloadFileToLocal(*streamStateHandle, tmpPath)) {
             LOG("downLoad file success: " << tmpPath);
         }
         std::ifstream is(tmpPath, std::ios::binary);
         if (!is.is_open()) {
-            LOG("ERROR: Failed to open stream state handle input stream. file path: " << filePath);
+            ERROR_RELEASE("ERROR: Failed to open stream state handle input stream. file path: " << filePath);
             throw std::ios_base::failure("Failed to open stream state handle input stream.");
         }
         class FileCleanupGuard {
