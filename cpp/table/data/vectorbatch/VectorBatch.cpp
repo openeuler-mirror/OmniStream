@@ -17,7 +17,7 @@
 #include "data/binary/BinaryRowData.h"
 #include "table/data/rowdata_marshaller.h"
 #include "OmniOperatorJIT/core/src/codegen/time_util.h"
-#include "OmniOperatorJIT/core/src/codegen/functions/dtoa.h"
+#include "OmniOperatorJIT/core/src/type/Conversions.h"
 #include "OmniOperatorJIT/core/src/type/TimestampConversion.h"
 #include "OmniOperatorJIT/core/src/vector/map_vector.h"
 
@@ -25,10 +25,8 @@ namespace {
 
 std::string FormatDoubleLikeJava(double value)
 {
-    constexpr std::size_t kBufLen = omniruntime::codegen::function::MAX_DATA_LENGTH;
-    char buf[kBufLen];
-    std::size_t len = omniruntime::codegen::function::DoubleToString::DoubleToStringConverter(value, buf);
-    return std::string(buf, len);
+    auto result = omniruntime::type::util::Converter<omniruntime::type::OMNI_VARCHAR>::tryCast(value);
+    return result.value();
 }
 
 std::string FormatDateLikeJava(int32_t daysSinceEpoch)
