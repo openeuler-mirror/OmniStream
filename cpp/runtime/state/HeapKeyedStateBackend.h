@@ -133,6 +133,18 @@ public:
                         reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<std::string, int>*>*>(
                             stateTablePtr);
                     delete stateTable;
+                } else if (keyId == BackendDataType::VARCHAR_BK && valueId == BackendDataType::VARCHAR_BK) {
+                    // JSON_OBJECTAGG: MapView<VoidNamespace, std::string, std::string>.
+                    auto stateTable = reinterpret_cast<
+                        CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<std::string, std::string>*>*>(
+                        stateTablePtr);
+                    delete stateTable;
+                } else if (keyId == BackendDataType::BIGINT_BK && valueId == BackendDataType::VARCHAR_BK) {
+                    // JSON_ARRAYAGG: MapView<VoidNamespace, long, std::string>.
+                    auto stateTable = reinterpret_cast<
+                        CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<int64_t, std::string>*>*>(
+                        stateTablePtr);
+                    delete stateTable;
                 } else if (keyId == BackendDataType::INT_BK && valueId == BackendDataType::INT_BK) {
                     auto stateTable =
                         reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<int, int>*>*>(
