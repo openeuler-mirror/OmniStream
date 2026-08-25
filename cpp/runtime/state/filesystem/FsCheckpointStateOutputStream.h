@@ -50,7 +50,6 @@ private:
     int localStateThreshold_;
     bool allowRelativePaths_;
     bool closed_;
-    bool isSync = true;
     std::string relativeStatePath_;
     std::string tempPath_;
     std::string finalPath_;

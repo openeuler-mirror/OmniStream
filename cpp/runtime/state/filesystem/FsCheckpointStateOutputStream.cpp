@@ -11,7 +11,6 @@
 #include "FsCheckpointStateOutputStream.h"
 #include <fstream>
 #include <memory>
-#include <thread>
 #include <common.h>
 #include "FileStateHandle.h"
 
@@ -41,11 +40,7 @@ void FsCheckpointStateOutputStream::Write(const void* data, size_t length)
 
 void FsCheckpointStateOutputStream::Flush()
 {
-    if (isSync) {
-        static_cast<std::ofstream*>(this->outStream_)->flush();
-    } else {
-        std::thread([this]() { static_cast<std::ofstream*>(this->outStream_)->flush(); }).detach();
-    }
+    static_cast<std::ofstream*>(outStream_)->flush();
 }
 
 long FsCheckpointStateOutputStream::GetPos()
