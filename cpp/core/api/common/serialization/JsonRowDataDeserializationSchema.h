@@ -21,7 +21,7 @@ public:
         : fieldNames(opDescriptionJSON["outputNames"].get<std::vector<std::string>>())
     {
         auto outputTypes = opDescriptionJSON["outputTypes"].get<std::vector<std::string>>();
-        std::regex pattern(R"(DECIMAL\d+\((\d+),\s*(\d+)\))");
+        std::regex pattern(R"(DECIMAL\d*\((\d+),\s*(\d+)\))");
         std::smatch match;
         for (std::string type : outputTypes) {
             fieldTypes.push_back(LogicalType::flinkTypeToOmniTypeId(type));

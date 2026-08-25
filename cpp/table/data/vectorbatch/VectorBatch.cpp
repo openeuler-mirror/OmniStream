@@ -330,7 +330,19 @@ std::string VectorBatch::transformDecimal128(
         (reinterpret_cast<omniruntime::vec::Vector<Decimal128>*>(vectors[vectorID])->GetValue(rowID)).ToString();
     if (static_cast<int>(decimalInfo.size()) > vectorID && decimalInfo[vectorID].second >= 0) {
         int32_t scale = decimalInfo[vectorID].second;
+        // Decimal128::ToString() 对负值返回带前导 '-' 的未缩放整数字符串，
+        // 而 FormatDecimalLikeJdk 不识别符号（其 :75 注释要求 digits 为纯数字）。
+        // 若不剥离，负值 + scale>0 会产出 "0.-1" / "-.1E-7" 等非法串。
+        // 此处对齐 transformDecimal64 的范式：先剥离符号、格式化后再加回。
+        bool negtiveFlag = false;
+        if (!valueStr.empty() && valueStr[0] == '-') {
+            valueStr = valueStr.substr(1);
+            negtiveFlag = true;
+        }
         valueStr = FormatDecimalLikeJdk(valueStr, scale);
+        if (negtiveFlag) {
+            valueStr = "-" + valueStr;
+        }
     }
     return valueStr;
 }
