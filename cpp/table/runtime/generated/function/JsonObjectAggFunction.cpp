@@ -60,6 +60,13 @@ void JsonObjectAggFunction::putPair(const std::string& key, bool valueIsNullInpu
 
 void JsonObjectAggFunction::accumulate(RowData* accInput)
 {
+    if (hasFilter) {
+        bool isFilterNull = accInput->isNullAt(filterIndex);
+        bool shouldDoAccumulate = !isFilterNull && *(accInput->getBool(filterIndex));
+        if (!shouldDoAccumulate) {
+            return;
+        }
+    }
     if (accInput->isNullAt(keyIdx)) {
         throw std::runtime_error("JSON_OBJECTAGG key must not be null.");
     }
@@ -79,7 +86,16 @@ void JsonObjectAggFunction::accumulate(omnistream::VectorBatch* input, const std
 {
     auto* keyCol = input->Get(keyIdx);
     auto* valCol = input->Get(valueIdx);
+    const auto filterData =
+        hasFilter ? reinterpret_cast<omniruntime::vec::Vector<bool>*>(input->Get(filterIndex)) : nullptr;
     for (int rowIndex : indices) {
+        if (hasFilter) {
+            bool isFilterNull = filterData->IsNull(rowIndex);
+            bool shouldDoAccumulate = !isFilterNull && filterData->GetValue(rowIndex);
+            if (!shouldDoAccumulate) {
+                continue;
+            }
+        }
         if (keyCol->IsNull(rowIndex)) {
             throw std::runtime_error("JSON_OBJECTAGG key must not be null.");
         }

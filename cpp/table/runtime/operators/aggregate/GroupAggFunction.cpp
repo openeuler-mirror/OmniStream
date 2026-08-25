@@ -293,7 +293,7 @@ void GroupAggFunction::InitAggFunctions(int& accStartingIndex, int& aggValueInde
             // Default is NULL ON NULL; only an explicit "ABSENT ON NULL" clause drops null values.
             bool onNullAbsent = meta.aggTypeStr.find("ABSENT") != std::string::npos;
             auto* jsonObjFunction = new JsonObjectAggFunction(
-                keyIdx, valIdx, types[keyIdx], types[valIdx], meta.aggFuncIndex, onNullAbsent);
+                keyIdx, valIdx, types[keyIdx], types[valIdx], meta.aggFuncIndex, onNullAbsent, meta.filterIndex);
             jsonObjFunction->open(
                 new PerKeyStateDataViewStore(dynamic_cast<StreamingRuntimeContext<RowData*>*>(getRuntimeContext())));
             function = jsonObjFunction;
@@ -307,8 +307,8 @@ void GroupAggFunction::InitAggFunctions(int& accStartingIndex, int& aggValueInde
             // Planner names carry the ON NULL clause as a suffix: JSON_ARRAYAGG_ABSENT_ON_NULL (default)
             // vs JSON_ARRAYAGG_NULL_ON_NULL. Match on "ABSENT" (underscore-joined, not spaced).
             bool onNullAbsent = meta.aggTypeStr.find("ABSENT") != std::string::npos;
-            auto* jsonArrFunction =
-                new JsonArrayAggFunction(itemIdx, types[itemIdx], meta.aggFuncIndex, onNullAbsent);
+            auto* jsonArrFunction = new JsonArrayAggFunction(
+                itemIdx, types[itemIdx], meta.aggFuncIndex, onNullAbsent, meta.filterIndex);
             jsonArrFunction->open(
                 new PerKeyStateDataViewStore(dynamic_cast<StreamingRuntimeContext<RowData*>*>(getRuntimeContext())));
             function = jsonArrFunction;

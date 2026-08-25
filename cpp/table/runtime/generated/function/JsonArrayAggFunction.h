@@ -20,6 +20,8 @@
  *     The next insertion index is recomputed per-key from the MapView element count in setAccumulators.
  *
  * Semantics:
+ *   - FILTER (WHERE ...): filterIndex>=0 skips rows whose boolean filter column is NULL/false
+ *     (same as SUM/COUNT). Checked before the item is appended.
  *   - element NULL: default ABSENT ON NULL -> skip; NULL ON NULL -> append JSON null.
  *   - elements are emitted in ascending index (insertion) order.
  *   - retract / merge are NOT supported (throw) -> retraction plans fall back to Java (see design doc §4.5).
@@ -42,11 +44,14 @@ public:
         const std::string& itemType,
         int aggFuncIndex = -1,
         bool onNullAbsent = true,
+        int filterIndex = -1,
         int accIndex = -1,
         int valueIndex = -1)
         : itemIdx(itemIdx),
           aggFuncIndex(aggFuncIndex),
           onNullAbsent(onNullAbsent),
+          filterIndex(filterIndex),
+          hasFilter(filterIndex != -1),
           accIndex(accIndex),
           valueIndex(valueIndex),
           nextIndex(0),
@@ -97,6 +102,8 @@ private:
     int itemIdx;
     int aggFuncIndex;
     bool onNullAbsent;
+    int filterIndex;
+    bool hasFilter;
     int accIndex;
     int valueIndex;
     long nextIndex;

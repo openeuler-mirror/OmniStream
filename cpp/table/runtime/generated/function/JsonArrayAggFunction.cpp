@@ -53,6 +53,13 @@ void JsonArrayAggFunction::putItem(bool itemIsNullInput, const std::string& item
 
 void JsonArrayAggFunction::accumulate(RowData* accInput)
 {
+    if (hasFilter) {
+        bool isFilterNull = accInput->isNullAt(filterIndex);
+        bool shouldDoAccumulate = !isFilterNull && *(accInput->getBool(filterIndex));
+        if (!shouldDoAccumulate) {
+            return;
+        }
+    }
     const bool itemNull = accInput->isNullAt(itemIdx);
     // The planner (WrapJsonAggFunctionArgumentsRule) always wraps the item argument with
     // JSON_STRING, so the item column is already a serialized JSON fragment. Store it verbatim;
@@ -67,7 +74,16 @@ void JsonArrayAggFunction::accumulate(RowData* accInput)
 void JsonArrayAggFunction::accumulate(omnistream::VectorBatch* input, const std::vector<int>& indices)
 {
     auto* itemCol = input->Get(itemIdx);
+    const auto filterData =
+        hasFilter ? reinterpret_cast<omniruntime::vec::Vector<bool>*>(input->Get(filterIndex)) : nullptr;
     for (int rowIndex : indices) {
+        if (hasFilter) {
+            bool isFilterNull = filterData->IsNull(rowIndex);
+            bool shouldDoAccumulate = !isFilterNull && filterData->GetValue(rowIndex);
+            if (!shouldDoAccumulate) {
+                continue;
+            }
+        }
         const bool itemNull = itemCol->IsNull(rowIndex);
         // Item column is the JSON_STRING output (already-serialized JSON text); store verbatim.
         std::string itemJson;

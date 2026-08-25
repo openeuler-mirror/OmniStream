@@ -167,3 +167,98 @@ TEST(JsonAggFunctionTest, ArrayAggSingleGroupVarcharItems)
     EXPECT_EQ(resultBatch->GetValueAt<int64_t>(0, 0), 7L);
     EXPECT_EQ(readVarchar(resultBatch, 1, 0), R"(["a","b","c"])");
 }
+
+// JSON_OBJECTAGG FILTER (WHERE ...): skip false/NULL filter rows; also skip a filtered-out null key
+// (must not throw, matching SUM/COUNT which apply FILTER before accumulating).
+TEST(JsonAggFunctionTest, ObjectAggFilterWhereSkipsRows)
+{
+    std::string description = R"DELIM({"input_channels":[0],
+        "operators":[{"description":{
+            "aggInfoList":{"accTypes":["*org.apache.flink.table.runtime.functions.aggregate.JsonObjectAggFunction$Accumulator<`map` RAW('org.apache.flink.table.api.dataview.MapView', '...')>*"],"aggValueTypes":["VARCHAR(2147483647)"],
+                "aggregateCalls":[{"aggregationFunction":"JsonObjectAggFunction","argIndexes":[1,2],"consumeRetraction":"false","filterArg":3,"name":"JSON_OBJECTAGG_NULL_ON_NULL($1, $2) FILTER $3"}],
+                "indexOfCountStar":-1},
+            "grouping":[0],
+            "distinctInfos":[],
+            "inputTypes":["BIGINT","VARCHAR(2147483647)","VARCHAR(2147483647)","BOOLEAN"],
+            "outputTypes":["BIGINT","VARCHAR(2147483647)"]},
+            "id":"org.apache.flink.streaming.api.operators.KeyedProcessOperator",
+            "name":"GroupAggregate[3]"}],
+        "partition":{"channelNumber":1,"partitionName":"forward"}})DELIM";
+
+    BatchOutputTest* output = new BatchOutputTest();
+    auto* keyedOp = buildKeyedOp(description, output);
+
+    // rows: (keep a), (drop b, filter=false), (keep c), (drop d, filter=NULL), (drop null-key, filter=false)
+    const int n = 5;
+    auto* vbatch = new omnistream::VectorBatch(n);
+    auto* keyCol = new omniruntime::vec::Vector<int64_t>(n);
+    auto* jsonKeyCol = new omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>(n);
+    auto* valCol = new omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>(n);
+    auto* filterCol = new omniruntime::vec::Vector<bool>(n);
+    std::array<std::string_view, n> jsonKeys = {"c", "b", "a", "d", "x"};
+    std::array<std::string_view, n> values = {"\"z\"", "\"y\"", "\"x\"", "\"w\"", "\"drop\""};
+    std::array<bool, n> filters = {true, false, true, true, false};
+    for (int i = 0; i < n; ++i) {
+        keyCol->SetValue(i, 100L);
+        jsonKeyCol->SetValue(i, jsonKeys[i]);
+        valCol->SetValue(i, values[i]);
+        filterCol->SetValue(i, filters[i]);
+        vbatch->setRowKind(i, RowKind::INSERT);
+    }
+    filterCol->SetNull(3);
+    jsonKeyCol->SetNull(4);
+    vbatch->Append(keyCol);
+    vbatch->Append(jsonKeyCol);
+    vbatch->Append(valCol);
+    vbatch->Append(filterCol);
+
+    keyedOp->processBatch(new StreamRecord(vbatch));
+    auto* resultBatch = reinterpret_cast<omnistream::VectorBatch*>(output->getVectorBatch());
+    ASSERT_EQ(resultBatch->GetRowCount(), 1);
+    EXPECT_EQ(resultBatch->GetValueAt<int64_t>(0, 0), 100L);
+    EXPECT_EQ(readVarchar(resultBatch, 1, 0), R"({"a":"x","c":"z"})");
+}
+
+// JSON_ARRAYAGG FILTER (WHERE ...): keep true rows, drop false/NULL filter rows, preserve insertion order.
+TEST(JsonAggFunctionTest, ArrayAggFilterWhereSkipsRows)
+{
+    std::string description = R"DELIM({"input_channels":[0],
+        "operators":[{"description":{
+            "aggInfoList":{"accTypes":["*org.apache.flink.table.runtime.functions.aggregate.JsonArrayAggFunction$Accumulator<`list` RAW('org.apache.flink.table.api.dataview.ListView', '...')>*"],"aggValueTypes":["VARCHAR(2147483647)"],
+                "aggregateCalls":[{"aggregationFunction":"JsonArrayAggFunction","argIndexes":[1],"consumeRetraction":"false","filterArg":2,"name":"JSON_ARRAYAGG_ABSENT_ON_NULL($1) FILTER $2"}],
+                "indexOfCountStar":-1},
+            "grouping":[0],
+            "distinctInfos":[],
+            "inputTypes":["BIGINT","VARCHAR(2147483647)","BOOLEAN"],
+            "outputTypes":["BIGINT","VARCHAR(2147483647)"]},
+            "id":"org.apache.flink.streaming.api.operators.KeyedProcessOperator",
+            "name":"GroupAggregate[3]"}],
+        "partition":{"channelNumber":1,"partitionName":"forward"}})DELIM";
+
+    BatchOutputTest* output = new BatchOutputTest();
+    auto* keyedOp = buildKeyedOp(description, output);
+
+    const int n = 4;
+    auto* vbatch = new omnistream::VectorBatch(n);
+    auto* keyCol = new omniruntime::vec::Vector<int64_t>(n);
+    auto* itemCol = new omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>(n);
+    auto* filterCol = new omniruntime::vec::Vector<bool>(n);
+    std::array<std::string_view, n> items = {"\"a\"", "\"b\"", "\"c\"", "\"d\""};
+    std::array<bool, n> filters = {true, false, true, true};
+    for (int i = 0; i < n; ++i) {
+        keyCol->SetValue(i, 7L);
+        itemCol->SetValue(i, items[i]);
+        filterCol->SetValue(i, filters[i]);
+        vbatch->setRowKind(i, RowKind::INSERT);
+    }
+    filterCol->SetNull(3);
+    vbatch->Append(keyCol);
+    vbatch->Append(itemCol);
+    vbatch->Append(filterCol);
+
+    keyedOp->processBatch(new StreamRecord(vbatch));
+    auto* resultBatch = reinterpret_cast<omnistream::VectorBatch*>(output->getVectorBatch());
+    ASSERT_EQ(resultBatch->GetRowCount(), 1);
+    EXPECT_EQ(resultBatch->GetValueAt<int64_t>(0, 0), 7L);
+    EXPECT_EQ(readVarchar(resultBatch, 1, 0), R"(["a","c"])");
+}

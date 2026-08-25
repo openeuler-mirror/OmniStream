@@ -20,6 +20,8 @@
  *     not by a scalar slot; all pair state lives in the keyed MapView.
  *
  * Semantics:
+ *   - FILTER (WHERE ...): filterIndex>=0 skips rows whose boolean filter column is NULL/false
+ *     (same as SUM/COUNT). Checked before null-key / duplicate-key validation.
  *   - key must be a non-null string; NULL/empty key -> throw.
  *   - duplicate key within the group -> throw (Flink: keys must be unique).
  *   - value NULL: NULL ON NULL (default) -> store JSON null; ABSENT ON NULL -> skip the key.
@@ -46,12 +48,15 @@ public:
         const std::string& valueType,
         int aggFuncIndex = -1,
         bool onNullAbsent = false,
+        int filterIndex = -1,
         int accIndex = -1,
         int valueIndex = -1)
         : keyIdx(keyIdx),
           valueIdx(valueIdx),
           aggFuncIndex(aggFuncIndex),
           onNullAbsent(onNullAbsent),
+          filterIndex(filterIndex),
+          hasFilter(filterIndex != -1),
           accIndex(accIndex),
           valueIndex(valueIndex),
           entryCount(0),
@@ -105,6 +110,8 @@ private:
     int valueIdx;
     int aggFuncIndex;
     bool onNullAbsent;
+    int filterIndex;
+    bool hasFilter;
     int accIndex;
     int valueIndex;
     long entryCount;
