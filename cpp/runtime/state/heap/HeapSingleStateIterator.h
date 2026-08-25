@@ -25,6 +25,7 @@
 #include "core/typeutils/MapSerializer.h"
 #include "core/typeutils/ListSerializer.h"
 #include "core/typeutils/LongSerializer.h"
+#include "table/typeutils/SortedVectorLong.h"
 #include "basictypes/Object.h"
 #include "StateTable.h"
 #include "CopyOnWriteStateMap.h"
@@ -148,6 +149,26 @@ public:
         return snapshotData_;
     }
 
+    /**
+     * Serializes a std::vector in ListDelimitedSerializer format (consistent with RocksDB).
+     * Format: [elem_1][','][elem_2][',']...[elem_N]  (no size prefix, comma-separated)
+     */
+    template <typename V>
+    static void serializeVector(const std::vector<V>& vec, TypeSerializer* elemSer, DataOutputSerializer& out)
+    {
+        for (size_t i = 0; i < vec.size(); ++i) {
+            if (i > 0) {
+                out.writeByte(static_cast<uint8_t>(','));
+            }
+            if constexpr (std::is_pointer_v<V>) {
+                elemSer->serialize(const_cast<V>(vec[i]), out);
+            } else {
+                V me = vec[i];
+                elemSer->serialize(&me, out);
+            }
+        }
+    }
+
 private:
     StateTable<K, N, S>* stateTable_;
     int kvStateId_;
@@ -242,9 +263,9 @@ private:
                     entry.serializedKey = serializeVbKey(keyGroup, it->first, it->third);
                     entry.serializedValue = serializeVbValue(it->second);
                 } catch (const std::exception& e) {
-                    INFO_RELEASE(
-                        "Error:HeapSingleStateIterator: collectVbEntries EXCEPTION at keyGroup="
-                        << keyGroup << ", error=" << e.what());
+                    ERROR_RELEASE(
+                        "HeapSingleStateIterator: collectVbEntries EXCEPTION at keyGroup=" << keyGroup
+                                                                                           << ", error=" << e.what());
                     throw;
                 }
                 if (snapshotData_ == nullptr) {
@@ -430,21 +451,39 @@ private:
         // Phase 2: serialize from the stable local snapshot
         int mapEntryCount = 0;
         for (auto& raw : snapshot) {
-            SerializedEntry entry;
-            try {
-                entry.serializedKey = serializeKey(keyGroup, raw.key, raw.nmspace, keySerializer, namespaceSerializer);
-                entry.serializedValue = serializeValue(raw.value, stateSerializer);
-            } catch (const std::exception& e) {
-                INFO_RELEASE(
-                    "Error:HeapSingleStateIterator: serializeStateMap EXCEPTION at keyGroup="
-                    << keyGroup << ", entryIndex=" << mapEntryCount << ", error=" << e.what());
-                throw;
+            if constexpr (IsEmhashMapPtr<S>::value) {
+                // MAP state: output each map entry as a separate state entry
+                // Format matches RocksDB per-entry layout
+                serializeMapEntriesPerEntry(
+                    raw.key,
+                    raw.nmspace,
+                    raw.value,
+                    keyGroup,
+                    keySerializer,
+                    namespaceSerializer,
+                    stateSerializer,
+                    mapEntryCount);
+            } else {
+                SerializedEntry entry;
+                try {
+                    entry.serializedKey =
+                        serializeKey(keyGroup, raw.key, raw.nmspace, keySerializer, namespaceSerializer);
+                    entry.serializedValue = serializeValue(raw.value, stateSerializer);
+                } catch (const std::exception& e) {
+                    ERROR_RELEASE(
+                        "HeapSingleStateIterator: serializeStateMap EXCEPTION at keyGroup="
+                        << keyGroup << ", entryIndex=" << mapEntryCount << ", error=" << e.what());
+                    throw;
+                }
+                addSnapshotEntry(std::move(entry));
             }
-            addSnapshotEntry(std::move(entry));
             mapEntryCount++;
         }
     }
 
+    /**
+     * SP 格式 key 序列化: [keyGroupPrefix][key][namespace]
+     */
     std::vector<int8_t> serializeKey(
         int keyGroup,
         const K& key,
@@ -500,94 +539,138 @@ private:
     }
 
     /**
-     * Serializes a single emhash7::HashMap entry-by-entry using the MapSerializer's
-     * sub-serializers. Format: [int size] [key + bool isNull + value per entry].
+     * Serializes a MAP state by outputting each map entry as a separate state entry.
+     * This matches the RocksDB per-entry format used by the restore path (writeMapEntry).
      *
-     * For Object* types, uses serialize(Object*,...) since PojoSerializer's void* path is NOT_IMPL.
-     * For other pointer types (RowData*, etc.), uses serialize(void*,...).
-     * For value types (int, int64_t, etc.), uses serialize(void*,...) with address.
+     * Key format: [keyGroupPrefix][sourceKey][namespace][mapKey]
+     * Value format: [null_bool][mapValue]
      */
-    template <typename UK, typename UV>
-    static void serializeEmhashMap(
-        const emhash7::HashMap<UK, UV>& map, TypeSerializer* keySer, TypeSerializer* valSer, DataOutputSerializer& out)
+    template <typename K2, typename N2, typename UK, typename UV>
+    void serializeMapEntriesPerEntry(
+        const K2& sourceKey,
+        const N2& nmspace,
+        const emhash7::HashMap<UK, UV>* mapPtr,
+        int keyGroup,
+        TypeSerializer* keySerializer,
+        TypeSerializer* namespaceSerializer,
+        TypeSerializer* stateSerializer,
+        int entryIndex)
     {
-        out.writeInt(static_cast<int>(map.size()));
-        int idx = 0;
-        for (const auto& pair : map) {
-            // Serialize key
+        if (mapPtr == nullptr) {
+            return;
+        }
+        auto* mapSer = dynamic_cast<MapSerializer*>(stateSerializer);
+        if (mapSer == nullptr) {
+            ERROR_RELEASE("HeapSingleStateIterator: MAP state serializer is not MapSerializer at entry=" << entryIndex);
+            throw std::runtime_error("HeapSingleStateIterator: MAP state serializer is not MapSerializer");
+        }
+        TypeSerializer* mapKeySer = mapSer->getKeySerializer();
+        TypeSerializer* mapValSer = mapSer->getValueSerializer();
+
+        OutputBufferStatus outputBufferStatus;
+        DataOutputSerializer outputSerializer;
+        outputSerializer.setBackendBuffer(&outputBufferStatus);
+
+        for (const auto& pair : *mapPtr) {
+            // Build composite key: [keyGroupPrefix][sourceKey][namespace][mapKey]
+            outputSerializer.clear();
+            if (keyGroupPrefixBytes_ == 1) {
+                outputSerializer.writeByte(static_cast<uint32_t>(keyGroup));
+            } else {
+                outputSerializer.writeByte(static_cast<uint32_t>((keyGroup >> 8) & 0xFF));
+                outputSerializer.writeByte(static_cast<uint32_t>(keyGroup & 0xFF));
+            }
+            // Serialize source key
+            if constexpr (std::is_pointer_v<K2>) {
+                keySerializer->serialize(const_cast<K2>(sourceKey), outputSerializer);
+            } else if constexpr (is_shared_ptr_v<K2>) {
+                keySerializer->serialize(sourceKey.get(), outputSerializer);
+            } else {
+                K2 mk = sourceKey;
+                keySerializer->serialize(&mk, outputSerializer);
+            }
+            // Serialize namespace
+            if constexpr (std::is_pointer_v<N2>) {
+                namespaceSerializer->serialize(const_cast<N2>(nmspace), outputSerializer);
+            } else if constexpr (is_shared_ptr_v<N2>) {
+                namespaceSerializer->serialize(nmspace.get(), outputSerializer);
+            } else {
+                N2 mn = nmspace;
+                namespaceSerializer->serialize(&mn, outputSerializer);
+            }
+            // Serialize map key
             if constexpr (std::is_same_v<UK, Object*>) {
-                if (pair.first == nullptr) {
-                    INFO_RELEASE("Error:serializeEmhashMap: WARNING null Object* key at index=" << idx);
-                }
-                keySer->serialize(const_cast<Object*>(pair.first), out);
+                mapKeySer->serialize(const_cast<Object*>(pair.first), outputSerializer);
             } else if constexpr (std::is_pointer_v<UK>) {
-                keySer->serialize(const_cast<UK>(pair.first), out);
+                mapKeySer->serialize(const_cast<UK>(pair.first), outputSerializer);
             } else {
                 UK mk = pair.first;
-                keySer->serialize(&mk, out);
+                mapKeySer->serialize(&mk, outputSerializer);
             }
-            // Serialize value with null marker (for pointer types)
+            std::vector<int8_t> keyBytes(
+                outputSerializer.getData(), outputSerializer.getData() + outputSerializer.getPosition());
+
+            // Build value: [null_bool][mapValue]
+            outputSerializer.clear();
             if constexpr (std::is_pointer_v<UV>) {
                 if (pair.second == nullptr) {
-                    out.writeBoolean(true);
+                    outputSerializer.writeBoolean(true);
                 } else {
-                    out.writeBoolean(false);
+                    outputSerializer.writeBoolean(false);
                     if constexpr (std::is_same_v<UV, Object*>) {
-                        valSer->serialize(const_cast<Object*>(pair.second), out);
+                        mapValSer->serialize(const_cast<Object*>(pair.second), outputSerializer);
                     } else {
-                        valSer->serialize(const_cast<UV>(pair.second), out);
+                        mapValSer->serialize(const_cast<UV>(pair.second), outputSerializer);
                     }
                 }
             } else {
-                out.writeBoolean(false);
+                outputSerializer.writeBoolean(false);
                 UV mv = pair.second;
-                valSer->serialize(&mv, out);
+                mapValSer->serialize(&mv, outputSerializer);
             }
-            idx++;
+            std::vector<int8_t> valueBytes(
+                outputSerializer.getData(), outputSerializer.getData() + outputSerializer.getPosition());
+
+            SerializedEntry entry;
+            entry.serializedKey = std::move(keyBytes);
+            entry.serializedValue = std::move(valueBytes);
+            addSnapshotEntry(std::move(entry));
         }
     }
 
     /**
-     * Serializes a std::vector entry-by-entry using the ListSerializer's element serializer.
-     * Format matches ListSerializer::serialize(Object*,...): [int size] [elem_1] [elem_2] ...
+     * SP 格式 value 序列化
+     * - LIST: [elem1][','][elem2][',']... (ListDelimitedSerializer)
+     * - MAP: 逐条 entry
      */
-    template <typename V>
-    static void serializeVector(const std::vector<V>& vec, TypeSerializer* elemSer, DataOutputSerializer& out)
-    {
-        out.writeInt(static_cast<int>(vec.size()));
-        for (const auto& elem : vec) {
-            if constexpr (std::is_pointer_v<V>) {
-                elemSer->serialize(const_cast<V>(elem), out);
-            } else {
-                V me = elem;
-                elemSer->serialize(&me, out);
-            }
-        }
-    }
-
     std::vector<int8_t> serializeValue(const S& state, TypeSerializer* stateSerializer)
     {
         OutputBufferStatus outputBufferStatus;
         DataOutputSerializer outputSerializer;
         outputSerializer.setBackendBuffer(&outputBufferStatus);
 
-        if constexpr (IsEmhashMapPtr<S>::value) {
-            // MAP state: bypass MapSerializer (whose void* path is NOT_IMPL)
-            // and serialize the emhash7::HashMap directly using sub-serializers
-            auto* mapSer = dynamic_cast<MapSerializer*>(stateSerializer);
-            if (mapSer && state != nullptr) {
-                serializeEmhashMap(*state, mapSer->getKeySerializer(), mapSer->getValueSerializer(), outputSerializer);
-            }
-        } else if constexpr (IsVectorPtr<S>::value) {
-            // LIST state: bypass ListSerializer (whose void* path is NOT_IMPL)
-            // and serialize the std::vector directly using the element serializer
+        if constexpr (IsVectorPtr<S>::value) {
+            // LIST state: serialize in ListDelimitedSerializer format (comma-separated, no size prefix).
+            // This format is consistent with RocksDB's RocksDbStringAppendOperator(',') merge operator.
+            //
+            // 三种情况：
+            // 1. stateSerializer 是 ListSerializer → 用 getElementSerializer() 逐元素序列化
+            // 2. stateSerializer 是元素序列化器（如 LongSerializer，WindowJoin 场景
+            //    dataId=BIGINT_BK）→ 用 stateSerializer 逐元素序列化
+            // 3. stateSerializer 是容器序列化器（如 SortedVectorLong，TopN 场景）
+            //    → 直接 serialize 整个 vector（其 serialize 期望 void* 是 vector 指针）
             auto* listSer = dynamic_cast<ListSerializer*>(stateSerializer);
+            auto* sortedVecSer = dynamic_cast<SortedVectorLong*>(stateSerializer);
             if (listSer && state != nullptr) {
                 serializeVector(*state, listSer->getElementSerializer(), outputSerializer);
-            } else {
-                // fallback: stateSerializer is not ListSerializer (e.g. SortedVectorLong for topN),
-                // serialize via the generic void* path
+            } else if (sortedVecSer != nullptr && state != nullptr) {
+                // 容器序列化器：serialize 接收整个 vector 指针
                 stateSerializer->serialize(const_cast<S>(state), outputSerializer);
+            } else if (state != nullptr) {
+                // 元素序列化器（如 LongSerializer）：逐元素序列化
+                serializeVector(*state, stateSerializer, outputSerializer);
+            } else {
+                // state 为 nullptr，写出空 list（0 字节，与 ListDelimitedSerializer 一致）
             }
         } else if constexpr (std::is_pointer_v<S>) {
             stateSerializer->serialize(const_cast<S>(state), outputSerializer);

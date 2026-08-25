@@ -13,7 +13,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -23,14 +22,12 @@
 #include "OperatorSavepointAdaptor.h"
 #include "core/utils/ByteView.h"
 #include "runtime/state/restore/RestoreBackendDelegate.h"
+#include "runtime/state/restore/vb/VectorBatchRestoreHooks.h"
 #include "runtime/state/vbsave/VectorBatchSaveHooks.h"
 #include "runtime/state/vbsave/VectorBatchSavePlan.h"
 #include "table/types/logical/LogicalType.h"
 
 namespace omnistream {
-
-// restore 方向带 VectorBatch side table 的 KV 状态 writer 声明。
-class RestoreKVStateVB;
 
 // StreamingJoin NoUniqueKey 兼容 savepoint 适配器。
 //
@@ -40,7 +37,9 @@ class RestoreKVStateVB;
 // Flink 标准 StreamingJoin 则期望每侧只有一个逻辑 MapState：map key 内包含完整 RowData 字节，
 // map value 只保存 count 相关字段。该适配器负责在算子边界完成两种格式互转，并复用
 // VectorBatchSaveFlow 读取 VB 侧表。
-class StreamingJoinSavepointAdaptor : public OperatorSavepointAdaptor, public VectorBatchSaveHooks {
+class StreamingJoinSavepointAdaptor : public OperatorSavepointAdaptor,
+                                      public VectorBatchSaveHooks,
+                                      public VectorBatchRestoreHooks {
 public:
     // 使用工厂判定出的 adaptorType 创建 StreamingJoin 格式互通适配器，算子描述在 prepare 阶段解析。
     explicit StreamingJoinSavepointAdaptor(FlinkSavepointAdaptorType adaptorType);
@@ -99,11 +98,12 @@ public:
 
     // Join 主状态的一个 source entry 可能引用多个 VB row；这里把每个 comboId
     // 解引用为一个 Flink logical MapState entry，供 VectorBatchSaveFlow 写出。
+    template <typename Emit>
     void convertKVRowData(
         const KeyValueStateIterator::CurrentEntry& entry,
         const VectorBatchSaveStateContext& context,
         const VectorBatchSavePlan& plan,
-        std::function<void(ConvertedEntry)> output) override;
+        Emit&& output);
 
     /*========== VectorBatchSaveHooks ==========*/
     /*========== Restore ==========*/
@@ -149,10 +149,9 @@ private:
     void parseInputTypes(SidePlan& sidePlan, const nlohmann::json& description, const std::string& fieldName);
 
     // 将 Heap 聚合或普通 Omni MapState entry 统一展开并直接回调输出。
+    template <typename Emit>
     void parseSourceMapEntries(
-        const KeyValueStateIterator::CurrentEntry& entry,
-        const SidePlan& sidePlan,
-        const std::function<void(ByteView keyBytes, ByteView valueBytes, omnistream::ComboId comboId)>& emit) const;
+        const KeyValueStateIterator::CurrentEntry& entry, const SidePlan& sidePlan, Emit&& emit) const;
 
     // 根据源状态元数据构造 VectorBatchSaveFlow 所需的保存计划。
     VectorBatchSavePlan buildSavePlan(FullSnapshotResources& snapshotResources);

@@ -12,6 +12,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -20,9 +21,11 @@
 
 #include "OperatorSavepointAdaptor.h"
 #include "runtime/state/restore/RestoreBackendDelegate.h"
+#include "runtime/state/restore/vb/VectorBatchRestoreHooks.h"
 #include "runtime/state/vbsave/VectorBatchSaveHooks.h"
 #include "runtime/state/vbsave/VectorBatchSavePlan.h"
 #include "runtime/state/metainfo/StateMetaInfoSnapshot.h"
+#include "core/memory/DataOutputSerializer.h"
 #include "core/typeutils/TypeSerializer.h"
 #include "table/typeutils/RowDataSerializer.h"
 #include "table/data/vectorbatch/VectorBatch.h"
@@ -30,7 +33,9 @@
 
 namespace omnistream {
 
-class AppendOnlyTopNSavepointAdaptor : public OperatorSavepointAdaptor, public VectorBatchSaveHooks {
+class AppendOnlyTopNSavepointAdaptor : public OperatorSavepointAdaptor,
+                                       public VectorBatchSaveHooks,
+                                       public VectorBatchRestoreHooks {
 public:
     AppendOnlyTopNSavepointAdaptor();
 
@@ -57,11 +62,12 @@ public:
     std::vector<VectorBatchSaveStateContext> buildSaveStateContexts(
         FullSnapshotResources& snapshotResources, const VectorBatchSavePlan& plan) override;
 
+    template <typename Emit>
     void convertKVRowData(
         const KeyValueStateIterator::CurrentEntry& entry,
         const VectorBatchSaveStateContext& context,
         const VectorBatchSavePlan& plan,
-        std::function<void(ConvertedEntry)> output) override;
+        Emit&& output);
 
     // ===== 类自有公共方法 =====
     int batchSize(int kvStateId) const

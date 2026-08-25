@@ -458,9 +458,14 @@ static TypeSerializer* tryCreateRowDataSerializerFromJson(const nlohmann::json& 
 {
     // Helper: try to build keyTypeNames from (keyFieldName, typeFieldName)
     auto tryBuild = [&](const char* keyField, const char* typeField) -> TypeSerializer* {
-        if (!description.contains(keyField) || description[keyField].empty()) return nullptr;
+        if (!description.contains(keyField)) return nullptr;
         if (!description.contains(typeField) || description[typeField].empty()) return nullptr;
-        auto keyIndices = description[keyField].get<std::vector<int32_t>>();
+
+        std::vector<int32_t> keyIndices;
+        if (!description[keyField].empty()) {
+            keyIndices = description[keyField].get<std::vector<int32_t>>();
+        }
+
         auto typeNames = description[typeField].get<std::vector<std::string>>();
         std::vector<std::string> keyTypeNames;
         keyTypeNames.reserve(keyIndices.size());
@@ -469,13 +474,12 @@ static TypeSerializer* tryCreateRowDataSerializerFromJson(const nlohmann::json& 
                 keyTypeNames.push_back(typeNames[idx]);
             }
         }
-        if (!keyTypeNames.empty()) {
-            auto* rowType = new omnistream::RowType(true, keyTypeNames);
-            auto* serializer = new RowDataSerializer(rowType);
-            delete rowType;
-            return serializer;
-        }
-        return nullptr;
+        // Create RowDataSerializer even with empty keyTypeNames (arity=0),
+        // matching Flink's RowDataSerializer(LogicalType[0]) behavior for global window aggregate.
+        auto* rowType = new omnistream::RowType(true, keyTypeNames);
+        auto* serializer = new RowDataSerializer(rowType);
+        delete rowType;
+        return serializer;
     };
 
     TypeSerializer* ser = nullptr;

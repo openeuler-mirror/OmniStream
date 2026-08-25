@@ -122,7 +122,8 @@ TEST(NEXTMARKTESTQ7, MAXTEST)
     slicingWindowOperator->open();
     LOG("step2");
     slicingWindowOperator->processBatch(vbatch);
-    slicingWindowOperator->ProcessWatermark(new Watermark(INT64_MAX));
+    auto watermark = Watermark(INT64_MAX);
+    slicingWindowOperator->ProcessWatermark(&watermark);
 
     BatchOutputTest* batchOutput = output;
     LOG("step3");

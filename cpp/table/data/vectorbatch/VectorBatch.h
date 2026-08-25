@@ -13,6 +13,7 @@
 #define FLINK_TNEL_VECTORBATCH_H
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <vector/vector_helper.h>
 
 #include "OmniOperatorJIT/core/src/vector/vector_batch.h"
@@ -30,8 +31,8 @@ class VectorBatch : public omniruntime::vec::VectorBatch {
 public:
     explicit VectorBatch(size_t rowCnt);
 
-    // construct a new vectorbatch with ort vectorbatch
-    VectorBatch(omniruntime::vec::VectorBatch* baseVecBatch, int64_t* timestamps, RowKind* rowkinds);
+    // Takes ownership of baseVecBatch, timestamps and rowkinds.
+    VectorBatch(std::unique_ptr<omniruntime::vec::VectorBatch> baseVecBatch, int64_t* timestamps, RowKind* rowkinds);
 
     ~VectorBatch();
 
@@ -139,6 +140,18 @@ public:
         for (int i = 0; i < vectorCount; i++) {
             copiedVectorBatch->Append(
                 omniruntime::vec::VectorHelper::CopyPositionsVector(value->Get(i), offsets.data(), 0, offsets.size()));
+        }
+        if (rowCount > 0) {
+            memcpy_s(
+                copiedVectorBatch->getTimestamps(),
+                sizeof(int64_t) * rowCount,
+                value->getTimestamps(),
+                sizeof(int64_t) * rowCount);
+            memcpy_s(
+                copiedVectorBatch->getRowKinds(),
+                sizeof(RowKind) * rowCount,
+                value->getRowKinds(),
+                sizeof(RowKind) * rowCount);
         }
         return copiedVectorBatch;
     }

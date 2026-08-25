@@ -168,6 +168,26 @@ public:
         }
     }
 
+    // 消费所有名字以指定前缀开头的 KEY_VALUE 状态，并可选校验 KEYED_STATE_TYPE。
+    // 当 expectedType != UNKNOWN 时，对每个匹配状态执行类型校验（同 requireKeyedValueState 模式）。
+    void consumeAllKeyedStatesWithPrefix(
+        const std::string& prefix, StateDescriptor::Type expectedType = StateDescriptor::Type::UNKNOWN)
+    {
+        for (const auto& kv : byName_) {
+            if (consumed_.find(kv.first) != consumed_.end()) {
+                continue;
+            }
+            if (kv.first.compare(0, prefix.size(), prefix) != 0) {
+                continue;
+            }
+            requireKeyValueBackend(kv.first, kv.second);
+            if (expectedType != StateDescriptor::Type::UNKNOWN) {
+                requireStateType(kv.first, kv.second, expectedType);
+            }
+            consumed_.insert(kv.first);
+        }
+    }
+
     // 返回已消费的 state name 集合（供调用方进一步校验）
     const std::set<std::string>& consumed() const
     {

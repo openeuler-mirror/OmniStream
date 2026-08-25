@@ -392,7 +392,8 @@ TEST(NEXTMARKTESTQ5, MAXTEST)
 
     slicingWindowOperator->open();
     slicingWindowOperator->processBatch(vbatch);
-    slicingWindowOperator->ProcessWatermark(new Watermark(INT64_MAX));
+    auto watermark = Watermark(INT64_MAX);
+    slicingWindowOperator->ProcessWatermark(&watermark);
 
     omnistream::VectorBatch* resultBatch = reinterpret_cast<omnistream::VectorBatch*>(output->getVectorBatch());
     // print VectorBatch
@@ -442,7 +443,8 @@ TEST(NEXTMARKTESTQ5, DISABLED_COUNTTEST)
     slicingWindowOperator->initializeState(initializer, new LongSerializer());
     slicingWindowOperator->open();
     slicingWindowOperator->processBatch(vbatch);
-    slicingWindowOperator->ProcessWatermark(new Watermark(INT64_MAX));
+    auto watermark = Watermark(INT64_MAX);
+    slicingWindowOperator->ProcessWatermark(&watermark);
     //    BatchOutputTest* batchOutput = dynamic_cast<BatchOutputTest*>(slicingWindowOperator->getOutput());
     //    auto *timer = new TimerHeapInternalTimer<std::shared_ptr<RowData>, int64_t>(
     //        -1, std::shared_ptr<RowData>(new BinaryRowData(0)), 1010);

@@ -23,8 +23,8 @@
 namespace omnistream {
 
 // 恢复方向公共调度流程：遍历 Flink logical source entries，通过 Adaptor 提供的
-// 按 StateType 分发到 KV / KV_WITH_VB / PQ 子流程。
-// Derived 需实现:  getStateType / buildOmniMainMetaInfo / retrieveKVRowData
+// 按 StateType 分发到 KV / KV_WITH_VB / KV_TRANSFORM / PQ 子流程。
+// Derived 需实现:  getStateType / buildOmniMainMetaInfo / retrieveKVRowData / transformKVData
 
 class VectorBatchRestoreFlow final {
 public:
@@ -62,6 +62,11 @@ public:
                             backend.createKVStateVB(i, mainMetaInfo, derived.columnTypes(i), derived.batchSize(i));
                         break;
                     }
+                    case RestoreStateType::KV_TRANSFORM: {
+                        auto mainMetaInfo = derived.buildOmniMainMetaInfo(i, metaInfos[i]);
+                        kvWriters[i] = backend.createKVState(i, mainMetaInfo);
+                        break;
+                    }
                     case RestoreStateType::PQ: {
                         pqWriters[i] = backend.createPQState(i, metaInfos[i]);
                         break;
@@ -87,29 +92,50 @@ public:
                             continue;
                         }
 
-                        switch (stIt->second) {
-                            case RestoreStateType::KV: {
-                                auto& w = kvWriters[kvStateId];
-                                w->setKeyGroupId(keyGroupId);
-                                ByteView valueView(entry.getValue().data(), entry.getValue().size());
-                                w->template writeEntry<ByteView>(entry.getKey(), valueView);
-                                break;
+                        try {
+                            switch (stIt->second) {
+                                case RestoreStateType::KV: {
+                                    auto& w = kvWriters[kvStateId];
+                                    w->setKeyGroupId(keyGroupId);
+                                    ByteView valueView(entry.getValue().data(), entry.getValue().size());
+                                    w->template writeEntry<ByteView>(entry.getKey(), valueView);
+                                    break;
+                                }
+                                case RestoreStateType::KV_WITH_VB: {
+                                    auto& w = kvVbWriters[kvStateId];
+                                    w->setKeyGroupId(keyGroupId);
+                                    derived.retrieveKVRowData(entry.getKey(), entry.getValue(), kvStateId, w.get());
+                                    break;
+                                }
+                                case RestoreStateType::KV_TRANSFORM: {
+                                    auto& w = kvWriters[kvStateId];
+                                    w->setKeyGroupId(keyGroupId);
+                                    derived.transformKVData(entry.getKey(), entry.getValue(), kvStateId, w.get());
+                                    break;
+                                }
+                                case RestoreStateType::PQ: {
+                                    auto& w = pqWriters[kvStateId];
+                                    w->writeEntry(entry.getKey(), entry.getValue());
+                                    break;
+                                }
+                                default:
+                                    INFO_RELEASE(
+                                        "VectorBatchRestoreFlow::executeRestore get no writer : UNSUPPORT state "
+                                        "type");
+                                    break;
                             }
-                            case RestoreStateType::KV_WITH_VB: {
-                                auto& w = kvVbWriters[kvStateId];
-                                w->setKeyGroupId(keyGroupId);
-                                derived.retrieveKVRowData(entry.getKey(), entry.getValue(), kvStateId, w.get());
-                                break;
-                            }
-                            case RestoreStateType::PQ: {
-                                auto& w = pqWriters[kvStateId];
-                                w->writeEntry(entry.getKey(), entry.getValue());
-                                break;
-                            }
-                            default:
-                                INFO_RELEASE(
-                                    "VectorBatchRestoreFlow::executeRestore get no writer : UNSUPPORT state type");
-                                break;
+                        } catch (const std::exception& e) {
+                            const std::string stateName =
+                                kvStateId >= 0 && static_cast<size_t>(kvStateId) < metaInfos.size()
+                                    ? metaInfos[static_cast<size_t>(kvStateId)].getName()
+                                    : "<unknown>";
+                            ERROR_RELEASE(
+                                "VectorBatchRestoreFlow: entry restore failed"
+                                << ", restoreResultIndex=" << (restoreResultIndex - 1) << ", keyGroupId=" << keyGroupId
+                                << ", kvStateId=" << kvStateId << ", stateName=" << stateName << ", stateType="
+                                << static_cast<int>(stIt->second) << ", keySize=" << entry.getKey().size()
+                                << ", valueSize=" << entry.getValue().size() << ", reason=" << e.what());
+                            throw;
                         }
                     }
                     // keyGroup 切换时强制 flush 所有 KV_WITH_VB writer 的 VB 尾批，

@@ -55,25 +55,23 @@ public:
 
     void ProcessWatermark1(Watermark* watermark) override
     {
-        LOG(">>>>>>>>>>");
         if (this->combinedWatermark->UpdateWatermark(0, watermark->getTimestamp())) {
+            auto newWatermark = Watermark(this->combinedWatermark->GetCombinedWatermark());
             if (this->timeServiceManager != nullptr) {
-                this->timeServiceManager->advanceWatermark(
-                    new Watermark(this->combinedWatermark->GetCombinedWatermark()));
+                this->timeServiceManager->advanceWatermark(&newWatermark);
             }
-            this->output->emitWatermark(new Watermark(this->combinedWatermark->GetCombinedWatermark()));
+            this->output->emitWatermark(&newWatermark);
         }
     }
 
     void ProcessWatermark2(Watermark* watermark) override
     {
-        LOG(">>>>>>>>>>");
         if (this->combinedWatermark->UpdateWatermark(1, watermark->getTimestamp())) {
+            auto newWatermark = Watermark(this->combinedWatermark->GetCombinedWatermark());
             if (this->timeServiceManager != nullptr) {
-                this->timeServiceManager->advanceWatermark(
-                    new Watermark(this->combinedWatermark->GetCombinedWatermark()));
+                this->timeServiceManager->advanceWatermark(&newWatermark);
             }
-            this->output->emitWatermark(new Watermark(this->combinedWatermark->GetCombinedWatermark()));
+            this->output->emitWatermark(&newWatermark);
         }
     }
 

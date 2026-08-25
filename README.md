@@ -143,6 +143,7 @@ Nexmark：一个用于评估连续数据流上查询性能的基准套件，为�
 │   │   ├── figures                                          # 中文文档图片资源目录
 │   │   ├── public_sys-resources                             # 中文文档图标资源目录
 │   │   ├── faq.md                                           # OmniStream安装使用常见问题
+│   │   ├── config_guide.md                                  # OmniStream配置指导
 │   │   ├── installation_guide.md                            # OmniStream安装指导
 │   │   ├── quick_start.md                                   # OmniStream快速入门
 │   │   ├── release_notes.md                                 # OmniStream版本说明书
@@ -170,6 +171,7 @@ Nexmark：一个用于评估连续数据流上查询性能的基准套件，为�
 |[快速入门](./docs/zh/quick_start.md)|提供快速使能并验证OmniStream加速能力的快速入门指导。|
 |[版本说明书](./docs/zh/release_notes.md)|提供OmniStream每个发布版本的基础信息和特性更新信息。|
 |[安装指南](./docs/zh/installation_guide.md)|提供安装OmniStream的详细指导。|
+|[配置指南](./docs/zh/config_guide.md)|提供OmniStream各功能模块的配置项说明。|
 |[使用指南](./docs/zh/user_guide.md)|提供使用OmniStream的详细指导。|
 |[常见问题](./docs/zh/faq.md)|提供OmniStream安装、使用过程的常见问题和解决方法。|
 |视频课程：[OmniRuntime特性大揭秘](https://www.hikunpeng.com/document/video-detail/2849)|提供操作视频，帮助开发者在鲲鹏服务器上了解、使能OmniRuntime特性。|

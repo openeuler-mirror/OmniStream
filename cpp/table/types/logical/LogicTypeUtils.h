@@ -21,16 +21,28 @@
 
 class LogicTypeUtils {
 public:
+    inline static const std::string SUFFIX_PROCTIME = " *PROCTIME*";
+    inline static const std::string SUFFIX_NOT_NULL = " NOT NULL";
+
     static bool startsWith(const std::string& value, const std::string& prefix)
     {
         return value.size() >= prefix.size() && value.compare(0, prefix.size(), prefix) == 0;
     }
 
+    static bool isNotNullType(const std::string& flinkType)
+    {
+        std::string typeWithoutProctime = flinkType;
+        eraseSuffix(typeWithoutProctime, SUFFIX_PROCTIME);
+        return typeWithoutProctime.size() >= SUFFIX_NOT_NULL.size() &&
+               typeWithoutProctime.compare(
+                   typeWithoutProctime.size() - SUFFIX_NOT_NULL.size(), SUFFIX_NOT_NULL.size(), SUFFIX_NOT_NULL) == 0;
+    }
+
     static std::string stripFlinkTypeExtras(const std::string& flinkType)
     {
         std::string basicStrippedType = flinkType;
-        eraseSuffix(basicStrippedType, " *PROCTIME*");
-        eraseSuffix(basicStrippedType, " NOT NULL");
+        eraseSuffix(basicStrippedType, SUFFIX_PROCTIME);
+        eraseSuffix(basicStrippedType, SUFFIX_NOT_NULL);
         return basicStrippedType;
     }
 

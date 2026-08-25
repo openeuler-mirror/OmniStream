@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "core/utils/ByteView.h"
 #include "OmniOperatorJIT/core/src/type/data_type.h"
 #include "runtime/state/restore/RestoreKVState.h"
 #include "table/data/vectorbatch/VectorBatchStorageInfo.h"
@@ -42,6 +43,34 @@ struct VbBatchState {
 struct RowDataView {
     const std::vector<int8_t>* valueBytes = nullptr;
     const std::vector<omniruntime::type::DataTypeId>* columnTypes = nullptr;
+    ByteView valueByteView{};
+    bool useByteView;
+
+    RowDataView(const std::vector<int8_t>* bytes, const std::vector<omniruntime::type::DataTypeId>* types)
+        : valueBytes(bytes),
+          columnTypes(types),
+          valueByteView(),
+          useByteView(false)
+    {
+    }
+    RowDataView(const ByteView view, const std::vector<omniruntime::type::DataTypeId>* types)
+        : valueBytes(nullptr),
+          columnTypes(types),
+          valueByteView(view),
+          useByteView(true)
+    {
+    }
+    RowDataView() : valueBytes(nullptr), columnTypes(nullptr), valueByteView(), useByteView(false)
+    {
+    }
+
+    ByteView bytes() const
+    {
+        if (useByteView) {
+            return valueByteView;
+        }
+        return valueBytes == nullptr ? ByteView{} : ByteView(valueBytes->data(), valueBytes->size());
+    }
 };
 
 // ============================================================================
@@ -61,6 +90,12 @@ public:
     // 返回后端 composite key 中 key-group prefix 占用的字节数。
     // StreamingJoin adaptor 使用该边界精确跳过 key-group prefix，并解析随后由 keyed RowData serializer 写出的长度字段。
     virtual int getKeyGroupPrefixBytes() const = 0;
+
+    // Write one LIST-state entry whose elements reference rows in the VectorBatch side table.
+    // Heap and RocksDB use different physical encodings for list values, so the concrete
+    // restore writer must materialize the comboId list in its backend-native format.
+    virtual void writeComboIdList(
+        const std::vector<int8_t>& keyBytes, const std::vector<omnistream::ComboId>& comboIds) = 0;
 
     // 仅 flush VB 尾批（如有），不 flush main writer。
     // 用于 keyGroup 切换时强制提交当前 VB 批次，避免跨 keyGroup 数据混合。

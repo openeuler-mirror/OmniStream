@@ -13,6 +13,8 @@
 #define OMNISTREAM_BSSLISTSTATE_H
 #ifdef WITH_OMNISTATESTORE
 
+#include <vector>
+
 #include "BssListStateTable.h"
 #include "state/internal/InternalListState.h"
 #include "api/common/state/StateDescriptor.h"
@@ -28,18 +30,24 @@ public:
           valueSerializer(_valueSerializer),
           namespaceSerializer(_namespaceSerializer) {};
 
-    ~BssListState() = default;
+    ~BssListState() override
+    {
+        delete stateTable;
+    }
 
-    void merge(const std::vector<UV>& other) override {};
+    void merge(const std::vector<UV>& other) override
+    {
+        addAll(other);
+    };
 
     void addAll(const std::vector<UV>& values) override
     {
         stateTable->addAll(currentNamespace, values);
     };
 
-    void CreateTable(ock::bss::BoostStateDBPtr& _dbPtr, const std::string& tableName)
+    void CreateTable(ock::bss::BoostStateDBPtr& _dbPtr)
     {
-        stateTable->createTable(_dbPtr, tableName);
+        stateTable->createTable(_dbPtr);
     };
 
     TypeSerializer* getNameSpaceSerializer() const
@@ -67,7 +75,11 @@ public:
         stateTable->add(currentNamespace, value);
     };
 
-    void update(const std::vector<UV>& values) override {};
+    void update(const std::vector<UV>& values) override
+    {
+        stateTable->clear(currentNamespace);
+        stateTable->addAll(currentNamespace, values);
+    };
 
     static BssListState<K, N, UV>* update(
         StateDescriptor* stateDesc, BssListStateTable<K, N, UV>* stateTable, BssListState<K, N, UV>* existingState)

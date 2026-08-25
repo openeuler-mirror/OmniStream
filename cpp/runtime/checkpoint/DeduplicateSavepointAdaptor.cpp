@@ -80,7 +80,8 @@ void DeduplicateSavepointAdaptor::buildStateSerializerMap()
             "DeduplicateSavepointAdaptor: no column types to build state serializer, "
             "check prepareForSave/operatorDescription");
     }
-    auto* serializer = new RowDataSerializer(new omnistream::RowType(false, compatibleColumnTypes_));
+    omnistream::RowType rowType(false, compatibleColumnTypes_);
+    auto* serializer = new RowDataSerializer(&rowType);
     stateSerializerMap_[DEDUPLICATE_STATE_NAME] = std::shared_ptr<RowDataSerializer>(serializer);
 }
 
@@ -126,7 +127,7 @@ VectorBatchSavePlan DeduplicateSavepointAdaptor::buildDeduplicateSavePlan(FullSn
 
         // PRIORITY_QUEUE 状态（如 _timer_state/*）
         // 由 VectorBatchSaveFlow 按 PQ 透传路径直接输出 key/value 字节。
-        // 使用 OmniStream 原生的 StateMetaInfoSnapshot（含 "stateSerializer"）写入 targetMetaInfos，
+        // 使用 OmniStream 原生的 StateMetaInfoSnapshot（含 canonical VALUE_SERIALIZER）写入 targetMetaInfos，
         // 确保 mappedKvStateId 与 targetMetaInfos 索引一致。
         if (omniMeta->getBackendStateType() == StateMetaInfoSnapshot::BackendStateType::PRIORITY_QUEUE) {
             plan.targetMetaInfos.push_back(omniMeta);
@@ -139,7 +140,7 @@ VectorBatchSavePlan DeduplicateSavepointAdaptor::buildDeduplicateSavePlan(FullSn
             continue;
         }
 
-        TypeSerializer* omniNsSer = omniMeta->getTypeSerializer("namespaceSerializer");
+        TypeSerializer* omniNsSer = omniMeta->getNamespaceSerializer();
         TypeSerializer* flinkValueSer = getRecordStateSerializer();
         if (omniNsSer == nullptr || flinkValueSer == nullptr) {
             INFO_RELEASE(
@@ -187,9 +188,8 @@ std::vector<VectorBatchSaveStateContext> DeduplicateSavepointAdaptor::buildSaveS
         ctx.mappedKvStateId = (mapIt != plan.kvStateIdMapping.end()) ? mapIt->second : spec.sourceKvStateId;
         ctx.logicalStateName = spec.logicalStateName;
         ctx.valueSerializer = spec.valueSerializer;
-        // 仅 KV_WITH_VB / KV_LIST_WITH_VB 状态需要 VB accessor
-        if (spec.stateType == VectorBatchStateType::KV_WITH_VB ||
-            spec.stateType == VectorBatchStateType::KV_LIST_WITH_VB) {
+        // 仅 KV_WITH_VB 状态需要 VB accessor
+        if (spec.stateType == VectorBatchStateType::KV_WITH_VB) {
             ctx.vbAccessor =
                 snapshotResources.createVectorBatchStateAccessor(spec.logicalStateName, spec.accessorOptions);
             if (ctx.vbAccessor == nullptr) {
@@ -228,11 +228,12 @@ std::vector<int8_t> DeduplicateSavepointAdaptor::encodeFlinkLogicalValue(
     return VectorBatchSaveTools::serializeRowData(&row, context.valueSerializer);
 }
 
+template <typename Emit>
 void DeduplicateSavepointAdaptor::convertKVRowData(
     const KeyValueStateIterator::CurrentEntry& entry,
     const VectorBatchSaveStateContext& context,
     const VectorBatchSavePlan& plan,
-    std::function<void(ConvertedEntry)> output)
+    Emit&& output)
 {
     // Deduplicate 为 1:1 映射，解析 comboId、解引用 VB RowData、编码后输出
     auto comboId = parseVectorBatchReference(ByteView(entry.value.data(), entry.value.size()), context, plan);

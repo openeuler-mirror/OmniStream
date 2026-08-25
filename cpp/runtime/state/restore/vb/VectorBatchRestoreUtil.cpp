@@ -94,21 +94,17 @@ static bool isRestoreSupportedType(omniruntime::type::DataTypeId typeId)
     }
 }
 
-omnistream::ComboId VectorBatchRestoreUtil::appendRowToVectorBatch(
+omnistream::ComboId VectorBatchRestoreUtil::appendRowToVectorBatchBase(
     VbBatchState& vbState,
-    const std::vector<int8_t>& valueBytes,
+    DataInputDeserializer& valInput,
+    size_t valueByteSize,
     const std::vector<omniruntime::type::DataTypeId>& columnTypes,
     int batchSize,
     int32_t keyGroupId)
 {
-    if (valueBytes.empty()) {
-        INFO_RELEASE("VectorBatchRestoreUtil: empty value bytes, cannot parse RowData");
-        return omnistream::INVALID_COMBO_ID;
-    }
-
     int numFields = static_cast<int>(columnTypes.size());
     if (numFields == 0) {
-        INFO_RELEASE("VectorBatchRestoreUtil: no column types, value has " << valueBytes.size() << " bytes");
+        INFO_RELEASE("VectorBatchRestoreUtil: no column types, value has " << valueByteSize << " bytes");
         return omnistream::INVALID_COMBO_ID;
     }
 
@@ -122,12 +118,9 @@ omnistream::ComboId VectorBatchRestoreUtil::appendRowToVectorBatch(
         }
     }
 
-    DataInputDeserializer valInput(
-        reinterpret_cast<const uint8_t*>(valueBytes.data()), static_cast<int>(valueBytes.size()), 0);
-
     // 按输入长度动态构造 BinaryRowData，替代固定 SEG_SIZE 的 BinaryRowDataSerializer::deserialize
     int rowLen = valInput.readInt();
-    if (rowLen <= 0 || rowLen > static_cast<int>(valueBytes.size())) {
+    if (rowLen <= 0 || rowLen > static_cast<int>(valueByteSize)) {
         INFO_RELEASE("VectorBatchRestoreUtil: invalid serialized row length " << rowLen);
         return omnistream::INVALID_COMBO_ID;
     }
@@ -161,10 +154,46 @@ omnistream::ComboId VectorBatchRestoreUtil::appendRowToVectorBatch(
     return comboId;
 }
 
+omnistream::ComboId VectorBatchRestoreUtil::appendRowToVectorBatch(
+    VbBatchState& vbState,
+    const std::vector<int8_t>& valueBytes,
+    const std::vector<omniruntime::type::DataTypeId>& columnTypes,
+    int batchSize,
+    int32_t keyGroupId)
+{
+    if (valueBytes.empty()) {
+        INFO_RELEASE("VectorBatchRestoreUtil: empty value bytes, cannot parse RowData");
+        return omnistream::INVALID_COMBO_ID;
+    }
+
+    DataInputDeserializer valInput(
+        reinterpret_cast<const uint8_t*>(valueBytes.data()), static_cast<int>(valueBytes.size()), 0);
+
+    return appendRowToVectorBatchBase(vbState, valInput, valueBytes.size(), columnTypes, batchSize, keyGroupId);
+}
+
+omnistream::ComboId VectorBatchRestoreUtil::appendRowToVectorBatch(
+    VbBatchState& vbState,
+    const ByteView& valueBytes,
+    const std::vector<omniruntime::type::DataTypeId>& columnTypes,
+    int batchSize,
+    int32_t keyGroupId)
+{
+    if (valueBytes.empty()) {
+        INFO_RELEASE("VectorBatchRestoreUtil: empty value bytes, cannot parse RowData");
+        return omnistream::INVALID_COMBO_ID;
+    }
+
+    DataInputDeserializer valInput(
+        reinterpret_cast<const uint8_t*>(valueBytes.data()), static_cast<int>(valueBytes.size()), 0);
+
+    return appendRowToVectorBatchBase(vbState, valInput, valueBytes.size(), columnTypes, batchSize, keyGroupId);
+}
+
 StateMetaInfoSnapshot VectorBatchRestoreUtil::buildOmniMainMetaInfo(
     const StateMetaInfoSnapshot& flinkMetaInfo, TypeSerializer* valueSerializer)
 {
-    TypeSerializer* nsSerializer = flinkMetaInfo.getTypeSerializer("NAMESPACE_SERIALIZER");
+    TypeSerializer* nsSerializer = flinkMetaInfo.getNamespaceSerializer();
     if (nsSerializer == nullptr) {
         INFO_RELEASE("VectorBatchRestoreUtil: NAMESPACE_SERIALIZER not found for state=" << flinkMetaInfo.getName());
         throw std::runtime_error(
@@ -177,10 +206,7 @@ StateMetaInfoSnapshot VectorBatchRestoreUtil::buildOmniMainMetaInfo(
         stateType = StateDescriptor::Type::VALUE;
     }
 
-    // 直接构造 StateMetaInfoSnapshot，使用 commonSerializerKeyToString (UPPERCASE) key，
-    // 与 fromMetaInfoSnapshot() 的读取 key 保持一致。
-    // 避免通过 RegisteredKeyValueStateBackendMetaInfo::computeSnapshot() 间接构造时
-    // 因 key 大小写不一致导致序列化器丢失。
+    // StateMetaInfoSnapshot 内部统一保存 Flink canonical serializer key。
     std::unordered_map<std::string, std::string> optionsMap;
     optionsMap[StateMetaInfoSnapshot::commonOptionsKeyToString(
         StateMetaInfoSnapshot::CommonOptionsKeys::KEYED_STATE_TYPE)] = std::to_string(static_cast<int>(stateType));

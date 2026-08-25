@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
+#include <memory>
 #include "table/types/logical/LogicalType.h"
+#include "table/types/logical/RawType.h"
 #include <string.h>
 #include "OmniOperatorJIT/core/src/type/data_type.h"
 
@@ -185,4 +187,38 @@ TEST(LogicalTypeTest, flinkTypeToOmniTypeIdTest)
     EXPECT_EQ(
         LogicalType::flinkTypeToOmniTypeId("TIMESTAMP_LTZ(3) NOT NULL *PROCTIME*"),
         omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE);
+}
+
+TEST(LogicalTypeTest, RawTypeAllowsEmptySerializerMetadata)
+{
+    std::unique_ptr<LogicalType> type(LogicalType::flinkTypeToOmniType("RAW('example.Type', '')"));
+    auto* rawType = dynamic_cast<omnistream::RawType*>(type.get());
+    ASSERT_NE(rawType, nullptr);
+    EXPECT_EQ(rawType->getClassName(), "example.Type");
+    EXPECT_TRUE(rawType->getSerializerString().empty());
+}
+
+TEST(LogicalTypeTest, FlinkTypeToOmniTypePreservesNullability)
+{
+    auto logicalTypeDeleter = [](LogicalType* type) {
+        if (!LogicalType::isSharedLogicalType(type)) {
+            delete type;
+        }
+    };
+
+    using LogicalTypePtr = std::unique_ptr<LogicalType, decltype(logicalTypeDeleter)>;
+    LogicalTypePtr nullableTimestamp(
+        LogicalType::flinkTypeToOmniType("TIMESTAMP_WITHOUT_TIME_ZONE(3)"), logicalTypeDeleter);
+    LogicalTypePtr notNullTimestamp(
+        LogicalType::flinkTypeToOmniType("TIMESTAMP_WITHOUT_TIME_ZONE(3) NOT NULL"), logicalTypeDeleter);
+    LogicalTypePtr notNullBigint(LogicalType::flinkTypeToOmniType("BIGINT NOT NULL *PROCTIME*"), logicalTypeDeleter);
+
+    ASSERT_NE(nullableTimestamp, nullptr);
+    ASSERT_NE(notNullTimestamp, nullptr);
+    ASSERT_NE(notNullBigint, nullptr);
+    EXPECT_TRUE(nullableTimestamp->isNullable());
+    EXPECT_FALSE(notNullTimestamp->isNullable());
+    EXPECT_FALSE(notNullBigint->isNullable());
+    EXPECT_EQ(notNullTimestamp->toJson().at("precision"), 3);
+    EXPECT_FALSE(notNullTimestamp->toJson().at("nullable"));
 }

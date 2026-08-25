@@ -18,9 +18,12 @@
 #include "runtime/checkpoint/OperatorSavepointAdaptorFactory.h"
 #include "runtime/checkpoint/OperatorSavepointAdaptor.h"
 #include "runtime/checkpoint/StreamingJoinSavepointUtil.h"
+#include "runtime/checkpoint/WindowJoinSavepointAdaptor.h"
+#include "runtime/checkpoint/WindowAggSavepointCompatibility.h"
 
 using omnistream::OperatorSavepointAdaptorFactory;
 using omnistream::StreamingJoinSavepointUtil;
+using omnistream::WindowAggSavepointCompatibility;
 
 namespace {
 nlohmann::json createStreamingJoinDescription(const std::string& timestampType)
@@ -65,6 +68,13 @@ TEST(OperatorSavepointAdaptorFactoryTest, ReturnsAppendOnlyTopNAdaptor)
     auto adaptor = OperatorSavepointAdaptorFactory::createAdaptor(FlinkSavepointAdaptorType::AppendOnlyTopNAdaptor);
     EXPECT_NE(adaptor, nullptr);
 }
+
+TEST(OperatorSavepointAdaptorFactoryTest, ReturnsWindowJoinAdaptor)
+{
+    auto adaptor = OperatorSavepointAdaptorFactory::createAdaptor(FlinkSavepointAdaptorType::WindowJoinAdaptor);
+    EXPECT_NE(dynamic_cast<omnistream::WindowJoinSavepointAdaptor*>(adaptor.get()), nullptr);
+}
+
 // StreamingJoinAdaptor：已实现的 NoUniqueKey inner/left outer join 互通 Adaptor，
 TEST(OperatorSavepointAdaptorFactoryTest, ReturnsStreamingJoinAdaptors)
 {
@@ -82,6 +92,44 @@ TEST(OperatorSavepointAdaptorFactoryTest, ReturnsNullForNotYetImplementedTypes)
 {
     EXPECT_EQ(OperatorSavepointAdaptorFactory::createAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible), nullptr);
     EXPECT_EQ(OperatorSavepointAdaptorFactory::createAdaptor(FlinkSavepointAdaptorType::None), nullptr);
+}
+
+TEST(WindowAggSavepointCompatibilityTest, LocalWindowAggIsCompatible)
+{
+    const auto info = WindowAggSavepointCompatibility::forLocal();
+
+    EXPECT_EQ(info.type, FlinkSavepointAdaptorType::OmniIsCompatible);
+    EXPECT_TRUE(info.reason.empty());
+}
+
+TEST(WindowAggSavepointCompatibilityTest, SelectsSlicingAccumulatorTypesFromOperatorMode)
+{
+    const nlohmann::json localDescription = {
+        {"isWindowAggregate", true},
+        {"aggInfoList", {{"AccTypes", {"BIGINT"}}, {"globalAccTypes", {"RAW(unused)"}}}},
+    };
+    const nlohmann::json globalDescription = {
+        {"isWindowAggregate", false},
+        {"aggInfoList", {{"AccTypes", {"RAW(unused)"}}, {"globalAccTypes", {"BIGINT"}}}},
+    };
+
+    EXPECT_EQ(
+        WindowAggSavepointCompatibility::forSlicing(localDescription).type,
+        FlinkSavepointAdaptorType::OmniIsCompatible);
+    EXPECT_EQ(
+        WindowAggSavepointCompatibility::forSlicing(globalDescription).type,
+        FlinkSavepointAdaptorType::OmniIsCompatible);
+}
+
+TEST(WindowAggSavepointCompatibilityTest, RejectsMalformedAccumulatorTypesWithoutThrowing)
+{
+    const nlohmann::json description = {
+        {"aggInfoList", {{"AccTypes", {nlohmann::json::object()}}}},
+    };
+
+    FlinkSavepointAdaptorInfo info;
+    EXPECT_NO_THROW(info = WindowAggSavepointCompatibility::forGroup(description));
+    EXPECT_EQ(info.type, FlinkSavepointAdaptorType::None);
 }
 
 TEST(StreamingJoinSavepointUtilTest, OnlySupportsCompactTimestampPrecision)

@@ -16,7 +16,7 @@
 #include <regex>
 #include "streaming/api/operators/AbstractStreamOperator.h"
 #include "table/data/JoinedRowData.h"
-#include "table/typeutils/BinaryRowDataSerializer.h"
+#include "table/typeutils/RowDataSerializer.h"
 #include "streaming/api/operators/TimestampedCollector.h"
 #include "test/core/operators/OutputTest.h"
 #include "table/runtime/operators/window/WindowKey.h"
@@ -69,6 +69,7 @@ public:
     std::string getTypeName() override;
 
     void ProcessWatermark(Watermark* mark) override;
+    void PrepareSnapshotPreBarrier(long checkpointId) override;
     void processElement(StreamRecord* element) override {};
     Output* getOutput();
 
@@ -150,7 +151,7 @@ private:
     omnistream::VectorBatch* resultBatch = nullptr;
 
     void AccumulateOrRetract(const std::vector<std::unique_ptr<RowData>>& entireRows);
-    bool SendAccResults(Watermark* mark);
+    int flushBundle(const char* trigger, int64_t triggerValue);
 
     void SetLong(omniruntime::vec::VectorBatch* outputBatch, int rowIndex, int colIndex, RowData* collectedRow);
     void SetInt(omniruntime::vec::VectorBatch* outputBatch, int rowIndex, int colIndex, RowData* collectedRow);

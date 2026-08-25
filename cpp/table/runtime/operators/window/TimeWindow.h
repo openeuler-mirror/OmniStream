@@ -96,6 +96,9 @@ public:
 
     class Serializer : public TypeSerializerSingleton {
     public:
+        static constexpr BackendDataType SERIALIZER_BACKEND_DATA_TYPE = BackendDataType::TIME_WINDOW_BK;
+        static constexpr const char* SERIALIZER_NAME = "TimeWindow.Serializer";
+
         Serializer();
 
         bool isImmutableType() const;
@@ -114,16 +117,19 @@ public:
 
         void copy(DataInputView* source, DataOutputSerializer* target) const;
 
-        BackendDataType getBackendId() const override;
+        BackendDataType getBackendId() const override
+        {
+            return SERIALIZER_BACKEND_DATA_TYPE;
+        }
 
         const char* getName() const override
         {
-            return "TimeWindow.Serializer";
+            return SERIALIZER_NAME;
         }
 
         std::string toJson() override
         {
-            SerializerJsonInfo typeJson = {SerializerType::POJO, TYPE_NAME_TIME_WINDOW_CLASS};
+            SerializerJsonInfo typeJson = {SerializerType::TIME_WINDOW, TYPE_NAME_TIME_WINDOW_CLASS};
             return typeJson.toJson();
         }
     };

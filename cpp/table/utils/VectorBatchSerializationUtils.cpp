@@ -111,6 +111,10 @@ int32_t omnistream::VectorBatchSerializationUtils::calculateVectorSerializableSi
 {
     int32_t totalSize = 0;
 
+    if (baseVector == nullptr) {
+        INFO_RELEASE("calculateVectorSerializableSize baseVector is nullptr.");
+        throw std::runtime_error("calculateVectorSerializableSize baseVector is nullptr.");
+    }
     int32_t size = baseVector->GetSize();
     DataTypeId dataType = baseVector->GetTypeId();
 

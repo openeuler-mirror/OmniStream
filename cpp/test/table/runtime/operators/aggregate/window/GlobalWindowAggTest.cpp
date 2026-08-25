@@ -99,7 +99,8 @@ TEST(GlobalWindowAggTest, DISABLED_OnTimerTest)
     operators->open();
     std::cout << "================step 100===================" << std::endl;
     operators->processBatch(vbatch);
-    operators->ProcessWatermark(new Watermark(-1));
+    auto watermark = Watermark(-1);
+    operators->ProcessWatermark(&watermark);
     BinaryRowData* binaryRowData = new BinaryRowData(0); // group为空时, 需要设置为new BinaryRowData(0)
     auto* timer = new TimerHeapInternalTimer<std::shared_ptr<RowData>, int64_t>(
         -1, std::shared_ptr<RowData>(binaryRowData), 1731944420000);
@@ -160,7 +161,8 @@ TEST(GlobalWindowAggTest, DISABLED_TUMBLETest)
     operators->open();
     std::cout << "================step 100===================" << std::endl;
     operators->processBatch(vbatch);
-    operators->ProcessWatermark(new Watermark(-1));
+    auto watermark = Watermark(-1);
+    operators->ProcessWatermark(&watermark);
     auto* batchOutput = dynamic_cast<BatchOutputTest*>(operators->getOutput());
     auto* resultBatch = reinterpret_cast<omnistream::VectorBatch*>(batchOutput->getVectorBatch());
     // print VectorBatch
@@ -214,7 +216,8 @@ TEST(GlobalWindowAggTest, DISABLED_HOPTest1)
     slicingWindowOperator->open();
     std::cout << "================step 4 in global window agg===================" << std::endl;
     slicingWindowOperator->processBatch(vbatch);
-    slicingWindowOperator->ProcessWatermark(new Watermark(-1));
+    auto watermark = Watermark(-1);
+    slicingWindowOperator->ProcessWatermark(&watermark);
     //    BatchOutputTest* batchOutput = dynamic_cast<BatchOutputTest*>(slicingWindowOperator->getOutput());
 
     BatchOutputTest* batchOutput = output;
@@ -233,7 +236,7 @@ TEST(GlobalWindowAggTest, DISABLED_HOPTest1)
 
     slicingWindowOperator->processBatch(vbatch);
     std::cout << "================step 5===================" << std::endl;
-    slicingWindowOperator->ProcessWatermark(new Watermark(-1));
+    slicingWindowOperator->ProcessWatermark(&watermark);
     std::cout << "================step 6===================" << std::endl;
     //    batchOutput = dynamic_cast<BatchOutputTest*>(slicingWindowOperator->getOutput());
     resultBatch = reinterpret_cast<omnistream::VectorBatch*>(batchOutput->getVectorBatch());

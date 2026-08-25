@@ -24,8 +24,26 @@ enum class FlinkSavepointAdaptorType {
     DeduplicateAdaptor,
     AppendOnlyTopNAdaptor,
     StreamingJoinNoUniqueKeyAdaptor,
-    StreamingLeftOuterJoinNoUniqueKeyAdaptor
+    StreamingLeftOuterJoinNoUniqueKeyAdaptor,
+    WindowJoinAdaptor,
+    GroupAggAdaptor
 };
+
+inline const char* flinkSavepointAdaptorTypeName(FlinkSavepointAdaptorType type) noexcept
+{
+    switch (type) {
+        case FlinkSavepointAdaptorType::None: return "None";
+        case FlinkSavepointAdaptorType::OmniIsCompatible: return "OmniIsCompatible";
+        case FlinkSavepointAdaptorType::DeduplicateAdaptor: return "DeduplicateAdaptor";
+        case FlinkSavepointAdaptorType::AppendOnlyTopNAdaptor: return "AppendOnlyTopNAdaptor";
+        case FlinkSavepointAdaptorType::StreamingJoinNoUniqueKeyAdaptor: return "StreamingJoinNoUniqueKeyAdaptor";
+        case FlinkSavepointAdaptorType::StreamingLeftOuterJoinNoUniqueKeyAdaptor:
+            return "StreamingLeftOuterJoinNoUniqueKeyAdaptor";
+        case FlinkSavepointAdaptorType::WindowJoinAdaptor: return "WindowJoinAdaptor";
+        case FlinkSavepointAdaptorType::GroupAggAdaptor: return "GroupAggAdaptor";
+        default: return "Unknown";
+    }
+}
 
 struct FlinkSavepointAdaptorInfo {
     FlinkSavepointAdaptorType type = FlinkSavepointAdaptorType::None;

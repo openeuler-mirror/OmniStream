@@ -47,6 +47,9 @@
 #include "runtime/state/VoidNamespaceSerializer.h"
 #include "table/typeutils/VectorBatchSerializer.h"
 #include "core/typeutils/LongSerializer.h"
+#include "core/typeutils/MapSerializer.h"
+#include "core/typeutils/ListSerializer.h"
+#include "core/api/common/state/RestoreStateDescriptor.h"
 
 using namespace omniruntime::type;
 /*
@@ -262,6 +265,49 @@ public:
             return &(it->second);
         }
         return nullptr;
+    }
+
+    /**
+     * Creates a RestoreStateDescriptor from a StateMetaInfoSnapshot.
+     * For MAP states, extracts key/value BackendDataType from MapSerializer.
+     * For LIST states, extracts element BackendDataType from ListSerializer.
+     * For VALUE states, uses the value serializer's BackendDataType.
+     */
+    static StateDescriptor* createRestoreDescriptor(
+        const StateMetaInfoSnapshot& metaInfo,
+        StateDescriptor::Type stateType,
+        TypeSerializer* nsSerializer,
+        TypeSerializer* valSerializer)
+    {
+        if (stateType == StateDescriptor::Type::MAP) {
+            auto* mapSer = dynamic_cast<MapSerializer*>(valSerializer);
+            if (mapSer) {
+                return new RestoreStateDescriptor(
+                    metaInfo.getName(),
+                    stateType,
+                    valSerializer,
+                    BackendDataType::INVALID_BK,
+                    mapSer->getKeySerializer()->getBackendId(),
+                    mapSer->getValueSerializer()->getBackendId());
+            }
+            // Fallback: OBJECT×OBJECT if MapSerializer cast fails
+            return new RestoreStateDescriptor(
+                metaInfo.getName(),
+                stateType,
+                valSerializer,
+                BackendDataType::INVALID_BK,
+                BackendDataType::OBJECT_BK,
+                BackendDataType::OBJECT_BK);
+        } else if (stateType == StateDescriptor::Type::LIST) {
+            auto* listSer = dynamic_cast<ListSerializer*>(valSerializer);
+            BackendDataType elemId =
+                listSer ? listSer->getElementSerializer()->getBackendId() : valSerializer->getBackendId();
+            return new RestoreStateDescriptor(metaInfo.getName(), stateType, valSerializer, elemId);
+        } else {
+            // VALUE
+            return new RestoreStateDescriptor(
+                metaInfo.getName(), stateType, valSerializer, valSerializer->getBackendId());
+        }
     }
 
     template <typename T, typename Comparator>

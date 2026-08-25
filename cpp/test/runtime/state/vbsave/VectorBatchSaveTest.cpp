@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "core/memory/DataInputDeserializer.h"
 #include "runtime/state/vbsave/VectorBatchSaveHooks.h"
 #include "runtime/state/vbsave/VectorBatchSavePlan.h"
 #include "runtime/state/vbsave/VectorBatchSaveTools.h"
@@ -85,6 +86,20 @@ private:
 
 class MockSerializer : public TypeSerializer {};
 
+// 录制 serializer：serialize 时写入固定 4 字节，用于验证 serializeRowData 的成功路径。
+class RecordingSerializer : public TypeSerializer {
+public:
+    void serialize(void* /*row*/, DataOutputSerializer& target) override
+    {
+        target.writeInt(0xDEADBEEF);
+    }
+
+    void* deserialize(DataInputView& /*source*/) override
+    {
+        return nullptr;
+    }
+};
+
 class MockVectorBatchStateAccessor : public VectorBatchStateAccessor {
 public:
     bool getSerializedBatch(omnistream::VectorBatchId /*batchId*/, ByteView* /*value*/) override
@@ -121,19 +136,32 @@ public:
     {
         return std::vector<int8_t>(entry.value.begin(), entry.value.end());
     }
-
-    void convertKVRowData(
-        const KeyValueStateIterator::CurrentEntry& /*entry*/,
-        const omnistream::VectorBatchSaveStateContext& /*context*/,
-        const omnistream::VectorBatchSavePlan& /*plan*/,
-        std::function<void(omnistream::ConvertedEntry)> /*output*/) override
-    {
-    }
 };
 
 std::vector<int8_t> bytes(std::initializer_list<int8_t> values)
 {
     return std::vector<int8_t>(values);
+}
+
+void writeComboIdBE(std::vector<uint8_t>& buf, uint64_t id)
+{
+    for (int i = 56; i >= 0; i -= 8) {
+        buf.push_back(static_cast<uint8_t>((id >> i) & 0xFF));
+    }
+}
+
+// 统一的 ListState 格式（ListDelimitedSerializer，与 RocksDB/Flink 一致）:
+// [comboId_1 (8B)][','][comboId_2 (8B)][',']...
+std::vector<uint8_t> makeListValue(const std::vector<uint64_t>& comboIds)
+{
+    std::vector<uint8_t> result;
+    for (size_t i = 0; i < comboIds.size(); ++i) {
+        if (i > 0) {
+            result.push_back(static_cast<uint8_t>(','));
+        }
+        writeComboIdBE(result, comboIds[i]);
+    }
+    return result;
 }
 
 } // namespace
@@ -249,9 +277,6 @@ TEST(VectorBatchSaveTest, SaveStateContextRequiresAccessorOnlyForVectorBatchStat
     context.vbAccessor = accessor;
     EXPECT_TRUE(context.isValid());
 
-    context.stateType = omnistream::VectorBatchStateType::KV_LIST_WITH_VB;
-    EXPECT_TRUE(context.isValid());
-
     context.writable = false;
     EXPECT_FALSE(context.isValid());
 }
@@ -297,4 +322,185 @@ TEST(VectorBatchSaveTest, DefaultEncodeFlinkLogicalKeyKeepsOriginalKeyBytes)
     omnistream::VectorBatchSavePlan plan;
 
     EXPECT_EQ(hooks.encodeFlinkLogicalKey(entry, row, context, plan), key);
+}
+
+// ===== parseComboIdList tests =====
+// parseComboIdList 统一为单参数签名，仅解析 ListDelimitedSerializer 格式
+// （[comboId_1][','][comboId_2][',']...），与 RocksDB/Flink 一致。
+
+TEST(VectorBatchSaveTest, ParseComboIdList_SingleElement)
+{
+    const std::vector<uint64_t> comboIds = {0x0123456789ABCDEFULL};
+    auto value = makeListValue(comboIds);
+    auto result = omnistream::VectorBatchSaveTools::parseComboIdList(ByteView(value.data(), value.size()));
+
+    ASSERT_EQ(result.size(), 1U);
+    EXPECT_EQ(result[0], 0x0123456789ABCDEFULL);
+}
+
+TEST(VectorBatchSaveTest, ParseComboIdList_MultipleElements)
+{
+    const std::vector<uint64_t> comboIds = {100ULL, 200ULL, 300ULL, 400ULL};
+    auto value = makeListValue(comboIds);
+    auto result = omnistream::VectorBatchSaveTools::parseComboIdList(ByteView(value.data(), value.size()));
+
+    ASSERT_EQ(result.size(), 4U);
+    EXPECT_EQ(result[0], 100ULL);
+    EXPECT_EQ(result[1], 200ULL);
+    EXPECT_EQ(result[2], 300ULL);
+    EXPECT_EQ(result[3], 400ULL);
+}
+
+TEST(VectorBatchSaveTest, ParseComboIdList_CommaDelimitersCorrect)
+{
+    std::vector<uint8_t> value;
+    writeComboIdBE(value, 42ULL);
+    value.push_back(static_cast<uint8_t>(','));
+    writeComboIdBE(value, 99ULL);
+    value.push_back(static_cast<uint8_t>(','));
+    writeComboIdBE(value, 7ULL);
+
+    auto result = omnistream::VectorBatchSaveTools::parseComboIdList(ByteView(value.data(), value.size()));
+
+    ASSERT_EQ(result.size(), 3U);
+    EXPECT_EQ(result[0], 42ULL);
+    EXPECT_EQ(result[1], 99ULL);
+    EXPECT_EQ(result[2], 7ULL);
+}
+
+TEST(VectorBatchSaveTest, ParseComboIdList_NoTrailingDelimiter)
+{
+    std::vector<uint8_t> value;
+    writeComboIdBE(value, 111ULL);
+    value.push_back(static_cast<uint8_t>(','));
+    writeComboIdBE(value, 222ULL);
+
+    auto result = omnistream::VectorBatchSaveTools::parseComboIdList(ByteView(value.data(), value.size()));
+
+    ASSERT_EQ(result.size(), 2U);
+    EXPECT_EQ(result[0], 111ULL);
+    EXPECT_EQ(result[1], 222ULL);
+}
+
+TEST(VectorBatchSaveTest, ParseComboIdList_RejectsShortInput)
+{
+    const std::vector<uint8_t> shortValue = {0x00, 0x01, 0x02};
+    EXPECT_THROW(
+        omnistream::VectorBatchSaveTools::parseComboIdList(ByteView(shortValue.data(), shortValue.size())),
+        std::runtime_error);
+}
+
+TEST(VectorBatchSaveTest, ParseComboIdList_RejectsEmptyData)
+{
+    EXPECT_THROW(omnistream::VectorBatchSaveTools::parseComboIdList(ByteView()), std::runtime_error);
+}
+
+TEST(VectorBatchSaveTest, ParseComboIdList_TwoElementsExplicit)
+{
+    // 两个 comboId（含逗号分隔符）
+    std::vector<uint8_t> value;
+    writeComboIdBE(value, 1000ULL);
+    value.push_back(static_cast<uint8_t>(','));
+    writeComboIdBE(value, 2000ULL);
+
+    auto result = omnistream::VectorBatchSaveTools::parseComboIdList(ByteView(value.data(), value.size()));
+    ASSERT_EQ(result.size(), 2U);
+    EXPECT_EQ(result[0], 1000ULL);
+    EXPECT_EQ(result[1], 2000ULL);
+}
+
+TEST(VectorBatchSaveTest, ParseComboIdList_RejectsInvalidDelimiter)
+{
+    // 分隔符为 ';' 而非 ',' —— 应拒绝
+    std::vector<uint8_t> value;
+    writeComboIdBE(value, 100ULL);
+    value.push_back(static_cast<uint8_t>(';')); // invalid delimiter
+    writeComboIdBE(value, 200ULL);
+
+    EXPECT_THROW(
+        omnistream::VectorBatchSaveTools::parseComboIdList(ByteView(value.data(), value.size())), std::runtime_error);
+}
+
+TEST(VectorBatchSaveTest, ParseComboIdList_RejectsTrailingBytes)
+{
+    // 最后一个 comboId 之后存在多余字节 —— 应拒绝
+    std::vector<uint8_t> value;
+    writeComboIdBE(value, 100ULL);
+    value.push_back(static_cast<uint8_t>(','));
+    writeComboIdBE(value, 200ULL);
+    value.push_back(static_cast<uint8_t>(0xFF)); // trailing garbage
+
+    EXPECT_THROW(
+        omnistream::VectorBatchSaveTools::parseComboIdList(ByteView(value.data(), value.size())), std::runtime_error);
+}
+
+// ============================================================================
+// VectorBatchSaveTools::serializeRowData 成功路径
+// ============================================================================
+
+TEST(VectorBatchSaveTest, SerializeRowDataReturnsBytesForValidInput)
+{
+    RecordingSerializer serializer;
+    MockRowData row;
+
+    auto result = omnistream::VectorBatchSaveTools::serializeRowData(&row, &serializer);
+
+    // RecordingSerializer writes 4 bytes (int32 0xDEADBEEF)
+    ASSERT_EQ(result.size(), 4U);
+    EXPECT_EQ(result[0], static_cast<int8_t>(0xDE));
+    EXPECT_EQ(result[1], static_cast<int8_t>(0xAD));
+    EXPECT_EQ(result[2], static_cast<int8_t>(0xBE));
+    EXPECT_EQ(result[3], static_cast<int8_t>(0xEF));
+}
+
+// ============================================================================
+// VectorBatchSaveHooks 默认实现测试
+// ============================================================================
+
+TEST(VectorBatchSaveTest, DefaultParseVectorBatchReferenceReturnsMinusOne)
+{
+    // 使用基类指针调用默认实现，验证返回 -1
+    std::unique_ptr<omnistream::VectorBatchSaveHooks> hooks = std::make_unique<MockHooks>();
+
+    // 直接调用基类默认实现（通过 MockHooks 的 override 实际上调用的是 MockHooks 的版本，
+    // 用另一个只继承不覆盖的类来测试真正的默认实现）
+    class DefaultHooks : public omnistream::VectorBatchSaveHooks {
+    public:
+        std::vector<omnistream::VectorBatchSaveStateContext> buildSaveStateContexts(
+            FullSnapshotResources&, const omnistream::VectorBatchSavePlan&) override
+        {
+            return {};
+        }
+    };
+
+    DefaultHooks defaultHooks;
+    ByteView empty;
+    omnistream::VectorBatchSaveStateContext context;
+    omnistream::VectorBatchSavePlan plan;
+
+    EXPECT_EQ(defaultHooks.parseVectorBatchReference(empty, context, plan), static_cast<omnistream::ComboId>(-1));
+}
+
+TEST(VectorBatchSaveTest, DefaultEncodeFlinkLogicalValueReturnsEmpty)
+{
+    class DefaultHooks : public omnistream::VectorBatchSaveHooks {
+    public:
+        std::vector<omnistream::VectorBatchSaveStateContext> buildSaveStateContexts(
+            FullSnapshotResources&, const omnistream::VectorBatchSavePlan&) override
+        {
+            return {};
+        }
+    };
+
+    DefaultHooks defaultHooks;
+    const auto key = bytes({0x10, 0x20});
+    const auto value = bytes({0x01});
+    KeyValueStateIterator::CurrentEntry entry;
+    entry.key = ByteView(key.data(), key.size());
+    entry.value = ByteView(value.data(), value.size());
+    MockRowData row;
+    omnistream::VectorBatchSaveStateContext context;
+    omnistream::VectorBatchSavePlan plan;
+
+    EXPECT_TRUE(defaultHooks.encodeFlinkLogicalValue(entry, row, context, plan).empty());
 }

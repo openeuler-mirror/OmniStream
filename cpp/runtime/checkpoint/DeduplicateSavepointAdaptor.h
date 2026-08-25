@@ -21,6 +21,7 @@
 
 #include "OperatorSavepointAdaptor.h"
 #include "runtime/state/restore/RestoreBackendDelegate.h"
+#include "runtime/state/restore/vb/VectorBatchRestoreHooks.h"
 #include "runtime/state/vbsave/VectorBatchSaveHooks.h"
 #include "runtime/state/vbsave/VectorBatchSavePlan.h"
 #include "runtime/state/metainfo/StateMetaInfoSnapshot.h"
@@ -38,7 +39,9 @@ class OmniTaskBridge;
 //   保存方向实现 VectorBatchSaveHooks，save() 调用 VectorBatchSaveFlow；
 //   恢复方向 restore() 调用 VectorBatchRestoreFlow，以自身为 Derived hook
 //   提供 getStateType()/buildOmniMainMetaInfo()/retrieveKVRowData()。
-class DeduplicateSavepointAdaptor : public OperatorSavepointAdaptor, public VectorBatchSaveHooks {
+class DeduplicateSavepointAdaptor : public OperatorSavepointAdaptor,
+                                    public VectorBatchSaveHooks,
+                                    public VectorBatchRestoreHooks {
 public:
     DeduplicateSavepointAdaptor() = default;
 
@@ -96,11 +99,12 @@ public:
 
     // ===== VectorBatchSaveHooks: convertKVRowData =====
     // 解析 comboId → 解引用 VB RowData → 编码 key/value → 输出 ConvertedEntry（1:1 映射）。
+    template <typename Emit>
     void convertKVRowData(
         const KeyValueStateIterator::CurrentEntry& entry,
         const VectorBatchSaveStateContext& context,
         const VectorBatchSavePlan& plan,
-        std::function<void(ConvertedEntry)> output) override;
+        Emit&& output);
 
     int batchSize(int kvStateId) const
     {
@@ -143,4 +147,5 @@ private:
     // 恢复方向列类型（从 operatorDescription 解析，prepareForRestore 缓存）
     std::vector<omniruntime::type::DataTypeId> restoreColumnTypes_;
 };
+
 } // namespace omnistream

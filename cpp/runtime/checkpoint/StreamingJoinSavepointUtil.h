@@ -30,7 +30,6 @@
 #include "core/typeinfo/BasicTypeInfo.h"
 #include "core/typeutils/LongSerializer.h"
 #include "core/typeutils/MapSerializer.h"
-#include "core/typeutils/SerializerJsonInfo.h"
 #include "core/typeutils/TupleSerializer.h"
 #include "core/typeutils/XxH128_hashSerializer.h"
 #include "core/utils/ByteView.h"
@@ -125,6 +124,14 @@ public:
     // XXH128 hash 序列化结果占用的字节数。
     static constexpr int XXH128_SERIALIZED_BYTES = 16;
 
+    // WindowJoin 算子类型名称。
+    static constexpr const char* WINDOW_JOIN_OPERATOR_TYPE = "WindowJoin";
+    // WindowJoin 时区字段名。
+    static constexpr const char* SHIFT_TIMEZONE_FIELD = "shiftTimeZone";
+    // WindowJoin 窗口结束索引字段名。
+    static constexpr const char* LEFT_WINDOW_END_INDEX_FIELD = "leftWindowEndIndex";
+    static constexpr const char* RIGHT_WINDOW_END_INDEX_FIELD = "rightWindowEndIndex";
+
     // 工具类仅提供静态方法，不允许创建实例。
     StreamingJoinSavepointUtil() = delete;
 
@@ -134,6 +141,13 @@ public:
 
     // 按固定校验顺序构造当前 StreamingJoin 不支持兼容格式互通的具体原因。
     static std::string buildUnsupportedReason(const nlohmann::json& description);
+
+    // 根据完整算子描述解析 WindowJoin 兼容格式适配器类型。
+    // 返回 FlinkSavepointAdaptorType::None 表示当前算子描述超出已支持范围。
+    static FlinkSavepointAdaptorType getWindowJoinAdaptorType(const nlohmann::json& description);
+
+    // 按固定校验顺序构造 WindowJoin 不支持兼容格式互通的具体原因。
+    static std::string buildWindowJoinUnsupportedReason(const nlohmann::json& description);
 
     // 将 LogicalType 对象转换为公共 VectorBatch 恢复流程使用的数据类型标识。
     static std::vector<omniruntime::type::DataTypeId> convertToDataTypes(const std::vector<LogicalType*>& logicalTypes);
@@ -174,11 +188,11 @@ public:
     // 将类型名称列表格式化为日志使用的紧凑字符串。
     static std::string joinStrings(const std::vector<std::string>& values);
 
-private:
     // 将 DataOutputSerializer 中的有效字节复制到独立缓冲区。
     // 返回的 vector 在临时 serializer 销毁后仍可安全使用。
     static std::vector<int8_t> copySerializerBuffer(DataOutputSerializer& serializer);
 
+private:
     // 校验序列化变长字段是否完整位于 RowData payload 范围内。
     // 使用减法比较可避免不可信状态字节中的 offset 与 len 相加产生溢出。
     static bool isValidStringFieldRange(int offset, int len, int rowBytesLen);
@@ -209,6 +223,10 @@ private:
 
     // 校验 filterNulls 字段存在，并且为布尔值或非空布尔数组。
     static bool hasFilterNullsContract(const nlohmann::json& description);
+
+    // 校验 WindowJoin 算子的字段完整性与类型支持。
+    // 返回空字符串表示全部校验通过，否则返回第一个失败的具体原因。
+    static std::string validateWindowJoinFields(const nlohmann::json& description);
 
     // 校验 inner 和 left outer StreamingJoin 共同使用的 NoUniqueKey 元数据约束。
     // Join 类型映射保留在该方法之外，使调用方能够直接复用已经选定的 adaptorType。
@@ -642,8 +660,7 @@ inline std::shared_ptr<StateMetaInfoSnapshot> StreamingJoinSavepointUtil::create
     const std::vector<std::string>& inputTypeNames,
     bool outerJoinState)
 {
-    TypeSerializer* namespaceSerializer = sourceMetaInfo.getTypeSerializer(
-        {StateMetaInfoSnapshot::COMMON_NAMESPACE_SERIALIZER_KEY, SerializerJsonInfo::NAMESPACE_SERIALIZER_KEY});
+    TypeSerializer* namespaceSerializer = sourceMetaInfo.getNamespaceSerializer();
     if (namespaceSerializer == nullptr) {
         INFO_RELEASE(
             "Error: StreamingJoinSavepointUtil::createFlinkMapStateSnapshot ->"
@@ -904,6 +921,45 @@ inline bool StreamingJoinSavepointUtil::isValidFlinkSerializedRowPayload(
         }
     }
     return true;
+}
+
+// ===== WindowJoin 兼容格式适配器类型检测 =====
+
+inline std::string StreamingJoinSavepointUtil::validateWindowJoinFields(const nlohmann::json& description)
+{
+    if (!description.contains(LEFT_INPUT_TYPES_FIELD) || !description.contains(RIGHT_INPUT_TYPES_FIELD)) {
+        return "WindowJoin compatible savepoint requires leftInputTypes and rightInputTypes";
+    }
+    if (!isAllOfSupportedInputTypes(description, LEFT_INPUT_TYPES_FIELD) ||
+        !isAllOfSupportedInputTypes(description, RIGHT_INPUT_TYPES_FIELD)) {
+        return "WindowJoin compatible savepoint only supports BIGINT, VARCHAR/STRING and TIMESTAMP input fields";
+    }
+    if (!description.contains(LEFT_JOIN_KEY_FIELD) || !description.contains(RIGHT_JOIN_KEY_FIELD)) {
+        return "WindowJoin compatible savepoint requires leftJoinKey and rightJoinKey fields";
+    }
+    if (!description.contains(LEFT_WINDOW_END_INDEX_FIELD) || !description.contains(RIGHT_WINDOW_END_INDEX_FIELD)) {
+        return "WindowJoin compatible savepoint requires leftWindowEndIndex and rightWindowEndIndex";
+    }
+    return "";
+}
+
+inline FlinkSavepointAdaptorType StreamingJoinSavepointUtil::getWindowJoinAdaptorType(const nlohmann::json& description)
+{
+    // 验证 WindowJoin 特有字段完整性
+    if (!validateWindowJoinFields(description).empty()) {
+        return FlinkSavepointAdaptorType::None;
+    }
+
+    return FlinkSavepointAdaptorType::WindowJoinAdaptor;
+}
+
+inline std::string StreamingJoinSavepointUtil::buildWindowJoinUnsupportedReason(const nlohmann::json& description)
+{
+    const std::string reason = validateWindowJoinFields(description);
+    if (!reason.empty()) {
+        return reason;
+    }
+    return "WindowJoin compatible savepoint adaptor is outside the current supported boundary";
 }
 
 } // namespace omnistream

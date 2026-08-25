@@ -37,6 +37,7 @@ enum class SerializerType {
     ROW = 15,                  /* use fields [type, logicalType] */
     BINARY_ROW = 16,           /* use fields [type, fieldNames] */
     EXTERNAL = 17,             /* use fields [type, logicalType, valueSerializer, serializerAttributes] */
+    TIME_WINDOW = 18,          /* use fields [type, elementType] */
 };
 
 struct SerializerAttributes {
@@ -60,7 +61,8 @@ struct SerializerAttributes {
 };
 
 struct SerializerJsonInfo {
-    // serializer JSON 和状态 snapshot 中使用的字段 key。
+    // C++ serializer JSON / JNI metadata 协议使用的字段 key。
+    // StateMetaInfoSnapshot 内部使用 Flink canonical CommonSerializerKeys。
     static constexpr const char* TYPE_KEY = "type";
     static constexpr const char* ELEMENT_TYPE_KEY = "element_type";
     static constexpr const char* KEY_SERIALIZER_KEY = "keySerializer";
@@ -118,7 +120,7 @@ public:
         }
 
         nlohmann::json fieldTypesJson = nlohmann::json::array();
-        for (auto i = 0; i < fieldSerializers.size(); i++) {
+        for (size_t i = 0; i < fieldSerializers.size(); i++) {
             nlohmann::json fieldJson;
             auto fieldName = fieldNames[i];
             auto fieldSerializer = fieldSerializers[i];
