@@ -23,7 +23,7 @@
 </tr>
 <tr id="row9474193915114"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.1 "><p id="p1247463911110"><a name="p1247463911110"></a><a name="p1247463911110"></a>JDK</p>
 </td>
-<td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.2 "><p id="p1347433931113"><a name="p1347433931113"></a><a name="p1347433931113"></a>1.8.0_342</p>
+<td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.2 "><p id="p1347433931113"><a name="p1347433931113"></a><a name="p1347433931113"></a>17.0.18</p>
 </td>
 </tr>
 <tr id="row647473913118"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.1 "><p id="p3474153914116"><a name="p3474153914116"></a><a name="p3474153914116"></a>zlib</p>
@@ -33,7 +33,7 @@
 </tr>
 <tr id="row12474183911120"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.1 "><p id="p19474173917114"><a name="p19474173917114"></a><a name="p19474173917114"></a>LLVM</p>
 </td>
-<td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.2 "><p id="p9474143931119"><a name="p9474143931119"></a><a name="p9474143931119"></a>12.0.1</p>
+<td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.2 "><p id="p9474143931119"><a name="p9474143931119"></a><a name="p9474143931119"></a>15</p>
 </td>
 </tr>
 <tr id="row114741039161113"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.1 "><p id="p447410393119"><a name="p447410393119"></a><a name="p447410393119"></a>googletest</p>
@@ -51,7 +51,7 @@
 <td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.2 "><p id="p3474739121110"><a name="p3474739121110"></a><a name="p3474739121110"></a>3.11.3</p>
 </td>
 </tr>
-<tr id="row4474639131117"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.1 "><p id="p647453931110"><a name="p647453931110"></a><a name="p647453931110"></a>libboundscheck</p>
+<tr id="row4474639131117"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.1 "><p id="p647453931110"><a name="p647453931110"></a><a name="p647453931110"></a><a href="https://gitee.com/openeuler/libboundscheck.git">libboundscheck</a></p>
 </td>
 <td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.2 "><p id="p147415395116"><a name="p147415395116"></a><a name="p147415395116"></a>V1.1.16</p>
 </td>
@@ -66,14 +66,14 @@
 <td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.2 "><p id="p1747443961114"><a name="p1747443961114"></a><a name="p1747443961114"></a>1.1.10</p>
 </td>
 </tr>
-<tr id="row3474139111116"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.1 "><p id="p94749399115"><a name="p94749399115"></a><a name="p94749399115"></a>rocksdb</p>
+<tr id="row3474139111116"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.1 "><p id="p94749399115"><a name="p94749399115"></a><a name="p94749399115"></a><a href="https://gitee.com/mirrors/rocksdb.git">rocksdb</a></p>
 </td>
 <td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.2 "><p id="p174741339121113"><a name="p174741339121113"></a><a name="p174741339121113"></a>8.11.4</p>
 </td>
 </tr>
 <tr id="row154740392119"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.1 "><p id="p104741439191118"><a name="p104741439191118"></a><a name="p104741439191118"></a>BoostKit-kaccjson</p>
 </td>
-<td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.2 "><p id="p1147423916119"><a name="p1147423916119"></a><a name="p1147423916119"></a>1.0.0</p>
+<td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.2 "><p id="p1147423916119"><a name="p1147423916119"></a><a name="p1147423916119"></a>1.1.0</p>
 </td>
 </tr>
 <tr id="row1147418391119"><td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.1 "><p id="p847513911117"><a name="p847513911117"></a><a name="p847513911117"></a>BoostKit-ksl</p>
@@ -81,22 +81,48 @@
 <td class="cellrowborder" valign="top" width="50%" headers="mcps1.1.3.1.2 "><p id="p64751439141116"><a name="p64751439141116"></a><a name="p64751439141116"></a>2.5.1</p>
 </td>
 </tr>
+<tr><td><p><a href="https://gitee.com/mirrors/re2.git">RE2</a></p></td><td><p>2023-09-01</p></td></tr>
+<tr><td><p><a href="https://github.com/Cyan4973/xxHash.git">xxHash</a></p></td><td><p>0.8.2</p></td></tr>
+<tr><td><p><a href="https://gitee.com/mirrors/librdkafka.git">librdkafka</a></p></td><td><p>2.6.1</p></td></tr>
+<tr><td><p>OmniRuntime</p></td><td><p>1.3.0</p></td></tr>
 </tbody>
 </table>
 
+源码编译时，libboundscheck需要构建动态库，RocksDB需要启用`USE_RTTI=1`，
+RE2需要使用C++17，xxHash使用`cmake_unofficial`目录构建，librdkafka需要
+应用`cpp/connector/kafka/omni_kafka_opt.patch`。
+
+#### 依赖路径
+
+OmniStream默认从`$HOME/opt/lib`查找OmniRuntime动态库，并从
+`$HOME/OmniOperatorJIT`引用OmniOperator头文件。源码编译的依赖、KACC JSON及
+LLVM 15运行库可安装到`/usr/local`。
+
+编译OmniStream前需要配置OmniOperator，以生成`core/config.h`：
+
+```bash
+cmake -S "$HOME/OmniOperatorJIT" \
+  -B "$HOME/OmniOperatorJIT/build" \
+  -DEXCLUDE_TEST=ON
+```
+
 ### 编译命令
+
+下文中的`/opt/build/OmniStream`为源码目录示例，需要按实际克隆目录替换。
 
 1. 编译OmniStream前需要编译OmniAdaptor代码，编译命令如下。
 
     ```bash
     mkdir -p /opt/build && cd /opt/build
-    cd omnistream/omniop-flink-extension/omni-flink-bundle
+    git clone https://gitcode.com/openeuler/OmniAdaptor.git
+    cd OmniAdaptor/omnistream/omniop-flink-extension/omni-flink-bundle
     mvn clean package -DskipTests
     ```
 
 2. OmniStream编译命令如下。
 
     ```bash
+    export HOME=/opt/build
     cd /opt/build/OmniStream/cpp
     mkdir build
     cd build
@@ -106,6 +132,15 @@
 
     >**说明：**
     >$PARALLELISM表示编译指定并行度。
+
+### 单元测试
+
+完成上述编译后运行单元测试：
+
+```bash
+cd /opt/build/OmniStream/cpp/build/test
+./tneltest --gtest_color=no
+```
 
 ## 环境部署
 
