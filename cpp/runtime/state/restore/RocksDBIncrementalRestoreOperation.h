@@ -175,8 +175,6 @@ private:
 
         Path path = localKeyedStateHandle->GetDirectoryStateHandle()->getDirectory();
         std::filesystem::path restoreSourcePath = path.toString();
-
-        LOG("localKeyedStateHandle path!" << restoreSourcePath);
         rocksHandle_->openDB(
             createColumnFamilyDescriptors(stateMetaInfoSnapshots, false), stateMetaInfoSnapshots, restoreSourcePath);
     }
