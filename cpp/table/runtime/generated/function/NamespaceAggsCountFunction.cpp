@@ -43,10 +43,48 @@ void NamespaceAggsCountFunction<N>::accumulate(RowData* input)
 }
 
 template <typename N>
+void NamespaceAggsCountFunction<N>::accumulate(
+    const std::vector<omnistream::VectorBatch*>& inputBatches, const std::vector<int64_t>& indices)
+{
+    for (auto combinedId : indices) {
+        if (this->argIndexes_.empty()) {
+            ++count_;
+            continue;
+        }
+
+        int batchId = VectorBatchUtil::getBatchId(combinedId);
+        int rowId = VectorBatchUtil::getRowId(combinedId);
+        auto& targetBatch = inputBatches[batchId];
+        if (!targetBatch->Get(this->singleArgIndex())->IsNull(rowId)) {
+            ++count_;
+        }
+    }
+}
+
+template <typename N>
 void NamespaceAggsCountFunction<N>::retract(RowData* input)
 {
     if (this->argIndexes_.empty() || !input->isNullAt(this->singleArgIndex())) {
         --count_;
+    }
+}
+
+template <typename N>
+void NamespaceAggsCountFunction<N>::retract(
+    const std::vector<omnistream::VectorBatch*>& inputBatches, const std::vector<int64_t>& indices)
+{
+    for (auto combinedId : indices) {
+        if (this->argIndexes_.empty()) {
+            --count_;
+            continue;
+        }
+
+        int batchId = VectorBatchUtil::getBatchId(combinedId);
+        int rowId = VectorBatchUtil::getRowId(combinedId);
+        auto& targetBatch = inputBatches[batchId];
+        if (!targetBatch->Get(this->singleArgIndex())->IsNull(rowId)) {
+            --count_;
+        }
     }
 }
 

@@ -169,6 +169,16 @@ bool JoinedRowData::operator==(const RowData& other) const
     return this->row1 == castedOther->row1 && this->row2 == castedOther->row2;
 }
 
+void JoinedRowData::setRow1(RowData* row1_)
+{
+    this->row1 = row1_;
+}
+
+void JoinedRowData::setRow2(RowData* row2_)
+{
+    this->row2 = row2_;
+}
+
 void JoinedRowData::setLong(int pos, long value)
 {
     if (pos < row1->getArity()) {
