@@ -12,21 +12,71 @@
 #include "DynamicKafkaRecordSerializationSchema.h"
 #include "data/vectorbatch/VectorBatch.h"
 #include <algorithm>
+#include <regex>
+
+namespace {
+bool IsDecimalType(const std::string& inputType)
+{
+    return inputType.rfind("DECIMAL", 0) == 0;
+}
+
+bool IsJsonDecimalNumber(const std::string& value)
+{
+    size_t index = 0;
+    if (index < value.size() && value[index] == '-') {
+        ++index;
+    }
+    if (index == value.size()) {
+        return false;
+    }
+
+    if (value[index] == '0') {
+        ++index;
+    } else {
+        if (value[index] < '1' || value[index] > '9') {
+            return false;
+        }
+        while (index < value.size() && value[index] >= '0' && value[index] <= '9') {
+            ++index;
+        }
+    }
+
+    if (index == value.size()) {
+        return true;
+    }
+    if (value[index] != '.') {
+        return false;
+    }
+    ++index;
+    if (index == value.size()) {
+        return false;
+    }
+    while (index < value.size() && value[index] >= '0' && value[index] <= '9') {
+        ++index;
+    }
+    return index == value.size();
+}
+} // namespace
 
 DynamicKafkaRecordSerializationSchema::DynamicKafkaRecordSerializationSchema(
     std::vector<std::string>& inputFields, std::vector<std::string>& inputTypes)
     : inputFields_(inputFields),
       inputTypes_(inputTypes)
 {
-    std::regex pattern(R"(DECIMAL\d+\((\d+),\s*(\d+)\))");
+    std::regex pattern(R"(DECIMAL(?:64|128)?\s*\((\d+)\s*,\s*(\d+)\))");
     std::smatch match;
 
-    for (const std::string& inputType : inputTypes) {
+    for (size_t i = 0; i < inputTypes.size(); ++i) {
+        const std::string& inputType = inputTypes[i];
+        serializedFieldNames_.emplace_back(nlohmann::ordered_json(inputFields[i]).dump());
         if (std::regex_search(inputType, match, pattern)) {
             int precision = std::stoi(match[1].str());
             int scale = std::stoi(match[2].str());
             decimalInfo.emplace_back(precision, scale);
         } else {
+            if (IsDecimalType(inputType)) {
+                INFO_RELEASE("Invalid decimal input type: " + inputType);
+            }
             decimalInfo.emplace_back(-1, -1);
         }
     }
@@ -74,6 +124,40 @@ void DynamicKafkaRecordSerializationSchema::RowToJson(omnistream::VectorBatch* i
     input->convertToJson(j, rowIndex, decimalInfo, inputTypes_, inputFields_);
 }
 
+std::string DynamicKafkaRecordSerializationSchema::dumpJsonWithExactDecimals() const
+{
+    std::string jsonStr = "{";
+
+    for (size_t i = 0; i < inputFields_.size(); ++i) {
+        if (i != 0) {
+            jsonStr += ',';
+        }
+
+        jsonStr += serializedFieldNames_[i];
+        jsonStr += ':';
+
+        const auto& value = j.at(inputFields_[i]);
+        if (!IsDecimalType(inputTypes_[i]) || value.is_null()) {
+            jsonStr += value.dump();
+            continue;
+        }
+
+        if (!value.is_string()) {
+            throw std::runtime_error("Decimal JSON value is not represented by an exact decimal string");
+        }
+        const auto& decimalValue = value.get_ref<const std::string&>();
+        if (!IsJsonDecimalNumber(decimalValue)) {
+            throw std::runtime_error("Invalid decimal JSON number: " + decimalValue);
+        }
+        // nlohmann::json only has double for non-integral numbers. Writing the validated
+        // decimal token directly avoids both JSON quotes and precision loss for DECIMAL128.
+        jsonStr += decimalValue;
+    }
+
+    jsonStr += '}';
+    return jsonStr;
+}
+
 KeyValueByteContainer DynamicKafkaRecordSerializationSchema::Serialize(RowData* consumedRow)
 {
     j.clear();
@@ -86,7 +170,7 @@ KeyValueByteContainer DynamicKafkaRecordSerializationSchema::Serialize(omnistrea
 {
     j.clear();
     RowToJson(input, rowIndex);
-    std::string jsonStr = j.dump();
+    std::string jsonStr = dumpJsonWithExactDecimals();
     return {nullptr, jsonStr.data()};
 }
 
