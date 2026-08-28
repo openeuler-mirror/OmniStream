@@ -202,3 +202,19 @@ TEST(LogicalTypeTest, FlinkTypeToOmniTypePreservesNullabilityAndParameters)
     EXPECT_TRUE(nullableVarchar->isNullable());
     EXPECT_EQ(nullableVarchar->toJson().at("length"), 128);
 }
+
+TEST(LogicalTypeTest, FlinkCharTypePreservesTypeIdAndLength)
+{
+    std::unique_ptr<LogicalType> nullableType(LogicalType::flinkTypeToOmniType("CHAR(12)"));
+
+    ASSERT_NE(nullableType, nullptr);
+    EXPECT_TRUE(nullableType->isNullable());
+    EXPECT_EQ(nullableType->getTypeId(), omniruntime::type::DataTypeId::OMNI_CHAR);
+    EXPECT_EQ(nullableType->toJson().at("length"), 12);
+
+    std::unique_ptr<LogicalType> notNullType(LogicalType::flinkTypeToOmniType("CHAR(8) NOT NULL"));
+    ASSERT_NE(notNullType, nullptr);
+    EXPECT_FALSE(notNullType->isNullable());
+    EXPECT_EQ(notNullType->getTypeId(), omniruntime::type::DataTypeId::OMNI_CHAR);
+    EXPECT_EQ(notNullType->toJson().at("length"), 8);
+}

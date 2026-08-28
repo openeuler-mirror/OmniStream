@@ -22,6 +22,22 @@ using omnistream::StreamingJoinSavepointUtil;
 
 namespace {
 
+nlohmann::json streamingJoinDescription()
+{
+    return {
+        {"joinType", "InnerJoin"},
+        {"leftInputSpec", "NoUniqueKey"},
+        {"rightInputSpec", "NoUniqueKey"},
+        {"leftUniqueKeys", nlohmann::json::array()},
+        {"rightUniqueKeys", nlohmann::json::array()},
+        {"leftInputTypes", {"BIGINT", "VARCHAR"}},
+        {"rightInputTypes", {"BIGINT"}},
+        {"leftJoinKey", {0}},
+        {"rightJoinKey", {0}},
+        {"filterNulls", {true}},
+    };
+}
+
 ByteView byteView(const std::vector<int8_t>& bytes)
 {
     return ByteView::fromBuffer(bytes.data(), bytes.size());
@@ -80,4 +96,32 @@ TEST(StreamingJoinSavepointUtilTest, RejectsNullTruncatedAndTrailingFlinkJoinPay
     auto flinkBytes = serializeFlinkMapValue(1, 0, false);
     flinkBytes.push_back(0);
     EXPECT_THROW(StreamingJoinSavepointUtil::parseFlinkJoinValue(byteView(flinkBytes), false), std::runtime_error);
+}
+
+TEST(StreamingJoinSavepointUtilTest, RejectsMalformedOrUnsupportedInputTypesAndJoinKeys)
+{
+    auto description = streamingJoinDescription();
+    EXPECT_EQ(
+        StreamingJoinSavepointUtil::getAdaptorType(description),
+        FlinkSavepointAdaptorType::StreamingJoinNoUniqueKeyAdaptor);
+
+    for (const auto& unsupportedType :
+         std::vector<nlohmann::json>{nlohmann::json(), nlohmann::json(""), nlohmann::json("CHAR(8)")}) {
+        description = streamingJoinDescription();
+        description[StreamingJoinSavepointUtil::LEFT_INPUT_TYPES_FIELD][1] = unsupportedType;
+        EXPECT_EQ(StreamingJoinSavepointUtil::getAdaptorType(description), FlinkSavepointAdaptorType::None);
+        EXPECT_EQ(
+            StreamingJoinSavepointUtil::buildUnsupportedReason(description),
+            "StreamingJoin compatible savepoint only supports BIGINT, VARCHAR/STRING and TIMESTAMP input fields "
+            "with precision <= 3");
+    }
+
+    for (const auto& invalidJoinKey : {nlohmann::json(-1), nlohmann::json(2), nlohmann::json("0")}) {
+        description = streamingJoinDescription();
+        description[StreamingJoinSavepointUtil::LEFT_JOIN_KEY_FIELD] = {invalidJoinKey};
+        EXPECT_EQ(StreamingJoinSavepointUtil::getAdaptorType(description), FlinkSavepointAdaptorType::None);
+        EXPECT_EQ(
+            StreamingJoinSavepointUtil::buildUnsupportedReason(description),
+            "StreamingJoin compatible savepoint requires BIGINT join keys");
+    }
 }

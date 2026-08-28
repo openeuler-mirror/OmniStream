@@ -100,9 +100,6 @@ public:
     // 按固定校验顺序构造当前 StreamingJoin 不支持兼容格式互通的具体原因。
     static std::string buildUnsupportedReason(const nlohmann::json& description);
 
-    // 将 LogicalType 对象转换为公共 VectorBatch 恢复流程使用的数据类型标识。
-    static std::vector<omniruntime::type::DataTypeId> convertToDataTypes(const std::vector<LogicalType*>& logicalTypes);
-
     // 解析 Flink StreamingJoin MapState value，按 inner/left outer 状态布局读取计数字段。
     static ParsedJoinValue parseFlinkJoinValue(ByteView rawValue, bool outerJoinState);
 
@@ -200,27 +197,14 @@ inline std::string StreamingJoinSavepointUtil::buildUnsupportedReason(const nloh
     return "StreamingJoin compatible savepoint adaptor is outside the current supported boundary";
 }
 
-inline std::vector<omniruntime::type::DataTypeId> StreamingJoinSavepointUtil::convertToDataTypes(
-    const std::vector<LogicalType*>& logicalTypes)
-{
-    std::vector<omniruntime::type::DataTypeId> result;
-    result.reserve(logicalTypes.size());
-    for (const auto* logicalType : logicalTypes) {
-        result.push_back(
-            logicalType == nullptr ? omniruntime::type::DataTypeId::OMNI_INVALID
-                                   : static_cast<omniruntime::type::DataTypeId>(logicalType->getTypeId()));
-    }
-    return result;
-}
-
 inline StreamingJoinSavepointUtil::ParsedJoinValue StreamingJoinSavepointUtil::parseFlinkJoinValue(
     ByteView rawValue, bool outerJoinState)
 {
     if (rawValue.size() < 1 + sizeof(int32_t)) {
-        INFO_RELEASE(
-            "Error: StreamingJoinSavepointUtil::parseFlinkJoinValue -> valueSize="
-            << rawValue.size() << ", minimumValueSize=" << (1 + sizeof(int32_t))
-            << ", outerJoinState=" << outerJoinState);
+        ERROR_RELEASE(
+            "StreamingJoinSavepointUtil::parseFlinkJoinValue -> valueSize=" << rawValue.size() << ", minimumValueSize="
+                                                                            << (1 + sizeof(int32_t))
+                                                                            << ", outerJoinState=" << outerJoinState);
         throw std::runtime_error(
             "StreamingJoinSavepointUtil::parseFlinkJoinValue invalid Flink join value length=" +
             std::to_string(rawValue.size()));
@@ -229,8 +213,8 @@ inline StreamingJoinSavepointUtil::ParsedJoinValue StreamingJoinSavepointUtil::p
     DataInputDeserializer input(rawValue.data(), static_cast<int>(rawValue.size()), 0);
     bool isNull = input.readBoolean();
     if (isNull) {
-        INFO_RELEASE(
-            "Error: StreamingJoinSavepointUtil::parseFlinkJoinValue ->"
+        ERROR_RELEASE(
+            "StreamingJoinSavepointUtil::parseFlinkJoinValue ->"
             << " valueSize=" << rawValue.size() << ", isNull=" << isNull << ", outerJoinState=" << outerJoinState);
         throw std::runtime_error(
             "StreamingJoinSavepointUtil::parseFlinkJoinValue null Flink join value is not supported");
@@ -248,8 +232,8 @@ inline StreamingJoinSavepointUtil::ParsedJoinValue StreamingJoinSavepointUtil::p
         value.numAssociations = input.readInt();
         return value;
     }
-    INFO_RELEASE(
-        "Error: StreamingJoinSavepointUtil::parseFlinkJoinValue -> valueSize="
+    ERROR_RELEASE(
+        "StreamingJoinSavepointUtil::parseFlinkJoinValue -> valueSize="
         << rawValue.size() << ", remainingBytes=" << remaining << ", outerJoinState=" << outerJoinState);
     throw std::runtime_error(
         "StreamingJoinSavepointUtil::parseFlinkJoinValue unsupported Flink join value payload length=" +
@@ -264,8 +248,8 @@ inline std::shared_ptr<StateMetaInfoSnapshot> StreamingJoinSavepointUtil::create
 {
     TypeSerializer* namespaceSerializer = sourceMetaInfo.getNamespaceSerializer();
     if (namespaceSerializer == nullptr) {
-        INFO_RELEASE(
-            "Error: StreamingJoinSavepointUtil::createFlinkMapStateSnapshot ->"
+        ERROR_RELEASE(
+            "StreamingJoinSavepointUtil::createFlinkMapStateSnapshot ->"
             << " stateName=" << flinkStateName << ", namespaceSerializer=null"
             << ", inputTypeCount=" << inputTypeNames.size() << ", outerJoinState=" << outerJoinState);
         throw std::runtime_error(
@@ -273,8 +257,8 @@ inline std::shared_ptr<StateMetaInfoSnapshot> StreamingJoinSavepointUtil::create
             flinkStateName);
     }
     if (namespaceSerializer->getBackendId() != BackendDataType::VOID_NAMESPACE_BK) {
-        INFO_RELEASE(
-            "Error: StreamingJoinSavepointUtil::createFlinkMapStateSnapshot ->"
+        ERROR_RELEASE(
+            "StreamingJoinSavepointUtil::createFlinkMapStateSnapshot ->"
             << " stateName=" << flinkStateName << ", namespaceBackendId=" << namespaceSerializer->getBackendId()
             << ", inputTypeCount=" << inputTypeNames.size());
         throw std::runtime_error(
@@ -332,8 +316,8 @@ inline bool StreamingJoinSavepointUtil::hasSupportedJoinKeys(
         description[inputTypeField].empty()) {
         return false;
     }
-    const auto& inputTypes = description[inputTypeField];
-    if (!std::all_of(inputTypes.begin(), inputTypes.end(), [](const nlohmann::json& type) {
+    const auto& inputTypeNames = description[inputTypeField];
+    if (!std::all_of(inputTypeNames.begin(), inputTypeNames.end(), [](const nlohmann::json& type) {
             return type.is_string() && !type.get<std::string>().empty();
         })) {
         return false;
@@ -343,10 +327,10 @@ inline bool StreamingJoinSavepointUtil::hasSupportedJoinKeys(
             return false;
         }
         const auto index = key.get<int>();
-        if (index < 0 || index >= static_cast<int>(inputTypes.size()) || !inputTypes[index].is_string()) {
+        if (index < 0 || index >= static_cast<int>(inputTypeNames.size()) || !inputTypeNames[index].is_string()) {
             return false;
         }
-        const std::string typeName = inputTypes[index].get<std::string>();
+        const std::string typeName = inputTypeNames[index].get<std::string>();
         if (typeName.rfind("BIGINT", 0) != 0) {
             return false;
         }
@@ -392,8 +376,8 @@ inline bool StreamingJoinSavepointUtil::isAllOfSupportedInputTypes(
         description[inputTypeField].empty()) {
         return false;
     }
-    const auto& inputTypes = description[inputTypeField];
-    return std::all_of(inputTypes.begin(), inputTypes.end(), [](const nlohmann::json& type) {
+    const auto& inputTypeNames = description[inputTypeField];
+    return std::all_of(inputTypeNames.begin(), inputTypeNames.end(), [](const nlohmann::json& type) {
         return type.is_string() && StreamingJoinSavepointUtil::isSupportedInputType(type.get<std::string>());
     });
 }
