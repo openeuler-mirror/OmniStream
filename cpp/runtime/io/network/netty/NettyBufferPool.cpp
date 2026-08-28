@@ -34,14 +34,16 @@ std::shared_ptr<NettyBufferInfo> NettyBufferPool::RequestBuffer()
     return info_ptr; // return shared_ptr directly
 }
 
-std::shared_ptr<NettyBufferInfo> NettyBufferPool::RequestBigBuffer(int batchSize)
+std::shared_ptr<NettyBufferInfo> NettyBufferPool::RequestBigBuffer(int bufferSize)
 {
-    int newSize = batchSize + NettyBufferInfo::elementNumBytes;
-    LOG("request big size buffer from NettyBufferPool:: " << batchSize
+    LOG("request big size buffer from NettyBufferPool:: " << bufferSize
                                                           << " remain regular pool size::" << bufferPool_.size());
     std::lock_guard<std::recursive_mutex> lock(nettyBufferPoolMtx_); // added for concurrency
-    uint8_t* newBuffer = new uint8_t[newSize]{};
-    auto info_ptr = std::make_shared<NettyBufferInfo>(newBuffer, newSize);
+    if (bufferSize_ > MAX_BUFFER_SIZE) {
+        THROW_RUNTIME_ERROR("the size of buffer exceeds " << MAX_BUFFER_SIZE);
+    }
+    uint8_t* newBuffer = new uint8_t[bufferSize]{};
+    auto info_ptr = std::make_shared<NettyBufferInfo>(newBuffer, bufferSize);
     allBuffers_.insert({reinterpret_cast<long>(newBuffer), info_ptr});
     return info_ptr; // return shared_ptr directly
 }
