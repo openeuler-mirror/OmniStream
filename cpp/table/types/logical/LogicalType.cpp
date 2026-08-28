@@ -13,6 +13,7 @@
 #include <mutex>
 #include <stdexcept>
 
+#include "CharType.h"
 #include "LogicTypeUtils.h"
 #include "LogicalType.h"
 #include "RawType.h"
@@ -127,6 +128,9 @@ LogicalType* LogicalType::flinkTypeToOmniType(const std::string& flinkType)
     std::string basicStrippedType = LogicTypeUtils::stripFlinkTypeExtras(flinkType);
     nlohmann::json options = LogicTypeUtils::optionsFromFlinkType(basicStrippedType);
     const bool isNullable = !LogicTypeUtils::isNotNullType(flinkType);
+    // Nullability is encoded as a suffix in Flink's type string. Preserve it in
+    // the options consumed by every BasicLogicalType construction branch.
+    options["nullable"] = isNullable;
 
     if (LogicTypeUtils::startsWith(basicStrippedType, "RAW(")) {
         return parseRawType(flinkType, basicStrippedType, isNullable);
@@ -214,7 +218,10 @@ bool LogicalType::isSharedLogicalType(const LogicalType* logicalType)
            logicalType == BasicLogicalType::TIMESTAMP_WITHOUT_TIME_ZONE ||
            logicalType == BasicLogicalType::TIMESTAMP_WITH_TIME_ZONE ||
            logicalType == BasicLogicalType::TIMESTAMP_WITH_LOCAL_TIME_ZONE ||
-           logicalType == BasicLogicalType::TIMESTAMP || logicalType == BasicLogicalType::INVALID_TYPE;
+           logicalType == BasicLogicalType::TIMESTAMP ||
+           logicalType == BasicLogicalType::INTERVAL_YEAR_MONTH ||
+           logicalType == BasicLogicalType::INTERVAL_DAY_TIME ||
+           logicalType == BasicLogicalType::INVALID_TYPE;
 }
 
 void LogicalType::buildNameToIdMap()
@@ -273,6 +280,10 @@ BasicLogicalType* BasicLogicalType::TIMESTAMP_WITHOUT_TIME_ZONE = new TimestampW
 BasicLogicalType* BasicLogicalType::TIMESTAMP_WITH_TIME_ZONE = new TimestampWithTimeZoneType(true);
 BasicLogicalType* BasicLogicalType::TIMESTAMP_WITH_LOCAL_TIME_ZONE = new TimestampWithLocalTimeZoneType(true);
 BasicLogicalType* BasicLogicalType::TIMESTAMP = new TimestampWithLocalTimeZoneType(true);
+BasicLogicalType* BasicLogicalType::INTERVAL_YEAR_MONTH =
+    new BasicLogicalType(true, DataTypeId::OMNI_INTERVAL_MONTHS, "INTERVAL_YEAR_MONTH");
+BasicLogicalType* BasicLogicalType::INTERVAL_DAY_TIME =
+    new BasicLogicalType(true, DataTypeId::OMNI_INTERVAL_DAY_TIME, "INTERVAL_DAY_TIME");
 BasicLogicalType* BasicLogicalType::INVALID_TYPE = new BasicLogicalType(true, DataTypeId::OMNI_INVALID, "UNRESOLVED");
 
 LogicalType* BasicLogicalType::getTypeBy(DataTypeId typeId, const nlohmann::json& options)
@@ -320,6 +331,7 @@ LogicalType* BasicLogicalType::getTypeBy(DataTypeId typeId, const nlohmann::json
             }
             break;
         }
+        case DataTypeId::OMNI_CHAR:
         case DataTypeId::OMNI_VARCHAR:
         case DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE:
         case DataTypeId::OMNI_TIMESTAMP:
@@ -363,6 +375,11 @@ LogicalType* BasicLogicalType::getTypeBy(std::optional<bool> nullable, DataTypeI
         }
         case DataTypeId::OMNI_LONG: {
             type = new BasicLogicalType(isNullable, DataTypeId::OMNI_LONG, "BIGINT");
+            break;
+        }
+        case DataTypeId::OMNI_CHAR: {
+            int length = options.value("length", 1);
+            type = new CharType(isNullable, length);
             break;
         }
         case DataTypeId::OMNI_VARCHAR: {

@@ -35,6 +35,22 @@ using ::testing::Throw;
 
 namespace {
 
+// 用于测试 getKeyGroupRange() 返回 nullptr 的 FullSnapshotResources 实现。
+// 继承 CompatibleSavepointTestFullSnapshotResources 以匹配 makeResources 的参数类型。
+class NullKeyGroupRangeResources
+    : public compatible_savepoint_test::CompatibleSavepointTestFullSnapshotResources {
+public:
+    explicit NullKeyGroupRangeResources(bool withMetaInfo)
+        : CompatibleSavepointTestFullSnapshotResources(withMetaInfo)
+    {
+    }
+
+    KeyGroupRange* getKeyGroupRange() override
+    {
+        return nullptr;
+    }
+};
+
 class RecordingAdaptor : public omnistream::OperatorSavepointAdaptor {
 public:
     explicit RecordingAdaptor(std::vector<std::string>* events) : events_(events)
@@ -309,4 +325,47 @@ TEST_F(CompatibleFullSnapshotAsyncWriterTest, NullBridgeFailsAfterValidationWith
     EXPECT_EQ(events_, std::vector<std::string>({"validate"}));
     EXPECT_EQ(adaptorPtr->validatedMetaCount_, 1U);
     EXPECT_FALSE(adaptorPtr->sawSave_);
+}
+
+// 看护构造器拒绝空 checkpointOptions，确保 async 阶段不会在空 options 上解引用。
+TEST_F(CompatibleFullSnapshotAsyncWriterTest, ConstructorThrowsForNullCheckpointOptions)
+{
+    auto source = std::make_shared<compatible_savepoint_test::CompatibleSavepointTestFullSnapshotResources>(true);
+    auto adaptor = std::make_unique<RecordingAdaptor>(&events_);
+    auto resources = makeResources(source, std::make_unique<RecordingAdaptor>(&events_));
+
+    EXPECT_THROW(
+        (CompatibleFullSnapshotAsyncWriter(42L, nullptr, resources, "key-ser", std::move(adaptor))),
+        std::invalid_argument);
+}
+
+// 看护构造器拒绝空 snapshotResources，确保 async 阶段不会在空资源上解引用。
+TEST_F(CompatibleFullSnapshotAsyncWriterTest, ConstructorThrowsForNullSnapshotResources)
+{
+    auto adaptor = std::make_unique<RecordingAdaptor>(&events_);
+
+    EXPECT_THROW(
+        (CompatibleFullSnapshotAsyncWriter(42L, checkpointOptions_.get(), nullptr, "key-ser", std::move(adaptor))),
+        std::invalid_argument);
+}
+
+// 看护构造器拒绝空 adaptor，确保 async 阶段不会在空 adaptor 上解引用。
+TEST_F(CompatibleFullSnapshotAsyncWriterTest, ConstructorThrowsForNullAdaptor)
+{
+    auto source = std::make_shared<compatible_savepoint_test::CompatibleSavepointTestFullSnapshotResources>(true);
+    auto resources = makeResources(source, std::make_unique<RecordingAdaptor>(&events_));
+
+    EXPECT_THROW(
+        (CompatibleFullSnapshotAsyncWriter(42L, checkpointOptions_.get(), resources, "key-ser", nullptr)),
+        std::invalid_argument);
+}
+
+// 看护 get() 在源资源 keyGroupRange 为 nullptr 时 fail-fast，避免后续写入空 range 偏移量。
+TEST_F(CompatibleFullSnapshotAsyncWriterTest, GetThrowsWhenKeyGroupRangeIsNull)
+{
+    auto source = std::make_shared<NullKeyGroupRangeResources>(true);
+    auto resources = makeResources(source, std::make_unique<RecordingAdaptor>(&events_));
+    auto writer = makeWriter(resources, std::make_unique<RecordingAdaptor>(&events_));
+
+    EXPECT_THROW(writer->get(bridge_), std::runtime_error);
 }

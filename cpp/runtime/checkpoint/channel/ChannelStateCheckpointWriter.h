@@ -114,6 +114,7 @@ private:
     std::set<SubtaskID> subtasksToRegister;
     CheckpointStateOutputStream* checkpointStream;
     char* dataStream;
+    int64_t streamOffset;
     std::exception_ptr throwable;
 
     bool IsDone() const;
@@ -134,14 +135,11 @@ private:
             LOG_DEBUG("void Write.");
             throw std::logic_error("Precondition failed for " + action);
         }
-        int64_t offset = 0;
-        serializer->WriteData(dataStream, buffer, offset);
-        if (offset == sizeof(int)) {
-            checkpointStream->Write(dataStream, buffer->GetSize() + sizeof(int) + sizeof(int));
-        } else {
-            checkpointStream->Write(dataStream + offset, buffer->GetSize() + sizeof(int));
-        }
-        int64_t size = buffer->GetSize() + sizeof(int);
+        std::vector<char> serializedData = serializer->SerializeData(buffer);
+        int64_t offset = streamOffset;
+        checkpointStream->Write(serializedData.data(), serializedData.size());
+        int64_t size = static_cast<int64_t>(serializedData.size());
+        streamOffset += size;
         auto it = offsets.find(key);
         if (it != offsets.end()) {
             it->second.WithDataAdded(offset, size);

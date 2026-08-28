@@ -154,11 +154,12 @@ void RocksDBRestoreKVStateVB<K>::writeComboIdList(
 template <typename K>
 omnistream::ComboId RocksDBRestoreKVStateVB<K>::appendRowToVectorBatch(const RowDataView& row)
 {
-    if (row.valueBytes == nullptr || row.columnTypes == nullptr) {
+    ByteView rowData = row.bytes();
+    if (rowData.data() == nullptr || row.columnTypes == nullptr) {
         throw std::runtime_error("RocksDBRestoreKVStateVB: RowDataView has null valueBytes or columnTypes");
     }
     omnistream::ComboId comboId = VectorBatchRestoreUtil::appendRowToVectorBatch(
-        vbState_, *row.valueBytes, columnTypes_, vectorBatchSize_, ctx_.keyGroupId);
+        vbState_, rowData, columnTypes_, vectorBatchSize_, ctx_.keyGroupId);
     if (comboId == omnistream::INVALID_COMBO_ID) {
         INFO_RELEASE(
             "RocksDBRestoreKVStateVB: Error: appendRowToVectorBatch failed for kvStateId="
@@ -267,6 +268,14 @@ void RocksDBRestoreKVStateVB<K>::discardVectorBatch()
 template <typename K>
 void RocksDBRestoreKVStateVB<K>::discardMainWriter()
 {
+    if (mainWriter_ != nullptr) {
+        uint32_t pendingEntries = mainWriter_->Discard();
+        if (pendingEntries > 0) {
+            INFO_RELEASE(
+                "RocksDBRestoreKVStateVB: discard main writer kvStateId=" << kvStateId_
+                                                                          << ", pendingEntries=" << pendingEntries);
+        }
+    }
     mainWriter_.reset();
 }
 } // namespace omnistream

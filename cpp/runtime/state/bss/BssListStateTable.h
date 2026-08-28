@@ -275,8 +275,23 @@ public:
 
     std::vector<omnistream::VectorBatch*> getVectorBatches(int32_t keyGroup)
     {
-        bss_adapter::ThrowWithLog<std::logic_error>(
-            "BssListStateTable::getVectorBatches is not implemented for this state type");
+        std::vector<omnistream::VectorBatch*> batches;
+        const auto nextSequenceNumber = getNextSequenceNumber(keyGroup);
+        batches.reserve(nextSequenceNumber);
+        try {
+            for (uint32_t sequenceNumber = 0; sequenceNumber < nextSequenceNumber; ++sequenceNumber) {
+                auto* batch = getVectorBatch(keyGroup, sequenceNumber);
+                if (batch != nullptr) {
+                    batches.push_back(batch);
+                }
+            }
+        } catch (...) {
+            for (auto* batch : batches) {
+                delete batch;
+            }
+            throw;
+        }
+        return batches;
     }
 
     void clearVectorBatches(int64_t currentTimestamp)

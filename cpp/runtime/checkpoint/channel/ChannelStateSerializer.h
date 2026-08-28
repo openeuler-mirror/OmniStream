@@ -21,7 +21,11 @@
 #include "include/basictypes/java_io_InputStream.h"
 #include "runtime/buffer/BufferBuilder.h"
 #include "runtime/buffer/ObjectBuffer.h"
+#include "runtime/buffer/VectorBatchBuffer.h"
 #include "state/memory/ByteStreamStateHandle.h"
+#include "table/utils/VectorBatchSerializationUtils.h"
+#include "streaming/runtime/streamrecord/StreamElement.h"
+#include "streaming/api/watermark/Watermark.h"
 
 namespace omnistream {
 class ChannelStateByteBuffer;
@@ -31,6 +35,13 @@ public:
 
     virtual void WriteHeader(char* dataStream) = 0;
     virtual void WriteData(char* dataStream, Buffer* buffer, int64_t& oldOffset) = 0;
+
+    virtual std::vector<char> SerializeData(Buffer* buffer)
+    {
+        (void)buffer;
+        throw std::runtime_error("SerializeData is not implemented by this ChannelStateSerializer");
+    }
+
     virtual int64_t GetHeaderLength() const = 0;
 
     virtual void ReadHeader(std::ifstream& stream) = 0;
@@ -46,6 +57,8 @@ public:
         int bytes) = 0;
 
     virtual std::vector<char> ExtractAndMerge(const std::vector<char>& bytes, const std::vector<long>& offsets) = 0;
+
+    virtual int getSize(Buffer* buffers) = 0;
 };
 
 class ChannelStateSerializerImpl : public ChannelStateSerializer {
@@ -70,28 +83,214 @@ public:
         lenBytes[3] = static_cast<uint8_t>(size & 0xFF);
 
         auto segment = buffers->GetSegment();
-        auto memorySegment = dynamic_cast<MemorySegment*>(segment);
-        if (memorySegment == nullptr) {
-            throw std::runtime_error("ChannelStateSerializerImpl::WriteData requires MemorySegment-backed buffer");
+        if (segment->isObjectSegment()) {
+            auto objectSegment = static_cast<ObjectSegment*>(segment);
+            auto serializedData = serializeObjectSegment(objectSegment, size, buffers->GetOffset(), buffers->GetSize());
+            oldOffset = offset.fetch_add(sizeof(lenBytes));
+            int64_t newOffset = oldOffset;
+            memcpy_s(
+                dataStream + newOffset, memSize - newOffset, reinterpret_cast<const char*>(lenBytes), sizeof(lenBytes));
+            newOffset = offset.fetch_add(size);
+            memcpy_s(
+                dataStream + newOffset,
+                memSize - newOffset,
+                reinterpret_cast<const char*>(serializedData.data()),
+                size);
+        } else {
+            auto memorySegment = dynamic_cast<MemorySegment*>(segment);
+            if (memorySegment == nullptr) {
+                throw std::runtime_error("ChannelStateSerializerImpl::WriteData requires MemorySegment-backed buffer");
+            }
+            oldOffset = offset.fetch_add(sizeof(lenBytes));
+            int64_t newOffset = oldOffset;
+            memcpy_s(
+                dataStream + newOffset, memSize - newOffset, reinterpret_cast<const char*>(lenBytes), sizeof(lenBytes));
+            newOffset = offset.fetch_add(size);
+            auto memsegoff = buffers->GetOffset();
+            memcpy_s(
+                dataStream + newOffset,
+                memSize - newOffset,
+                reinterpret_cast<const char*>(memorySegment->getData()) + memsegoff,
+                size);
         }
-        oldOffset = offset.fetch_add(sizeof(lenBytes));
-        int64_t newOffset = oldOffset;
-        memcpy_s(
-            dataStream + newOffset, memSize - newOffset, reinterpret_cast<const char*>(lenBytes), sizeof(lenBytes));
-        newOffset = offset.fetch_add(size);
-        auto memsegoff = buffers->GetOffset();
-        memcpy_s(
-            dataStream + newOffset,
-            memSize - newOffset,
-            reinterpret_cast<const char*>(memorySegment->getData()) + memsegoff,
-            size);
     }
 
-    int getSize(Buffer* buffers)
+    std::vector<char> SerializeData(Buffer* buffers) override
     {
-        int len = 0;
-        len += buffers->GetSize();
-        return len;
+        if (buffers == nullptr) {
+            throw std::invalid_argument("ChannelStateSerializerImpl::SerializeData requires non-null buffer");
+        }
+
+        int32_t size = getSize(buffers);
+        if (size < 0) {
+            throw std::runtime_error("ChannelStateSerializerImpl::SerializeData got negative size");
+        }
+
+        uint8_t lenBytes[4];
+        (void)memset_s(lenBytes, sizeof(lenBytes), 0, sizeof(lenBytes));
+        lenBytes[0] = static_cast<uint8_t>((size >> 24) & 0xFF);
+        lenBytes[1] = static_cast<uint8_t>((size >> 16) & 0xFF);
+        lenBytes[2] = static_cast<uint8_t>((size >> 8) & 0xFF);
+        lenBytes[3] = static_cast<uint8_t>(size & 0xFF);
+
+        std::vector<char> serialized(sizeof(lenBytes) + static_cast<size_t>(size));
+        errno_t ret =
+            memcpy_s(serialized.data(), serialized.size(), reinterpret_cast<const char*>(lenBytes), sizeof(lenBytes));
+        if (ret != EOK) {
+            throw std::runtime_error("Failed to serialize channel-state length");
+        }
+
+        if (size == 0) {
+            return serialized;
+        }
+
+        char* payload = serialized.data() + sizeof(lenBytes);
+        size_t payloadCapacity = serialized.size() - sizeof(lenBytes);
+        auto segment = buffers->GetSegment();
+        if (segment->isObjectSegment()) {
+            auto objectSegment = static_cast<ObjectSegment*>(segment);
+            auto serializedData = serializeObjectSegment(objectSegment, size, buffers->GetOffset(), buffers->GetSize());
+            ret = memcpy_s(
+                payload, payloadCapacity, reinterpret_cast<const char*>(serializedData.data()), serializedData.size());
+        } else {
+            auto memorySegment = dynamic_cast<MemorySegment*>(segment);
+            if (memorySegment == nullptr) {
+                throw std::runtime_error(
+                    "ChannelStateSerializerImpl::SerializeData requires MemorySegment-backed buffer");
+            }
+            auto memsegoff = buffers->GetOffset();
+            ret = memcpy_s(
+                payload, payloadCapacity, reinterpret_cast<const char*>(memorySegment->getData()) + memsegoff, size);
+        }
+        if (ret != EOK) {
+            throw std::runtime_error("Failed to serialize channel-state payload");
+        }
+        return serialized;
+    }
+
+    std::vector<uint8_t> serializeObjectSegment(
+        ObjectSegment* objectSegment, int32_t totalSize, int offset, size_t elementNum)
+    {
+        std::vector<uint8_t> data(totalSize);
+        uint8_t* buffer = data.data();
+        memcpy_s(buffer, totalSize, &elementNum, sizeof(int32_t));
+        buffer += sizeof(int32_t);
+        for (int32_t i = offset; i < elementNum + offset; i++) {
+            StreamElement* element = objectSegment->getObject(i);
+            if (element == nullptr) {
+                int8_t tag = static_cast<int8_t>(StreamElementTag::TAG_UNKNOWN);
+                memcpy_s(buffer, totalSize - (buffer - data.data()), &tag, sizeof(int8_t));
+                buffer += sizeof(int8_t);
+                continue;
+            }
+            StreamElementTag tag = element->getTag();
+            if (tag == StreamElementTag::TAG_WATERMARK) {
+                int8_t tagByte = static_cast<int8_t>(StreamElementTag::TAG_WATERMARK);
+                memcpy_s(buffer, totalSize - (buffer - data.data()), &tagByte, sizeof(int8_t));
+                buffer += sizeof(int8_t);
+                auto* watermark = static_cast<Watermark*>(element);
+                int64_t timestamp = watermark->getTimestamp();
+                memcpy_s(buffer, totalSize - (buffer - data.data()), &timestamp, sizeof(int64_t));
+                buffer += sizeof(int64_t);
+            } else if (
+                tag == StreamElementTag::TAG_REC_WITHOUT_TIMESTAMP || tag == StreamElementTag::TAG_REC_WITH_TIMESTAMP ||
+                tag == StreamElementTag::VECTOR_BATCH) {
+                auto* record = dynamic_cast<StreamRecord*>(element);
+                if (record != nullptr && record->hasExternalRow()) {
+                    INFO_RELEASE("Warn: serializeObjectSegment hasExternalRow, which is not supported.");
+                    throw std::invalid_argument("serializeObjectSegment hasExternalRow, which is not supported.");
+                }
+                int8_t tagByte = static_cast<int8_t>(tag);
+                memcpy_s(buffer, totalSize - (buffer - data.data()), &tagByte, sizeof(int8_t));
+                buffer += sizeof(int8_t);
+                if (tag == StreamElementTag::TAG_REC_WITH_TIMESTAMP) {
+                    long timeStamp = record->getTimestamp();
+                    memcpy_s(buffer, totalSize - (buffer - data.data()), &timeStamp, sizeof(long));
+                    buffer += sizeof(long);
+                }
+                auto* vectorBatch = static_cast<VectorBatch*>(element->getValue());
+                int32_t batchSize = VectorBatchSerializationUtils::calculateVectorBatchSerializableSize(vectorBatch);
+                memcpy_s(buffer, totalSize - (buffer - data.data()), &batchSize, sizeof(int32_t));
+                buffer += sizeof(int32_t);
+                int32_t vectorCount = vectorBatch->GetVectorCount();
+                memcpy_s(buffer, totalSize - (buffer - data.data()), &vectorCount, sizeof(int32_t));
+                buffer += sizeof(int32_t);
+                int32_t rowCnt = vectorBatch->GetRowCount();
+                memcpy_s(buffer, totalSize - (buffer - data.data()), &rowCnt, sizeof(int32_t));
+                buffer += sizeof(int32_t);
+                VectorBatchSerializationUtils::serializeTimestampAndRowKinds(vectorBatch, buffer, batchSize);
+                for (int32_t idx = 0; idx < vectorCount; idx++) {
+                    BaseVector* colVector = vectorBatch->Get(idx);
+                    DataTypeId dataType = colVector->GetTypeId();
+                    Encoding encoding = colVector->GetEncoding();
+                    if (encoding == OMNI_FLAT) {
+                        if (dataType == OMNI_CHAR || dataType == OMNI_VARCHAR) {
+                            VectorBatchSerializationUtils::serializeCharVector(colVector, buffer, batchSize);
+                        } else {
+                            VectorBatchSerializationUtils::serializePrimitiveVector(colVector, buffer, batchSize);
+                        }
+                    } else if (encoding == OMNI_DICTIONARY) {
+                        if (dataType == OMNI_CHAR || dataType == OMNI_VARCHAR) {
+                            VectorBatchSerializationUtils::serializeStringDictionaryContainerVector(
+                                colVector, buffer, batchSize);
+                        } else {
+                            throw std::runtime_error("Unsupported encoding and data type combination");
+                        }
+                    } else {
+                        throw std::runtime_error("Unsupported encoding");
+                    }
+                }
+            } else {
+                int8_t tagByte = static_cast<int8_t>(tag);
+                memcpy_s(buffer, totalSize - (buffer - data.data()), &tagByte, sizeof(int8_t));
+                buffer += sizeof(int8_t);
+            }
+        }
+        return data;
+    }
+
+    int32_t calculateObjectSegmentSerializedSize(ObjectSegment* objectSegment, size_t elementNum, int offset)
+    {
+        int32_t totalSize = sizeof(int32_t);
+        for (int32_t i = offset; i < elementNum + offset; i++) {
+            StreamElement* element = objectSegment->getObject(i);
+            if (element == nullptr) {
+                totalSize += sizeof(int8_t);
+                continue;
+            }
+            StreamElementTag tag = element->getTag();
+            if (tag == StreamElementTag::TAG_WATERMARK) {
+                totalSize += sizeof(int8_t) + sizeof(int64_t);
+            } else if (
+                tag == StreamElementTag::TAG_REC_WITHOUT_TIMESTAMP || tag == StreamElementTag::TAG_REC_WITH_TIMESTAMP ||
+                tag == StreamElementTag::VECTOR_BATCH) {
+                if (auto* record = dynamic_cast<StreamRecord*>(element);
+                    record != nullptr && record->hasExternalRow()) {
+                    INFO_RELEASE("Warn: serializeObjectSegment hasExternalRow, which is not supported.");
+                    throw std::invalid_argument("serializeObjectSegment hasExternalRow, which is not supported.");
+                }
+                if (tag == StreamElementTag::TAG_REC_WITH_TIMESTAMP) {
+                    totalSize += sizeof(long);
+                }
+                auto* vectorBatch = static_cast<VectorBatch*>(element->getValue());
+                totalSize += VectorBatchSerializationUtils::calculateVectorBatchSerializableSize(vectorBatch);
+            } else {
+                totalSize += sizeof(int8_t);
+            }
+        }
+        return totalSize;
+    }
+
+    int getSize(Buffer* buffers) override
+    {
+        auto segment = buffers->GetSegment();
+        if (segment->isObjectSegment()) {
+            auto objectSegment = static_cast<ObjectSegment*>(segment);
+            size_t elementNum = buffers->GetSize();
+            int offset = buffers->GetOffset();
+            return calculateObjectSegmentSerializedSize(objectSegment, elementNum, offset);
+        }
+        return buffers->GetSize();
     }
 
     int64_t GetHeaderLength() const override
@@ -113,7 +312,7 @@ public:
 
     std::vector<char> ExtractAndMerge(const std::vector<char>& bytes, const std::vector<long>& offsets) override;
     std::atomic<int64_t> offset{0};
-    size_t memSize = 64 * 1024 * 1024;
+    size_t memSize = 128 * 1024 * 1024;
 };
 
 class ChannelStateByteBuffer {

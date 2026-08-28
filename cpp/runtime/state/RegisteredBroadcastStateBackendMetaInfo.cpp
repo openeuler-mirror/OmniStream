@@ -30,13 +30,8 @@ RegisteredBroadcastStateBackendMetaInfo::RegisteredBroadcastStateBackendMetaInfo
         snapshot.getOption(StateMetaInfoSnapshot::CommonOptionsKeys::OPERATOR_STATE_DISTRIBUTION_MODE);
     assignmentMode_ = OperatorStateHandle::StrToMode(assignmentModeStr);
 
-    std::string keySerializerKey =
-        StateMetaInfoSnapshot::commonSerializerKeyToString(StateMetaInfoSnapshot::CommonSerializerKeys::KEY_SERIALIZER);
-    std::string valueSerializerKey = StateMetaInfoSnapshot::commonSerializerKeyToString(
-        StateMetaInfoSnapshot::CommonSerializerKeys::VALUE_SERIALIZER);
-
-    keySerializer_ = snapshot.getTypeSerializer(keySerializerKey);
-    valueSerializer_ = snapshot.getTypeSerializer(valueSerializerKey);
+    keySerializer_ = snapshot.getKeySerializer();
+    valueSerializer_ = snapshot.getValueSerializer();
 }
 
 std::shared_ptr<StateMetaInfoSnapshot> RegisteredBroadcastStateBackendMetaInfo::computeSnapshot()
@@ -49,8 +44,8 @@ std::shared_ptr<StateMetaInfoSnapshot> RegisteredBroadcastStateBackendMetaInfo::
         StateMetaInfoSnapshot::CommonOptionsKeys::OPERATOR_STATE_DISTRIBUTION_MODE);
     optionsMap.emplace(optionKey, std::to_string((int)getAssignmentMode()));
 
-    serializerMap.emplace("keySerializer", getKeySerializer());
-    serializerMap.emplace("stateSerializer", getValueSerializer());
+    serializerMap.emplace(StateMetaInfoSnapshot::KEY_SERIALIZER_KEY, getKeySerializer());
+    serializerMap.emplace(StateMetaInfoSnapshot::VALUE_SERIALIZER_KEY, getValueSerializer());
 
     return std::make_shared<StateMetaInfoSnapshot>(
         name,

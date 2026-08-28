@@ -17,6 +17,8 @@
 #include <vector>
 
 #include "core/typeutils/LongSerializer.h"
+#include "core/typeutils/MapSerializer.h"
+#include "core/typeutils/ListSerializer.h"
 #include "core/typeutils/TypeSerializer.h"
 #include "core/typeutils/TypeSerializerSnapshot.h"
 #include "core/typeutils/VoidSerializer.h"
@@ -142,6 +144,41 @@ TEST(HeapRestoreBackendDelegateTest, CreateMainTableDescriptorWithNullSerializer
     ASSERT_NE(desc, nullptr);
 
     EXPECT_EQ(desc->getType(), StateDescriptor::Type::VALUE);
+    delete desc;
+}
+
+// 看护 MAP 类型 + MapSerializer 时，createMainTableDescriptor 走 MapSerializer 分支
+// 返回包含 key/value backend type 的 descriptor
+TEST(HeapRestoreBackendDelegateTest, CreateMainTableDescriptorForMapTypeWithMapSerializerReturnsMapDescriptor)
+{
+    // MapSerializer 析构时会 delete 其持有的 key/value serializer，因此必须 heap-allocate
+    auto* keySer = new LongSerializer();
+    auto* valSer = new LongSerializer();
+    MapSerializer mapSer(keySer, valSer);
+    auto snapshot = makeSnapshot("testMapSer", StateMetaInfoSnapshot::BackendStateType::KEY_VALUE, "MAP", &mapSer);
+
+    auto* desc = omnistream::HeapRestoreBackendDelegate<long>::createMainTableDescriptor(*snapshot);
+    ASSERT_NE(desc, nullptr);
+
+    EXPECT_EQ(desc->getType(), StateDescriptor::Type::MAP);
+    EXPECT_EQ(desc->getName(), "testMapSer");
+    delete desc;
+}
+
+// 看护 LIST 类型 + ListSerializer 时，createMainTableDescriptor 走 ListSerializer 分支
+// 返回包含元素类型信息的 descriptor
+TEST(HeapRestoreBackendDelegateTest, CreateMainTableDescriptorForListTypeWithListSerializerReturnsListDescriptor)
+{
+    // ListSerializer 析构时会 delete 其持有的 element serializer，因此必须 heap-allocate
+    auto* elemSer = new LongSerializer();
+    ListSerializer listSer(elemSer);
+    auto snapshot = makeSnapshot("testListSer", StateMetaInfoSnapshot::BackendStateType::KEY_VALUE, "LIST", &listSer);
+
+    auto* desc = omnistream::HeapRestoreBackendDelegate<long>::createMainTableDescriptor(*snapshot);
+    ASSERT_NE(desc, nullptr);
+
+    EXPECT_EQ(desc->getType(), StateDescriptor::Type::LIST);
+    EXPECT_EQ(desc->getName(), "testListSer");
     delete desc;
 }
 

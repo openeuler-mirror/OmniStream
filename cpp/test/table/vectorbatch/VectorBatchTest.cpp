@@ -1,11 +1,27 @@
 #include "table/data/vectorbatch/VectorBatch.h"
 #include <gtest/gtest.h>
+#include <memory>
 #include <string.h>
+#include <utility>
 #include "OmniOperatorJIT/core/test/util/test_util.h"
 #include "table/utils/VectorBatchSerializationUtils.h"
 #include "table/utils/VectorBatchDeserializationUtils.h"
 
 using namespace omnistream;
+
+TEST(VectorBatchTest, TakesOwnershipOfBaseVectorBatch)
+{
+    constexpr int rowCount = 2;
+    int32_t values[rowCount] = {10, 20};
+    auto baseBatch = std::make_unique<omniruntime::vec::VectorBatch>(rowCount);
+    baseBatch->Append(omniruntime::TestUtil::CreateVector<int32_t>(rowCount, values));
+
+    omnistream::VectorBatch vectorBatch(std::move(baseBatch), nullptr, nullptr);
+
+    EXPECT_EQ(vectorBatch.GetVectorCount(), 1);
+    EXPECT_EQ(vectorBatch.GetValueAt<int32_t>(0, 0), 10);
+    EXPECT_EQ(vectorBatch.GetValueAt<int32_t>(0, 1), 20);
+}
 
 TEST(VectorBatchTest, SetGetTimestampTest)
 {

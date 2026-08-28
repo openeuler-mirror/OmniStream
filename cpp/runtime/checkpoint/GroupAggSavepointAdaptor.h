@@ -48,11 +48,12 @@ public:
     std::vector<VectorBatchSaveStateContext> buildSaveStateContexts(
         FullSnapshotResources& snapshotResources, const VectorBatchSavePlan& plan) override;
 
+    template <typename Emit>
     void convertKVRowData(
         const KeyValueStateIterator::CurrentEntry& entry,
         const VectorBatchSaveStateContext& context,
         const VectorBatchSavePlan& plan,
-        std::function<void(ConvertedEntry)> output) override;
+        Emit&& output);
 
     // ===== VectorBatchRestoreFlow Derived hook =====
 
@@ -95,4 +96,5 @@ private:
     // KV_TRANSFORM 恢复时，记录 Flink source serializer 用于反序列化 accumulator
     std::unordered_map<int, TypeSerializer*> sourceSerializers_;
 };
+
 } // namespace omnistream

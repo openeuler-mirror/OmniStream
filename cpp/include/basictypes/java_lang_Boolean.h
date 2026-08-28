@@ -11,8 +11,6 @@
 #ifndef JAVA_LANG_BOOLEAN
 #define JAVA_LANG_BOOLEAN
 #include "Object.h"
-#define true 1
-#define false 0
 
 class Boolean : public Object {
 public:

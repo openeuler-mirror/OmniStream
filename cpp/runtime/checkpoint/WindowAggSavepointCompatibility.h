@@ -35,7 +35,7 @@ public:
     static FlinkSavepointAdaptorInfo forGroup(const nlohmann::json& description)
     {
         return evaluateAccumulatorTypes(
-            description, "AccTypes", FlinkSavepointAdaptorType::GroupWindowAggAdaptor, "GroupWindowAgg");
+            description, "AccTypes", FlinkSavepointAdaptorType::OmniIsCompatible, "GroupWindowAgg");
     }
 
 private:

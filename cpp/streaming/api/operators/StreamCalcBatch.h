@@ -62,6 +62,7 @@ public:
 
     void ProcessWatermark(Watermark* watermark) override
     {
+        executionContext->SetCurrentWatermark(watermark->getTimestamp());
         output->emitWatermark(watermark);
     }
 

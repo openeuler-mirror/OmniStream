@@ -13,7 +13,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -99,11 +98,12 @@ public:
 
     // Join 主状态的一个 source entry 可能引用多个 VB row；这里把每个 comboId
     // 解引用为一个 Flink logical MapState entry，供 VectorBatchSaveFlow 写出。
+    template <typename Emit>
     void convertKVRowData(
         const KeyValueStateIterator::CurrentEntry& entry,
         const VectorBatchSaveStateContext& context,
         const VectorBatchSavePlan& plan,
-        std::function<void(ConvertedEntry)> output) override;
+        Emit&& output);
 
     /*========== VectorBatchSaveHooks ==========*/
     /*========== Restore ==========*/
@@ -134,10 +134,8 @@ private:
         std::string stateName;
         // 算子描述中的 Flink 输入逻辑类型名称，用于构造 RowType serializer。
         std::vector<std::string> inputTypeNames;
-        // 只接管工厂动态创建的 LogicalType，静态单例仍由类型系统持有。
-        std::vector<std::unique_ptr<LogicalType>> ownedInputTypes;
-        // 转换后的 LogicalType 对象，用于构造 RowData serializer；在进入公共 VectorBatch 流程前再转换为 DataTypeId。
-        std::vector<LogicalType*> inputTypes;
+        // 转换后的 LogicalType DataTypeId 列表。
+        std::vector<omniruntime::type::DataTypeId> inputTypeIds;
         // 当前侧 value 是否包含 left outer join 的 numAssociations 字段。
         bool outerJoinState = false;
     };
@@ -149,10 +147,9 @@ private:
     void parseInputTypes(SidePlan& sidePlan, const nlohmann::json& description, const std::string& fieldName);
 
     // 将 Heap 聚合或普通 Omni MapState entry 统一展开并直接回调输出。
+    template <typename Emit>
     void parseSourceMapEntries(
-        const KeyValueStateIterator::CurrentEntry& entry,
-        const SidePlan& sidePlan,
-        const std::function<void(ByteView keyBytes, ByteView valueBytes, omnistream::ComboId comboId)>& emit) const;
+        const KeyValueStateIterator::CurrentEntry& entry, const SidePlan& sidePlan, Emit&& emit) const;
 
     // 根据源状态元数据构造 VectorBatchSaveFlow 所需的保存计划。
     VectorBatchSavePlan buildSavePlan(FullSnapshotResources& snapshotResources);

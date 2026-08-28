@@ -12,7 +12,6 @@
 #pragma once
 
 #include <cstddef>
-#include <functional>
 #include <memory>
 #include <cstdint>
 #include <string>
@@ -44,7 +43,6 @@ public:
     void validateForSave(const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& metaInfos) override;
     void validateForRestore(const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& metaInfos) override;
 
-    // WindowJoin compatible save is intentionally not implemented yet.
     void save(
         CheckpointStateOutputStreamProxy& stream,
         KeyGroupRangeOffsets& keyGroupOffsets,
@@ -58,11 +56,12 @@ public:
     std::vector<VectorBatchSaveStateContext> buildSaveStateContexts(
         FullSnapshotResources& snapshotResources, const VectorBatchSavePlan& plan) override;
 
+    template <typename Emit>
     void convertKVRowData(
         const KeyValueStateIterator::CurrentEntry& entry,
         const VectorBatchSaveStateContext& context,
         const VectorBatchSavePlan& plan,
-        std::function<void(ConvertedEntry)> output) override;
+        Emit&& output);
 
     RestoreStateType getStateType(const StateMetaInfoSnapshot& metaInfo);
     StateMetaInfoSnapshot buildOmniMainMetaInfo(int kvStateId, const StateMetaInfoSnapshot& flinkMetaInfo);
@@ -93,7 +92,7 @@ private:
     static constexpr const char* RIGHT_RECORDS_STATE_NAME = "right-records";
 
     // format: [[length:4byte][rowValue]],[[length:4byte][rowValue]],...[[length:4byte][rowValue]]
-    static void deserializeRows(const std::vector<int8_t>& valueBytes, std::vector<std::vector<int8_t>>& rows);
+    static void deserializeRows(const std::vector<int8_t>& valueBytes, std::vector<ByteView>& rows);
 
     const std::vector<omniruntime::type::DataTypeId>& columnTypesFor(int kvStateId) const;
     const char* stateNameFor(int kvStateId) const;

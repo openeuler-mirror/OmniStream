@@ -13,6 +13,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -115,7 +116,7 @@ protected:
 StateMetaInfoSnapshot makeFlinkMetaInfo(const std::string& stateName)
 {
     std::unordered_map<std::string, TypeSerializer*> serializers = {
-        {StateMetaInfoSnapshot::COMMON_NAMESPACE_SERIALIZER_KEY, VoidNamespaceSerializer::INSTANCE}};
+        {StateMetaInfoSnapshot::NAMESPACE_SERIALIZER_KEY, VoidNamespaceSerializer::INSTANCE}};
     return StateMetaInfoSnapshot(
         stateName,
         StateMetaInfoSnapshot::BackendStateType::KEY_VALUE,
@@ -164,6 +165,12 @@ TEST(StreamingJoinSavepointAdaptorTest, RestoreWritesVectorBatchHashAndComboIdTo
     auto omniMeta =
         adaptor.buildOmniMainMetaInfo(leftStateId, makeFlinkMetaInfo(StreamingJoinSavepointUtil::LEFT_STATE_NAME));
     EXPECT_EQ(omniMeta.getName(), StreamingJoinSavepointUtil::LEFT_STATE_NAME);
+    EXPECT_EQ(
+        adaptor.columnTypes(leftStateId),
+        (std::vector<omniruntime::type::DataTypeId>{
+            omniruntime::type::DataTypeId::OMNI_LONG,
+            omniruntime::type::DataTypeId::OMNI_VARCHAR,
+            omniruntime::type::DataTypeId::OMNI_TIMESTAMP}));
 
     std::vector<int8_t> expectedRowBytes;
     size_t expectedPrefixSize = 0;
@@ -197,4 +204,51 @@ TEST(StreamingJoinSavepointAdaptorTest, RestoreWritesVectorBatchHashAndComboIdTo
     EXPECT_EQ(restoredValue.numAssociations, flinkValue.numAssociations);
     EXPECT_EQ(restoredValue.comboId, VectorBatchUtil::getComboId(writer.keyGroupId, 0, 0));
     EXPECT_TRUE(restoredValue.outerJoinState);
+}
+
+TEST(StreamingJoinSavepointAdaptorTest, ParsesInputTypesIndependentlyForBothSides)
+{
+    StreamingJoinSavepointAdaptor adaptor(FlinkSavepointAdaptorType::StreamingJoinNoUniqueKeyAdaptor);
+    adaptor.prepareForRestore({
+        {"leftInputTypes", {"BIGINT", "VARCHAR(32)"}},
+        {"rightInputTypes", {"TIMESTAMP(3)", "BIGINT"}},
+    });
+
+    constexpr int leftStateId = 3;
+    constexpr int rightStateId = 5;
+    adaptor.buildOmniMainMetaInfo(leftStateId, makeFlinkMetaInfo(StreamingJoinSavepointUtil::LEFT_STATE_NAME));
+    adaptor.buildOmniMainMetaInfo(rightStateId, makeFlinkMetaInfo(StreamingJoinSavepointUtil::RIGHT_STATE_NAME));
+
+    EXPECT_EQ(
+        adaptor.columnTypes(leftStateId),
+        (std::vector<omniruntime::type::DataTypeId>{
+            omniruntime::type::DataTypeId::OMNI_LONG, omniruntime::type::DataTypeId::OMNI_VARCHAR}));
+    EXPECT_EQ(
+        adaptor.columnTypes(rightStateId),
+        (std::vector<omniruntime::type::DataTypeId>{
+            omniruntime::type::DataTypeId::OMNI_TIMESTAMP, omniruntime::type::DataTypeId::OMNI_LONG}));
+}
+
+TEST(StreamingJoinSavepointAdaptorTest, RejectsInvalidInputTypeElements)
+{
+    StreamingJoinSavepointAdaptor adaptor(FlinkSavepointAdaptorType::StreamingJoinNoUniqueKeyAdaptor);
+
+    EXPECT_THROW(
+        adaptor.prepareForRestore({
+            {"leftInputTypes", {"BIGINT", 1}},
+            {"rightInputTypes", {"BIGINT"}},
+        }),
+        std::runtime_error);
+    EXPECT_THROW(
+        adaptor.prepareForRestore({
+            {"leftInputTypes", {"BIGINT"}},
+            {"rightInputTypes", {""}},
+        }),
+        std::runtime_error);
+    EXPECT_THROW(
+        adaptor.prepareForRestore({
+            {"leftInputTypes", {"UNKNOWN"}},
+            {"rightInputTypes", {"BIGINT"}},
+        }),
+        std::runtime_error);
 }

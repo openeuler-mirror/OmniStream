@@ -93,6 +93,14 @@ TEST(GenericRowDataTest, RawValueRowDataSerializerRoundTrip)
     EXPECT_EQ(decodedRaw->toBytes(), std::vector<uint8_t>(bytes, bytes + sizeof(bytes)));
 }
 
+TEST(GenericRowDataTest, RawValueDataSerializerMetadata)
+{
+    RawValueDataSerializer serializer("test.RawValue", "serializer-snapshot");
+
+    EXPECT_STREQ(serializer.getName(), "RawValueDataSerializer");
+    EXPECT_TRUE(serializer.toJson().empty());
+}
+
 TEST(GenericRowDataTest, RawValueDataSerializerRejectsDirectNonNullAccess)
 {
     RawValueDataSerializer serializer("test.RawValue", "serializer-snapshot");

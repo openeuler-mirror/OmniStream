@@ -19,6 +19,7 @@
 #include "ChannelStateSerializer.h"
 #include "RecoveredChannelStateHandler.h"
 #include "SequentialChannelStateReader.h"
+#include "runtime/buffer/VectorBatchBuffer.h"
 #include "checkpoint/OperatorSubtaskState.h"
 #include "runtime/checkpoint/TaskStateSnapshot.h"
 
@@ -73,7 +74,8 @@ public:
         int length = serializer->ReadLength2(source);
 
         while (length > 0) {
-            auto bufferWithContext = newTempInputBufferWithContext();
+            bool isVb = stateHandler->usesObjectSegment(channelInfo);
+            auto bufferWithContext = isVb ? newVbTempInputBufferWithContext() : newTempInputBufferWithContext();
 
             try {
                 while (length > 0 && bufferWithContext.buffer_->isWritable()) {
@@ -94,6 +96,17 @@ public:
         auto* memorySegment = MemorySegmentFactory::wrap(kTempRestoreBufferSize);
 
         auto buffer = new NetworkBuffer(memorySegment, std::make_shared<OriginalNetworkBufferRecycler>(), true);
+
+        return {ChannelStateByteBuffer::wrap(buffer), buffer};
+    }
+
+    static RecoveredChannelStateHandler<InputChannelInfo, Buffer*>::BufferWithContext newVbTempInputBufferWithContext()
+    {
+        constexpr int kTempRestoreBufferSize = 32 * 1024;
+
+        ObjectSegment* objectSegment = new ObjectSegment(kTempRestoreBufferSize);
+
+        VectorBatchBuffer* buffer = new VectorBatchBuffer(objectSegment, std::make_shared<DummyObjectBufferRecycler>());
 
         return {ChannelStateByteBuffer::wrap(buffer), buffer};
     }
@@ -140,7 +153,9 @@ public:
         int length = serializer->ReadLength(source);
 
         while (length > 0) {
-            auto bufferWithContext = newTempInputBufferWithContext();
+            bool isVb = stateHandler->usesObjectSegment(channelInfo);
+            auto bufferWithContext = isVb ? newVbTempInputBufferWithContext() : newTempInputBufferWithContext();
+
             try {
                 while (length > 0 && bufferWithContext.buffer_->isWritable()) {
                     length -= serializer->ReadData(source, bufferWithContext.buffer_, length);
