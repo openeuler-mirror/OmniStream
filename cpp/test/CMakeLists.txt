@@ -53,6 +53,13 @@ target_link_libraries(${TNEL_TEST_TARGET}
         GTest::GTest GTest::Main
         gmock
 )
+
+# VectorBatch.cpp instantiates Conversions.h. That needs libfmt and
+# libdouble-conversion (folly::to(double) inlines into DoubleToStringConverter).
+find_library(FMT_LIB fmt REQUIRED)
+find_library(DOUBLE_CONVERSION_LIB double-conversion REQUIRED)
+target_link_libraries(${TNEL_TEST_TARGET} PRIVATE ${FMT_LIB} ${DOUBLE_CONVERSION_LIB})
+
 include(CTest)
 add_test(NAME Tests COMMAND tneltest)
 
