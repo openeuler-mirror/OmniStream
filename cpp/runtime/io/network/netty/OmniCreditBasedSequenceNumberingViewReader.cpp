@@ -9,6 +9,8 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "OmniCreditBasedSequenceNumberingViewReader.h"
+
+#include "buffer/ReadOnlySlicedVectorBatchBuffer.h"
 #include "runtime/buffer/ReadOnlySlicedNetworkBuffer.h"
 
 namespace omnistream {
@@ -179,11 +181,12 @@ bool OmniCreditBasedSequenceNumberingViewReader::SerializeVectorBatch(
         INFO_RELEASE("buffer info in SerializeVectorBatch is null");
         throw std::runtime_error("buffer info in SerializeVectorBatch is null");
     }
-    if (vectorSize > bufferSize - bufferInfo->elementNumBytes) {
+    auto expectedBufferSize = vectorSize + NettyBufferInfo::elementNumBytes;
+    if (expectedBufferSize > bufferSize) {
         // send regular buffer to queue first
         AddNettyBufferInfoToQueue(bufferInfo);
         // allocate a new buffer
-        auto bigBufferInfo = RequestNettyBuffer(vectorSize);
+        auto bigBufferInfo = RequestNettyBuffer(expectedBufferSize);
         DoSerializeVectorBatch(element, vectorSize, bigBufferInfo);
         AddNettyBufferInfoToQueue(bigBufferInfo);
         return true;
@@ -250,13 +253,13 @@ void OmniCreditBasedSequenceNumberingViewReader::AddNettyBufferInfoToQueue(std::
     }
 }
 
-std::shared_ptr<NettyBufferInfo> OmniCreditBasedSequenceNumberingViewReader::RequestNettyBuffer(int size)
+std::shared_ptr<NettyBufferInfo> OmniCreditBasedSequenceNumberingViewReader::RequestNettyBuffer(int expectedBufferSize)
 {
     int count = 0;
     std::shared_ptr<NettyBufferInfo> bufferInfo = nullptr;
     do {
-        if (size > bufferSize) {
-            bufferInfo = nettyBufferPool->RequestBigBuffer(size);
+        if (expectedBufferSize > bufferSize) {
+            bufferInfo = nettyBufferPool->RequestBigBuffer(expectedBufferSize);
         } else {
             bufferInfo = nettyBufferPool->RequestBuffer();
         }

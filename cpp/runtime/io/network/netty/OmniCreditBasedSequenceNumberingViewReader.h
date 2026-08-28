@@ -55,7 +55,7 @@ public:
     void getNextBufferInternal();
     int getNextBuffer();
     void RecycleNettyBuffer(long address);
-    std::shared_ptr<NettyBufferInfo> RequestNettyBuffer(int size);
+    std::shared_ptr<NettyBufferInfo> RequestNettyBuffer(int expectedBufferSize);
     bool SerializeVectorBatch(VectorBatch* vectorBatch, std::shared_ptr<NettyBufferInfo>& bufferInfo);
     void DoSerializeVectorBatch(VectorBatch* vectorBatch, int vectorSize, std::shared_ptr<NettyBufferInfo>& bufferInfo);
     void AddNettyBufferInfoToQueue(std::shared_ptr<NettyBufferInfo>& bufferInfo);
