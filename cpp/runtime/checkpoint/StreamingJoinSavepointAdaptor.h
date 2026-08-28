@@ -114,10 +114,8 @@ private:
         std::string stateName;
         // 算子描述中的 Flink 输入逻辑类型名称，用于构造 RowType serializer。
         std::vector<std::string> inputTypeNames;
-        // 只接管工厂动态创建的 LogicalType，静态单例仍由类型系统持有。
-        std::vector<std::unique_ptr<LogicalType>> ownedInputTypes;
-        // 转换后的 LogicalType 对象，用于构造 RowData serializer；在进入公共 VectorBatch 流程前再转换为 DataTypeId。
-        std::vector<LogicalType*> inputTypes;
+        // 转换后的 LogicalType DataTypeId 列表。
+        std::vector<omniruntime::type::DataTypeId> inputTypeIds;
         // 当前侧 value 是否包含 left outer join 的 numAssociations 字段。
         bool outerJoinState = false;
     };

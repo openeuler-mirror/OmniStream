@@ -9,6 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <algorithm>
 #include <set>
 #include <stdexcept>
 #include <unordered_map>
@@ -49,8 +50,8 @@ void StreamingJoinSavepointAdaptor::prepareSidePlans(const nlohmann::json& opera
     parseInputTypes(rightPlan, operatorDescription, StreamingJoinSavepointUtil::RIGHT_INPUT_TYPES_FIELD);
 
     if (leftPlan.inputTypeNames.empty() || rightPlan.inputTypeNames.empty()) {
-        INFO_RELEASE(
-            "Error: StreamingJoinSavepointAdaptor::prepareSidePlans ->"
+        ERROR_RELEASE(
+            "StreamingJoinSavepointAdaptor::prepareSidePlans ->"
             << " leftInputTypeCount=" << leftPlan.inputTypeNames.size() << ", rightInputTypeCount="
             << rightPlan.inputTypeNames.size() << ", adaptorType=" << static_cast<int>(adaptorType_));
         throw std::runtime_error(
@@ -65,38 +66,37 @@ void StreamingJoinSavepointAdaptor::parseInputTypes(
     SidePlan& sidePlan, const nlohmann::json& description, const std::string& fieldName)
 {
     sidePlan.inputTypeNames.clear();
-    sidePlan.inputTypes.clear();
-    sidePlan.ownedInputTypes.clear();
-
+    sidePlan.inputTypeIds.clear();
     if (!description.contains(fieldName) || !description[fieldName].is_array()) {
-        INFO_RELEASE(
-            "Error: StreamingJoinSavepointAdaptor::parseInputTypes ->"
-            << " fieldName=" << fieldName << ", containsField=" << description.contains(fieldName)
-            << ", descriptionSize=" << description.size());
+        ERROR_RELEASE(
+            "StreamingJoinSavepointAdaptor::parseInputTypes ->" << " fieldName=" << fieldName
+                                                                << ", containsField=" << description.contains(fieldName)
+                                                                << ", descriptionSize=" << description.size());
         throw std::runtime_error(
             "StreamingJoinSavepointAdaptor::parseInputTypes missing input type array field=" + fieldName);
     }
 
-    const auto& inputTypes = description[fieldName];
-    sidePlan.inputTypeNames.reserve(inputTypes.size());
-    sidePlan.inputTypes.reserve(inputTypes.size());
-    sidePlan.ownedInputTypes.reserve(inputTypes.size());
-    for (const auto& type : inputTypes) {
-        if (!type.is_string() || type.get<std::string>().empty()) {
-            INFO_RELEASE(
-                "Error: StreamingJoinSavepointAdaptor::parseInputTypes ->" << " fieldName=" << fieldName
-                                                                           << ", fieldSize=" << inputTypes.size()
-                                                                           << ", isString=" << type.is_string());
-            throw std::runtime_error(
-                "StreamingJoinSavepointAdaptor::parseInputTypes invalid input type field=" + fieldName);
-        }
-        std::string inputTypeName = type.get<std::string>();
-        sidePlan.inputTypeNames.push_back(inputTypeName);
-        LogicalType* logicalType = LogicalType::flinkTypeToOmniType(inputTypeName);
-        sidePlan.inputTypes.push_back(logicalType);
-        if (!LogicalType::isSharedLogicalType(logicalType)) {
-            sidePlan.ownedInputTypes.emplace_back(logicalType);
-        }
+    sidePlan.inputTypeNames = parseStringArray(description, fieldName);
+    if (sidePlan.inputTypeNames.size() != description[fieldName].size() ||
+        std::any_of(sidePlan.inputTypeNames.begin(), sidePlan.inputTypeNames.end(), [](const std::string& typeName) {
+            return typeName.empty();
+        })) {
+        ERROR_RELEASE(
+            "StreamingJoinSavepointAdaptor::parseInputTypes ->"
+            << " fieldName=" << fieldName << ", fieldSize=" << description[fieldName].size()
+            << ", parsedTypeCount=" << sidePlan.inputTypeNames.size());
+        throw std::runtime_error(
+            "StreamingJoinSavepointAdaptor::parseInputTypes invalid input type field=" + fieldName);
+    }
+    sidePlan.inputTypeIds = convertToDataTypes(sidePlan.inputTypeNames);
+    if (std::any_of(sidePlan.inputTypeIds.begin(), sidePlan.inputTypeIds.end(), [](const auto typeId) {
+            return typeId == omniruntime::type::DataTypeId::OMNI_INVALID;
+        })) {
+        ERROR_RELEASE(
+            "StreamingJoinSavepointAdaptor::parseInputTypes ->" << " fieldName=" << fieldName
+                                                                << ", contains unsupported input type");
+        throw std::runtime_error(
+            "StreamingJoinSavepointAdaptor::parseInputTypes unsupported input type field=" + fieldName);
     }
 }
 
@@ -180,16 +180,16 @@ StateMetaInfoSnapshot StreamingJoinSavepointAdaptor::buildOmniMainMetaInfo(
     }
     TypeSerializer* namespaceSerializer = flinkMetaInfo.getNamespaceSerializer();
     if (namespaceSerializer == nullptr) {
-        INFO_RELEASE(
-            "Error: StreamingJoinSavepointAdaptor::buildOmniMainMetaInfo -> stateName="
-            << flinkMetaInfo.getName() << ", namespaceSerializer=null");
+        ERROR_RELEASE(
+            "StreamingJoinSavepointAdaptor::buildOmniMainMetaInfo -> stateName=" << flinkMetaInfo.getName()
+                                                                                 << ", namespaceSerializer=null");
         throw std::runtime_error(
             "StreamingJoinSavepointAdaptor::buildOmniMainMetaInfo missing namespace serializer for state=" +
             flinkMetaInfo.getName());
     }
     if (namespaceSerializer->getBackendId() != BackendDataType::VOID_NAMESPACE_BK) {
-        INFO_RELEASE(
-            "Error: StreamingJoinSavepointAdaptor::buildOmniMainMetaInfo ->"
+        ERROR_RELEASE(
+            "StreamingJoinSavepointAdaptor::buildOmniMainMetaInfo ->"
             << " stateName=" << flinkMetaInfo.getName()
             << ", namespaceBackendId=" << namespaceSerializer->getBackendId());
         throw std::runtime_error(
@@ -238,7 +238,7 @@ RestoreStateType StreamingJoinSavepointAdaptor::getStateType(const StateMetaInfo
 
 std::vector<omniruntime::type::DataTypeId> StreamingJoinSavepointAdaptor::columnTypes(int kvStateId) const
 {
-    return StreamingJoinSavepointUtil::convertToDataTypes(restoreSidePlan(kvStateId).inputTypes);
+    return restoreSidePlan(kvStateId).inputTypeIds;
 }
 
 int StreamingJoinSavepointAdaptor::batchSize(int /*kvStateId*/) const
@@ -263,8 +263,8 @@ std::vector<VectorBatchSaveStateContext> StreamingJoinSavepointAdaptor::buildSav
     std::vector<VectorBatchSaveStateContext> contexts(snapshotResources.getMetaInfoSnapshots().size());
     for (const auto& spec : plan.stateContextSpecs) {
         if (spec.sourceKvStateId < 0 || static_cast<size_t>(spec.sourceKvStateId) >= contexts.size()) {
-            INFO_RELEASE(
-                "Error: StreamingJoinSavepointAdaptor::buildSaveStateContexts ->"
+            ERROR_RELEASE(
+                "StreamingJoinSavepointAdaptor::buildSaveStateContexts ->"
                 << " sourceKvStateId=" << spec.sourceKvStateId << ", contextCount=" << contexts.size()
                 << ", logicalStateName=" << spec.logicalStateName);
             throw std::runtime_error(
@@ -419,8 +419,8 @@ VectorBatchSavePlan StreamingJoinSavepointAdaptor::buildSavePlan(FullSnapshotRes
         spec.logicalStateName = stateName;
         spec.valueSerializer = meta->getValueSerializer();
         if (spec.valueSerializer == nullptr) {
-            INFO_RELEASE(
-                "Error: StreamingJoinSavepointAdaptor::buildSavePlan ->"
+            ERROR_RELEASE(
+                "StreamingJoinSavepointAdaptor::buildSavePlan ->"
                 << " stateName=" << stateName << ", sourceKvStateId=" << i << ", valueSerializer=null");
             throw std::runtime_error(
                 "StreamingJoinSavepointAdaptor::buildSavePlan missing source value serializer for state=" + stateName);
@@ -440,8 +440,8 @@ const StreamingJoinSavepointAdaptor::SidePlan& StreamingJoinSavepointAdaptor::si
     if (stateName == StreamingJoinSavepointUtil::RIGHT_STATE_NAME) {
         return rightPlan_;
     }
-    INFO_RELEASE(
-        "Error: StreamingJoinSavepointAdaptor::sidePlanForState ->"
+    ERROR_RELEASE(
+        "StreamingJoinSavepointAdaptor::sidePlanForState ->"
         << " stateName=" << stateName << ", leftState=" << StreamingJoinSavepointUtil::LEFT_STATE_NAME
         << ", rightState=" << StreamingJoinSavepointUtil::RIGHT_STATE_NAME);
     throw std::runtime_error("StreamingJoinSavepointAdaptor::sidePlanForState unsupported state=" + stateName);
@@ -455,10 +455,10 @@ const StreamingJoinSavepointAdaptor::SidePlan& StreamingJoinSavepointAdaptor::re
     if (kvStateId >= 0 && kvStateId == rightRestoreKvStateId_) {
         return rightPlan_;
     }
-    INFO_RELEASE(
-        "Error: StreamingJoinSavepointAdaptor::restoreSidePlan ->" << " kvStateId=" << kvStateId
-                                                                   << ", leftKvStateId=" << leftRestoreKvStateId_
-                                                                   << ", rightKvStateId=" << rightRestoreKvStateId_);
+    ERROR_RELEASE(
+        "StreamingJoinSavepointAdaptor::restoreSidePlan ->" << " kvStateId=" << kvStateId
+                                                            << ", leftKvStateId=" << leftRestoreKvStateId_
+                                                            << ", rightKvStateId=" << rightRestoreKvStateId_);
     throw std::runtime_error(
         "StreamingJoinSavepointAdaptor::restoreSidePlan missing side plan for kvStateId=" + std::to_string(kvStateId));
 }

@@ -14,6 +14,7 @@
 
 #include "LogicTypeUtils.h"
 #include "LogicalType.h"
+#include "CharType.h"
 #include "VarCharType.h"
 #include "TimestampWithoutTimeZoneType.h"
 #include "TimeWithoutTimeZoneType.h"
@@ -265,6 +266,11 @@ BasicLogicalType* BasicLogicalType::getTypeBy(DataTypeId typeId, const nlohmann:
         case DataTypeId::OMNI_VARCHAR: {
             int length = element.value("length", std::numeric_limits<int>::max());
             type = new VarCharType(nullable, length);
+            break;
+        }
+        case DataTypeId::OMNI_CHAR: {
+            int length = element.value("length", 1);
+            type = new CharType(nullable, length);
             break;
         }
         case DataTypeId::OMNI_DOUBLE: {
