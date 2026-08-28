@@ -133,6 +133,18 @@ public:
                         reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<std::string, int>*>*>(
                             stateTablePtr);
                     delete stateTable;
+                } else if (keyId == BackendDataType::VARCHAR_BK && valueId == BackendDataType::VARCHAR_BK) {
+                    // JSON_OBJECTAGG: MapView<VoidNamespace, std::string, std::string>.
+                    auto stateTable = reinterpret_cast<
+                        CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<std::string, std::string>*>*>(
+                        stateTablePtr);
+                    delete stateTable;
+                } else if (keyId == BackendDataType::BIGINT_BK && valueId == BackendDataType::VARCHAR_BK) {
+                    // JSON_ARRAYAGG: MapView<VoidNamespace, long, std::string>.
+                    auto stateTable = reinterpret_cast<
+                        CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<int64_t, std::string>*>*>(
+                        stateTablePtr);
+                    delete stateTable;
                 } else if (keyId == BackendDataType::INT_BK && valueId == BackendDataType::INT_BK) {
                     auto stateTable =
                         reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<int, int>*>*>(
@@ -441,6 +453,14 @@ uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(
                 namespaceSerializer, stateDesc);
         } else if (keyId == BackendDataType::VARCHAR_BK && valueId == BackendDataType::INT_BK) {
             return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, std::string, int32_t>(
+                namespaceSerializer, stateDesc);
+        } else if (keyId == BackendDataType::VARCHAR_BK && valueId == BackendDataType::VARCHAR_BK) {
+            // JSON_OBJECTAGG: MapView<VoidNamespace, std::string, std::string> (key -> value JSON text).
+            return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, std::string, std::string>(
+                namespaceSerializer, stateDesc);
+        } else if (keyId == BackendDataType::BIGINT_BK && valueId == BackendDataType::VARCHAR_BK) {
+            // JSON_ARRAYAGG: MapView<VoidNamespace, long, std::string> (insertion index -> element JSON text).
+            return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, int64_t, std::string>(
                 namespaceSerializer, stateDesc);
         } else if (keyId == BackendDataType::ROW_BK && valueId == BackendDataType::INT_BK) {
             return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, RowData*, int32_t>(

@@ -718,6 +718,14 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
         } else if (mapKeyId == BackendDataType::VARCHAR_BK && mapValId == BackendDataType::INT_BK) {
             addMapEntryToStateTable<std::string, int>(
                 backend, info, keyGroupId, rawKey, rawNs, mapKeySer, mapValSer, keyInput, valInput);
+        } else if (mapKeyId == BackendDataType::VARCHAR_BK && mapValId == BackendDataType::VARCHAR_BK) {
+            // JSON_OBJECTAGG: MapView<VoidNamespace, std::string, std::string>.
+            addMapEntryToStateTable<std::string, std::string>(
+                backend, info, keyGroupId, rawKey, rawNs, mapKeySer, mapValSer, keyInput, valInput);
+        } else if (mapKeyId == BackendDataType::BIGINT_BK && mapValId == BackendDataType::VARCHAR_BK) {
+            // JSON_ARRAYAGG: MapView<VoidNamespace, long, std::string>.
+            addMapEntryToStateTable<int64_t, std::string>(
+                backend, info, keyGroupId, rawKey, rawNs, mapKeySer, mapValSer, keyInput, valInput);
         } else if (
             (mapKeyId == BackendDataType::OBJECT_BK || mapKeyId == BackendDataType::POJO_BK) &&
             (mapValId == BackendDataType::OBJECT_BK || mapValId == BackendDataType::POJO_BK)) {

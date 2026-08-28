@@ -17,6 +17,8 @@
 #include "runtime/generated/function/MinMaxFunction.h"
 #include "runtime/generated/function/SumFunction.h"
 #include "runtime/generated/function/udf/LastStringValueFunction.h"
+#include "runtime/generated/function/JsonObjectAggFunction.h"
+#include "runtime/generated/function/JsonArrayAggFunction.h"
 #include <algorithm>
 #include <iostream>
 #include <regex>
@@ -72,7 +74,9 @@ bool TimestampEqualiser(RowData* r1, RowData* r2, int colIdx)
 
 std::string extractAggFunction(const std::string& input)
 {
-    std::regex aggRegex(R"((?:MAX|COUNT|SUM|MIN|AVG|last_string_value_without_retract))", std::regex_constants::icase);
+    std::regex aggRegex(
+        R"((?:JSON_OBJECTAGG|JSON_ARRAYAGG|MAX|COUNT|SUM|MIN|AVG|last_string_value_without_retract))",
+        std::regex_constants::icase);
     std::smatch match;
     if (std::regex_search(input, match, aggRegex)) {
         return match.str();
@@ -116,6 +120,7 @@ struct AggCallMeta {
     std::string aggType;
     int filterIndex = -1;
     int aggIndex = -1;
+    std::vector<int> argIndexes;
     std::string aggDataType;
     bool isDistinctCount = false;
     bool shouldDoRetract = false;
@@ -221,6 +226,7 @@ void GroupAggFunction::InitAggFunctions(int& accStartingIndex, int& aggValueInde
         meta.filterIndex = aggCall["filterArg"].get<int>();
 
         const auto argIndexes = aggCall["argIndexes"].get<std::vector<int>>();
+        meta.argIndexes = argIndexes;
         meta.aggIndex = argIndexes.empty() ? -1 : argIndexes[0];
 
         auto distinctInfoIt = distinctInfoMap.find(meta.aggFuncIndex);
@@ -275,6 +281,37 @@ void GroupAggFunction::InitAggFunctions(int& accStartingIndex, int& aggValueInde
             function = sumFunction;
         } else if (meta.aggType == "last_string_value_without_retract") {
             function = new LastStringValueFunction(meta.aggIndex, meta.aggDataType, -1, -1);
+        } else if (meta.aggType == "JSON_OBJECTAGG") {
+            // JSON_OBJECTAGG(KEY key VALUE value [ {NULL|ABSENT} ON NULL ]): two arguments (key, value).
+            // Acc/value indices are bound later via bindAccValueIndex(); state lives in a keyed MapView,
+            // so accumulatorSlots()==0 keeps accStartingIndex aligned with accumulatorArity.
+            if (meta.argIndexes.size() < 2) {
+                throw std::runtime_error("JSON_OBJECTAGG requires KEY and VALUE arguments: " + meta.aggTypeStr);
+            }
+            int keyIdx = meta.argIndexes[0];
+            int valIdx = meta.argIndexes[1];
+            // Default is NULL ON NULL; only an explicit "ABSENT ON NULL" clause drops null values.
+            bool onNullAbsent = meta.aggTypeStr.find("ABSENT") != std::string::npos;
+            auto* jsonObjFunction = new JsonObjectAggFunction(
+                keyIdx, valIdx, types[keyIdx], types[valIdx], meta.aggFuncIndex, onNullAbsent, meta.filterIndex);
+            jsonObjFunction->open(
+                new PerKeyStateDataViewStore(dynamic_cast<StreamingRuntimeContext<RowData*>*>(getRuntimeContext())));
+            function = jsonObjFunction;
+        } else if (meta.aggType == "JSON_ARRAYAGG") {
+            // JSON_ARRAYAGG(items [ {NULL|ABSENT} ON NULL ]): single argument. See JSON_OBJECTAGG above for
+            // the acc/value-index and MapView notes (accumulatorSlots()==0, indices bound later).
+            if (meta.argIndexes.empty()) {
+                throw std::runtime_error("JSON_ARRAYAGG requires an argument: " + meta.aggTypeStr);
+            }
+            int itemIdx = meta.argIndexes[0];
+            // Planner names carry the ON NULL clause as a suffix: JSON_ARRAYAGG_ABSENT_ON_NULL (default)
+            // vs JSON_ARRAYAGG_NULL_ON_NULL. Match on "ABSENT" (underscore-joined, not spaced).
+            bool onNullAbsent = meta.aggTypeStr.find("ABSENT") != std::string::npos;
+            auto* jsonArrFunction = new JsonArrayAggFunction(
+                itemIdx, types[itemIdx], meta.aggFuncIndex, onNullAbsent, meta.filterIndex);
+            jsonArrFunction->open(
+                new PerKeyStateDataViewStore(dynamic_cast<StreamingRuntimeContext<RowData*>*>(getRuntimeContext())));
+            function = jsonArrFunction;
         } else {
             throw std::runtime_error("Unsupported aggregate type: " + meta.aggTypeStr);
         }
