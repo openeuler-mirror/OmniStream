@@ -32,8 +32,9 @@ public:
 
 private:
     Input* operator_;
-    WatermarkGauge* watermarkGauge;
-    WatermarkStatus* announcedStatus;
+    WatermarkGauge watermarkGauge;
+    // Only the previously announced status value is needed; the incoming WatermarkStatus is owned elsewhere.
+    int announcedStatus;
     std::shared_ptr<omnistream::SimpleCounter> numRecordsOut;
 
     // Counter *counter_;

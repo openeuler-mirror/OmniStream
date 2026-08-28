@@ -15,7 +15,16 @@
 #include "../../../../core/operators/OutputTest.h"
 #include "table/data/util/VectorBatchUtil.h"
 #include <string.h>
+#include <cstdint>
+#include <memory>
+#include <type_traits>
 #include "table/data/RowKind.h"
+
+#if defined(__has_include)
+#if __has_include(<malloc.h>)
+#include <malloc.h>
+#endif
+#endif
 
 using namespace omnistream;
 
@@ -733,4 +742,78 @@ TEST(RowTimeDeduplicateTest, UpdateBeforeKeepLastRowTimeTest)
     delete inputVB3;
     delete outputVB1;
     delete outputVB2;
+}
+
+namespace {
+
+// Bytes currently handed out by the allocator, or -1 when the running allocator does not
+// report them (mallinfo2 needs glibc >= 2.33, and returns zeros under a preloaded
+// jemalloc/tcmalloc). This counts live allocations, so it does not need malloc_trim:
+// memory the allocator keeps but no longer owes to the program is already excluded.
+int64_t LiveHeapBytes()
+{
+#if defined(__GLIBC__) && defined(__GLIBC_PREREQ)
+#if __GLIBC_PREREQ(2, 33)
+    struct mallinfo2 info = mallinfo2();
+    if (info.uordblks == 0) {
+        return -1;
+    }
+    return static_cast<int64_t>(info.uordblks);
+#else
+    return -1;
+#endif
+#else
+    return -1;
+#endif
+}
+
+}  // namespace
+
+// The function owns its KeySelector, so creating and destroying operator instances must not
+// accumulate memory. Before the selector became a unique_ptr, every destroyed instance leaked
+// it along with its type/serializer vectors and its reusable BinaryRowData key.
+TEST(RowTimeDeduplicateTest, DestructorReleasesKeySelector)
+{
+    json config = json::parse(description)["operators"][0]["description"];
+
+    const int warmupIterations = 1000;
+    const int measuredIterations = 20000;
+    // The leak is a few hundred bytes per instance, so it shows up as megabytes over the
+    // measured run. Anything below this is one-time allocation noise, not accumulation.
+    const int64_t allowedGrowthBytes = 256 * 1024;
+
+    // Keeps the optimizer from discarding instances it can prove are unused.
+    volatile uintptr_t sink = 0;
+
+    // Absorb the one-time allocations of the first construction (static tables, json internals).
+    for (int i = 0; i < warmupIterations; i++) {
+        auto func = std::make_unique<RowTimeDeduplicateFunction>(config);
+        sink ^= reinterpret_cast<uintptr_t>(func.get());
+    }
+
+    int64_t before = LiveHeapBytes();
+    if (before < 0) {
+        GTEST_SKIP() << "allocator does not report live heap bytes";
+    }
+
+    for (int i = 0; i < measuredIterations; i++) {
+        auto func = std::make_unique<RowTimeDeduplicateFunction>(config);
+        sink ^= reinterpret_cast<uintptr_t>(func.get());
+    }
+
+    int64_t growth = LiveHeapBytes() - before;
+    EXPECT_LT(growth, allowedGrowthBytes)
+        << "heap grew " << growth << " bytes over " << measuredIterations
+        << " create/destroy cycles (" << (growth / measuredIterations) << " bytes per instance)";
+}
+
+// Owning the selector makes the function non-copyable. That is fine because
+// StreamOperatorFactory builds it with new and hands it to the operator by pointer.
+TEST(RowTimeDeduplicateTest, FunctionIsNonCopyable)
+{
+    static_assert(!std::is_copy_constructible<RowTimeDeduplicateFunction>::value,
+        "RowTimeDeduplicateFunction owns its KeySelector and must not be copied");
+    static_assert(!std::is_copy_assignable<RowTimeDeduplicateFunction>::value,
+        "RowTimeDeduplicateFunction owns its KeySelector and must not be copy-assigned");
+    SUCCEED();
 }

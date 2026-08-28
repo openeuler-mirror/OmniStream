@@ -543,6 +543,15 @@ void SingleInputGate::close()
                     }
                 }
 
+                // Every channel holds a shared_ptr back to this gate, so the gate and its
+                // channels keep each other alive. Dropping the gate's references here breaks
+                // that cycle; otherwise the channels and everything they own (queues, bridges,
+                // recyclers) survive for the lifetime of the process.
+                inputChannels.clear();
+                channels.clear();
+                pendingEvents.clear();
+                numberOfUninitializedChannels = 0;
+
                 if (bufferPool) {
                     bufferPool->lazyDestroy();
                 }
@@ -557,6 +566,10 @@ void SingleInputGate::close()
 
     if (released) {
         std::unique_lock<std::recursive_mutex> lock(inputChannelsWithDataMutex);
+        // The availability queue holds channel references of its own. The channels were
+        // already released above, so nothing here is still needed.
+        inputChannelsWithData.clear();
+        std::fill(enqueuedInputChannelsWithData.begin(), enqueuedInputChannelsWithData.end(), false);
         cv.notify_all();
     }
 }

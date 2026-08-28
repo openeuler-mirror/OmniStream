@@ -304,7 +304,7 @@ void NetworkObjectBufferPool::returnMemory(uint64_t bytes)
     }
     // Notify outside lock to avoid potential re-entrant locking in callbacks
     if (toNotify != nullptr) {
-        toNotify->setCompleted();
+        toNotify->complete();
     }
     cv.notify_all();
 

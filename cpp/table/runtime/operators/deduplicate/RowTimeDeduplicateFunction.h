@@ -13,6 +13,7 @@
 
 #include <vector>
 #include <fstream>
+#include <memory>
 #include <unordered_map>
 #include <set>
 
@@ -37,7 +38,7 @@ public:
         keyIndex = config["grouping"].get<std::vector<int32_t>>();
         inputTypes = config["inputTypes"].get<std::vector<std::string>>();
         keyedTypes = getKeyedTypes(keyIndex, config["inputTypes"]);
-        groupByKeySelector = new KeySelector<RowData*>(keyedTypes, keyIndex);
+        groupByKeySelector = std::make_unique<KeySelector<RowData*>>(keyedTypes, keyIndex);
     };
 
 public:
@@ -100,7 +101,7 @@ private:
 
     ValueState<int64_t>* recordStateVB = nullptr; // 中间这个是什么
 
-    KeySelector<RowData*>* groupByKeySelector;
+    std::unique_ptr<KeySelector<RowData*>> groupByKeySelector;
     std::vector<int32_t> keyedTypes;
 
     // omnistream::VectorBatch *res = nullptr;

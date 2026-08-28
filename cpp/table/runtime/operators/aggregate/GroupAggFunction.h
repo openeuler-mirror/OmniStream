@@ -112,9 +112,8 @@ private:
     using equalizerFuncType = bool (*)(RowData*, RowData*, int);
     std::vector<equalizerFuncType> equalisers;
     nlohmann::json description;
-    BinaryRowData* reUsePrevAggValue;
-    BinaryRowData* reUseNewAggValue;
-    BinaryRowData* sharedAccmulators;
+    BinaryRowData* reUsePrevAggValue = nullptr;
+    BinaryRowData* reUseNewAggValue = nullptr;
     std::vector<std::string> inputTypes;
     std::vector<std::string> outputTypes;
     std::vector<int32_t> keyedTypes;

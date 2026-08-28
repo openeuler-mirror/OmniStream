@@ -371,7 +371,7 @@ void LocalObjectBufferPool::recycleBytes(int64_t bytes, int channel)
 void LocalObjectBufferPool::mayNotifyAvailable(std::shared_ptr<CompletableFuture> toNotify)
 {
     if (toNotify != nullptr) {
-        toNotify->setCompleted();
+        toNotify->complete();
     }
 }
 
