@@ -686,6 +686,12 @@ protected:
                 INFO_RELEASE("received a end of recovery event end");
                 return DataInputStatus::END_OF_RECOVERY;
             }
+        } else if (dynamic_cast<InnerRecoverEvent*>(event.get())) {
+            INFO_RELEASE("received a inner recovery event start");
+            if (inputGate->AllInnerChannelsRecovered()) {
+                INFO_RELEASE("received a inner recovery event end");
+                return DataInputStatus::INNER_RECOVER;
+            }
         }
         // by default,continue the data processing
         return DataInputStatus::MORE_AVAILABLE;

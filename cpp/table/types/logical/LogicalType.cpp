@@ -218,7 +218,10 @@ bool LogicalType::isSharedLogicalType(const LogicalType* logicalType)
            logicalType == BasicLogicalType::TIMESTAMP_WITHOUT_TIME_ZONE ||
            logicalType == BasicLogicalType::TIMESTAMP_WITH_TIME_ZONE ||
            logicalType == BasicLogicalType::TIMESTAMP_WITH_LOCAL_TIME_ZONE ||
-           logicalType == BasicLogicalType::TIMESTAMP || logicalType == BasicLogicalType::INVALID_TYPE;
+           logicalType == BasicLogicalType::TIMESTAMP ||
+           logicalType == BasicLogicalType::INTERVAL_YEAR_MONTH ||
+           logicalType == BasicLogicalType::INTERVAL_DAY_TIME ||
+           logicalType == BasicLogicalType::INVALID_TYPE;
 }
 
 void LogicalType::buildNameToIdMap()
@@ -277,6 +280,10 @@ BasicLogicalType* BasicLogicalType::TIMESTAMP_WITHOUT_TIME_ZONE = new TimestampW
 BasicLogicalType* BasicLogicalType::TIMESTAMP_WITH_TIME_ZONE = new TimestampWithTimeZoneType(true);
 BasicLogicalType* BasicLogicalType::TIMESTAMP_WITH_LOCAL_TIME_ZONE = new TimestampWithLocalTimeZoneType(true);
 BasicLogicalType* BasicLogicalType::TIMESTAMP = new TimestampWithLocalTimeZoneType(true);
+BasicLogicalType* BasicLogicalType::INTERVAL_YEAR_MONTH =
+    new BasicLogicalType(true, DataTypeId::OMNI_INTERVAL_MONTHS, "INTERVAL_YEAR_MONTH");
+BasicLogicalType* BasicLogicalType::INTERVAL_DAY_TIME =
+    new BasicLogicalType(true, DataTypeId::OMNI_INTERVAL_DAY_TIME, "INTERVAL_DAY_TIME");
 BasicLogicalType* BasicLogicalType::INVALID_TYPE = new BasicLogicalType(true, DataTypeId::OMNI_INVALID, "UNRESOLVED");
 
 LogicalType* BasicLogicalType::getTypeBy(DataTypeId typeId, const nlohmann::json& options)

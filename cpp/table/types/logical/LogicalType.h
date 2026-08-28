@@ -109,6 +109,8 @@ public:
     static BasicLogicalType* TIMESTAMP_WITH_TIME_ZONE;
     static BasicLogicalType* TIMESTAMP_WITH_LOCAL_TIME_ZONE;
     static BasicLogicalType* TIMESTAMP;
+    static BasicLogicalType* INTERVAL_YEAR_MONTH;
+    static BasicLogicalType* INTERVAL_DAY_TIME;
     static BasicLogicalType* INVALID_TYPE;
 
     static LogicalType* getTypeBy(omniruntime::type::DataTypeId typeId, const nlohmann::json& options);

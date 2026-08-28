@@ -37,7 +37,7 @@ public:
     OmniPushingAsyncDataInput::OmniDataOutput* createDataOutput(
         std::shared_ptr<omnistream::SimpleCounter>& numRecordsIn);
     OmniStreamTaskInput* CreateTaskInput(std::shared_ptr<CheckpointedInputGate> inputGate);
-    std::shared_ptr<CheckpointedInputGate> CreateCheckpointedInputGate();
+    std::vector<std::shared_ptr<CheckpointedInputGate>> CreateCheckpointedInputGates();
 };
 } // namespace omnistream
 
