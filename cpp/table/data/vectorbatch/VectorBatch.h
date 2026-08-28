@@ -74,6 +74,12 @@ public:
         return rowKinds;
     }
 
+    void ReleaseTimestampsAndRowKinds()
+    {
+        timestamps = nullptr;
+        rowKinds = nullptr;
+    }
+
     RowData* extractRowData(int rowIndex);
 
     [[nodiscard]] std::vector<XXH128_hash_t> getXXH128s();
