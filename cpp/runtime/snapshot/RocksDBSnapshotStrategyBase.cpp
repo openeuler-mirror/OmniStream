@@ -70,15 +70,23 @@ std::shared_ptr<SnapshotResources> RocksDBSnapshotStrategyBase::syncPrepareResou
 
 void RocksDBSnapshotStrategyBase::cleanupIncompleteSnapshot(std::shared_ptr<SnapshotDirectory> localBackupDirectory)
 {
-    if (localBackupDirectory->isSnapshotCompleted()) {
-        try {
+    if (localBackupDirectory == nullptr || !localBackupDirectory->exists()) {
+        return;
+    }
+
+    const auto directory = localBackupDirectory->getDirectory().string();
+    try {
+        if (localBackupDirectory->isSnapshotCompleted()) {
             auto directoryStateHandle = localBackupDirectory->completeSnapshotAndGetHandle();
             if (directoryStateHandle) {
                 directoryStateHandle->DiscardState();
             }
-        } catch (const std::exception& e) {
-            // 日志记录
+        } else {
+            localBackupDirectory->cleanup();
         }
+    } catch (const std::exception& e) {
+        ERROR_RELEASE(
+            "failed to clean incomplete RocksDB snapshot directory " << directory << ", exception=" << e.what());
     }
 }
 
@@ -117,30 +125,29 @@ std::shared_ptr<SnapshotDirectory> RocksDBSnapshotStrategyBase::prepareLocalSnap
 void RocksDBSnapshotStrategyBase::takeDBNativeCheckpoint(std::shared_ptr<SnapshotDirectory> outputDirectory)
 {
     auto lease = rocksDBResourceGuard_->acquireResource();
-    rocksdb::Checkpoint* checkpoint;
+    rocksdb::Checkpoint* checkpoint = nullptr;
+    const auto chkPath = outputDirectory->getDirectory().string();
 
     try {
         auto status = rocksdb::Checkpoint::Create(db_, &checkpoint);
         if (!status.ok()) {
-            lease->close();
-            delete lease;
-            delete checkpoint;
-            return;
+            throw std::runtime_error("Failed to create RocksDB Checkpoint object: " + status.ToString());
         }
 
-        std::string chkPath = outputDirectory->getDirectory().string();
         status = checkpoint->CreateCheckpoint(chkPath);
         if (!status.ok()) {
-            lease->close();
-            delete lease;
-            delete checkpoint;
-            return;
+            throw std::runtime_error(
+                "Failed to create native RocksDB checkpoint at " + chkPath + ": " + status.ToString());
         }
     } catch (const std::exception& ex) {
+        ERROR_RELEASE(
+            "native RocksDB checkpoint creation failed for directory " << chkPath << ", exception=" << ex.what());
         try {
             outputDirectory->cleanup();
         } catch (const std::exception& cleanupEx) {
-            LogError("Failed to cleanup: %s", cleanupEx.what());
+            ERROR_RELEASE(
+                "failed to clean native RocksDB checkpoint directory " << chkPath
+                                                                       << ", exception=" << cleanupEx.what());
         }
         lease->close();
         delete lease;
@@ -189,12 +196,22 @@ NativeRocksDBSnapshotResources::NativeRocksDBSnapshotResources(
 
 void NativeRocksDBSnapshotResources::release()
 {
+    cleanup();
+}
+
+void NativeRocksDBSnapshotResources::cleanup()
+{
+    if (snapshotDirectory == nullptr) {
+        return;
+    }
+
+    const auto directory = snapshotDirectory->getDirectory().string();
     try {
         if (snapshotDirectory->exists()) {
             snapshotDirectory->cleanup();
         }
     } catch (const std::exception& e) {
-        // 日志记录异常
+        ERROR_RELEASE("failed to clean RocksDB snapshot directory " << directory << ", exception=" << e.what());
     }
 }
 
