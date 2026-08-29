@@ -1463,11 +1463,6 @@ public:
              * the iterating from currentEntry if reloading cache is needed.
              */
             auto* startBytes = currentEntry_ == nullptr ? keyPrefixBytes_ : currentEntry_->rawKeyBytes_.get();
-            for (size_t i = 0; i < cacheEntries_.size(); ++i) {
-                delete cacheEntries_[i];
-            }
-            cacheEntries_.clear();
-            cacheIndex_ = 0;
 
             ROCKSDB_NAMESPACE::Slice sliceKey =
                 ROCKSDB_NAMESPACE::Slice(reinterpret_cast<const char*>(startBytes->data()), startBytes->size());
@@ -1476,8 +1471,18 @@ public:
             /*
              * If the entry pointing to the current position is not removed, it will be the first entry in the
              * new iterating. Skip it to avoid redundant access in such cases.
+             * Record this flag before currentEntry_ is deleted.
              */
-            if (currentEntry_ != nullptr && !currentEntry_->deleted_) {
+            const bool skipCurrent = currentEntry_ != nullptr && !currentEntry_->deleted_;
+
+            for (size_t i = 0; i < cacheEntries_.size(); ++i) {
+                delete cacheEntries_[i];
+            }
+            cacheEntries_.clear();
+            cacheIndex_ = 0;
+            currentEntry_ = nullptr;
+
+            if (skipCurrent) {
                 iterator->next();
             }
 
