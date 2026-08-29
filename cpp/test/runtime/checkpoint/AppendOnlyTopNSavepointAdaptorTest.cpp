@@ -237,3 +237,55 @@ TEST(AppendOnlyTopNSavepointAdaptorTest, ValidateForRestoreChecksFirstState)
         makeKvMap("data-state-with-append"), makeKvMap("other-state")};
     EXPECT_NO_THROW(adaptor.validateForRestore(metas));
 }
+
+TEST(AppendOnlyTopNSavepointAdaptorTest, RetrieveKVRowDataRejectsTruncatedHeader)
+{
+    AppendOnlyTopNSavepointAdaptor adaptor;
+    adaptor.prepareForRestore({{"inputTypes", {"BIGINT"}}, {"sortFieldIndices", {0}}});
+
+    const std::vector<int8_t> keyBytes{0x01};
+    const std::vector<int8_t> valueBytes{0x00};
+    EXPECT_THROW(adaptor.retrieveKVRowData(keyBytes, valueBytes, 0, nullptr), std::runtime_error);
+}
+
+TEST(AppendOnlyTopNSavepointAdaptorTest, RetrieveKVRowDataRejectsTruncatedRowLength)
+{
+    AppendOnlyTopNSavepointAdaptor adaptor;
+    adaptor.prepareForRestore({{"inputTypes", {"BIGINT"}}, {"sortFieldIndices", {0}}});
+
+    const std::vector<int8_t> keyBytes{0x01};
+    // [null marker=false][list size=1], with no following row length.
+    const std::vector<int8_t> valueBytes{0x00, 0x00, 0x00, 0x00, 0x01};
+    EXPECT_THROW(adaptor.retrieveKVRowData(keyBytes, valueBytes, 0, nullptr), std::runtime_error);
+}
+
+TEST(AppendOnlyTopNSavepointAdaptorTest, RetrieveKVRowDataRejectsNegativeRowSize)
+{
+    AppendOnlyTopNSavepointAdaptor adaptor;
+    adaptor.prepareForRestore({{"inputTypes", {"BIGINT"}}, {"sortFieldIndices", {0}}});
+
+    const std::vector<int8_t> keyBytes{0x01};
+    // [null marker=false][list size=1][row size=-1].
+    const std::vector<int8_t> valueBytes{
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x01,
+        static_cast<int8_t>(0xff),
+        static_cast<int8_t>(0xff),
+        static_cast<int8_t>(0xff),
+        static_cast<int8_t>(0xff)};
+    EXPECT_THROW(adaptor.retrieveKVRowData(keyBytes, valueBytes, 0, nullptr), std::runtime_error);
+}
+
+TEST(AppendOnlyTopNSavepointAdaptorTest, RetrieveKVRowDataRejectsRowBeyondInput)
+{
+    AppendOnlyTopNSavepointAdaptor adaptor;
+    adaptor.prepareForRestore({{"inputTypes", {"BIGINT"}}, {"sortFieldIndices", {0}}});
+
+    const std::vector<int8_t> keyBytes{0x01};
+    // [null marker=false][list size=1][row size=16], without the declared payload.
+    const std::vector<int8_t> valueBytes{0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x10};
+    EXPECT_THROW(adaptor.retrieveKVRowData(keyBytes, valueBytes, 0, nullptr), std::runtime_error);
+}
