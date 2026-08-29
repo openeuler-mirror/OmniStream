@@ -12,6 +12,8 @@
 #include <gtest/gtest.h>
 
 #include <map>
+#include <filesystem>
+#include <fstream>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -110,4 +112,42 @@ TEST(RocksDBSnapshotStrategyOwnershipTest, NativeFullAsyncSupplierRetainsConcret
 
     supplier.reset();
     EXPECT_TRUE(weakStrategy.expired());
+}
+
+TEST(RocksDBSnapshotStrategyOwnershipTest, CleanupDeletesTemporarySnapshotDirectory)
+{
+    const auto directory =
+        std::filesystem::temp_directory_path() / ("omnistream-rocks-snapshot-" + UUID::randomUUID().ToString());
+    std::filesystem::create_directories(directory);
+    std::ofstream(directory / "000001.sst") << "snapshot";
+
+    auto snapshotDirectory = SnapshotDirectoryFactory::temporary(directory);
+    NativeRocksDBSnapshotResources resources(
+        std::shared_ptr<SnapshotDirectory>(std::move(snapshotDirectory)),
+        PreviousSnapshot::EMPTY_PREVIOUS_SNAPSHOT,
+        {});
+
+    resources.cleanup();
+
+    EXPECT_FALSE(std::filesystem::exists(directory));
+}
+
+TEST(RocksDBSnapshotStrategyOwnershipTest, CleanupRetainsCompletedPermanentSnapshotDirectory)
+{
+    const auto directory =
+        std::filesystem::temp_directory_path() / ("omnistream-local-recovery-" + UUID::randomUUID().ToString());
+    std::filesystem::create_directories(directory);
+    std::ofstream(directory / "000001.sst") << "snapshot";
+
+    auto snapshotDirectory = SnapshotDirectoryFactory::permanent(directory);
+    auto sharedDirectory = std::shared_ptr<SnapshotDirectory>(std::move(snapshotDirectory));
+    auto stateHandle = sharedDirectory->completeSnapshotAndGetHandle();
+    ASSERT_NE(stateHandle, nullptr);
+
+    NativeRocksDBSnapshotResources resources(sharedDirectory, PreviousSnapshot::EMPTY_PREVIOUS_SNAPSHOT, {});
+    resources.cleanup();
+
+    EXPECT_TRUE(std::filesystem::exists(directory));
+    stateHandle->DiscardState();
+    EXPECT_FALSE(std::filesystem::exists(directory));
 }
