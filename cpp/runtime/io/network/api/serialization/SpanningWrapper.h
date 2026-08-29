@@ -34,7 +34,7 @@ public:
     {
         LOG("SpanningWrapper GetUnconsumedSegment position: " << lengthBuffer_->position());
         if (lengthBuffer_->position() > 0) {
-            uint8_t* data = reinterpret_cast<uint8_t*>(malloc(lengthBuffer_->position()));
+            uint8_t* data = new uint8_t[lengthBuffer_->position()];
             MemorySegment* memorySegment = new MemorySegment(data, lengthBuffer_->position());
             memorySegment->put(0, lengthBuffer_->getValue(), 0, lengthBuffer_->position());
             ::datastream::NetworkBuffer* networkBuffer = new ::datastream::NetworkBuffer(
@@ -62,7 +62,7 @@ public:
         if (leftOverData_ != nullptr) {
             serializer->write(const_cast<uint8_t*>(leftOverData_), 0, leftOverStart_, leftOverSize);
         }
-        uint8_t* data = reinterpret_cast<uint8_t*>(malloc(unconsumedSize));
+        uint8_t* data = new uint8_t[unconsumedSize];
         MemorySegment* memorySegment = new MemorySegment(data, unconsumedSize);
         memorySegment->put(0, serializer->getData(), 0, unconsumedSize);
         ::datastream::NetworkBuffer* networkBuffer = new ::datastream::NetworkBuffer(
