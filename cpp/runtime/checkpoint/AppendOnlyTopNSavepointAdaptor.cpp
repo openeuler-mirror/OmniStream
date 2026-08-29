@@ -247,6 +247,9 @@ void AppendOnlyTopNSavepointAdaptor::retrieveKVRowData(
 
     if (sortKeyLength != -1) {
         if (sortKeyLength < 0 || static_cast<size_t>(sortKeyLength) > keyBytes.size()) {
+            ERROR_RELEASE(
+                "AppendOnlyTopNSavepointAdaptor::retrieveKVRowData -> invalid key, sortKeyLength="
+                << sortKeyLength << ", keySize=" << keyBytes.size());
             throw std::runtime_error("Invalid TopN MapState key: sort key exceeds key length");
         }
         const size_t prefixLength = keyBytes.size() - static_cast<size_t>(sortKeyLength);
@@ -262,6 +265,9 @@ void AppendOnlyTopNSavepointAdaptor::retrieveKVRowData(
     // 解析 Flink MapState value: [null marker][list size][RowData items...]
     constexpr size_t VALUE_HEADER_SIZE = sizeof(uint8_t) + sizeof(int32_t);
     if (valueBytes.size() < VALUE_HEADER_SIZE) {
+        ERROR_RELEASE(
+            "AppendOnlyTopNSavepointAdaptor::retrieveKVRowData -> truncated value header, valueSize="
+            << valueBytes.size() << ", minimumHeaderSize=" << VALUE_HEADER_SIZE);
         throw std::runtime_error("Invalid TopN MapState value: truncated header");
     }
     DataInputDeserializer valInput(
@@ -273,12 +279,18 @@ void AppendOnlyTopNSavepointAdaptor::retrieveKVRowData(
     // 读取 list size
     int32_t listSize = valInput.readInt();
     if (listSize < 0 || static_cast<size_t>(listSize) > static_cast<size_t>(valInput.Available()) / sizeof(int32_t)) {
+        ERROR_RELEASE(
+            "AppendOnlyTopNSavepointAdaptor::retrieveKVRowData -> invalid list size, listSize="
+            << listSize << ", remainingBytes=" << valInput.Available());
         throw std::runtime_error("Invalid TopN MapState value: invalid list size");
     }
 
     for (int32_t i = 0; i < listSize; ++i) {
         // 格式：[int32 size][size bytes]
         if (valInput.Available() < static_cast<int>(sizeof(int32_t))) {
+            ERROR_RELEASE(
+                "AppendOnlyTopNSavepointAdaptor::retrieveKVRowData -> truncated row length, rowIndex="
+                << i << ", listSize=" << listSize << ", remainingBytes=" << valInput.Available());
             throw std::runtime_error("Invalid TopN MapState value: truncated row length");
         }
         size_t rowStart = valInput.getPosition();
@@ -286,6 +298,10 @@ void AppendOnlyTopNSavepointAdaptor::retrieveKVRowData(
         const size_t payloadStart = rowStart + sizeof(int32_t);
         if (rowSize < 0 || payloadStart > valueBytes.size() ||
             static_cast<size_t>(rowSize) > valueBytes.size() - payloadStart) {
+            ERROR_RELEASE(
+                "AppendOnlyTopNSavepointAdaptor::retrieveKVRowData -> row exceeds input, rowIndex="
+                << i << ", rowSize=" << rowSize << ", payloadStart=" << payloadStart
+                << ", valueSize=" << valueBytes.size());
             throw std::runtime_error("Invalid TopN MapState value: row exceeds input");
         }
         const size_t rowEnd = payloadStart + static_cast<size_t>(rowSize);
@@ -310,6 +326,10 @@ void AppendOnlyTopNSavepointAdaptor::retrieveKVRowData(
 
             sortKeyLength = sortKeyOutput.getPosition();
             if (sortKeyLength < 0 || static_cast<size_t>(sortKeyLength) > keyBytes.size()) {
+                ERROR_RELEASE(
+                    "AppendOnlyTopNSavepointAdaptor::retrieveKVRowData -> invalid derived sort key length, "
+                    "sortKeyLength="
+                    << sortKeyLength << ", keySize=" << keyBytes.size());
                 throw std::runtime_error("Invalid TopN MapState key: sort key exceeds key length");
             }
             const size_t prefixLength = keyBytes.size() - static_cast<size_t>(sortKeyLength);
