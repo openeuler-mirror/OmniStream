@@ -40,6 +40,7 @@ public:
     KeyValueByteContainer Serialize(Row* row);
 
 private:
+    std::string dumpJsonWithExactDecimals() const;
     std::vector<FieldGetter> keyFieldGetters_;
     std::vector<FieldGetter> valueFieldGetters_;
     bool hasMetadata_;
@@ -47,6 +48,7 @@ private:
     bool upsertMode_;
     std::vector<std::string> inputFields_;
     std::vector<std::string> inputTypes_;
+    std::vector<std::string> serializedFieldNames_;
     std::vector<std::pair<int32_t, int32_t>> decimalInfo;
     nlohmann::ordered_json j;
     std::ostringstream oss;

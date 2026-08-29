@@ -14,6 +14,30 @@
 #include "data/binary/BinaryRowData.h"
 #include "table/data/rowdata_marshaller.h"
 #include "OmniOperatorJIT/core/src/codegen/time_util.h"
+
+namespace {
+std::string FormatDecimal(std::string valueStr, int32_t scale)
+{
+    if (scale <= 0) {
+        return valueStr;
+    }
+
+    bool negative = !valueStr.empty() && valueStr.front() == '-';
+    if (negative) {
+        valueStr.erase(0, 1);
+    }
+
+    int len = static_cast<int>(valueStr.length());
+    if (scale >= len) {
+        valueStr = "0." + std::string(scale - len, '0') + valueStr;
+    } else {
+        valueStr.insert(len - scale, ".");
+    }
+
+    return negative ? "-" + valueStr : valueStr;
+}
+} // namespace
+
 namespace omnistream {
 VectorBatch::VectorBatch(size_t rowCnt)
     : omniruntime::vec::VectorBatch(rowCnt),
@@ -188,15 +212,7 @@ std::string VectorBatch::transformDecimal128(
     std::string valueStr =
         (reinterpret_cast<omniruntime::vec::Vector<Decimal128>*>(vectors[vectorID])->GetValue(rowID)).ToString();
     if (static_cast<int>(decimalInfo.size()) > vectorID && decimalInfo[vectorID].second > 0) {
-        int32_t scale = decimalInfo[vectorID].second;
-        int len = static_cast<int>(valueStr.length());
-        // Case when scale is greater than or equal to the number length
-        if (scale >= len) {
-            valueStr = "0." + std::string(scale - len, '0') + valueStr;
-        } else {
-            // Insert the decimal point at the correct position
-            valueStr = valueStr.substr(0, len - scale) + "." + valueStr.substr(len - scale);
-        }
+        valueStr = FormatDecimal(valueStr, decimalInfo[vectorID].second);
     }
     return valueStr;
 }
@@ -207,24 +223,7 @@ std::string VectorBatch::transformDecimal64(
     std::string valueStr =
         std::to_string(reinterpret_cast<omniruntime::vec::Vector<long>*>(vectors[vectorID])->GetValue(rowID));
     if (static_cast<int>(decimalInfo.size()) > vectorID && decimalInfo[vectorID].second > 0) {
-        int32_t scale = decimalInfo[vectorID].second;
-        int len = static_cast<int>(valueStr.length());
-        // Case when scale is greater than or equal to the number length
-        bool negtiveFlag = false;
-        if (len > 0 && valueStr[0] == '-') {
-            valueStr = valueStr.substr(1, len);
-            negtiveFlag = true;
-            len -= 1;
-        }
-        if (scale >= len) {
-            valueStr = "0." + std::string(scale - len, '0') + valueStr;
-        } else {
-            // Insert the decimal point at the correct position
-            valueStr = valueStr.substr(0, len - scale) + "." + valueStr.substr(len - scale);
-        }
-        if (negtiveFlag) {
-            valueStr = "-" + valueStr;
-        }
+        valueStr = FormatDecimal(valueStr, decimalInfo[vectorID].second);
     }
     return valueStr;
 }
@@ -348,6 +347,10 @@ void VectorBatch::convertToJson(
     std::vector<std::string> inputFields) const
 {
     for (size_t colIndex = 0; colIndex < vectors.size(); ++colIndex) {
+        if (vectors[colIndex]->IsNull(rowIndex)) {
+            j[inputFields[colIndex]] = nullptr;
+            continue;
+        }
         int dataId = vectors[colIndex]->GetTypeId();
         switch (dataId) {
             case omniruntime::type::DataTypeId::OMNI_TIMESTAMP:
