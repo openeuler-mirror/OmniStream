@@ -19,9 +19,17 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 >- 使用sql-client交互式界面执行SQL时，推荐将SQL的结果输出到connector为blackhole的数据表中，具体可参考Nexmark Q0的执行方式。
 >- 由于内存限制，默认情况下只支持Calc和LookupJoin算子，其他支持的算子需要export FLINK\_PERFORMANCE=false设置环境变量使能。
 
-**Flink标准格式Savepoint算子切换支持**
+### 作业切换支持
 
-SQL场景下，OmniStream支持通过Flink标准格式的Savepoint（SP），实现OmniStream算子与Flink原生算子之间的相互切换。当前仅Join、Deduplicate和Rank算子支持相互切换。
+SQL场景下，OmniStream支持通过Flink标准格式的Savepoint（SP），实现OmniStream作业与Flink原生作业之间的相互切换。当前支持作业切换的算子类型如下：
+
+**表 4** 支持作业切换的算子类型<a id="支持作业切换的算子类型"></a>
+
+|算子类型|说明|
+|--|--|
+|Join|支持Join算子相互切换|
+|Deduplicate|支持Deduplicate算子相互切换|
+|Rank|支持Rank算子相互切换|
 
 - 保存Flink标准格式的SP：执行`savepoint`或`stop`命令时，增加`--type compatible`参数。
 
@@ -29,7 +37,7 @@ SQL场景下，OmniStream支持通过Flink标准格式的Savepoint（SP），实
   ./flink savepoint/stop --type compatible
   ```
 
-  `--type compatible`表示保存用于算子切换的Flink标准格式SP。
+  `--type compatible`表示保存用于作业切换的Flink标准格式SP。
 
 - 恢复Flink标准格式的SP：在SQL作业中增加如下参数。
 
@@ -246,7 +254,7 @@ SQL场景下，OmniStream支持通过Flink标准格式的Savepoint（SP），实
     ./flink savepoint --type <native|canonical> <jobId> file:///path/to/savepoints
     ```
 
-    `--type`用于指定SP的格式，支持`native`和`canonical`两种取值。`native`表示保存OmniStream原生格式的SP，`canonical`表示保存Flink标准格式的SP。当前仅Join、Deduplicate和Rank算子支持通过Flink标准格式的SP实现算子切换。将`<jobId>`和`file:///path/to/savepoints`分别替换为实际的作业ID和SP存储目录。命令执行成功后，记录返回的SP路径。
+    `--type`用于指定SP的格式，支持`native`和`canonical`两种取值。`native`表示保存OmniStream原生格式的SP，`canonical`表示保存Flink标准格式的SP。当前仅Join、Deduplicate和Rank算子支持通过Flink标准格式的SP实现作业切换。将`<jobId>`和`file:///path/to/savepoints`分别替换为实际的作业ID和SP存储目录。命令执行成功后，记录返回的SP路径。
 
 3. 恢复CP或SP。重新提交SQL作业前，在sql-client中将待恢复CP或SP的路径配置为`execution.savepoint.path`，然后重新执行建表语句和作业提交语句。
 
