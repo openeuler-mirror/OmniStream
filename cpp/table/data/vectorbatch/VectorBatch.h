@@ -60,10 +60,12 @@ public:
     {
         rowKinds[rowIndex] = rowKind;
     }
+
     void setRowKinds(size_t start, RowKind* data, size_t len)
     {
         memcpy_s(rowKinds, len, data, len);
     }
+
     RowKind getRowKind(size_t rowIndex)
     {
         return rowKinds[rowIndex];
@@ -72,6 +74,12 @@ public:
     RowKind* getRowKinds()
     {
         return rowKinds;
+    }
+
+    void releaseTimestampsAndRowKinds()
+    {
+        timestamps = nullptr;
+        rowKinds = nullptr;
     }
 
     RowData* extractRowData(int rowIndex);
