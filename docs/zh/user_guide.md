@@ -19,7 +19,7 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 >- 使用sql-client交互式界面执行SQL时，推荐将SQL的结果输出到connector为blackhole的数据表中，具体可参考Nexmark Q0的执行方式。
 >- 由于内存限制，默认情况下只支持Calc和LookupJoin算子，其他支持的算子需要export FLINK\_PERFORMANCE=false设置环境变量使能。
 
-**算子切换支持**
+**Flink标准格式Savepoint算子切换支持**
 
 SQL场景下，OmniStream支持通过Flink标准格式的Savepoint（SP），实现OmniStream算子与Flink原生算子之间的相互切换。当前仅Join、Deduplicate和Rank算子支持相互切换。
 
