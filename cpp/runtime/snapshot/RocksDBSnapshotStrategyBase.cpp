@@ -194,6 +194,14 @@ NativeRocksDBSnapshotResources::NativeRocksDBSnapshotResources(
 {
 }
 
+NativeRocksDBSnapshotResources::~NativeRocksDBSnapshotResources()
+{
+    // The packaged task may be cancelled before its callable runs. In that
+    // case destruction is the only lifecycle callback available to reclaim
+    // the directory prepared by syncPrepareResources().
+    cleanup();
+}
+
 void NativeRocksDBSnapshotResources::release()
 {
     cleanup();

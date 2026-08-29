@@ -24,6 +24,7 @@
 #include "runtime/snapshot/RocksIncrementalSnapshotStrategy.h"
 #include "runtime/snapshot/RocksNativeFullSnapshotStrategy.h"
 #include "runtime/state/metainfo/StateMetaInfoSnapshot.h"
+#include "streaming/api/operators/OperatorSnapshotFutures.h"
 
 namespace {
 
@@ -149,5 +150,31 @@ TEST(RocksDBSnapshotStrategyOwnershipTest, CleanupRetainsCompletedPermanentSnaps
 
     EXPECT_TRUE(std::filesystem::exists(directory));
     stateHandle->DiscardState();
+    EXPECT_FALSE(std::filesystem::exists(directory));
+}
+
+TEST(RocksDBSnapshotStrategyOwnershipTest, CancelBeforePackagedTaskExecutionCleansTemporarySnapshot)
+{
+    const auto directory =
+        std::filesystem::temp_directory_path() / ("omnistream-cancelled-snapshot-" + UUID::randomUUID().ToString());
+    std::filesystem::create_directories(directory);
+    std::ofstream(directory / "000001.sst") << "snapshot";
+
+    auto snapshotDirectory = SnapshotDirectoryFactory::temporary(directory);
+    auto resources = std::make_shared<NativeRocksDBSnapshotResources>(
+        std::shared_ptr<SnapshotDirectory>(std::move(snapshotDirectory)),
+        PreviousSnapshot::EMPTY_PREVIOUS_SNAPSHOT,
+        std::vector<std::shared_ptr<StateMetaInfoSnapshot>>{});
+    auto task = std::make_shared<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>>(
+        [resources]() { return std::shared_ptr<SnapshotResult<KeyedStateHandle>>{}; });
+
+    OperatorSnapshotFutures futures;
+    futures.setKeyedStateManagedFuture(task);
+    resources.reset();
+    task.reset();
+    ASSERT_TRUE(std::filesystem::exists(directory));
+
+    futures.cancel("test checkpoint abort before packaged task execution");
+
     EXPECT_FALSE(std::filesystem::exists(directory));
 }
