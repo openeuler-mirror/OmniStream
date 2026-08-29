@@ -14,7 +14,7 @@
 
 #include "LogicalType.h"
 
-class CharType : public LogicalType {
+class CharType : public BasicLogicalType {
 public:
     explicit CharType(bool isNull, int length);
 

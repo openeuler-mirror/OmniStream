@@ -22,8 +22,9 @@ public:
     OmniStreamMultipleInputProcessor(
         std::vector<OmniStreamOneInputProcessor*>&& _processors,
         std::shared_ptr<MutipleInputSelectionHandler> inputSelectionHandler)
-        : processors(_processors),
-          inputSelectionHandler(inputSelectionHandler)
+        : processors(std::move(_processors)),
+          inputSelectionHandler(inputSelectionHandler),
+          suspendNum(static_cast<int8_t>(processors.size()))
     {
         availabilityHelper = std::make_shared<MultipleFuturesAvailabilityHelper>(processors.size());
     }

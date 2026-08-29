@@ -58,11 +58,6 @@ public:
 
     ~HeapFullSnapshotResources() override = default;
 
-    bool isHeapBackend() const override
-    {
-        return true;
-    }
-
     const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& getMetaInfoSnapshots() override
     {
         return stateMetaInfoSnapshots_;

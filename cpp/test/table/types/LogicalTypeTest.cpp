@@ -212,13 +212,18 @@ TEST(LogicalTypeTest, FlinkTypeToOmniTypePreservesNullability)
     LogicalTypePtr notNullTimestamp(
         LogicalType::flinkTypeToOmniType("TIMESTAMP_WITHOUT_TIME_ZONE(3) NOT NULL"), logicalTypeDeleter);
     LogicalTypePtr notNullBigint(LogicalType::flinkTypeToOmniType("BIGINT NOT NULL *PROCTIME*"), logicalTypeDeleter);
+    LogicalTypePtr notNullChar(LogicalType::flinkTypeToOmniType("CHAR(12) NOT NULL"), logicalTypeDeleter);
 
     ASSERT_NE(nullableTimestamp, nullptr);
     ASSERT_NE(notNullTimestamp, nullptr);
     ASSERT_NE(notNullBigint, nullptr);
+    ASSERT_NE(notNullChar, nullptr);
     EXPECT_TRUE(nullableTimestamp->isNullable());
     EXPECT_FALSE(notNullTimestamp->isNullable());
     EXPECT_FALSE(notNullBigint->isNullable());
+    EXPECT_FALSE(notNullChar->isNullable());
+    EXPECT_EQ(notNullChar->getTypeId(), omniruntime::type::DataTypeId::OMNI_CHAR);
+    EXPECT_EQ(notNullChar->toJson().at("length"), 12);
     EXPECT_EQ(notNullTimestamp->toJson().at("precision"), 3);
     EXPECT_FALSE(notNullTimestamp->toJson().at("nullable"));
 }

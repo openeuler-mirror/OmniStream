@@ -200,6 +200,10 @@ public:
     {
         return getMapState()->contains(*key);
     };
+    emhash7::HashMap<EK, EV>* entries()
+    {
+        return getMapState()->entries();
+    };
     void clear() override
     {
         getMapState()->clear();

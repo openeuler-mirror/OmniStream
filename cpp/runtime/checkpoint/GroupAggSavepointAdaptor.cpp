@@ -18,10 +18,8 @@
 
 #include "core/api/common/state/StateDescriptor.h"
 #include "core/memory/DataInputDeserializer.h"
-#include "core/typeutils/MapSerializer.h"
 #include "runtime/state/RegisteredKeyValueStateBackendMetaInfo.h"
 #include "runtime/state/VoidNamespaceSerializer.h"
-#include "runtime/state/heap/HeapFullSnapshotResources.h"
 #include "runtime/state/restore/SavepointRestoreResultIterator.h"
 #include "runtime/state/restore/RestoreBackendDelegate.h"
 #include "runtime/state/restore/vb/VectorBatchRestoreFlow.h"
@@ -91,7 +89,6 @@ VectorBatchSavePlan GroupAggSavepointAdaptor::buildSavePlan(FullSnapshotResource
     VectorBatchSavePlan plan;
     const auto& metas = resources.getMetaInfoSnapshots();
     plan.keyGroupRange = resources.getKeyGroupRange();
-    const bool heapSnapshot = dynamic_cast<HeapFullSnapshotResources*>(&resources) != nullptr;
 
     int targetId = 0;
     for (size_t i = 0; i < metas.size(); ++i) {
@@ -136,23 +133,6 @@ VectorBatchSavePlan GroupAggSavepointAdaptor::buildSavePlan(FullSnapshotResource
         } else {
             plan.targetMetaInfos.push_back(meta);
             spec.valueSerializer = meta->getValueSerializer();
-            const auto keyedStateType = StateDescriptor::StringToType(
-                meta->getOption(StateMetaInfoSnapshot::CommonOptionsKeys::KEYED_STATE_TYPE));
-            if (heapSnapshot && keyedStateType == StateDescriptor::Type::MAP) {
-                auto* mapSerializer = dynamic_cast<MapSerializer*>(spec.valueSerializer);
-                if (mapSerializer == nullptr || mapSerializer->getKeySerializer() == nullptr ||
-                    mapSerializer->getValueSerializer() == nullptr) {
-                    ERROR_RELEASE("The valueSerializer is null.");
-                    throw std::runtime_error(
-                        "GroupAggSavepointAdaptor: Heap MapState requires a MapSerializer for state=" +
-                        meta->getName());
-                }
-                // Heap MapState 在 savepoint 中需拆分为多条 entry（sourceKey | mapKey | mapValue），
-                // 而非 Heap 后端的一条存储，故统一走 KV_MAP_TRANSFORM 转换。
-                spec.stateType = VectorBatchStateType::KV_MAP_TRANSFORM;
-                spec.mapKeySerializer = mapSerializer->getKeySerializer();
-                spec.mapValueSerializer = mapSerializer->getValueSerializer();
-            }
         }
         plan.stateContextSpecs.push_back(std::move(spec));
     }
@@ -171,8 +151,6 @@ std::vector<VectorBatchSaveStateContext> GroupAggSavepointAdaptor::buildSaveStat
         ctx.stateType = spec.stateType;
         ctx.valueSerializer = spec.valueSerializer;
         ctx.sourceValueSerializer = spec.sourceValueSerializer;
-        ctx.mapKeySerializer = spec.mapKeySerializer;
-        ctx.mapValueSerializer = spec.mapValueSerializer;
     }
     return contexts;
 }
@@ -268,76 +246,6 @@ void GroupAggSavepointAdaptor::convertKVRowData(
     const VectorBatchSavePlan&,
     Emit&& output)
 {
-    if (context.stateType == VectorBatchStateType::KV_MAP_TRANSFORM) {
-        if (context.mapKeySerializer == nullptr || context.mapValueSerializer == nullptr) {
-            ERROR_RELEASE("The mapKeySerializer is null OR  mapValueSerializer is null.");
-            throw std::runtime_error(
-                "GroupAggSavepointAdaptor: missing mapKeySerializer/mapValueSerializer for Heap MapState, state=" +
-                context.logicalStateName);
-        }
-
-        DataInputDeserializer input(entry.value.data(), static_cast<int>(entry.value.size()), 0);
-        if (input.Available() < static_cast<int>(sizeof(uint32_t))) {
-            ERROR_RELEASE("Insufficient capacity of less than 4 bytes.");
-            throw std::runtime_error(
-                "GroupAggSavepointAdaptor: truncated Heap MapState size, state=" + context.logicalStateName);
-        }
-        const int mapSize = input.readInt();
-        if (mapSize < 0) {
-            ERROR_RELEASE("mapsize is invalid.");
-            throw std::runtime_error(
-                "GroupAggSavepointAdaptor: negative Heap MapState size, state=" + context.logicalStateName);
-        }
-        for (int i = 0; i < mapSize; ++i) {
-            // 使用通用 serializer 反序列化 map key（返回 raw void*，非 Object*）
-            void* mapKey = context.mapKeySerializer->deserialize(input);
-            if (mapKey == nullptr) {
-                ERROR_RELEASE("mapKey is null.");
-                throw std::runtime_error(
-                    "GroupAggSavepointAdaptor: failed to deserialize Heap MapState key, state=" +
-                    context.logicalStateName + ", entry=" + std::to_string(i));
-            }
-            const bool isNull = input.readBoolean();
-
-            // key = sourceKey + serialized mapKey
-            DataOutputSerializer keyOutput(static_cast<int>(entry.key.size()) + 64);
-            keyOutput.write(
-                const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(entry.key.data())),
-                static_cast<int>(entry.key.size()),
-                0,
-                static_cast<int>(entry.key.size()));
-            context.mapKeySerializer->serialize(mapKey, keyOutput);
-            delete mapKey;
-            // value = isNull + (if not null) serialized mapValue
-            DataOutputSerializer valueOutput(16);
-            valueOutput.writeBoolean(isNull);
-            if (!isNull) {
-                void* mapValue = context.mapValueSerializer->deserialize(input);
-                if (mapValue == nullptr) {
-                    ERROR_RELEASE("mapValue is null.");
-                    throw std::runtime_error(
-                        "GroupAggSavepointAdaptor: failed to deserialize Heap MapState value, state=" +
-                        context.logicalStateName + ", entry=" + std::to_string(i));
-                }
-                context.mapValueSerializer->serialize(mapValue, valueOutput);
-                delete mapValue;
-            }
-
-            ConvertedEntry converted;
-            converted.context = &context;
-            converted.keyBytes.assign(keyOutput.getData(), keyOutput.getData() + keyOutput.getPosition());
-            converted.valueBytes.assign(valueOutput.getData(), valueOutput.getData() + valueOutput.getPosition());
-            output(std::move(converted));
-        }
-        if (input.Available() != 0) {
-            ERROR_RELEASE("The input is not in the initial state.");
-            throw std::runtime_error(
-                "GroupAggSavepointAdaptor: trailing bytes in Heap MapState value, state=" + context.logicalStateName +
-                ", remaining=" + std::to_string(input.Available()));
-        }
-        return;
-    }
-
     if (context.stateType != VectorBatchStateType::KV_TRANSFORM || context.sourceValueSerializer == nullptr) {
         ERROR_RELEASE("The stateType is not KV_TRANSFORM or sourceValueSerializer is null.");
         throw std::runtime_error("GroupAggSavepointAdaptor: invalid transformed state context");

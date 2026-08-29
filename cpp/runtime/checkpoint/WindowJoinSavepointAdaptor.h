@@ -43,7 +43,6 @@ public:
     void validateForSave(const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& metaInfos) override;
     void validateForRestore(const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& metaInfos) override;
 
-    // WindowJoin compatible save is intentionally not implemented yet.
     void save(
         CheckpointStateOutputStreamProxy& stream,
         KeyGroupRangeOffsets& keyGroupOffsets,

@@ -47,6 +47,9 @@
 #include "runtime/state/VoidNamespaceSerializer.h"
 #include "table/typeutils/VectorBatchSerializer.h"
 #include "core/typeutils/LongSerializer.h"
+#include "core/typeutils/MapSerializer.h"
+#include "core/typeutils/ListSerializer.h"
+#include "core/api/common/state/RestoreStateDescriptor.h"
 
 using namespace omniruntime::type;
 /*
@@ -129,6 +132,18 @@ public:
                     auto stateTable =
                         reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<std::string, int>*>*>(
                             stateTablePtr);
+                    delete stateTable;
+                } else if (keyId == BackendDataType::VARCHAR_BK && valueId == BackendDataType::VARCHAR_BK) {
+                    // JSON_OBJECTAGG: MapView<VoidNamespace, std::string, std::string>.
+                    auto stateTable = reinterpret_cast<
+                        CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<std::string, std::string>*>*>(
+                        stateTablePtr);
+                    delete stateTable;
+                } else if (keyId == BackendDataType::BIGINT_BK && valueId == BackendDataType::VARCHAR_BK) {
+                    // JSON_ARRAYAGG: MapView<VoidNamespace, long, std::string>.
+                    auto stateTable = reinterpret_cast<
+                        CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<int64_t, std::string>*>*>(
+                        stateTablePtr);
                     delete stateTable;
                 } else if (keyId == BackendDataType::INT_BK && valueId == BackendDataType::INT_BK) {
                     auto stateTable =
@@ -264,6 +279,49 @@ public:
         return nullptr;
     }
 
+    /**
+     * Creates a RestoreStateDescriptor from a StateMetaInfoSnapshot.
+     * For MAP states, extracts key/value BackendDataType from MapSerializer.
+     * For LIST states, extracts element BackendDataType from ListSerializer.
+     * For VALUE states, uses the value serializer's BackendDataType.
+     */
+    static StateDescriptor* createRestoreDescriptor(
+        const StateMetaInfoSnapshot& metaInfo,
+        StateDescriptor::Type stateType,
+        TypeSerializer* nsSerializer,
+        TypeSerializer* valSerializer)
+    {
+        if (stateType == StateDescriptor::Type::MAP) {
+            auto* mapSer = dynamic_cast<MapSerializer*>(valSerializer);
+            if (mapSer) {
+                return new RestoreStateDescriptor(
+                    metaInfo.getName(),
+                    stateType,
+                    valSerializer,
+                    BackendDataType::INVALID_BK,
+                    mapSer->getKeySerializer()->getBackendId(),
+                    mapSer->getValueSerializer()->getBackendId());
+            }
+            // Fallback: OBJECT×OBJECT if MapSerializer cast fails
+            return new RestoreStateDescriptor(
+                metaInfo.getName(),
+                stateType,
+                valSerializer,
+                BackendDataType::INVALID_BK,
+                BackendDataType::OBJECT_BK,
+                BackendDataType::OBJECT_BK);
+        } else if (stateType == StateDescriptor::Type::LIST) {
+            auto* listSer = dynamic_cast<ListSerializer*>(valSerializer);
+            BackendDataType elemId =
+                listSer ? listSer->getElementSerializer()->getBackendId() : valSerializer->getBackendId();
+            return new RestoreStateDescriptor(metaInfo.getName(), stateType, valSerializer, elemId);
+        } else {
+            // VALUE
+            return new RestoreStateDescriptor(
+                metaInfo.getName(), stateType, valSerializer, valSerializer->getBackendId());
+        }
+    }
+
     template <typename T, typename Comparator>
     std::shared_ptr<KeyGroupedInternalPriorityQueue<T>> create(
         std::string stateName, TypeSerializer* byteOrderedElementSerializer)
@@ -395,6 +453,14 @@ uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(
                 namespaceSerializer, stateDesc);
         } else if (keyId == BackendDataType::VARCHAR_BK && valueId == BackendDataType::INT_BK) {
             return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, std::string, int32_t>(
+                namespaceSerializer, stateDesc);
+        } else if (keyId == BackendDataType::VARCHAR_BK && valueId == BackendDataType::VARCHAR_BK) {
+            // JSON_OBJECTAGG: MapView<VoidNamespace, std::string, std::string> (key -> value JSON text).
+            return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, std::string, std::string>(
+                namespaceSerializer, stateDesc);
+        } else if (keyId == BackendDataType::BIGINT_BK && valueId == BackendDataType::VARCHAR_BK) {
+            // JSON_ARRAYAGG: MapView<VoidNamespace, long, std::string> (insertion index -> element JSON text).
+            return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, int64_t, std::string>(
                 namespaceSerializer, stateDesc);
         } else if (keyId == BackendDataType::ROW_BK && valueId == BackendDataType::INT_BK) {
             return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, RowData*, int32_t>(

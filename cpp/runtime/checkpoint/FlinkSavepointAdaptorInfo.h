@@ -26,8 +26,7 @@ enum class FlinkSavepointAdaptorType {
     StreamingJoinNoUniqueKeyAdaptor,
     StreamingLeftOuterJoinNoUniqueKeyAdaptor,
     WindowJoinAdaptor,
-    GroupAggAdaptor,
-    GroupWindowAggAdaptor
+    GroupAggAdaptor
 };
 
 inline const char* flinkSavepointAdaptorTypeName(FlinkSavepointAdaptorType type) noexcept
@@ -42,7 +41,6 @@ inline const char* flinkSavepointAdaptorTypeName(FlinkSavepointAdaptorType type)
             return "StreamingLeftOuterJoinNoUniqueKeyAdaptor";
         case FlinkSavepointAdaptorType::WindowJoinAdaptor: return "WindowJoinAdaptor";
         case FlinkSavepointAdaptorType::GroupAggAdaptor: return "GroupAggAdaptor";
-        case FlinkSavepointAdaptorType::GroupWindowAggAdaptor: return "GroupWindowAggAdaptor";
         default: return "Unknown";
     }
 }
