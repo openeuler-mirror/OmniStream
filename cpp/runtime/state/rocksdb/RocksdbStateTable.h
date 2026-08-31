@@ -207,7 +207,13 @@ public:
             if constexpr (std::is_pointer_v<S>) {
                 return (S)resPtr;
             } else {
-                return resPtr == nullptr ? std::numeric_limits<S>::max() : *(S*)resPtr;
+                if (resPtr == nullptr) {
+                    return std::numeric_limits<S>::max();
+                } else {
+                    auto res = *static_cast<S*>(resPtr);
+                    delete static_cast<S*>(resPtr);
+                    return res;
+                }
             }
         }
     };
@@ -728,7 +734,13 @@ protected:
             if constexpr (std::is_pointer_v<S>) {
                 result->push_back((S)resPtr);
             } else {
-                result->push_back(*(S*)resPtr);
+                if (resPtr == nullptr) {
+                    result->push_back(std::numeric_limits<S>::max());
+                } else {
+                    auto res = *static_cast<S*>(resPtr);
+                    delete static_cast<S*>(resPtr);
+                    result->push_back(res);
+                }
             }
             if (serializedData.Available() > 0) {
                 serializedData.readByte();
