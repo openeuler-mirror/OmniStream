@@ -82,7 +82,7 @@ private:
     std::shared_ptr<CompletableFutureV2<int64_t>> latestBytesProcessedDuringAlignment;
     const bool enableCheckpointAfterTasksFinished;
     CompletableFutureV2<void> completed;
-    std::shared_ptr<CompletableFutureV2<void>> completed_V2;
+    std::shared_ptr<CompletableFutureV2<void>> completed_V2 = std::make_shared<CompletableFutureV2<void>>();
 
     // Disable copying
     CheckpointBarrierHandler(const CheckpointBarrierHandler&) = delete;
