@@ -19,6 +19,34 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 >- 使用sql-client交互式界面执行SQL时，推荐将SQL的结果输出到connector为blackhole的数据表中，具体可参考Nexmark Q0的执行方式。
 >- 由于内存限制，默认情况下只支持Calc和LookupJoin算子，其他支持的算子需要export FLINK\_PERFORMANCE=false设置环境变量使能。
 
+### 作业切换支持
+
+SQL场景下，OmniStream支持通过Flink标准格式的Savepoint（SP），实现OmniStream作业与Flink原生作业之间的相互切换。当前支持作业切换的算子类型如下：
+
+**表 4** 支持作业切换的算子类型<a id="支持作业切换的算子类型"></a>
+
+|算子类型|说明|
+|--|--|
+|Join|支持Join算子相互切换|
+|Deduplicate|支持Deduplicate算子相互切换|
+|Rank|支持Rank算子相互切换|
+
+- 保存Flink标准格式的SP：执行`savepoint`或`stop`命令时，增加`--type compatible`参数。
+
+  ```shell
+  ./flink savepoint/stop --type compatible
+  ```
+
+  `--type compatible`表示保存用于作业切换的Flink标准格式SP。
+
+- 恢复Flink标准格式的SP：在SQL作业中增加如下参数。
+
+  ```sql
+  SET 'omni.recovery.savepoint.format' = 'compatible';
+  ```
+
+  `omni.recovery.savepoint.format`用于指定待恢复SP的格式，取值为`compatible`时表示恢复Flink标准格式的SP。
+
 **表 1** 算子和表达式支持表格中符号的含义<a id="算子和表达式支持表格中符号的含义"></a>
 
 |符号| 含义                                                                |
@@ -202,6 +230,39 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
     - 日志中提示`welcome to native`，表示已经成功使能OmniStream。
 
     ![](figures/zh-cn_image_0000002517961058.png)
+
+**创建和恢复Checkpoint/Savepoint**
+
+在SQL场景下，按如下步骤创建和恢复普通格式的Checkpoint（CP）或Savepoint（SP）。
+
+1. 创建CP。在提交SQL作业前，通过sql-client配置CP的创建周期、存储目录和作业取消后的保留策略，然后提交SQL作业。Flink会按照配置的时间间隔自动创建CP。
+
+    ```sql
+    SET 'execution.checkpointing.interval' = '60000';
+    SET 'execution.checkpointing.mode' = 'EXACTLY_ONCE';
+    SET 'execution.checkpointing.storage' = 'filesystem';
+    SET 'state.checkpoints.dir' = 'file:///path/to/checkpoints';
+    SET 'state.savepoints.dir' = 'file:///home/data/savepoint';
+    ```
+
+    `execution.checkpointing.mode`用于配置CP的一致性模式，取值为`EXACTLY_ONCE`时表示精确一次；`execution.checkpointing.storage`用于配置CP的存储实现，取值为`filesystem`时表示将CP持久化到文件系统；`state.savepoints.dir`用于配置SP的默认存储目录。将`file:///path/to/checkpoints`替换为实际的CP存储路径。可以在Flink Web UI的作业详情页面查看已完成CP的存储路径。
+
+2. 创建SP。在Flink的`bin`目录下查询作业ID，并为运行中的作业创建SP。
+
+    ```bash
+    ./flink list
+    ./flink savepoint --type <native|canonical> <jobId> file:///path/to/savepoints
+    ```
+
+    `--type`用于指定SP的格式，支持`native`和`canonical`两种取值。`native`表示保存OmniStream原生格式的SP，`canonical`表示保存Flink标准格式的SP。当前仅Join、Deduplicate和Rank算子支持通过Flink标准格式的SP实现作业切换。将`<jobId>`和`file:///path/to/savepoints`分别替换为实际的作业ID和SP存储目录。命令执行成功后，记录返回的SP路径。
+
+3. 恢复CP或SP。重新提交SQL作业前，在sql-client中将待恢复CP或SP的路径配置为`execution.savepoint.path`，然后重新执行建表语句和作业提交语句。
+
+    ```sql
+    SET 'execution.savepoint.path' = 'file:///path/to/checkpoint-or-savepoint';
+    ```
+
+    将`file:///path/to/checkpoint-or-savepoint`替换为步骤1中已完成CP的路径或步骤2中返回的SP路径。
 
 ### （DataStream场景）使能OmniStream<a name="ZH-CN_TOPIC_0000002518120974"></a>
 
@@ -643,6 +704,42 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
     确认无报错信息，表示已经成功使能OmniStream。
 
     ![](figures/zh-cn_image_0000002518120980.png)
+
+**创建和恢复Checkpoint/Savepoint**
+
+在DataStream场景下，按如下步骤创建和恢复普通格式的CP或SP。
+
+1. 创建CP。在Job Manager和所有Task Manager所在容器的`/usr/local/flink/conf/flink-conf.yaml`文件中增加如下配置。
+
+    ```yaml
+    execution.checkpointing.interval: 10s
+    execution.checkpointing.mode: EXACTLY_ONCE
+    execution.checkpointing.storage: filesystem
+    state.checkpoints.dir: file:///path/to/checkpoints
+    state.savepoints.dir: file:///home/data/savepoint
+    execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
+    ```
+
+    `execution.checkpointing.interval`用于配置CP的创建周期，`execution.checkpointing.mode`用于配置CP的一致性模式，取值为`EXACTLY_ONCE`时表示精确一次；`execution.checkpointing.storage`用于配置CP的存储实现，取值为`filesystem`时表示将CP持久化到文件系统；`state.checkpoints.dir`用于配置CP的存储目录，`state.savepoints.dir`用于配置SP的默认存储目录，`execution.checkpointing.externalized-checkpoint-retention`用于配置作业取消后保留外部化CP。将`file:///path/to/checkpoints`替换为实际的CP存储路径。
+
+    修改配置后重启Flink集群并重新提交作业。Flink会按照配置的时间间隔自动创建CP，可以在Flink Web UI的作业详情页面查看已完成CP的存储路径。
+
+2. 创建SP。在flink\_jm\_8c32g容器的Flink `bin`目录下查询作业ID，并为运行中的作业创建SP。
+
+    ```bash
+    ./flink list
+    ./flink savepoint --type <native|canonical> <jobId>
+    ```
+
+    `--type`用于指定SP的格式，支持`native`和`canonical`两种取值。`native`表示保存OmniStream原生格式的SP，`canonical`表示保存Flink标准格式的SP。将`<jobId>`替换为实际的作业ID。SP将保存到`state.savepoints.dir`配置的目录中，命令执行成功后，记录返回的SP路径。
+
+3. 恢复CP或SP。使用`-s`参数指定待恢复CP或SP的路径，重新提交作业。
+
+    ```bash
+    bin/flink run -s file:///path/to/checkpoint-or-savepoint -c com.huawei.boostkit.FlinkWordCount ziliao-1.0-SNAPSHOT-jar-with-dependencies.jar
+    ```
+
+    将`file:///path/to/checkpoint-or-savepoint`替换为步骤1中已完成CP的路径或步骤2中返回的SP路径。
 
 ## 维护特性<a name="ZH-CN_TOPIC_0000002517961044"></a>
 
