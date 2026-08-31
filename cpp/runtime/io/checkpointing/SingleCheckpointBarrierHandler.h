@@ -208,7 +208,7 @@ private:
     CompletableFutureV2<void> allBarriersReceivedFuture_;
     std::shared_ptr<CompletableFutureV2<void>> allBarriersReceivedFuture_V2;
     CompletableFutureV2<void> completed;
-    std::shared_ptr<CompletableFutureV2<void>> completed_V2;
+    std::shared_ptr<CompletableFutureV2<void>> completed_V2 = std::make_shared<CompletableFutureV2<void>>();
 
     // State management
     BarrierHandlerState* currentState_;

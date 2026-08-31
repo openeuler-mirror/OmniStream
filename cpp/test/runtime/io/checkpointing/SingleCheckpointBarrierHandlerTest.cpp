@@ -118,6 +118,42 @@ TEST(SingleCheckpointBarrierHandlerTest, ProcessBarrier_ValidBarrier_Transitions
     timerService->shutdownService();
 }
 
+TEST(SingleCheckpointBarrierHandlerTest, GetAllBarriersReceivedFutureIsCompletedWithNoOpenChannels)
+{
+    auto mockTask = std::make_unique<NiceMock<MockCheckpointableTask>>();
+    Clock& clock = SystemClock::GetInstance();
+    std::vector<CheckpointableInput*> inputs;
+    auto* initialState = new AlternatingWaitingForFirstBarrier(ChannelState(inputs));
+
+    SingleCheckpointBarrierHandler handler(
+        "NoInputTask", mockTask.get(), nullptr, clock, 0, initialState, false, nullptr, inputs, false);
+
+    auto future = handler.GetAllBarriersReceivedFuture(1);
+    ASSERT_NE(future, nullptr);
+    EXPECT_TRUE(future->IsDone());
+}
+
+TEST(SingleCheckpointBarrierHandlerTest, GetAllBarriersReceivedFutureIsCompletedForOldCheckpoint)
+{
+    auto mockTask = std::make_unique<NiceMock<MockCheckpointableTask>>();
+    Clock& clock = SystemClock::GetInstance();
+    auto input = std::make_unique<TestInput>(0);
+    std::vector<CheckpointableInput*> inputs{input.get()};
+    auto* initialState = new AlternatingWaitingForFirstBarrier(ChannelState(inputs));
+
+    SingleCheckpointBarrierHandler handler(
+        "InputTask", mockTask.get(), nullptr, clock, 1, initialState, false, nullptr, inputs, false);
+    auto checkpointType = CheckpointType::CHECKPOINT;
+    auto targetLocation = CheckpointStorageLocationReference::GetDefault();
+    CheckpointOptions options(checkpointType, targetLocation);
+    CheckpointBarrier barrier(2, clock.RelativeTimeMillis(), &options);
+    handler.ProcessBarrier(barrier, InputChannelInfo(0, 0), false);
+
+    auto future = handler.GetAllBarriersReceivedFuture(1);
+    ASSERT_NE(future, nullptr);
+    EXPECT_TRUE(future->IsDone());
+}
+
 TEST(SingleCheckpointBarrierHandlerTest, AlignmentTimeout_SwitchesToUnaligned)
 {
     auto mockTask = std::make_unique<NiceMock<MockCheckpointableTask>>();
