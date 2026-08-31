@@ -95,11 +95,27 @@ public:
         return size;
     }
 
+    void setData(uint8_t* bufferAddress)
+    {
+        offHeapBuffer_ = bufferAddress;
+    }
+
+    uint8_t* getData()
+    {
+        return offHeapBuffer_;
+    }
+
 private:
     friend class ObjectSegmentChannelStateSerde;
 
     size_t size;
     bool ownsObjects_ = false;
+
+    // This is for RemoteInputChannel::notifyRemoteDataAvailableForVectorBatch.
+    // When VectorBatchBuffer from RemoteInputChannel should be recycled, OriginalNetworkBufferRecycler needs to push
+    // offHeapBuffer_ to originalNetworkBufferQueue, making the buffer recycler thread in
+    // RemoteDataFetcher(OmniAdaptor) could correctly recycle the buffer.
+    uint8_t* offHeapBuffer_ = nullptr;
 
     //  it is actually a  StreamRecord * [size] , allocate mem in constructor, StreamRecord.value are VectorBatch *
     //  notice in order to get high performance, the data related object are using raw pointer
