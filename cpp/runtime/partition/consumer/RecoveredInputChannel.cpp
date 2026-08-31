@@ -144,7 +144,7 @@ void RecoveredInputChannel::onRecoveredStateBufferForObjectBuffer(Buffer* buffer
         }
     }
 
-    auto* vectorBatchBuffer = new omnistream::VectorBatchBuffer(objectSegment);
+    auto* vectorBatchBuffer = new omnistream::VectorBatchBuffer(objectSegment, nullptr);
     vectorBatchBuffer->SetSize(objectSegment->getSize());
     {
         std::lock_guard<std::mutex> lock(bufferLock);
