@@ -39,8 +39,10 @@ std::shared_ptr<NettyBufferInfo> NettyBufferPool::RequestBigBuffer(int bufferSiz
     LOG("request big size buffer from NettyBufferPool:: " << bufferSize
                                                           << " remain regular pool size::" << bufferPool_.size());
     std::lock_guard<std::recursive_mutex> lock(nettyBufferPoolMtx_); // added for concurrency
-    if (bufferSize_ > MAX_BUFFER_SIZE) {
-        THROW_RUNTIME_ERROR("the size of buffer exceeds " << MAX_BUFFER_SIZE);
+    if (bufferSize > MAX_BUFFER_SIZE) {
+        THROW_RUNTIME_ERROR(
+            "the size of buffer exceeds MAX_BUFFER_SIZE, bufferSize: " << bufferSize
+                                                                       << ", MAX_BUFFER_SIZE: " << MAX_BUFFER_SIZE);
     }
     uint8_t* newBuffer = new uint8_t[bufferSize]{};
     auto info_ptr = std::make_shared<NettyBufferInfo>(newBuffer, bufferSize);
