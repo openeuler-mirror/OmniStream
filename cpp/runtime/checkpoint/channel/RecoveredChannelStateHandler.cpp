@@ -75,10 +75,6 @@ void ResultSubpartitionRecoveredStateHandler::recover(
             if (cnt > 0) {
                 MemorySegment* memorySegment = reinterpret_cast<NetworkBuffer*>(buffer)->getMemorySegment();
                 uint8_t* newBufferAddress = new uint8_t[bufferSize];
-                if (newBufferAddress == nullptr) {
-                    INFO_RELEASE("Error: malloc failed.");
-                    throw std::invalid_argument("malloc failed");
-                }
                 MemorySegment* newMemorySegment = new MemorySegment(newBufferAddress, bufferSize);
                 newMemorySegment->put(0, reinterpret_cast<uint8_t*>(memorySegment->getData()), 0, bufferSize);
                 ::datastream::NetworkBuffer* newNetworkBuffer = new ::datastream::NetworkBuffer(

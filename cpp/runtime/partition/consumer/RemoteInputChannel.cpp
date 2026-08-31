@@ -227,10 +227,6 @@ void RemoteInputChannel::notifyRemoteDataAvailableForNetworkBuffer(
         }
         if ((isNeedPersistence_ && (readOnlyBuffer->isBuffer())) || (isNeedExpansion && (readOnlyBuffer->isBuffer()))) {
             uint8_t* newBufferAddress = new uint8_t[bufferLength];
-            if (newBufferAddress == nullptr) {
-                INFO_RELEASE("Error: malloc failed.");
-                throw std::invalid_argument("malloc failed");
-            }
             MemorySegment* newMemorySegment = new MemorySegment(newBufferAddress, bufferLength);
             newMemorySegment->put(0, reinterpret_cast<uint8_t*>(bufferAddress), readIndex, bufferLength);
             ::datastream::NetworkBuffer* newNetworkBuffer = new ::datastream::NetworkBuffer(
@@ -405,10 +401,6 @@ std::vector<Buffer*> RemoteInputChannel::GetInflightBuffersUnsafe(long checkpoin
                 continue;
             }
             uint8_t* bufferAddress = new uint8_t[bufferLength];
-            if (bufferAddress == nullptr) {
-                INFO_RELEASE("Error: malloc failed.");
-                throw std::invalid_argument("malloc failed");
-            }
             MemorySegment* memorySegment = new MemorySegment(bufferAddress, bufferLength);
             memorySegment->put(0, oldmemorySegment->getData(), offset, bufferLength);
             ::datastream::NetworkBuffer* networkBuffer = new ::datastream::NetworkBuffer(
