@@ -184,6 +184,6 @@ bool MemorySegment::equalTo(MemorySegment seg2, int offset1, int offset2, int le
 MemorySegment::~MemorySegment()
 {
     if (!owner_) {
-        delete offHeapBuffer_;
+        delete[] offHeapBuffer_;
     }
 }

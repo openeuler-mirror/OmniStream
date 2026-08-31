@@ -26,10 +26,10 @@ public:
         isCompressed_ = false;
     }
 
-    explicit VectorBatchBuffer(std::shared_ptr<ObjectSegment> segment)
+    explicit VectorBatchBuffer(std::shared_ptr<ObjectSegment> segment, std::shared_ptr<BufferRecycler> recycler)
         : objectSegment(segment.get()),
-          recycler(nullptr),
-          ownedSegment_(std::move(segment))
+          ownedSegment_(std::move(segment)),
+          recycler(std::move(recycler))
     {
         bufferType = 0;
         event_type = -1;
@@ -63,34 +63,24 @@ public:
             return;
         }
 
-        if (IsRecycled()) {
-            GErrorLog("Trying to recycle a VectorBatchBuffer that has already been recycled");
-        } else {
-            int prev = refCount_.fetch_sub(1);
-            if (prev == 1) {
-                recycler->recycle(this->GetObjectSegment());
-                isRecycled_.store(true);
-                // 后续需要结合 在writer->WriteInput后在异常捕获流程的buffers中移除该buffer 的逻辑
-                // // only for deepCopied
-                // if (std::dynamic_pointer_cast<DeepCopiedObjectBufferRecycler>(recycler)) {
-                //     delete this;
-                // }
-            }
+        int prev = refCount_.fetch_sub(1);
+        if (prev <= 0) {
+            THROW_LOGIC_EXCEPTION("VectorBatchBuffer::RecycleBuffer() prev <= 0");
         }
-    }
+        if (prev != 1) {
+            return;
+        }
 
-    bool IsRecycled() const override
-    {
-        return isRecycled_.load();
+        recycler->recycle(this->GetObjectSegment());
+        delete this;
     }
 
     Buffer* RetainBuffer() override
     {
-        LOG_TRACE("retain ");
-        LOG_PART(
-            "RetainBuffer The buffer " << this << " refCount is incremented from " << refCount_.load() << " to "
-                                       << (refCount_.load() + 1));
-        refCount_++;
+        int prev = refCount_.fetch_add(1);
+        if (prev <= 0) {
+            THROW_LOGIC_EXCEPTION("VectorBatchBuffer::RetainBuffer() prev <= 0");
+        }
         return this;
     }
 
@@ -195,10 +185,9 @@ private:
 
     int currentSize = 0;
     bool isCompressed_;
-    std::atomic<bool> isRecycled_ = false;
     int readerIndex_;
 
-    std::atomic<int> refCount_;
+    std::atomic<int> refCount_ = 1;
 };
 
 } // namespace omnistream

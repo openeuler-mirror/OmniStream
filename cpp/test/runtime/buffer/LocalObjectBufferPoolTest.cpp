@@ -30,6 +30,17 @@ TEST(LocalObjectBufferPoolTest, RequestBuffer)
     std::shared_ptr<Buffer> buffer6 = localObjectBufferPool->requestBuffer();
 
     EXPECT_EQ(buffer6, nullptr);
+
+    buffer1->RecycleBuffer();
+    buffer1.reset();
+    buffer2->RecycleBuffer();
+    buffer2.reset();
+    buffer3->RecycleBuffer();
+    buffer3.reset();
+    buffer4->RecycleBuffer();
+    buffer4.reset();
+    buffer5->RecycleBuffer();
+    buffer5.reset();
 }
 
 TEST(LocalObjectBufferPoolTest, Recycle)
@@ -46,6 +57,7 @@ TEST(LocalObjectBufferPoolTest, Recycle)
 
     std::shared_ptr<Buffer> buffer1 = localObjectBufferPool->requestBuffer();
     buffer1->RecycleBuffer();
+    buffer1.reset();
     EXPECT_EQ(localObjectBufferPool->getNumberOfAvailableSegments(), 2);
 
     std::shared_ptr<Buffer> buffer2 = localObjectBufferPool->requestBuffer();
@@ -57,10 +69,15 @@ TEST(LocalObjectBufferPoolTest, Recycle)
     EXPECT_EQ(networkObjectBufferPool->getNumberOfAvailableObjectSegments(), segmentNum - 5);
 
     buffer2->RecycleBuffer();
+    buffer2.reset();
     buffer3->RecycleBuffer();
+    buffer3.reset();
     buffer4->RecycleBuffer();
+    buffer4.reset();
     buffer5->RecycleBuffer();
+    buffer5.reset();
     buffer6->RecycleBuffer();
+    buffer6.reset();
     EXPECT_EQ(localObjectBufferPool->getNumberOfAvailableSegments(), 5);
     EXPECT_EQ(networkObjectBufferPool->getNumberOfAvailableObjectSegments(), segmentNum - 5);
 }

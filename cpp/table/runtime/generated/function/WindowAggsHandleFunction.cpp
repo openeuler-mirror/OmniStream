@@ -28,9 +28,6 @@ WindowAggsHandleFunction::WindowAggsHandleFunction(
       sliceAssigner_(sliceAssigner),
       functions_(std::move(functions))
 {
-    if (outputValueTypeIds_.size() != aggValueTypeIds_.size() + 2) {
-        THROW_LOGIC_EXCEPTION("Output value type ids must contain aggregate values and two window fields.");
-    }
 }
 
 void WindowAggsHandleFunction::open(StateDataViewStore* store)
@@ -41,6 +38,23 @@ void WindowAggsHandleFunction::accumulate(RowData* accInput)
 {
     for (auto& func : functions_) {
         func->accumulate(accInput);
+    }
+}
+
+// local window Agg optimization
+void WindowAggsHandleFunction::accumulate(
+    const std::vector<omnistream::VectorBatch*>& inputBatches, const std::vector<int64_t>& indices)
+{
+    for (auto& func : functions_) {
+        func->accumulate(inputBatches, indices);
+    }
+}
+
+void WindowAggsHandleFunction::retract(
+    const std::vector<omnistream::VectorBatch*>& inputBatches, const std::vector<int64_t>& indices)
+{
+    for (auto& func : functions_) {
+        func->retract(inputBatches, indices);
     }
 }
 

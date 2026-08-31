@@ -48,6 +48,28 @@ void NamespaceAggsMinMaxFunction<N>::accumulate(RowData* input)
 }
 
 template <typename N>
+void NamespaceAggsMinMaxFunction<N>::accumulate(
+    const std::vector<omnistream::VectorBatch*>& inputBatches, const std::vector<int64_t>& indices)
+{
+    const int32_t argIndex = this->singleArgIndex();
+    for (auto combinedId : indices) {
+        int batchId = VectorBatchUtil::getBatchId(combinedId);
+        int rowId = VectorBatchUtil::getRowId(combinedId);
+        auto& targetBatch = inputBatches[batchId];
+        if (!targetBatch->Get(argIndex)->IsNull(rowId)) {
+            update(this->readInputByIndex(targetBatch, argIndex, rowId));
+        }
+    }
+}
+
+template <typename N>
+void NamespaceAggsMinMaxFunction<N>::retract(
+    const std::vector<omnistream::VectorBatch*>& inputBatches, const std::vector<int64_t>& indices)
+{
+    THROW_RUNTIME_ERROR("Retract is not supported for MIN/MAX.");
+}
+
+template <typename N>
 void NamespaceAggsMinMaxFunction<N>::retract(RowData* input)
 {
     THROW_RUNTIME_ERROR("Retract is not supported for MIN/MAX.");

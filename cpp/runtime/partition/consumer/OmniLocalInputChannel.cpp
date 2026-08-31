@@ -73,11 +73,7 @@ void OmniLocalInputChannel::notifyOriginalDataAvailable(
         dataQueue.push(data);
         insize += bufferLength;
         if (isNeedPersistence_ && (readOnlyBuffer->isBuffer())) {
-            uint8_t* newBufferAddress = (uint8_t*)malloc(bufferLength);
-            if (newBufferAddress == nullptr) {
-                INFO_RELEASE("Error: malloc failed.");
-                throw std::invalid_argument("malloc failed");
-            }
+            uint8_t* newBufferAddress = new uint8_t[bufferLength];
             MemorySegment* newMemorySegment = new MemorySegment(newBufferAddress, bufferLength);
             newMemorySegment->put(
                 0, reinterpret_cast<uint8_t*>(bufferAddress), readIndex + memorySegmentOffset, bufferLength);
@@ -199,11 +195,7 @@ std::vector<Buffer*> OmniLocalInputChannel::GetInflightBuffersUnsafe(long checkp
                 INFO_RELEASE("Error: invalid buffer size:" << bufferLength);
                 continue;
             }
-            uint8_t* bufferAddress = (uint8_t*)malloc(bufferLength);
-            if (bufferAddress == nullptr) {
-                INFO_RELEASE("Error: malloc failed.");
-                throw std::invalid_argument("malloc failed");
-            }
+            uint8_t* bufferAddress = new uint8_t[bufferLength];
             MemorySegment* memorySegment = new MemorySegment(bufferAddress, bufferLength);
             memorySegment->put(0, oldmemorySegment->getData(), offset, bufferLength);
             ::datastream::NetworkBuffer* networkBuffer = new ::datastream::NetworkBuffer(

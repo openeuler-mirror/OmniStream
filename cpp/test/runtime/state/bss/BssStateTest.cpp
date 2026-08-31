@@ -26,6 +26,7 @@
 #include <random>
 #include <cstdint>
 #include <stdexcept>
+#include <unordered_map>
 
 using namespace ock::bss;
 
@@ -433,15 +434,16 @@ TEST(BssStateTest, Bss_KMapState_add_get1)
     OutputBufferStatus outputBufferStatus6;
     keyOutputSerializer.setBackendBuffer(&outputBufferStatus6);
     BinaryData prikeyData = GetBssUnifyingData(prikey, prikeyHashCode, keyOutputSerializer);
-    LongSerializer* longSerializer = new LongSerializer();
+    LongSerializer* longSerializer = LongSerializer::INSTANCE;
 
-    kMapTable->Put(keyHashCode1, prikeyData, keyData1, valueData1);
-    kMapTable->Put(keyHashCode2, prikeyData, keyData2, valueData2);
-    kMapTable->Put(keyHashCode3, prikeyData, keyData3, valueData3);
-    auto iterator = kMapTable->EntryIteratorWrraper(keyHashCode1, prikeyData);
+    kMapTable->Put(prikeyHashCode, prikeyData, keyData1, valueData1);
+    kMapTable->Put(prikeyHashCode, prikeyData, keyData2, valueData2);
+    kMapTable->Put(prikeyHashCode, prikeyData, keyData3, valueData3);
+    auto iterator = kMapTable->EntryIteratorWrraper(prikeyHashCode, prikeyData);
+    std::unordered_map<int64_t, int64_t> entries;
     while (iterator->HasNext()) {
-        LOG("iterator1 test");
         auto temp = iterator->Next();
+        ASSERT_EQ(temp.size(), 2);
         auto keyData = temp[0];
         auto valueData = temp[1];
         DataInputDeserializer keySerializedData(reinterpret_cast<const uint8_t*>(keyData.Data()), keyData.Length(), 0);
@@ -449,40 +451,14 @@ TEST(BssStateTest, Bss_KMapState_add_get1)
         DataInputDeserializer valSerializedData(
             reinterpret_cast<const uint8_t*>(valueData.Data()), valueData.Length(), 0);
         auto valRes = *(long*)longSerializer->deserialize(valSerializedData);
-        EXPECT_EQ(keyRes, 10000);
-        EXPECT_EQ(valRes, 9998);
+        entries.emplace(keyRes, valRes);
     }
     delete iterator;
 
-    auto iterator2 = kMapTable->EntryIteratorWrraper(keyHashCode2, prikeyData);
-    while (iterator2->HasNext()) {
-        LOG("iterator2 test");
-        auto temp = iterator2->Next();
-        auto keyData = temp[0];
-        auto valueData = temp[1];
-        DataInputDeserializer keySerializedData(reinterpret_cast<const uint8_t*>(keyData.Data()), keyData.Length(), 0);
-        auto keyRes = *(long*)longSerializer->deserialize(keySerializedData);
-        DataInputDeserializer valSerializedData(
-            reinterpret_cast<const uint8_t*>(valueData.Data()), valueData.Length(), 0);
-        auto valRes = *(long*)longSerializer->deserialize(valSerializedData);
-        EXPECT_EQ(keyRes, 10001);
-        EXPECT_EQ(valRes, 9997);
-    }
-    delete iterator2;
-    auto iterator3 = kMapTable->EntryIteratorWrraper(keyHashCode3, prikeyData);
-    while (iterator3->HasNext()) {
-        auto temp = iterator3->Next();
-        auto keyData = temp[0];
-        auto valueData = temp[1];
-        DataInputDeserializer keySerializedData(reinterpret_cast<const uint8_t*>(keyData.Data()), keyData.Length(), 0);
-        auto keyRes = *(long*)longSerializer->deserialize(keySerializedData);
-        DataInputDeserializer valSerializedData(
-            reinterpret_cast<const uint8_t*>(valueData.Data()), valueData.Length(), 0);
-        auto valRes = *(long*)longSerializer->deserialize(valSerializedData);
-        EXPECT_EQ(keyRes, 10002);
-        EXPECT_EQ(valRes, 9996);
-    }
-    delete iterator3;
+    ASSERT_EQ(entries.size(), 3);
+    EXPECT_EQ(entries.at(10000), 9998);
+    EXPECT_EQ(entries.at(10001), 9997);
+    EXPECT_EQ(entries.at(10002), 9996);
 }
 
 TEST(BssStateTest, Bss_KMapState_add_get)

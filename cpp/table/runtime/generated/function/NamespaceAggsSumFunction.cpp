@@ -45,6 +45,37 @@ void NamespaceAggsSumFunction<N>::accumulate(RowData* input)
 }
 
 template <typename N>
+void NamespaceAggsSumFunction<N>::accumulate(
+    const std::vector<omnistream::VectorBatch*>& inputBatches, const std::vector<int64_t>& indices)
+{
+    const int32_t argIndex = this->singleArgIndex();
+    for (auto combinedId : indices) {
+        int batchId = VectorBatchUtil::getBatchId(combinedId);
+        int rowId = VectorBatchUtil::getRowId(combinedId);
+        auto& targetBatch = inputBatches[batchId];
+        if (!targetBatch->Get(argIndex)->IsNull(rowId)) {
+            sum_ += this->readInputByIndex(targetBatch, argIndex, rowId);
+            this->isNull_ = false;
+        }
+    }
+}
+
+template <typename N>
+void NamespaceAggsSumFunction<N>::retract(
+    const std::vector<omnistream::VectorBatch*>& inputBatches, const std::vector<int64_t>& indices)
+{
+    const int32_t argIndex = this->singleArgIndex();
+    for (auto combinedId : indices) {
+        int batchId = VectorBatchUtil::getBatchId(combinedId);
+        int rowId = VectorBatchUtil::getRowId(combinedId);
+        auto& targetBatch = inputBatches[batchId];
+        if (!targetBatch->Get(argIndex)->IsNull(rowId)) {
+            sum_ -= this->readInputByIndex(targetBatch, argIndex, rowId);
+        }
+    }
+}
+
+template <typename N>
 void NamespaceAggsSumFunction<N>::retract(RowData* input)
 {
     const int32_t argIndex = this->singleArgIndex();

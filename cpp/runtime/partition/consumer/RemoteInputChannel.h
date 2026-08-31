@@ -37,9 +37,13 @@ public:
         std::shared_ptr<Counter> numBuffersIn,
         std::shared_ptr<ChannelStateWriter> stateWriter);
     void requestSubpartition(int subpartitionIndex) override;
-    void notifyRemoteDataAvailableForVectorBatch(long bufferAddress, int bufferLength, int sequenceNumber);
+    void notifyRemoteDataAvailableForVectorBatch(
+        long bufferAddress,
+        int bufferLength,
+        int sequenceNumber,
+        const std::shared_ptr<OriginalNetworkBufferRecycler>& originalNetworkBufferRecycle);
     std::optional<BufferAndAvailability> getNextBuffer() override;
-    std::shared_ptr<ObjectSegment> DoDataDeserializationResult(uint8_t*& buffer, int bufferLength);
+    std::shared_ptr<ObjectSegment> DoDataDeserializationResult(uint8_t*& buffer);
     void notifyRemoteDataAvailableForNetworkBuffer(
         long bufferAddress,
         int bufferLength,
