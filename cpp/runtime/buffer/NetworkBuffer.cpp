@@ -32,12 +32,7 @@ NetworkBuffer::NetworkBuffer(MemorySegment* memorySegment, std::shared_ptr<Buffe
     this->recycler = recycler;
     this->currentSize = 0;
     // Invoking this constructor implies that the caller (bufferBuilder) owns the segment
-    refCount_.store(1);
     this->segmentOwner = segmentOwner;
-    const char* env_p = std::getenv("BUFFER_SLEEP_MICRO_S");
-    if (env_p != nullptr) {
-        sleep_us = std::stoi(env_p);
-    }
 }
 
 NetworkBuffer::NetworkBuffer(
@@ -82,13 +77,7 @@ NetworkBuffer::NetworkBuffer(
     this->recycler = recycler;
     this->currentSize = bufferLength;
     this->readerIndex_ = readIndex;
-    refCount_.store(1);
-    isRecycled_.store(false);
     this->segmentOwner = segmentOwner;
-    const char* env_p = std::getenv("BUFFER_SLEEP_MICRO_S");
-    if (env_p != nullptr) {
-        sleep_us = std::stoi(env_p);
-    }
 }
 
 MemorySegment* NetworkBuffer::getMemorySegment()

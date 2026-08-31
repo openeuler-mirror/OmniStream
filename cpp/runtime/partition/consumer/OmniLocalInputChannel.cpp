@@ -73,7 +73,7 @@ void OmniLocalInputChannel::notifyOriginalDataAvailable(
         dataQueue.push(data);
         insize += bufferLength;
         if (isNeedPersistence_ && (readOnlyBuffer->isBuffer())) {
-            uint8_t* newBufferAddress = (uint8_t*)malloc(bufferLength);
+            uint8_t* newBufferAddress = new uint8_t[bufferLength];
             if (newBufferAddress == nullptr) {
                 INFO_RELEASE("Error: malloc failed.");
                 throw std::invalid_argument("malloc failed");
@@ -199,7 +199,7 @@ std::vector<Buffer*> OmniLocalInputChannel::GetInflightBuffersUnsafe(long checkp
                 INFO_RELEASE("Error: invalid buffer size:" << bufferLength);
                 continue;
             }
-            uint8_t* bufferAddress = (uint8_t*)malloc(bufferLength);
+            uint8_t* bufferAddress = new uint8_t[bufferLength];
             if (bufferAddress == nullptr) {
                 INFO_RELEASE("Error: malloc failed.");
                 throw std::invalid_argument("malloc failed");

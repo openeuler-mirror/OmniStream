@@ -88,7 +88,7 @@ public:
         if (!hasRemaining() || remaining() <= 0) {
             return nullptr;
         }
-        uint8_t* data = reinterpret_cast<uint8_t*>(malloc(remaining()));
+        uint8_t* data = new uint8_t[remaining()];
         MemorySegment* memorySegment = new MemorySegment(data, remaining());
         memorySegment->put(0, data_, position_, remaining());
         ::datastream::NetworkBuffer* networkBuffer = new ::datastream::NetworkBuffer(

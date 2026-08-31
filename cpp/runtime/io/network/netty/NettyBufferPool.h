@@ -27,6 +27,7 @@ public:
     bool RemoveBuffer(std::shared_ptr<NettyBufferInfo> bufferInfo);
 
 private:
+    static constexpr int32_t MAX_BUFFER_SIZE = 32 * 1024 * 1024; // 32MB
     int poolSize_;
     int bufferSize_;
     // Updated to use shared_ptr instead of a raw type
