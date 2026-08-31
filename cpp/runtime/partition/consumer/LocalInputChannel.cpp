@@ -249,7 +249,15 @@ std::optional<BufferAndAvailability> LocalInputChannel::getNextBuffer()
         if (segment->isObjectSegment()) {
             ObjectSegment* newObjectSegment = new ObjectSegment(bufferLength);
             const ObjectSegment* objectSegment = dynamic_cast<const ObjectSegment*>(segment);
-            newObjectSegment->put(0, objectSegment, buffer->GetOffset(), bufferLength);
+            try {
+                newObjectSegment->put(0, objectSegment, buffer->GetOffset(), bufferLength);
+            } catch (...) {
+                delete newObjectSegment;
+                buffer->RecycleBuffer();
+                delete buffer;
+                delete next;
+                throw;
+            }
             auto* copiedBuffer =
                 new VectorBatchBuffer(newObjectSegment, std::make_shared<DeepCopiedObjectBufferRecycler>());
             copiedBuffer->SetSize(bufferLength);
