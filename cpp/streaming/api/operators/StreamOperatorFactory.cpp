@@ -507,19 +507,30 @@ StreamOperator* StreamOperatorFactory::CreateSourceOp(
         if (format == "csv") {
             std::vector<DataTypeId> fields;
             std::vector<int32_t> scales;
+            std::vector<int32_t> precisions;
             std::regex decimalPattern(R"(DECIMAL\d*\((\d+),\s*(\d+)\))");
             std::smatch match;
             for (auto& field : opDescriptionJSON["fields"]) {
                 std::string typeStr = field["type"];
-                fields.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
+                DataTypeId typeId = LogicalType::flinkTypeToOmniTypeId(typeStr);
+                fields.push_back(typeId);
                 if (std::regex_search(typeStr, match, decimalPattern)) {
+                    precisions.push_back(std::stoi(match[1].str()));
                     scales.push_back(std::stoi(match[2].str()));
+                } else if (typeId == DataTypeId::OMNI_DECIMAL64) {
+                    precisions.push_back(omniruntime::type::DECIMAL64_DEFAULT_PRECISION);
+                    scales.push_back(omniruntime::type::DECIMAL64_DEFAULT_SCALE);
+                } else if (typeId == DataTypeId::OMNI_DECIMAL128) {
+                    precisions.push_back(omniruntime::type::DECIMAL128_DEFAULT_PRECISION);
+                    scales.push_back(omniruntime::type::DECIMAL128_DEFAULT_SCALE);
                 } else {
+                    precisions.push_back(0);
                     scales.push_back(0);
                 }
             }
             omnistream::csv::CsvSchema schema(fields);
             schema.setScales(scales);
+            schema.setPrecisions(precisions);
             if (opDescriptionJSON.contains("nullValue") && !opDescriptionJSON["nullValue"].is_null()) {
                 schema.setNullValue(opDescriptionJSON["nullValue"]);
             }
