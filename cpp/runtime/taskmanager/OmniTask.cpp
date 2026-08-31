@@ -419,8 +419,8 @@ void OmniTask::notifyRemoteDataAvailable(
     auto channel = inputGate->getChannel(channelIndex);
     if (auto remoteChannel = std::dynamic_pointer_cast<RemoteInputChannel>(channel)) {
         if (taskType == 1 && isBuffer) {
-            remoteChannel->notifyRemoteDataAvailableForVectorBatch(bufferAddress, bufferLength, sequenceNumber);
-            originalNetworkBufferRecycler_->recycle(bufferAddress);
+            remoteChannel->notifyRemoteDataAvailableForVectorBatch(
+                bufferAddress, bufferLength, sequenceNumber, originalNetworkBufferRecycler_);
         } else {
             remoteChannel->notifyRemoteDataAvailableForNetworkBuffer(
                 bufferAddress,

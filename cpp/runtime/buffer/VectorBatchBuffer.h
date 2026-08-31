@@ -26,10 +26,10 @@ public:
         isCompressed_ = false;
     }
 
-    explicit VectorBatchBuffer(std::shared_ptr<ObjectSegment> segment)
+    explicit VectorBatchBuffer(std::shared_ptr<ObjectSegment> segment, std::shared_ptr<BufferRecycler> recycler)
         : objectSegment(segment.get()),
-          recycler(nullptr),
-          ownedSegment_(std::move(segment))
+          ownedSegment_(std::move(segment)),
+          recycler(std::move(recycler))
     {
         bufferType = 0;
         event_type = -1;
