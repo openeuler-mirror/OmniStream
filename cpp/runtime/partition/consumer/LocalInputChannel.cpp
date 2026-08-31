@@ -264,10 +264,6 @@ std::optional<BufferAndAvailability> LocalInputChannel::getNextBuffer()
             inflightBuffers_.push_back(copiedBuffer);
         } else {
             uint8_t* newBufferAddress = new uint8_t[bufferLength];
-            if (newBufferAddress == nullptr) {
-                INFO_RELEASE("Error: malloc failed.");
-                throw std::invalid_argument("malloc failed");
-            }
             datastream::ReadOnlySlicedNetworkBuffer* readOnlyBuffer = (datastream::ReadOnlySlicedNetworkBuffer*)buffer;
             int readIndex = readOnlyBuffer->GetMemorySegmentOffset();
             MemorySegment* newMemorySegment = new MemorySegment(newBufferAddress, bufferLength);
