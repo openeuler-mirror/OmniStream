@@ -151,7 +151,7 @@ std::string DynamicKafkaRecordSerializationSchema::dumpJsonWithExactDecimals() c
         }
         // nlohmann::json only has double for non-integral numbers. Writing the validated
         // decimal token directly avoids both JSON quotes and precision loss for DECIMAL128.
-        jsonStr += decimalValue;
+        jsonStr += omnistream::VectorBatch::RemoveTrailingZeros(decimalValue);
     }
 
     jsonStr += '}';

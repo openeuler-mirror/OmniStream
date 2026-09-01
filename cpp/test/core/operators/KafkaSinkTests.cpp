@@ -62,6 +62,39 @@ TEST(KafkaSinkTest, SerializeNegativeDecimal128AndNullDecimal)
     EXPECT_EQ(serialized, R"({"negative":-0.908,"nullable":null})");
 }
 
+TEST(KafkaSinkTest, SerializeDecimalWithoutInsignificantTrailingZeros)
+{
+    std::vector<std::string> inputFields = {"decimal64", "decimal128", "integer", "zero"};
+    std::vector<std::string> inputTypes = {
+        "DECIMAL64(10,2)", "DECIMAL128(23,2)", "DECIMAL64(10,2)", "DECIMAL128(23,2)"};
+    DynamicKafkaRecordSerializationSchema serializer(inputFields, inputTypes);
+
+    omnistream::VectorBatch input(1);
+    auto decimal64 = new omniruntime::vec::Vector<int64_t>(1, omniruntime::type::OMNI_DECIMAL64);
+    decimal64->SetValue(0, 120);
+    input.Append(decimal64);
+    auto decimal128 = new omniruntime::vec::Vector<omniruntime::type::Decimal128>(1);
+    decimal128->SetValue(0, omniruntime::type::Decimal128(120));
+    input.Append(decimal128);
+    auto integer = new omniruntime::vec::Vector<int64_t>(1, omniruntime::type::OMNI_DECIMAL64);
+    integer->SetValue(0, 100);
+    input.Append(integer);
+    auto zero = new omniruntime::vec::Vector<omniruntime::type::Decimal128>(1);
+    zero->SetValue(0, omniruntime::type::Decimal128(0));
+    input.Append(zero);
+
+    auto record = serializer.Serialize(&input, 0);
+    std::string serialized(record.value, record.valueLen);
+    std::free(record.value);
+
+    EXPECT_EQ(serialized, R"({"decimal64":1.2,"decimal128":1.2,"integer":1,"zero":0})");
+    auto parsed = nlohmann::json::parse(serialized);
+    EXPECT_TRUE(parsed["decimal64"].is_number());
+    EXPECT_TRUE(parsed["decimal128"].is_number());
+    EXPECT_TRUE(parsed["integer"].is_number());
+    EXPECT_TRUE(parsed["zero"].is_number());
+}
+
 // std::string generateRandomString(size_t length) {
 //     const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 //     std::string result;
