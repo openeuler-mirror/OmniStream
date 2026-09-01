@@ -51,6 +51,7 @@ public:
     void UnblockAllChannels()
     {
         for (auto& channelInfo : blockedChannels) {
+            LOG_DEBUG("[CP_DIAG] Resume state-tracked blocked channel. channel=" << channelInfo.toString());
             inputs[channelInfo.getGateIdx()]->ResumeConsumption(channelInfo);
         }
         blockedChannels.clear();

@@ -42,6 +42,9 @@ public:
     }
 
     virtual BarrierHandlerState* FinishCheckpoint() = 0;
+
+    // Abort the pending checkpoint and resume only channels tracked as blocked by this state.
+    virtual void AbortCheckpoint() = 0;
 };
 
 #endif // OMNISTREAM_BARRIERHANDLERSTATE_H

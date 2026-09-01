@@ -4,6 +4,7 @@
 
 #ifndef OMNILOCALINPUTCHANNEL_H
 #define OMNILOCALINPUTCHANNEL_H
+#include <atomic>
 #include "LocalInputChannel.h"
 #include "runtime/buffer/OriginalNetworkBufferRecycler.h"
 #include "runtime/state/bridge/OmniLocalInputChannelBridge.h"
@@ -71,7 +72,7 @@ private:
     size_t outsize = 0;
     size_t startSize_ = 0;
     bool isNeedPersistence_ = false;
-    bool isUnlock = false;
+    std::atomic_bool isBlockedByCheckpoint_{false};
     int expectSequenceNumber = 0;
     int initialCredit;
     std::recursive_mutex queueMutex;

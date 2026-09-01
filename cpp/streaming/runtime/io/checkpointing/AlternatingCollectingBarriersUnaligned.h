@@ -28,6 +28,7 @@ public:
     BarrierHandlerState* AlignedCheckpointTimeout(Controller*, CheckpointBarrier*) override;
 
     BarrierHandlerState* FinishCheckpoint() override;
+    void AbortCheckpoint() override;
 
 private:
     bool alternating_;

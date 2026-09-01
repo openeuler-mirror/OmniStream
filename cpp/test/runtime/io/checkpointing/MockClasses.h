@@ -39,10 +39,12 @@ public:
 
     void ResumeConsumption(const InputChannelInfo& info) override
     {
+        ++normalResumeCount_;
         resumedChannels_.insert(info.getInputChannelIdx());
     }
     void TimeOutResumeConsumption(const InputChannelInfo& info) override
     {
+        ++timeoutResumeCount_;
         resumedChannels_.insert(info.getInputChannelIdx());
     }
     void ConvertToPriorityEvent(int, int) override
@@ -87,6 +89,8 @@ public:
     int numChannels_;
     std::unordered_set<int> blockedChannels_;
     std::unordered_set<int> resumedChannels_;
+    int normalResumeCount_ = 0;
+    int timeoutResumeCount_ = 0;
     bool started = false;
     bool stopped = false;
 };

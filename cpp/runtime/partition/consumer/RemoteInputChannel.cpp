@@ -203,7 +203,7 @@ void RemoteInputChannel::notifyRemoteDataAvailableForNetworkBuffer(
     }
     int type = bufferType;
     if (bufferType > 1) {
-        isUnlock = true;
+        isBlockedByCheckpoint_.store(true);
         type = 1;
     }
     LOG("notifyRemoteDataAvailableForDataStream bufferAddress: " << bufferAddress << " bufferLength: " << bufferLength
@@ -274,8 +274,10 @@ void RemoteInputChannel::resumeConsumption()
     }
     int gateIndex = this->getChannelInfo().getGateIdx();
     int channelIndex = this->getChannelInfo().getInputChannelIdx();
+    // Clear the hint before the bridge call so a newly arriving blocking event is not
+    // overwritten after the producer has been resumed.
+    isBlockedByCheckpoint_.store(false);
     this->remoteDataFetcherBridge->InvokeJavaRemoteDataFetcherResumeConsumption(gateIndex, channelIndex);
-    isUnlock = false;
 }
 
 void RemoteInputChannel::TimeOutResumeConsumption()
@@ -286,9 +288,15 @@ void RemoteInputChannel::TimeOutResumeConsumption()
     }
     int gateIndex = this->getChannelInfo().getGateIdx();
     int channelIndex = this->getChannelInfo().getInputChannelIdx();
-    if (isUnlock) {
+    if (isBlockedByCheckpoint_.exchange(false)) {
+        LOG_DEBUG(
+            "[CP_DIAG] Send guarded remote ResumeConsumption. gateIndex=" << gateIndex << ", channelIndex="
+                                                                          << channelIndex << ", blockedHint=true");
         this->remoteDataFetcherBridge->InvokeJavaRemoteDataFetcherResumeConsumption(gateIndex, channelIndex);
-        isUnlock = false;
+    } else {
+        LOG_DEBUG(
+            "[CP_DIAG] Skip remote ResumeConsumption for unblocked channel. gateIndex="
+            << gateIndex << ", channelIndex=" << channelIndex << ", blockedHint=false");
     }
 }
 
