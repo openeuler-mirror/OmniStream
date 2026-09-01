@@ -28,7 +28,7 @@ VectorBatchBuffer::VectorBatchBuffer(ObjectSegment* segment, std::shared_ptr<Buf
     this->recycler = recycle;
 
     // Invoking this constructor implies that the caller (bufferBuilder) owns the segment
-    refCount = 1;
+    refCount_.store(1, std::memory_order_relaxed);
     readerIndex_ = -1;
     event_type = -1;
     isCompressed_ = false;
@@ -46,27 +46,21 @@ void VectorBatchBuffer::recycleBuffer(bool selfDelete)
         return;
     }
 
-    ObjectSegment* segmentToRecycle = nullptr;
-    {
-        std::lock_guard<std::mutex> lock(refCountMutex_);
-        if (isRecycled_) {
-            throw std::runtime_error("Trying to recycle a VectorBatchBuffer that has already been recycled");
-        }
-        LOG_PART("The buffer " << this << " refCount is decremented from " << refCount << " to " << (refCount - 1));
-        --refCount;
-        if (refCount == 0) {
-            LOG_PART("VectorBatch Buffer recycled " << this);
-            isRecycled_ = true;
-            segmentToRecycle = GetObjectSegment();
-        }
+    const int previous = refCount_.fetch_sub(1, std::memory_order_acq_rel);
+    if (previous <= 0) {
+        refCount_.fetch_add(1, std::memory_order_relaxed);
+        throw std::runtime_error("Trying to recycle a VectorBatchBuffer that has already been recycled");
+    }
+    LOG_PART("The buffer " << this << " refCount is decremented from " << previous << " to " << (previous - 1));
+    if (previous != 1) {
+        return;
     }
 
-    // Invoke external pool code after releasing the reference-count lock.
-    if (segmentToRecycle) {
-        recycler->recycle(segmentToRecycle);
-        if (selfDelete) {
-            delete this;
-        }
+    LOG_PART("VectorBatch Buffer recycled " << this);
+    isRecycled_.store(true, std::memory_order_release);
+    recycler->recycle(GetObjectSegment());
+    if (selfDelete) {
+        delete this;
     }
 }
 
