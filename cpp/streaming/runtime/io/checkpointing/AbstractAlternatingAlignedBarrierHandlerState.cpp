@@ -59,6 +59,11 @@ BarrierHandlerState* AbstractAlternatingAlignedBarrierHandlerState::FinishCheckp
     return new AlternatingWaitingForFirstBarrier(state.EmptyState());
 }
 
+void AbstractAlternatingAlignedBarrierHandlerState::AbortCheckpoint()
+{
+    state.UnblockAllChannels();
+}
+
 BarrierHandlerState* AbstractAlternatingAlignedBarrierHandlerState::FinishSavepoint(long id)
 {
     state.UnblockAllChannels();

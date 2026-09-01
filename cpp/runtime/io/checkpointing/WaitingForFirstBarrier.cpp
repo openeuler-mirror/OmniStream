@@ -67,6 +67,11 @@ public:
         return new WaitingForFirstBarrier(std::move(next));
     }
 
+    void AbortCheckpoint() override
+    {
+        state_.UnblockAllChannels();
+    }
+
 private:
     ChannelState state_;
 };
@@ -119,6 +124,11 @@ BarrierHandlerState* WaitingForFirstBarrier::FinishCheckpoint()
     ChannelState next = std::move(state_);
     next.EmptyState();
     return new WaitingForFirstBarrier(std::move(next));
+}
+
+void WaitingForFirstBarrier::AbortCheckpoint()
+{
+    state_.UnblockAllChannels();
 }
 
 BarrierHandlerState* WaitingForFirstBarrier::FinishSavepoint(long id)

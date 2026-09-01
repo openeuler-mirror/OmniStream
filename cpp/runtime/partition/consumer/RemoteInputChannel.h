@@ -9,6 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #pragma once
+#include <atomic>
 #include "LocalInputChannel.h"
 #include "table/utils/VectorBatchDeserializationUtils.h"
 #include <optional>
@@ -95,7 +96,7 @@ private:
     size_t outsize = 0;
     size_t startSize_ = 0;
     bool isNeedPersistence_ = false;
-    bool isUnlock = false;
+    std::atomic_bool isBlockedByCheckpoint_{false};
     bool isNeedExpansion = false;
     std::vector<Buffer*> inflightBuffers_;
     int taskType = 0;

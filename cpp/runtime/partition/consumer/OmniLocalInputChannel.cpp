@@ -54,7 +54,7 @@ void OmniLocalInputChannel::notifyOriginalDataAvailable(
     }
     int type = bufferType;
     if (bufferType > 1) {
-        isUnlock = true;
+        isBlockedByCheckpoint_.store(true);
         type = 1;
     }
     MemorySegment* memorySegment = new MemorySegment(reinterpret_cast<uint8_t*>(bufferAddress), bufferLength, this);
@@ -133,15 +133,19 @@ void OmniLocalInputChannel::releaseAllResources()
 
 void OmniLocalInputChannel::resumeConsumption()
 {
+    // Clear the hint before the bridge call so a newly arriving blocking event is not
+    // overwritten after the producer has been resumed.
+    isBlockedByCheckpoint_.store(false);
     omniLocalInputChannelBridge->InvokeDoResumeConsumption();
-    isUnlock = false;
 }
 
 void OmniLocalInputChannel::TimeOutResumeConsumption()
 {
-    if (isUnlock) {
+    if (isBlockedByCheckpoint_.exchange(false)) {
+        LOG_DEBUG("[CP_DIAG] Send guarded local ResumeConsumption. blockedHint=true");
         omniLocalInputChannelBridge->InvokeDoResumeConsumption();
-        isUnlock = false;
+    } else {
+        LOG_DEBUG("[CP_DIAG] Skip local ResumeConsumption for unblocked channel. blockedHint=false");
     }
 }
 
