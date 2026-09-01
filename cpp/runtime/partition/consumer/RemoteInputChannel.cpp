@@ -320,7 +320,14 @@ void RemoteInputChannel::CheckpointStarted(
 void RemoteInputChannel::CheckpointStopped(long checkpointId)
 {
     std::lock_guard<std::recursive_mutex> lock(queueMutex);
-    channelStatePersister->StopPersisting(checkpointId);
+    if (channelStatePersister) {
+        channelStatePersister->StopPersisting(checkpointId);
+    } else {
+        INFO_RELEASE(
+            "RemoteInputChannel::CheckpointStopped skipped because channelStatePersister is not initialized, "
+            "checkpointId="
+            << checkpointId);
+    }
     if (lastBarrierId_ == checkpointId) {
         ResetLastBarrier();
     }
