@@ -167,7 +167,16 @@ void OmniLocalInputChannel::CheckpointStarted(
 void OmniLocalInputChannel::CheckpointStopped(long checkpointId)
 {
     startSize_ = 0;
+    if (!channelStatePersister) {
+        INFO_RELEASE(
+            "OmniLocalInputChannel::CheckpointStopped skipped because channelStatePersister is not initialized, "
+            "checkpointId="
+            << checkpointId);
+        inflightBuffers_.clear();
+        return;
+    }
     channelStatePersister->StopPersisting(checkpointId);
+    inflightBuffers_.clear();
 }
 void OmniLocalInputChannel::AddInputData(long checkpointId, const omnistream::InputChannelInfo& info)
 {
