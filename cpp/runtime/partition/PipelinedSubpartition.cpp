@@ -545,8 +545,8 @@ std::shared_ptr<CheckpointBarrier> PipelinedSubpartition::ParseCheckpointBarrier
     const std::shared_ptr<BufferConsumer>& bufferConsumer)
 {
     // auto buffer = bufferConsumer->build();
-    auto buffer = bufferConsumer->buildForPeek();
-    auto event = EventSerializer::fromBuffer(buffer);
+    auto buffer = std::unique_ptr<Buffer>(bufferConsumer->buildForPeek());
+    auto event = EventSerializer::fromBuffer(buffer.get());
     // auto event = EventSerializer::fromBuffe_V2r(buffer);
     return std::dynamic_pointer_cast<CheckpointBarrier>(event);
 }
