@@ -41,6 +41,8 @@ public:
     RowData* getRow1();
     RowData* getRow2();
 
+    void setRow1(RowData* row1_);
+    void setRow2(RowData* row2_);
     void setLong(int pos, long value) override;
 
     void setInt(int pos, int value) override;

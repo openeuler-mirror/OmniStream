@@ -492,6 +492,14 @@ jobject OmniTaskBridgeImpl2::CallUploadFilesToCheckpointFs(
     jstring jPathsJson = env->NewStringUTF(pathsJsonStr.c_str());
     jobject jResult = env->CallObjectMethod(m_globalOmniTaskRef, mid, jPathsJson, numberOfSnapshottingThreads);
 
+    if (env->ExceptionCheck()) {
+        env->ExceptionDescribe();
+        env->ExceptionClear();
+        env->DeleteLocalRef(jPathsJson);
+        env->DeleteLocalRef(cls);
+        throw std::runtime_error("Failed to call uploadFilesToCheckpointFs");
+    }
+
     env->DeleteLocalRef(jPathsJson);
     env->DeleteLocalRef(cls);
 

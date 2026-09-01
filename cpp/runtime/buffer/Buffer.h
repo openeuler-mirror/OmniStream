@@ -25,12 +25,6 @@ public:
     virtual bool isBuffer() const = 0;
     virtual std::shared_ptr<BufferRecycler> GetRecycler() = 0;
     virtual void RecycleBuffer() = 0;
-
-    virtual bool IsRecycled() const = 0;
-    virtual bool ShouldBeDeleted()
-    {
-        return false;
-    }
     virtual Buffer* RetainBuffer() = 0;
     virtual Buffer* ReadOnlySlice() = 0;
     virtual Buffer* ReadOnlySlice(int index, int length) = 0;

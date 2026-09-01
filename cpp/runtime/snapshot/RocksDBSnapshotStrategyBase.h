@@ -159,9 +159,15 @@ public:
         std::shared_ptr<PreviousSnapshot> previousSnapshot,
         std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots);
 
+    ~NativeRocksDBSnapshotResources() override;
+
+    // SnapshotStrategyRunner owns SnapshotResources through this interface.
+    // Keep release() as a compatibility alias, but make cleanup() the single
+    // implementation point so temporary RocksDB checkpoint directories are
+    // actually reclaimed after the asynchronous snapshot finishes.
     void release();
 
-    void cleanup() {};
+    void cleanup() override;
 
     std::shared_ptr<SnapshotDirectory> snapshotDirectory;
     std::shared_ptr<PreviousSnapshot> previousSnapshot;

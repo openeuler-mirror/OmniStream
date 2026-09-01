@@ -130,11 +130,11 @@ inline void BufferBuilder::trim(int newSize)
 
 inline void BufferBuilder::close()
 {
-    if (!buffer->IsRecycled()) {
-        buffer->RecycleBuffer();
-    } else {
-        THROW_LOGIC_EXCEPTION("Buffer ref count has error");
+    if (buffer == nullptr) {
+        THROW_LOGIC_EXCEPTION("BufferBuilder::close(), buffer is nullptr");
     }
+    buffer->RecycleBuffer();
+    buffer = nullptr;
 }
 
 inline bool BufferBuilder::SettablePositionMarker::isFinished() const

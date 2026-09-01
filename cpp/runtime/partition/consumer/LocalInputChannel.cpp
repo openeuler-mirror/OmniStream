@@ -249,17 +249,21 @@ std::optional<BufferAndAvailability> LocalInputChannel::getNextBuffer()
         if (segment->isObjectSegment()) {
             ObjectSegment* newObjectSegment = new ObjectSegment(bufferLength);
             const ObjectSegment* objectSegment = dynamic_cast<const ObjectSegment*>(segment);
-            newObjectSegment->put(0, objectSegment, buffer->GetOffset(), bufferLength);
+            try {
+                newObjectSegment->put(0, objectSegment, buffer->GetOffset(), bufferLength);
+            } catch (...) {
+                delete newObjectSegment;
+                buffer->RecycleBuffer();
+                delete buffer;
+                delete next;
+                throw;
+            }
             auto* copiedBuffer =
                 new VectorBatchBuffer(newObjectSegment, std::make_shared<DeepCopiedObjectBufferRecycler>());
             copiedBuffer->SetSize(bufferLength);
             inflightBuffers_.push_back(copiedBuffer);
         } else {
-            uint8_t* newBufferAddress = (uint8_t*)malloc(bufferLength);
-            if (newBufferAddress == nullptr) {
-                INFO_RELEASE("Error: malloc failed.");
-                throw std::invalid_argument("malloc failed");
-            }
+            uint8_t* newBufferAddress = new uint8_t[bufferLength];
             datastream::ReadOnlySlicedNetworkBuffer* readOnlyBuffer = (datastream::ReadOnlySlicedNetworkBuffer*)buffer;
             int readIndex = readOnlyBuffer->GetMemorySegmentOffset();
             MemorySegment* newMemorySegment = new MemorySegment(newBufferAddress, bufferLength);

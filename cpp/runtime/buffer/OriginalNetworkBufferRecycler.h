@@ -24,10 +24,17 @@ public:
 
     void recycle(Segment* segment) override
     {
-        auto memorySegment = reinterpret_cast<MemorySegment*>(segment);
-        if (memorySegment) {
-            long address = reinterpret_cast<long>(memorySegment->getAll());
+        if (segment == nullptr) {
+            THROW_RUNTIME_ERROR("Trying to recycle a nullptr segment");
+        }
+        if (segment->isMemorySegment()) {
+            long address = reinterpret_cast<long>(reinterpret_cast<MemorySegment*>(segment)->getData());
             recycle(address);
+        } else if (segment->isObjectSegment()) {
+            long address = reinterpret_cast<long>(reinterpret_cast<ObjectSegment*>(segment)->getData());
+            recycle(address);
+        } else {
+            THROW_RUNTIME_ERROR("Trying to recycle an unsupported segment");
         }
     }
 

@@ -120,7 +120,6 @@ public:
     void SetDataType(const ObjectBufferDataType& dataType);
     void close();
     bool isClose() const;
-    bool isRecycled() const;
     int getWrittenBytes();
     int getCurrentReaderPosition() const;
     virtual bool isStartOfDataBuffer() const = 0;

@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include "table/data/Row.h"
 #include <streaming/runtime/streamrecord/StreamElement.h>
@@ -26,6 +27,8 @@
 #include "core/memory/Segment.h"
 
 namespace omnistream {
+class ObjectSegmentChannelStateSerde;
+
 class ObjectSegment : public Segment {
 public:
     explicit ObjectSegment(size_t size) : Segment(SegmentType::OBJECT_SEGMENT), size(size)
@@ -55,10 +58,19 @@ public:
             static_cast<size_t>(offset) + static_cast<size_t>(length) > src->size) {
             throw std::out_of_range("ObjectSegment copy range out of bounds");
         }
-        for (int i = 0; i < length; i++) {
-            objects_[index + i] = CloneObject(src->objects_[offset + i]);
+        int copied = 0;
+        try {
+            for (; copied < length; copied++) {
+                objects_[index + copied] = CloneObject(src->objects_[offset + copied]);
+            }
+            ownsObjects_ = true;
+        } catch (...) {
+            for (int i = 0; i < copied; i++) {
+                ReleaseObject(objects_[index + i]);
+                objects_[index + i] = nullptr;
+            }
+            throw;
         }
-        ownsObjects_ = true;
     }
 
     void ReleaseObjects()
@@ -83,13 +95,39 @@ public:
         return size;
     }
 
+    void setData(uint8_t* bufferAddress)
+    {
+        offHeapBuffer_ = bufferAddress;
+    }
+
+    uint8_t* getData()
+    {
+        return offHeapBuffer_;
+    }
+
 private:
+    friend class ObjectSegmentChannelStateSerde;
+
     size_t size;
     bool ownsObjects_ = false;
+
+    // This is for RemoteInputChannel::notifyRemoteDataAvailableForVectorBatch.
+    // When VectorBatchBuffer from RemoteInputChannel should be recycled, OriginalNetworkBufferRecycler needs to push
+    // offHeapBuffer_ to originalNetworkBufferQueue, making the buffer recycler thread in
+    // RemoteDataFetcher(OmniAdaptor) could correctly recycle the buffer.
+    uint8_t* offHeapBuffer_ = nullptr;
 
     //  it is actually a  StreamRecord * [size] , allocate mem in constructor, StreamRecord.value are VectorBatch *
     //  notice in order to get high performance, the data related object are using raw pointer
     StreamElement** objects_;
+
+    void ReleaseObjects(size_t offset, size_t length) noexcept
+    {
+        for (size_t i = 0; i < length; i++) {
+            ReleaseObject(objects_[offset + i]);
+            objects_[offset + i] = nullptr;
+        }
+    }
 
     static StreamElement* CloneObject(StreamElement* source)
     {
@@ -101,6 +139,12 @@ private:
         if (tag == StreamElementTag::TAG_UNKNOWN) {
             INFO_RELEASE("Warn: CloneObject tag is TAG_UNKNOWN");
             return nullptr;
+        }
+        if (tag == StreamElementTag::TAG_STREAM_STATUS || tag == StreamElementTag::TAG_RECORD_ATTRIBUTES ||
+            tag == StreamElementTag::TAG_LATENCY_MARKER || tag == StreamElementTag::TAG_INTERNAL_WATERMARK) {
+            ERROR_RELEASE("CloneObject does not support StreamElement tag " << static_cast<int>(tag));
+            throw std::runtime_error(
+                "CloneObject does not support StreamElement tag " + std::to_string(static_cast<int>(tag)));
         }
         if (tag == StreamElementTag::TAG_WATERMARK) {
             auto* watermark = dynamic_cast<Watermark*>(source);
@@ -140,8 +184,9 @@ private:
             return copiedElement;
         }
 
-        INFO_RELEASE("Warn: CloneObject tag is " << static_cast<int8_t>(tag));
-        return nullptr;
+        ERROR_RELEASE("CloneObject encountered unsupported StreamElement tag " << static_cast<int>(tag));
+        throw std::runtime_error(
+            "CloneObject encountered unsupported StreamElement tag " + std::to_string(static_cast<int>(tag)));
     }
 
     static void ReleaseObject(StreamElement* object)

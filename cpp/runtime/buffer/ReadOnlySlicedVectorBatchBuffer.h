@@ -32,13 +32,10 @@ public:
 
     void RecycleBuffer() override
     {
-        LOG_TRACE("Calling RecycleBuffer() from ReadOnlySlicedVectorBatchBuffer");
+        if (parent_ == nullptr) {
+            THROW_LOGIC_EXCEPTION("ReadOnlySlicedVectorBatchBuffer::RecycleBuffer(), parent_ is nullptr");
+        }
         parent_->RecycleBuffer();
-    }
-
-    bool IsRecycled() const override
-    {
-        return parent_->IsRecycled();
     }
 
     Buffer* RetainBuffer() override

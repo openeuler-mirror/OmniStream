@@ -100,7 +100,8 @@ void StreamCalcBatch::processBatch(StreamRecord* input)
             // All rows are kept. Use current timestamp* and RowKind* to create a omnistream::Vectorbatch
             outputBatch =
                 new omnistream::VectorBatch(std::move(projectedVecs), record->getTimestamps(), record->getRowKinds());
-            omniruntime::codegen::VectorHelper::FreeVecBatch(record);
+            record->releaseTimestampsAndRowKinds();
+            delete record;
             timestampedCollector_->collect(outputBatch);
         }
     }

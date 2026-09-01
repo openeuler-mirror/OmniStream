@@ -24,6 +24,7 @@
 #include <sstream>
 #include <climits>
 #include <atomic>
+#include <memory>
 
 #include "table/utils/VectorBatchDeserializationUtils.h"
 #include "VectorBatchBuffer.h"
@@ -122,47 +123,75 @@ ObjectSegmentChannelStateSerde::AppendResult ObjectSegmentChannelStateSerde::App
     }
 
     // 4. 逐个元素反序列化
-    for (int32_t i = 0; i < elementNum; i++) {
-        int8_t dataType;
-        memcpy_s(&dataType, sizeof(int8_t), cursor, sizeof(int8_t));
-        cursor += sizeof(int8_t);
+    const int initialTargetOffset = targetOffset;
+    int32_t written = 0;
+    try {
+        for (int32_t i = 0; i < elementNum; i++) {
+            int8_t dataType;
+            memcpy_s(&dataType, sizeof(int8_t), cursor, sizeof(int8_t));
+            cursor += sizeof(int8_t);
 
-        StreamElementTag tag = static_cast<StreamElementTag>(dataType);
-        StreamElement* element = nullptr;
+            StreamElementTag tag = static_cast<StreamElementTag>(dataType);
+            StreamElement* element = nullptr;
 
-        switch (tag) {
-            case StreamElementTag::TAG_UNKNOWN: element = new StreamElement(); break;
+            switch (tag) {
+                case StreamElementTag::TAG_UNKNOWN: element = new StreamElement(); break;
 
-            case StreamElementTag::TAG_WATERMARK: {
-                long timestamp = VectorBatchDeserializationUtils::derializeWatermark(cursor);
-                element = new Watermark(timestamp);
-                break;
+                case StreamElementTag::TAG_WATERMARK: {
+                    long timestamp = VectorBatchDeserializationUtils::derializeWatermark(cursor);
+                    element = new Watermark(timestamp);
+                    break;
+                }
+
+                case StreamElementTag::VECTOR_BATCH: {
+                    std::unique_ptr<VectorBatch> vb(VectorBatchDeserializationUtils::deserializeVectorBatch(cursor));
+                    element = new StreamElement(StreamElementTag::VECTOR_BATCH);
+                    element->setValue(vb.release());
+                    break;
+                }
+                case StreamElementTag::TAG_REC_WITHOUT_TIMESTAMP: {
+                    std::unique_ptr<VectorBatch> vb(VectorBatchDeserializationUtils::deserializeVectorBatch(cursor));
+                    element = new StreamRecord(vb.get());
+                    vb.release();
+                    break;
+                }
+                case StreamElementTag::TAG_REC_WITH_TIMESTAMP: {
+                    long timeStamp;
+                    memcpy_s(&timeStamp, sizeof(long), cursor, sizeof(long));
+                    cursor += sizeof(long);
+                    std::unique_ptr<VectorBatch> vb(VectorBatchDeserializationUtils::deserializeVectorBatch(cursor));
+                    element = new StreamRecord(vb.get(), timeStamp);
+                    vb.release();
+                    break;
+                }
+
+                case StreamElementTag::TAG_STREAM_STATUS:
+                case StreamElementTag::TAG_RECORD_ATTRIBUTES:
+                case StreamElementTag::TAG_LATENCY_MARKER:
+                case StreamElementTag::TAG_INTERNAL_WATERMARK: {
+                    ERROR_RELEASE(
+                        "ObjectSegment channel-state deserialization does not support StreamElement tag "
+                        << static_cast<int>(tag));
+                    throw std::runtime_error(
+                        "ObjectSegment channel-state deserialization does not support StreamElement tag " +
+                        std::to_string(static_cast<int>(tag)));
+                }
+
+                default:
+                    ERROR_RELEASE(
+                        "ObjectSegment channel-state deserialization encountered unknown StreamElement tag "
+                        << static_cast<int>(tag));
+                    throw std::runtime_error(
+                        "ObjectSegment channel-state deserialization encountered unknown StreamElement tag " +
+                        std::to_string(static_cast<int>(tag)));
             }
 
-            case StreamElementTag::VECTOR_BATCH: {
-                VectorBatch* vb = VectorBatchDeserializationUtils::deserializeVectorBatch(cursor);
-                element = new StreamElement(StreamElementTag::VECTOR_BATCH);
-                element->setValue(vb);
-                break;
-            }
-            case StreamElementTag::TAG_REC_WITHOUT_TIMESTAMP: {
-                VectorBatch* vb = VectorBatchDeserializationUtils::deserializeVectorBatch(cursor);
-                element = new StreamRecord(vb);
-                break;
-            }
-            case StreamElementTag::TAG_REC_WITH_TIMESTAMP: {
-                long timeStamp;
-                memcpy_s(&timeStamp, sizeof(long), cursor, sizeof(long));
-                cursor += sizeof(long);
-                VectorBatch* vb = VectorBatchDeserializationUtils::deserializeVectorBatch(cursor);
-                element = new StreamRecord(vb, timeStamp);
-                break;
-            }
-
-            default: throw std::runtime_error("Unsupported ObjectSegment restore tag");
+            target->putObject(targetOffset++, element);
+            written++;
         }
-
-        target->putObject(targetOffset++, element);
+    } catch (...) {
+        target->ReleaseObjects(initialTargetOffset, written);
+        throw;
     }
 
     // 此处可校验 cursor == end

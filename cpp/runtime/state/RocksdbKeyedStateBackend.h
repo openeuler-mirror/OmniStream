@@ -126,6 +126,8 @@ public:
     {
         flushFalconCacheBeforeCheckpoint(); // [FALCON] flush falcon cache before snapshot
 
+        writeBatchWrapper_->Flush();
+
         auto snapshotstrategyrunner = std::make_unique<SnapshotStrategyRunner<KeyedStateHandle, SnapshotResources>>(
             strategy->getDescription(), strategy, SnapshotExecutionType::ASYNCHRONOUS);
         return snapshotstrategyrunner->snapshot(

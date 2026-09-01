@@ -23,6 +23,26 @@
 namespace omnistream {
 class VectorBatchUtil {
 public:
+    // keep getBatchId,getRowId, getComboId for Window Agg
+    static inline int32_t getBatchId(int64_t id)
+    {
+        uint64_t uid = static_cast<uint64_t>(id);
+        return (int32_t)(uid >> 32);
+    }
+
+    static inline int32_t getRowId(int64_t id)
+    {
+        return (int32_t)id;
+    }
+
+    static inline int64_t getComboId(int batchId, int rowId)
+    {
+        uint64_t ubatchId = static_cast<uint64_t>(batchId);
+        uint32_t urowId = static_cast<uint32_t>(rowId);
+        ubatchId = (ubatchId << 32) | urowId;
+        return static_cast<int64_t>(ubatchId);
+    }
+
     static inline int32_t getKeyGroup(ComboId comboId)
     {
         return static_cast<int32_t>((comboId >> 48) & UINT16_MAX);

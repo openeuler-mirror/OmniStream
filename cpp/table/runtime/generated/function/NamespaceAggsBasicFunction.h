@@ -13,6 +13,8 @@
 
 #include <cstdint>
 #include <vector>
+#include "table/data/vectorbatch/VectorBatch.h"
+#include "table/data/util/VectorBatchUtil.h"
 
 class RowData;
 class StateDataViewStore;
@@ -31,6 +33,10 @@ public:
 
     virtual void accumulate(RowData* input) = 0;
     virtual void retract(RowData* input) = 0;
+    virtual void accumulate(
+        const std::vector<omnistream::VectorBatch*>& inputBatches, const std::vector<int64_t>& indices) = 0;
+    virtual void retract(
+        const std::vector<omnistream::VectorBatch*>& inputBatches, const std::vector<int64_t>& indices) = 0;
     virtual void merge(N ns, RowData* otherAcc) = 0;
     virtual void setAccumulators(N ns, RowData* acc) = 0;
     virtual RowData* getAccumulators() = 0;
@@ -40,6 +46,7 @@ protected:
     int32_t singleArgIndex() const;
     int32_t singleAccIndex() const;
     int64_t readInputByIndex(RowData* input, int32_t index) const;
+    int64_t readInputByIndex(omnistream::VectorBatch* input, int32_t argIndex, int rowId) const;
 
     std::vector<int32_t> argIndexes_;
     std::vector<int32_t> inputTypeIds_;

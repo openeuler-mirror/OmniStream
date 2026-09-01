@@ -11,6 +11,7 @@
 #include "RemoteInputChannel.h"
 #include "table/utils/VectorBatchDeserializationUtils.h"
 #include "common.h"
+#include "buffer/ReadOnlySlicedVectorBatchBuffer.h"
 #include "runtime/buffer/NetworkBuffer.h"
 #include "runtime/buffer/VectorBatchBuffer.h"
 #include "runtime/io/checkpointing/CheckpointBarrierHandler.h"
@@ -33,7 +34,12 @@ VectorBatchBuffer* CopyVectorBatchBufferForCheckpoint(VectorBatchBuffer* source)
     int offset = source->GetOffset();
     int bufferLength = source->GetSize();
     ObjectSegment* objectSegment = new ObjectSegment(bufferLength);
-    objectSegment->put(0, oldObjectSegment, offset, bufferLength);
+    try {
+        objectSegment->put(0, oldObjectSegment, offset, bufferLength);
+    } catch (...) {
+        delete objectSegment;
+        throw;
+    }
     auto* copiedBuffer = new VectorBatchBuffer(objectSegment, std::make_shared<DeepCopiedObjectBufferRecycler>());
     copiedBuffer->SetSize(bufferLength);
     return copiedBuffer;
@@ -71,7 +77,10 @@ void RemoteInputChannel::requestSubpartition(int subpartitionIndex)
 }
 
 void RemoteInputChannel::notifyRemoteDataAvailableForVectorBatch(
-    long bufferAddress, int bufferLength, int sequenceNumber)
+    long bufferAddress,
+    int bufferLength,
+    int sequenceNumber,
+    const std::shared_ptr<OriginalNetworkBufferRecycler>& originalNetworkBufferRecycle)
 {
     taskType = 1;
     if (bufferAddress == -1) {
@@ -86,25 +95,30 @@ void RemoteInputChannel::notifyRemoteDataAvailableForVectorBatch(
         }
     } else {
         uint8_t* buffer = reinterpret_cast<uint8_t*>(bufferAddress);
+        int32_t vertorBatchNum = 0;
+        memcpy_s(&vertorBatchNum, sizeof(int32_t), buffer, sizeof(int32_t));
         // do data deserialization
-        std::shared_ptr<ObjectSegment> objectSegment = this->DoDataDeserializationResult(buffer, bufferLength);
-        auto vectorBatchBuffer = new VectorBatchBuffer(objectSegment);
+        std::shared_ptr<ObjectSegment> objectSegment = this->DoDataDeserializationResult(buffer);
+        objectSegment->setData(reinterpret_cast<uint8_t*>(bufferAddress));
+        auto vectorBatchBuffer = new VectorBatchBuffer(objectSegment, originalNetworkBufferRecycle);
+        auto readOnlyVectorBatchBuffer = new ReadOnlySlicedVectorBatchBuffer(vectorBatchBuffer, 0, vertorBatchNum);
+
         if (isNeedExpansion && (sequenceNumber > lastSequenceNumber)) {
             isNeedExpansion = false;
         }
         if (vectorBatchBuffer != nullptr) {
             vectorBatchBuffer->SetSize(objectSegment->getSize());
             std::lock_guard<std::recursive_mutex> lock(queueMutex);
-            this->dataQueue.push(vectorBatchBuffer);
-            LOG("remote got an buffer  " << vectorBatchBuffer->ToDebugString(true));
+            this->dataQueue.push(readOnlyVectorBatchBuffer);
+            LOG("remote got an buffer  " << readOnlyVectorBatchBuffer->ToDebugString(true));
             if (isNeedPersistence_ || isNeedExpansion) {
-                auto* copy = CopyVectorBatchBufferForCheckpoint(vectorBatchBuffer);
+                auto* copy = CopyVectorBatchBufferForCheckpoint(readOnlyVectorBatchBuffer);
                 if (copy != nullptr) {
                     inflightBuffers_.push_back(copy);
                 }
             }
         }
-        auto bufferLength = vectorBatchBuffer->GetSize();
+        auto bufferLength = readOnlyVectorBatchBuffer->GetSize();
         insize += bufferLength;
         if (!isNeedExpansion) {
             lastSequenceNumber = sequenceNumber;
@@ -139,19 +153,19 @@ std::optional<BufferAndAvailability> RemoteInputChannel::getNextBuffer()
     return BufferAndAvailability{buffer, dataType, backlogSize, expectSequenceNumber++};
 }
 
-std::shared_ptr<ObjectSegment> RemoteInputChannel::DoDataDeserializationResult(uint8_t*& buffer, int bufferLength)
+std::shared_ptr<ObjectSegment> RemoteInputChannel::DoDataDeserializationResult(uint8_t*& buffer)
 {
-    LOG("----DoDataDeserializationResult start 1:: " << buffer << " bufferLength:: " << bufferLength);
+    LOG("----DoDataDeserializationResult start 1:: " << buffer);
     int32_t elementNum;
     memcpy_s(&elementNum, sizeof(int32_t), buffer, sizeof(int32_t));
     buffer += sizeof(int32_t);
     std::shared_ptr<ObjectSegment> objectSegment = std::make_shared<ObjectSegment>(elementNum);
-    LOG("----DoDataDeserializationResult start 2:: " << buffer << " bufferLength:: " << bufferLength);
+    LOG("----DoDataDeserializationResult start 2:: " << buffer);
     for (int32_t i = 0; i < elementNum; i++) {
         int8_t dataType;
         memcpy_s(&dataType, sizeof(int8_t), buffer, sizeof(int8_t));
         buffer += sizeof(int8_t);
-        LOG("----DoDataDeserializationResult start 3:: " << (buffer) << " bufferLength:: " << bufferLength);
+        LOG("----DoDataDeserializationResult start 3:: " << buffer);
         StreamElementTag tagType = static_cast<StreamElementTag>(dataType);
         switch (tagType) {
             case StreamElementTag::TAG_WATERMARK: {
@@ -212,11 +226,7 @@ void RemoteInputChannel::notifyRemoteDataAvailableForNetworkBuffer(
             isNeedExpansion = false;
         }
         if ((isNeedPersistence_ && (readOnlyBuffer->isBuffer())) || (isNeedExpansion && (readOnlyBuffer->isBuffer()))) {
-            uint8_t* newBufferAddress = (uint8_t*)malloc(bufferLength);
-            if (newBufferAddress == nullptr) {
-                INFO_RELEASE("Error: malloc failed.");
-                throw std::invalid_argument("malloc failed");
-            }
+            uint8_t* newBufferAddress = new uint8_t[bufferLength];
             MemorySegment* newMemorySegment = new MemorySegment(newBufferAddress, bufferLength);
             newMemorySegment->put(0, reinterpret_cast<uint8_t*>(bufferAddress), readIndex, bufferLength);
             ::datastream::NetworkBuffer* newNetworkBuffer = new ::datastream::NetworkBuffer(
@@ -327,31 +337,42 @@ std::vector<Buffer*> RemoteInputChannel::GetInflightVectorBatchBuffersUnsafe(lon
 {
     std::lock_guard<std::recursive_mutex> lock(queueMutex);
     std::vector<Buffer*> inflightBuffers;
-    std::queue<Buffer*> tmpQueue = dataQueue;
-    while (!tmpQueue.empty()) {
-        Buffer* buffer = tmpQueue.front();
-        VectorBatchBuffer* vectorBatchBuffer = dynamic_cast<VectorBatchBuffer*>(buffer);
-        datastream::ReadOnlySlicedNetworkBuffer* readOnlyBuffer =
-            dynamic_cast<datastream::ReadOnlySlicedNetworkBuffer*>(buffer);
-        if (vectorBatchBuffer == nullptr && readOnlyBuffer == nullptr) {
+    try {
+        std::queue<Buffer*> tmpQueue = dataQueue;
+        while (!tmpQueue.empty()) {
+            Buffer* buffer = tmpQueue.front();
+            VectorBatchBuffer* vectorBatchBuffer = dynamic_cast<VectorBatchBuffer*>(buffer);
+            datastream::ReadOnlySlicedNetworkBuffer* readOnlyBuffer =
+                dynamic_cast<datastream::ReadOnlySlicedNetworkBuffer*>(buffer);
+            if (vectorBatchBuffer == nullptr && readOnlyBuffer == nullptr) {
+                tmpQueue.pop();
+                continue;
+            }
+            int bufferLength = buffer->GetSize();
+            if (vectorBatchBuffer != nullptr) {
+                auto newVectorBatchBuffer = CopyVectorBatchBufferForCheckpoint(vectorBatchBuffer);
+                inflightBuffers.push_back(newVectorBatchBuffer);
+                tmpQueue.pop();
+                continue;
+            }
+            if (startSize_ != 0) {
+                std::shared_ptr<AbstractEvent> event = EventSerializer::fromBufferNotRecycle(readOnlyBuffer);
+                if (event->GetEventClassName() == "CheckpointBarrier") {
+                    isNeedPersistence_ = false;
+                    break;
+                }
+            }
             tmpQueue.pop();
-            continue;
         }
-        int bufferLength = buffer->GetSize();
-        if (vectorBatchBuffer != nullptr) {
-            auto newVectorBatchBuffer = CopyVectorBatchBufferForCheckpoint(vectorBatchBuffer);
-            inflightBuffers.push_back(newVectorBatchBuffer);
-            tmpQueue.pop();
-            continue;
-        }
-        if (startSize_ != 0) {
-            std::shared_ptr<AbstractEvent> event = EventSerializer::fromBufferNotRecycle(readOnlyBuffer);
-            if (event->GetEventClassName() == "CheckpointBarrier") {
-                isNeedPersistence_ = false;
-                break;
+    } catch (...) {
+        // These copies have not been returned to ChannelStatePersister.
+        for (Buffer* buffer : inflightBuffers) {
+            if (buffer != nullptr) {
+                buffer->RecycleBuffer();
+                delete buffer;
             }
         }
-        tmpQueue.pop();
+        throw;
     }
     LOG("RemoteInputChannel get inflight buffers success, buffer num:" << inflightBuffers.size()
                                                                        << ", checkpointId: " << checkpointId);
@@ -379,11 +400,7 @@ std::vector<Buffer*> RemoteInputChannel::GetInflightBuffersUnsafe(long checkpoin
                 INFO_RELEASE("Error: invalid buffer size:" << bufferLength);
                 continue;
             }
-            uint8_t* bufferAddress = (uint8_t*)malloc(bufferLength);
-            if (bufferAddress == nullptr) {
-                INFO_RELEASE("Error: malloc failed.");
-                throw std::invalid_argument("malloc failed");
-            }
+            uint8_t* bufferAddress = new uint8_t[bufferLength];
             MemorySegment* memorySegment = new MemorySegment(bufferAddress, bufferLength);
             memorySegment->put(0, oldmemorySegment->getData(), offset, bufferLength);
             ::datastream::NetworkBuffer* networkBuffer = new ::datastream::NetworkBuffer(
