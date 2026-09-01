@@ -122,6 +122,30 @@ DataTypeId LogicalType::flinkTypeToOmniTypeId(const std::string& flinkType)
     return DataTypeId::OMNI_INVALID;
 }
 
+std::pair<int32_t, int32_t> LogicalType::parseDecimalPrecisionScale(const std::string& flinkType)
+{
+    std::string basicStrippedType = LogicTypeUtils::stripFlinkTypeExtras(flinkType);
+    if (basicStrippedType.substr(0, 7) == "DECIMAL") {
+        size_t closeParen = basicStrippedType.find(')', 8);
+        if (closeParen == std::string::npos) {
+            return {DECIMAL64_DEFAULT_PRECISION, DECIMAL64_DEFAULT_SCALE};
+        }
+        std::string numbers = basicStrippedType.substr(8, closeParen - 8);
+        size_t commaPos = numbers.find(',');
+        if (commaPos == std::string::npos) {
+            return {DECIMAL64_DEFAULT_PRECISION, DECIMAL64_DEFAULT_SCALE};
+        }
+        try {
+            int32_t precision = std::stoi(numbers.substr(0, commaPos));
+            int32_t scale = std::stoi(numbers.substr(commaPos + 1));
+            return {precision, scale};
+        } catch (...) {
+            return {DECIMAL64_DEFAULT_PRECISION, DECIMAL64_DEFAULT_SCALE};
+        }
+    }
+    return {DECIMAL64_DEFAULT_PRECISION, DECIMAL64_DEFAULT_SCALE};
+}
+
 LogicalType* LogicalType::flinkTypeToOmniType(const std::string& flinkType)
 {
     buildNameToIdMap();

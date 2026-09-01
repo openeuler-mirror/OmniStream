@@ -51,6 +51,11 @@ public:
 
     virtual long* getLong(int pos) = 0;
 
+    virtual omniruntime::type::Decimal128* getDecimal128(int pos)
+    {
+        NOT_IMPL_EXCEPTION;
+    };
+
     virtual bool* getBool(int pos) = 0;
 
     virtual int* getInt(int pos) = 0;

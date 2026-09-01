@@ -73,6 +73,8 @@ public:
     void setLong(int pos, long value) override;
     void setLong(int pos, long* value);
 
+    omniruntime::type::Decimal128* getDecimal128(int pos) override;
+
     bool* getBool(int pos) override;
     void setBool(int pos, bool value) override;
     void setBool(int pos, bool* value);

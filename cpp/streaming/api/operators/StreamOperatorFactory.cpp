@@ -11,6 +11,7 @@
 
 #include <stdexcept>
 #include <iostream>
+#include <regex>
 #include <streaming/runtime/tasks/omni/OmniStreamTask.h>
 #include <utility>
 #include "operatorconstants.h"
@@ -505,10 +506,20 @@ StreamOperator* StreamOperatorFactory::CreateSourceOp(
         // operatorType == "sql"
         if (format == "csv") {
             std::vector<DataTypeId> fields;
+            std::vector<int32_t> scales;
+            std::regex decimalPattern(R"(DECIMAL\d*\((\d+),\s*(\d+)\))");
+            std::smatch match;
             for (auto& field : opDescriptionJSON["fields"]) {
-                fields.push_back(LogicalType::flinkTypeToOmniTypeId(field["type"]));
+                std::string typeStr = field["type"];
+                fields.push_back(LogicalType::flinkTypeToOmniTypeId(typeStr));
+                if (std::regex_search(typeStr, match, decimalPattern)) {
+                    scales.push_back(std::stoi(match[2].str()));
+                } else {
+                    scales.push_back(0);
+                }
             }
             omnistream::csv::CsvSchema schema(fields);
+            schema.setScales(scales);
             if (opDescriptionJSON.contains("nullValue") && !opDescriptionJSON["nullValue"].is_null()) {
                 schema.setNullValue(opDescriptionJSON["nullValue"]);
             }

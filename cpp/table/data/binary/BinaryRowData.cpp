@@ -60,6 +60,11 @@ long* BinaryRowData::getLong(int pos)
     return MemorySegmentUtils::getLong(memoryBuffer, bufferCapacity, getFieldOffset(pos));
 }
 
+omniruntime::type::Decimal128* BinaryRowData::getDecimal128(int pos)
+{
+    return getDecimal128(pos, 0);
+}
+
 bool* BinaryRowData::getBool(int pos)
 {
     return MemorySegmentUtils::getBool(memoryBuffer, bufferCapacity, getFieldOffset(pos));
@@ -67,12 +72,21 @@ bool* BinaryRowData::getBool(int pos)
 
 omniruntime::type::Decimal128* BinaryRowData::getDecimal128(int pos, int precision)
 {
-    if (precision <= 6) {
-        auto value = MemorySegmentUtils::getBool(memoryBuffer, bufferCapacity, getFieldOffset(pos));
-        return new omniruntime::type::Decimal128(*value);
-    } else {
-        throw std::runtime_error("Decimal not supported precision which bigger than 6");
+    (void)precision;
+    int fieldOffset = getFieldOffset(pos);
+    long offsetAndSize = *MemorySegmentUtils::getLong(memoryBuffer, bufferCapacity, fieldOffset);
+    int varOffset = static_cast<int>(static_cast<uint64_t>(offsetAndSize) >> 32);
+    int varSize = static_cast<int>(static_cast<uint64_t>(offsetAndSize) & 0xFFFFFFFFULL);
+    int payloadPos = offset_ + varOffset;
+    if (varSize != 16 || payloadPos < 0 || payloadPos + 16 > bufferCapacity) {
+        throw std::runtime_error("BinaryRowData::getDecimal128 invalid offset or size");
     }
+    int64_t highSwapped = *MemorySegmentUtils::getLong(memoryBuffer, bufferCapacity, payloadPos);
+    uint64_t lowSwapped =
+        static_cast<uint64_t>(*MemorySegmentUtils::getLong(memoryBuffer, bufferCapacity, payloadPos + 8));
+    int64_t highBits = static_cast<int64_t>(__builtin_bswap64(static_cast<uint64_t>(highSwapped)));
+    uint64_t lowBits = __builtin_bswap64(lowSwapped);
+    return new omniruntime::type::Decimal128(highBits, lowBits);
 }
 
 int BinaryRowData::calculateBitSetWidthInBytes(int arity)

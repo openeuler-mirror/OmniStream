@@ -51,6 +51,24 @@ void BinaryRowWriter::writeDouble(int pos, double value)
     MemorySegmentUtils::putDouble(memoryBuffer, row_->getBufferCapacity(), getFieldOffset(pos), value);
 }
 
+void BinaryRowWriter::writeDecimal128(int pos, uint64_t low, int64_t high)
+{
+    // 对齐 writeString/writeRawValue 的语义：Decimal128 作为 16 字节变长数据写入以 cursor_ 为起点的可变区，
+    // 固定槽写入 (offset<<32)|16。不调用 BinaryRowData::setDecimal128：其内部会 delete[] 并重新分配
+    // writer 与 row_ 共享的 buffer，导致 writer->memoryBuffer 悬垂。字节序（bswap high@off, low@off+8）
+    // 与 BinaryRowData::setDecimal128/getDecimal128 保持一致。
+    constexpr int len = 16;
+    const int roundedSize = row_->getNumberOfBytesToNearestWord(len);
+    ensureVariableCapacity(roundedSize);
+    row_->setNotNullAt(pos);
+    row_->setOffsetAndSize(getFieldOffset(pos), cursor_, len);
+    MemorySegmentUtils::putLong(memoryBuffer, row_->getBufferCapacity(), cursor_,
+                                __builtin_bswap64(high));
+    MemorySegmentUtils::putLong(memoryBuffer, row_->getBufferCapacity(), cursor_ + 8,
+                                __builtin_bswap64(low));
+    row_->zeroOutPaddingBytes(cursor_, len);
+    cursor_ += roundedSize;
+}
 void BinaryRowWriter::writeString(int pos, std::string_view value)
 {
     // 对齐 Java AbstractBinaryWriter.writeString 的语义：

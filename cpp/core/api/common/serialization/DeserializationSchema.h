@@ -103,6 +103,17 @@ public:
                     vectorBatch->Append(vec);
                     break;
                 }
+                case (omniruntime::type::DataTypeId::OMNI_DECIMAL64): {
+                    auto vec = new omniruntime::vec::Vector<long>(size, omniruntime::type::DataTypeId::OMNI_DECIMAL64);
+                    vectorBatch->Append(vec);
+                    break;
+                }
+                case (omniruntime::type::DataTypeId::OMNI_DECIMAL128): {
+                    auto vec =
+                        new omniruntime::vec::Vector<Decimal128>(size, omniruntime::type::DataTypeId::OMNI_DECIMAL128);
+                    vectorBatch->Append(vec);
+                    break;
+                }
                 default: throw std::runtime_error("Unsupported type: " + type);
             }
         }

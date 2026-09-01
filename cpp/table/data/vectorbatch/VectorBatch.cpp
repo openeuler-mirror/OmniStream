@@ -68,6 +68,40 @@ std::string FormatMapElement(omniruntime::vec::BaseVector* child, int64_t index)
         default: throw std::runtime_error("FormatMapElement: unsupported map element type");
     }
 }
+
+// 仿 JDK BigDecimal.toString() 的科学计数法判定逻辑。
+// 入参 digits: 调用方已处理符号后的纯数字字符串（本函数不识别符号）。
+// 入参 scale:  小数位数；可为 0 或负数。
+// 返回:       若 scale>=0 且 adjusted>=-6 则纯小数形式；否则科学计数法。
+//             其中 adjusted = -scale + (digits.length() - 1)。
+std::string FormatDecimalLikeJdk(std::string digits, int32_t scale)
+{
+    if (digits.empty() || scale == 0) {
+        return digits;
+    }
+    int len = static_cast<int>(digits.size());
+    long adjusted = -static_cast<long>(scale) + (len - 1);
+
+    if (scale >= 0 && adjusted >= -6) {
+        if (scale >= len) {
+            return "0." + std::string(scale - len, '0') + digits;
+        }
+        return digits.substr(0, len - scale) + "." + digits.substr(len - scale);
+    }
+    std::ostringstream oss;
+    oss << digits[0];
+    if (len > 1) {
+        oss << '.' << digits.substr(1);
+    }
+    if (adjusted != 0) {
+        oss << 'E';
+        if (adjusted > 0) {
+            oss << '+';
+        }
+        oss << adjusted;
+    }
+    return oss.str();
+}
 } // namespace
 
 namespace omnistream {
@@ -172,6 +206,7 @@ RowData* VectorBatch::extractRowData(int rowIndex)
 std::string VectorBatch::TransformTimeWithTimeZone(
     int vectorID, int rowID, const std::string& tzStr, int precision) const
 {
+    (void)tzStr;
     auto millis = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(vectors[vectorID])->GetValue(rowID);
     int64_t adjusted_seconds = (millis >= 0) ? (millis / 1000) : ((millis - 999) / 1000);
     int milliseconds = millis % 1000;
@@ -179,12 +214,15 @@ std::string VectorBatch::TransformTimeWithTimeZone(
         const int addTime = 1000;
         milliseconds += addTime; // 确保毫秒非负（如-1234ms → -2秒 + 766ms）
     }
-    setenv("TZ", omniruntime::codegen::function::TimeZoneUtil::GetTZ(tzStr.c_str()), 1);
-    tzset();
     struct tm timeinfo;
-    localtime_r(&adjusted_seconds, &timeinfo);
+    gmtime_r(&adjusted_seconds, &timeinfo);
     char buffer[80];
-    strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
+    strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%S", &timeinfo);
+
+    if (milliseconds == 0) {
+        return std::string(buffer) + "Z";
+    }
+
     std::ostringstream oss;
     oss << buffer << ".";
 
@@ -196,8 +234,7 @@ std::string VectorBatch::TransformTimeWithTimeZone(
         oss << std::setw(3) << std::setfill('0') << milliseconds << std::string(6, '0');
     }
 
-    std::string result = oss.str();
-    return result;
+    return oss.str() + "Z";
 }
 
 std::string VectorBatch::TransformOnlyTime(int vectorID, int rowID, int precision) const
@@ -257,7 +294,11 @@ std::string VectorBatch::TransformTime(int vectorID, int rowID, int precision) c
 
     // 格式化为字符串
     char buffer[80];
-    strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
+    strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%S", &timeinfo);
+
+    if (milliseconds == 0) {
+        return std::string(buffer);
+    }
 
     std::ostringstream oss;
     oss << buffer << ".";
@@ -285,15 +326,20 @@ std::string VectorBatch::transformDecimal128(
 {
     std::string valueStr =
         (reinterpret_cast<omniruntime::vec::Vector<Decimal128>*>(vectors[vectorID])->GetValue(rowID)).ToString();
-    if (static_cast<int>(decimalInfo.size()) > vectorID && decimalInfo[vectorID].second > 0) {
+    if (static_cast<int>(decimalInfo.size()) > vectorID && decimalInfo[vectorID].second >= 0) {
         int32_t scale = decimalInfo[vectorID].second;
-        int len = static_cast<int>(valueStr.length());
-        // Case when scale is greater than or equal to the number length
-        if (scale >= len) {
-            valueStr = "0." + std::string(scale - len, '0') + valueStr;
-        } else {
-            // Insert the decimal point at the correct position
-            valueStr = valueStr.substr(0, len - scale) + "." + valueStr.substr(len - scale);
+        // Decimal128::ToString() 对负值返回带前导 '-' 的未缩放整数字符串，
+        // 而 FormatDecimalLikeJdk 不识别符号（其 :75 注释要求 digits 为纯数字）。
+        // 若不剥离，负值 + scale>0 会产出 "0.-1" / "-.1E-7" 等非法串。
+        // 此处对齐 transformDecimal64 的范式：先剥离符号、格式化后再加回。
+        bool negtiveFlag = false;
+        if (!valueStr.empty() && valueStr[0] == '-') {
+            valueStr = valueStr.substr(1);
+            negtiveFlag = true;
+        }
+        valueStr = FormatDecimalLikeJdk(valueStr, scale);
+        if (negtiveFlag) {
+            valueStr = "-" + valueStr;
         }
     }
     return valueStr;
@@ -304,22 +350,14 @@ std::string VectorBatch::transformDecimal64(
 {
     std::string valueStr =
         std::to_string(reinterpret_cast<omniruntime::vec::Vector<long>*>(vectors[vectorID])->GetValue(rowID));
-    if (static_cast<int>(decimalInfo.size()) > vectorID && decimalInfo[vectorID].second > 0) {
+    if (static_cast<int>(decimalInfo.size()) > vectorID && decimalInfo[vectorID].second >= 0) {
         int32_t scale = decimalInfo[vectorID].second;
-        int len = static_cast<int>(valueStr.length());
-        // Case when scale is greater than or equal to the number length
         bool negtiveFlag = false;
-        if (len > 0 && valueStr[0] == '-') {
-            valueStr = valueStr.substr(1, len);
+        if (!valueStr.empty() && valueStr[0] == '-') {
+            valueStr = valueStr.substr(1);
             negtiveFlag = true;
-            len -= 1;
         }
-        if (scale >= len) {
-            valueStr = "0." + std::string(scale - len, '0') + valueStr;
-        } else {
-            // Insert the decimal point at the correct position
-            valueStr = valueStr.substr(0, len - scale) + "." + valueStr.substr(len - scale);
-        }
+        valueStr = FormatDecimalLikeJdk(valueStr, scale);
         if (negtiveFlag) {
             valueStr = "-" + valueStr;
         }
@@ -395,12 +433,14 @@ void VectorBatch::WriteToFileInternal(
             file << FormatDoubleLikeJava(
                 reinterpret_cast<omniruntime::vec::Vector<double>*>(vectors[vectorID])->GetValue(rowID));
             break;
-        case omniruntime::type::DataTypeId::OMNI_INT:
-            file << reinterpret_cast<omniruntime::vec::Vector<int32_t>*>(vectors[vectorID])->GetValue(rowID);
-            break;
         case omniruntime::type::DataTypeId::OMNI_DATE32:
-            file << FormatDateLikeJava(
-                reinterpret_cast<omniruntime::vec::Vector<int32_t>*>(vectors[vectorID])->GetValue(rowID));
+        case omniruntime::type::DataTypeId::OMNI_INT:
+            if (inputTypes[vectorID].substr(0, 4) == "DATE") {
+                file << FormatDateLikeJava(
+                    reinterpret_cast<omniruntime::vec::Vector<int32_t> *>(vectors[vectorID])->GetValue(rowID));
+            } else {
+                file << reinterpret_cast<omniruntime::vec::Vector<int32_t>*>(vectors[vectorID])->GetValue(rowID);
+            }
             break;
         case omniruntime::type::DataTypeId::OMNI_BOOLEAN:
             file << std::boolalpha
@@ -523,15 +563,17 @@ void VectorBatch::convertToJson(
                 j[inputFields[colIndex]] = result;
                 break;
             }
+            case omniruntime::type::DataTypeId::OMNI_DATE32:
             case omniruntime::type::DataTypeId::OMNI_INT: {
-                auto result =
-                    reinterpret_cast<omniruntime::vec::Vector<int32_t>*>(vectors[colIndex])->GetValue(rowIndex);
-                j[inputFields[colIndex]] = result;
-                break;
-            }
-            case omniruntime::type::DataTypeId::OMNI_DATE32: {
-                auto days = reinterpret_cast<omniruntime::vec::Vector<int32_t>*>(vectors[colIndex])->GetValue(rowIndex);
-                j[inputFields[colIndex]] = FormatDateLikeJava(days);
+                if (inputTypes[colIndex].substr(0, 4) == "DATE") {
+                    auto days = reinterpret_cast<omniruntime::vec::Vector<int32_t> *>(vectors[colIndex])->GetValue(
+                            rowIndex);
+                    j[inputFields[colIndex]] = FormatDateLikeJava(days);
+                } else {
+                    auto result =
+                        reinterpret_cast<omniruntime::vec::Vector<int32_t>*>(vectors[colIndex])->GetValue(rowIndex);
+                    j[inputFields[colIndex]] = result;
+                }
                 break;
             }
             case omniruntime::type::DataTypeId::OMNI_BOOLEAN: {
@@ -663,6 +705,17 @@ omnistream::VectorBatch* VectorBatch::CreateVectorBatch(int rowCount, const std:
             case (omniruntime::type::DataTypeId::OMNI_VARCHAR): {
                 auto vec =
                     new omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>(rowCount);
+                vectorBatch->Append(vec);
+                break;
+            }
+            case (omniruntime::type::DataTypeId::OMNI_DECIMAL64): {
+                auto vec = new omniruntime::vec::Vector<long>(rowCount, omniruntime::type::DataTypeId::OMNI_DECIMAL64);
+                vectorBatch->Append(vec);
+                break;
+            }
+            case (omniruntime::type::DataTypeId::OMNI_DECIMAL128): {
+                auto vec =
+                    new omniruntime::vec::Vector<Decimal128>(rowCount, omniruntime::type::DataTypeId::OMNI_DECIMAL128);
                 vectorBatch->Append(vec);
                 break;
             }

@@ -12,6 +12,7 @@
 #pragma once
 
 #include <tuple>
+#include <regex>
 #include "core/api/common/serialization/DeserializationSchema.h"
 
 class JsonRowDataDeserializationSchema : public DeserializationSchema {
@@ -20,8 +21,15 @@ public:
         : fieldNames(opDescriptionJSON["outputNames"].get<std::vector<std::string>>())
     {
         auto outputTypes = opDescriptionJSON["outputTypes"].get<std::vector<std::string>>();
+        std::regex pattern(R"(DECIMAL\d*\((\d+),\s*(\d+)\))");
+        std::smatch match;
         for (std::string type : outputTypes) {
             fieldTypes.push_back(LogicalType::flinkTypeToOmniTypeId(type));
+            if (std::regex_search(type, match, pattern)) {
+                decimalScales.push_back(std::stoi(match[2].str()));
+            } else {
+                decimalScales.push_back(0);
+            }
         }
     }
 
@@ -112,6 +120,75 @@ public:
                 stringVec->SetValue(rowIndex, strView);
                 break;
             }
+            case omniruntime::type::DataTypeId::OMNI_DECIMAL64: {
+                std::string valueStr;
+                if (fieldIt->is_string()) {
+                    valueStr = fieldIt->get<std::string>();
+                } else {
+                    valueStr = fieldIt->dump();
+                }
+                int32_t scale = decimalScales[colIndex];
+                bool negative = false;
+                if (!valueStr.empty() && valueStr[0] == '-') {
+                    negative = true;
+                    valueStr = valueStr.substr(1);
+                }
+                std::string intPart, fracPart;
+                size_t dotPos = valueStr.find('.');
+                if (dotPos != std::string::npos) {
+                    intPart = valueStr.substr(0, dotPos);
+                    fracPart = valueStr.substr(dotPos + 1);
+                } else {
+                    intPart = valueStr;
+                    fracPart = "";
+                }
+                if (static_cast<int32_t>(fracPart.length()) < scale) {
+                    fracPart += std::string(scale - fracPart.length(), '0');
+                } else if (static_cast<int32_t>(fracPart.length()) > scale) {
+                    fracPart = fracPart.substr(0, scale);
+                }
+                long unscaledValue = std::stol(intPart + fracPart);
+                if (negative) {
+                    unscaledValue = -unscaledValue;
+                }
+                vectorBatch->SetValueAt(colIndex, rowIndex, unscaledValue);
+                break;
+            }
+            case omniruntime::type::DataTypeId::OMNI_DECIMAL128: {
+                std::string valueStr;
+                if (fieldIt->is_string()) {
+                    valueStr = fieldIt->get<std::string>();
+                } else {
+                    valueStr = fieldIt->dump();
+                }
+                int32_t scale = decimalScales[colIndex];
+                bool negative = false;
+                if (!valueStr.empty() && valueStr[0] == '-') {
+                    negative = true;
+                    valueStr = valueStr.substr(1);
+                }
+                std::string intPart, fracPart;
+                size_t dotPos = valueStr.find('.');
+                if (dotPos != std::string::npos) {
+                    intPart = valueStr.substr(0, dotPos);
+                    fracPart = valueStr.substr(dotPos + 1);
+                } else {
+                    intPart = valueStr;
+                    fracPart = "";
+                }
+                if (static_cast<int32_t>(fracPart.length()) < scale) {
+                    fracPart += std::string(scale - fracPart.length(), '0');
+                } else if (static_cast<int32_t>(fracPart.length()) > scale) {
+                    fracPart = fracPart.substr(0, scale);
+                }
+                std::string unscaledStr = intPart + fracPart;
+                if (negative) {
+                    unscaledStr = "-" + unscaledStr;
+                }
+                Decimal128 decimalValue{std::string_view(unscaledStr)};
+                vectorBatch->SetValueAt(colIndex, rowIndex, decimalValue);
+                break;
+            }
             default: std::runtime_error("DataType not supported yet!");
         }
     }
@@ -131,4 +208,5 @@ private:
 
     std::vector<std::string> fieldNames;
     std::vector<omniruntime::type::DataTypeId> fieldTypes;
+    std::vector<int32_t> decimalScales;
 };

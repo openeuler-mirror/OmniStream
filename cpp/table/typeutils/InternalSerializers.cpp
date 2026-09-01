@@ -49,6 +49,13 @@ TypeSerializer* InternalSerializers::createInternal(LogicalType* type)
         case DataTypeId::OMNI_DOUBLE:
             return LongSerializer::INSTANCE; // DOUBLE is a fixed 8-byte field; reuse the dummy serializer like INT/LONG
         case DataTypeId::OMNI_DATE32:
+            return LongSerializer::INSTANCE; // DATE is a fixed-width (int days) field; reuse the dummy serializer like INT
+        case DataTypeId::OMNI_DECIMAL64:
+            return LongSerializer::INSTANCE; // DECIMAL64 is a fixed 8-byte field stored as long (unscaled value);
+                                             // consistent with rowdata_marshaller's SerializeLongIntoRowData
+        case DataTypeId::OMNI_DECIMAL128:
+            return LongSerializer::INSTANCE; // DECIMAL128 is a fixed 16-byte field stored as Decimal128 (low+high bits);
+                                             // consistent with rowdata_marshaller's SerializeDecimal128IntoRowData
             return LongSerializer::INSTANCE; // DATE is a fixed-width (int days) field; reuse the dummy serializer like
                                              // INT
         case DataTypeId::OMNI_BOOLEAN: return LongSerializer::INSTANCE;

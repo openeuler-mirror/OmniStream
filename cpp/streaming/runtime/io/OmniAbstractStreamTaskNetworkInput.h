@@ -439,11 +439,11 @@ public:
                     break;
                 }
                 case DataTypeId::OMNI_DECIMAL64: {
-                    setDecimal64(outputBatch, numRows, colIndex, collectedRows);
+                    setDecimal64(outputBatch, numRows, colIndex, collectedRows, inputTypes[colIndex]);
                     break;
                 }
                 case DataTypeId::OMNI_DECIMAL128: {
-                    setDecimal128(outputBatch, numRows, colIndex, collectedRows);
+                    setDecimal128(outputBatch, numRows, colIndex, collectedRows, inputTypes[colIndex]);
                     break;
                 }
                 default: {
@@ -497,9 +497,12 @@ public:
         omniruntime::vec::VectorBatch* outputBatch,
         int numRows,
         int colIndex,
-        std::vector<BinaryRowData*> collectedRows)
+        std::vector<BinaryRowData*> collectedRows,
+        const std::string& typeStr)
     {
         auto* vector = new omniruntime::vec::Vector<int64_t>(numRows, DataTypeId::OMNI_DECIMAL64);
+        auto [precision, scale] = LogicalType::parseDecimalPrecisionScale(typeStr);
+        vector->SetDataType(std::make_shared<omniruntime::type::Decimal64DataType>(precision, scale));
         for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
             if (collectedRows[rowIndex]->isNullAt(colIndex)) {
                 vector->SetNull(rowIndex);
@@ -514,9 +517,12 @@ public:
         omniruntime::vec::VectorBatch* outputBatch,
         int numRows,
         int colIndex,
-        std::vector<BinaryRowData*> collectedRows)
+        std::vector<BinaryRowData*> collectedRows,
+        const std::string& typeStr)
     {
-        auto* vector = new omniruntime::vec::Vector<Decimal128>(numRows);
+        auto* vector = new omniruntime::vec::Vector<Decimal128>(numRows, DataTypeId::OMNI_DECIMAL128);
+        auto [precision, scale] = LogicalType::parseDecimalPrecisionScale(typeStr);
+        vector->SetDataType(std::make_shared<omniruntime::type::Decimal128DataType>(precision, scale));
         for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
             if (collectedRows[rowIndex]->isNullAt(colIndex)) {
                 vector->SetNull(rowIndex);

@@ -53,6 +53,64 @@ bool isCsvNullValue(const std::string& value, const CsvSchema& schema)
     return isDefaultNullLiteral(value);
 }
 
+long parseDecimal64ToUnscaledLong(const std::string& value, int32_t scale)
+{
+    std::string valueStr = value;
+    bool negative = false;
+    if (!valueStr.empty() && valueStr[0] == '-') {
+        negative = true;
+        valueStr = valueStr.substr(1);
+    }
+    std::string intPart, fracPart;
+    size_t dotPos = valueStr.find('.');
+    if (dotPos != std::string::npos) {
+        intPart = valueStr.substr(0, dotPos);
+        fracPart = valueStr.substr(dotPos + 1);
+    } else {
+        intPart = valueStr;
+        fracPart = "";
+    }
+    if (static_cast<int32_t>(fracPart.length()) < scale) {
+        fracPart += std::string(scale - fracPart.length(), '0');
+    } else if (static_cast<int32_t>(fracPart.length()) > scale) {
+        fracPart = fracPart.substr(0, scale);
+    }
+    long unscaledValue = std::stol(intPart + fracPart);
+    if (negative) {
+        unscaledValue = -unscaledValue;
+    }
+    return unscaledValue;
+}
+
+Decimal128 parseDecimal128ToValue(const std::string& value, int32_t scale)
+{
+    std::string valueStr = value;
+    bool negative = false;
+    if (!valueStr.empty() && valueStr[0] == '-') {
+        negative = true;
+        valueStr = valueStr.substr(1);
+    }
+    std::string intPart, fracPart;
+    size_t dotPos = valueStr.find('.');
+    if (dotPos != std::string::npos) {
+        intPart = valueStr.substr(0, dotPos);
+        fracPart = valueStr.substr(dotPos + 1);
+    } else {
+        intPart = valueStr;
+        fracPart = "";
+    }
+    if (static_cast<int32_t>(fracPart.length()) < scale) {
+        fracPart += std::string(scale - fracPart.length(), '0');
+    } else if (static_cast<int32_t>(fracPart.length()) > scale) {
+        fracPart = fracPart.substr(0, scale);
+    }
+    std::string unscaledStr = intPart + fracPart;
+    if (negative) {
+        unscaledStr = "-" + unscaledStr;
+    }
+    return Decimal128(std::string_view(unscaledStr));
+}
+
 } // namespace
 
 BinaryRowData* CsvConverter::convert(const CsvRow& csvRow)
@@ -111,6 +169,33 @@ BinaryRowData* CsvConverter::convert(const CsvRow& csvRow)
                                                  << ", setting it as null.");
                 rowData->setNullAt(i);
             }
+        } else if (type == omniruntime::type::DataTypeId::OMNI_DECIMAL64) {
+            LOG("CsvConverter: Converting value '" << value << "' to decimal64 for column " << i);
+            try {
+                int32_t scale = schema.getScaleAtIdx(i);
+                rowData->setLong(i, parseDecimal64ToUnscaledLong(value, scale));
+            } catch (const std::invalid_argument& e) {
+                LOG("CsvConverter: Invalid decimal64 value '" << value << "' for column " << i << ", setting it as null.");
+                rowData->setNullAt(i);
+            } catch (const std::out_of_range& e) {
+                LOG("CsvConverter: Decimal64 value '" << value << "' out of range for column " << i
+                                                      << ", setting it as null.");
+                rowData->setNullAt(i);
+            }
+        } else if (type == omniruntime::type::DataTypeId::OMNI_DECIMAL128) {
+            LOG("CsvConverter: Converting value '" << value << "' to decimal128 for column " << i);
+            try {
+                int32_t scale = schema.getScaleAtIdx(i);
+                Decimal128 decimalValue = parseDecimal128ToValue(value, scale);
+                rowData->setDecimal128(i, decimalValue.LowBits(), decimalValue.HighBits());
+            } catch (const std::invalid_argument& e) {
+                LOG("CsvConverter: Invalid decimal128 value '" << value << "' for column " << i << ", setting it as null.");
+                rowData->setNullAt(i);
+            } catch (const std::out_of_range& e) {
+                LOG("CsvConverter: Decimal128 value '" << value << "' out of range for column " << i
+                                                      << ", setting it as null.");
+                rowData->setNullAt(i);
+            }
         } else if (type == omniruntime::type::DataTypeId::OMNI_DOUBLE) {
             LOG("CsvConverter: Converting value '" << value << "' to double for column " << i);
             try {
@@ -142,13 +227,19 @@ BinaryRowData* CsvConverter::convert(const CsvRow& csvRow)
             LOG("CsvConverter: Converting value '" << value << "' to string for column " << i);
             std::string_view sv = value;
             rowData->setStringView(i, sv);
-        } else if (
-            type == omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE ||
-            type == omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
+        } else if (type == omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE) {
             LOG("CsvConverter: Converting value '" << value << "' to timestamp for column " << i);
             try {
                 static int milliSec = 3;
                 rowData->setTimestamp(i, TimestampData::fromString(value), milliSec); //并没有读取毫秒精度以上的那部分小数点后的数据
+            } catch (...) {
+                rowData->setNullAt(i);
+            }
+        } else if (type == omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
+            LOG("CsvConverter: Converting value '" << value << "' to timestamp with local time zone for column " << i);
+            try {
+                static int milliSec = 3;
+                rowData->setTimestamp(i, TimestampData::fromLocalTimeString(value), milliSec);
             } catch (...) {
                 rowData->setNullAt(i);
             }
@@ -190,6 +281,15 @@ omnistream::VectorBatch* CsvConverter::convert(std::vector<CsvRow>& csvRows, std
         newVecBatchTypes.push_back(targetTypes[oneMap[i]]);
     }
     auto vectorBatch = omnistream::VectorBatch::CreateVectorBatch(csvRows.size(), newVecBatchTypes);
+    for (size_t i = 0; i < oneMap.size(); i++) {
+        if (newVecBatchTypes[i] == DataTypeId::OMNI_DECIMAL64) {
+            int32_t scale = csvRows[0].getSchema().getScaleAtIdx(oneMap[i]);
+            vectorBatch->Get(i)->SetDataType(std::make_shared<Decimal64DataType>(18, scale));
+        } else if (newVecBatchTypes[i] == DataTypeId::OMNI_DECIMAL128) {
+            int32_t scale = csvRows[0].getSchema().getScaleAtIdx(oneMap[i]);
+            vectorBatch->Get(i)->SetDataType(std::make_shared<Decimal128DataType>(38, scale));
+        }
+    }
     // Put data
     for (size_t rowIndex = 0; rowIndex < csvRows.size(); rowIndex++) {
         CsvRow csvRow = csvRows[rowIndex];
@@ -267,6 +367,29 @@ omnistream::VectorBatch* CsvConverter::convert(std::vector<CsvRow>& csvRows, std
                         vectorBatch->Get(colIndex)->SetNull(rowIndex);
                     } catch (const std::out_of_range& e) {
                         // Number is out of range for long
+                        vectorBatch->Get(colIndex)->SetNull(rowIndex);
+                    }
+                    break;
+                }
+                case omniruntime::type::DataTypeId::OMNI_DECIMAL64: {
+                    try {
+                        int32_t scale = schema.getScaleAtIdx(csvFieldIndex);
+                        vectorBatch->SetValueAt(colIndex, rowIndex, parseDecimal64ToUnscaledLong(nodeValue, scale));
+                    } catch (const std::invalid_argument& e) {
+                        vectorBatch->Get(colIndex)->SetNull(rowIndex);
+                    } catch (const std::out_of_range& e) {
+                        vectorBatch->Get(colIndex)->SetNull(rowIndex);
+                    }
+                    break;
+                }
+                case omniruntime::type::DataTypeId::OMNI_DECIMAL128: {
+                    try {
+                        int32_t scale = schema.getScaleAtIdx(csvFieldIndex);
+                        Decimal128 decimalValue = parseDecimal128ToValue(nodeValue, scale);
+                        vectorBatch->SetValueAt(colIndex, rowIndex, decimalValue);
+                    } catch (const std::invalid_argument& e) {
+                        vectorBatch->Get(colIndex)->SetNull(rowIndex);
+                    } catch (const std::out_of_range& e) {
                         vectorBatch->Get(colIndex)->SetNull(rowIndex);
                     }
                     break;
