@@ -146,12 +146,10 @@ BinaryRowData* CsvConverter::convert(const CsvRow& csvRow)
             try {
                 std::string lower = value;
                 std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
-                if (lower == "true" || lower == "1" || lower == "t" || lower == "yes" || lower == "y") {
+                if (lower == "true") {
                     rowData->setBool(i, true);
-                } else if (lower == "false" || lower == "0" || lower == "f" || lower == "no" || lower == "n") {
-                    rowData->setBool(i, false);
                 } else {
-                    throw std::invalid_argument("not a valid boolean");
+                    rowData->setBool(i, false); //不能识别的也默认false，不报错
                 }
             } catch (const std::invalid_argument& e) {
                 LOG("CsvConverter: Invalid boolean value '" << value << "' for column " << i << ", setting it as null.");
@@ -218,7 +216,7 @@ BinaryRowData* CsvConverter::convert(const CsvRow& csvRow)
         } else if (type == omniruntime::type::DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE) {
             LOG("CsvConverter: Converting value '" << value << "' to time for column " << i);
             try {
-                static int milliSec = 3;
+                static int milliSec = 0;
                 rowData->setTimestamp(i, TimestampData::fromTimeString(value), milliSec);
             } catch (...) {
                 rowData->setNullAt(i);
@@ -343,12 +341,10 @@ omnistream::VectorBatch* CsvConverter::convert(std::vector<CsvRow>& csvRows, std
                         std::string lower = nodeValue;
                         std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
                         bool boolVal;
-                        if (lower == "true" || lower == "1" || lower == "t" || lower == "yes" || lower == "y") {
+                        if (lower == "true") {
                             boolVal = true;
-                        } else if (lower == "false" || lower == "0" || lower == "f" || lower == "no" || lower == "n") {
-                            boolVal = false;
                         } else {
-                            throw std::invalid_argument("not a valid boolean");
+                            boolVal = false; //那些不能识别的都默认false，不报错
                         }
                         vectorBatch->SetValueAt(colIndex, rowIndex, boolVal);
                     } catch (const std::invalid_argument& e) {
