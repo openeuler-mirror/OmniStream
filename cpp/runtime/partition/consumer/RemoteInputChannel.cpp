@@ -289,14 +289,7 @@ void RemoteInputChannel::TimeOutResumeConsumption()
     int gateIndex = this->getChannelInfo().getGateIdx();
     int channelIndex = this->getChannelInfo().getInputChannelIdx();
     if (isBlockedByCheckpoint_.exchange(false)) {
-        LOG_DEBUG(
-            "[CP_DIAG] Send guarded remote ResumeConsumption. gateIndex=" << gateIndex << ", channelIndex="
-                                                                          << channelIndex << ", blockedHint=true");
         this->remoteDataFetcherBridge->InvokeJavaRemoteDataFetcherResumeConsumption(gateIndex, channelIndex);
-    } else {
-        LOG_DEBUG(
-            "[CP_DIAG] Skip remote ResumeConsumption for unblocked channel. gateIndex="
-            << gateIndex << ", channelIndex=" << channelIndex << ", blockedHint=false");
     }
 }
 
@@ -331,8 +324,7 @@ void RemoteInputChannel::CheckpointStopped(long checkpointId)
     if (channelStatePersister) {
         channelStatePersister->StopPersisting(checkpointId);
     } else {
-        INFO_RELEASE(
-            "RemoteInputChannel::CheckpointStopped skipped because channelStatePersister is not initialized, "
+        LOG("RemoteInputChannel::CheckpointStopped skipped because channelStatePersister is not initialized, "
             "checkpointId="
             << checkpointId);
     }

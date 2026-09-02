@@ -142,10 +142,7 @@ void OmniLocalInputChannel::resumeConsumption()
 void OmniLocalInputChannel::TimeOutResumeConsumption()
 {
     if (isBlockedByCheckpoint_.exchange(false)) {
-        LOG_DEBUG("[CP_DIAG] Send guarded local ResumeConsumption. blockedHint=true");
         omniLocalInputChannelBridge->InvokeDoResumeConsumption();
-    } else {
-        LOG_DEBUG("[CP_DIAG] Skip local ResumeConsumption for unblocked channel. blockedHint=false");
     }
 }
 
@@ -172,8 +169,7 @@ void OmniLocalInputChannel::CheckpointStopped(long checkpointId)
 {
     startSize_ = 0;
     if (!channelStatePersister) {
-        INFO_RELEASE(
-            "OmniLocalInputChannel::CheckpointStopped skipped because channelStatePersister is not initialized, "
+        LOG("OmniLocalInputChannel::CheckpointStopped skipped because channelStatePersister is not initialized, "
             "checkpointId="
             << checkpointId);
         inflightBuffers_.clear();
