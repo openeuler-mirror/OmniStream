@@ -382,11 +382,14 @@ void SingleCheckpointBarrierHandler::AbortInternal(int64_t cancelledId, const Ch
     // Cancel any alignment timer that might still be active.
     ResetAlignmentTimer();
 
-    // Best-effort: stop any checkpoint-related input-side actions and unblock channels.
+    // The state machine owns the authoritative set of channels blocked by this checkpoint.
+    // Resume that set before deleting the old state; scanning every input can send a duplicate
+    // resume to an unblocked producer when an unaligned checkpoint is subsumed by a savepoint.
+    if (currentState_ != nullptr) {
+        currentState_->AbortCheckpoint();
+    }
+
     for (auto* input : inputs_) {
-        for (const auto& info : input->GetChannelInfos()) {
-            input->ResumeConsumption(info);
-        }
         input->CheckpointStopped(cancelledId);
     }
 

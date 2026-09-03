@@ -203,7 +203,7 @@ void RemoteInputChannel::notifyRemoteDataAvailableForNetworkBuffer(
     }
     int type = bufferType;
     if (bufferType > 1) {
-        isUnlock = true;
+        isBlockedByCheckpoint_.store(true);
         type = 1;
     }
     LOG("notifyRemoteDataAvailableForDataStream bufferAddress: " << bufferAddress << " bufferLength: " << bufferLength
@@ -274,8 +274,10 @@ void RemoteInputChannel::resumeConsumption()
     }
     int gateIndex = this->getChannelInfo().getGateIdx();
     int channelIndex = this->getChannelInfo().getInputChannelIdx();
+    // Clear the hint before the bridge call so a newly arriving blocking event is not
+    // overwritten after the producer has been resumed.
+    isBlockedByCheckpoint_.store(false);
     this->remoteDataFetcherBridge->InvokeJavaRemoteDataFetcherResumeConsumption(gateIndex, channelIndex);
-    isUnlock = false;
 }
 
 void RemoteInputChannel::TimeOutResumeConsumption()
@@ -286,9 +288,8 @@ void RemoteInputChannel::TimeOutResumeConsumption()
     }
     int gateIndex = this->getChannelInfo().getGateIdx();
     int channelIndex = this->getChannelInfo().getInputChannelIdx();
-    if (isUnlock) {
+    if (isBlockedByCheckpoint_.exchange(false)) {
         this->remoteDataFetcherBridge->InvokeJavaRemoteDataFetcherResumeConsumption(gateIndex, channelIndex);
-        isUnlock = false;
     }
 }
 
@@ -320,7 +321,13 @@ void RemoteInputChannel::CheckpointStarted(
 void RemoteInputChannel::CheckpointStopped(long checkpointId)
 {
     std::lock_guard<std::recursive_mutex> lock(queueMutex);
-    channelStatePersister->StopPersisting(checkpointId);
+    if (channelStatePersister) {
+        channelStatePersister->StopPersisting(checkpointId);
+    } else {
+        LOG("RemoteInputChannel::CheckpointStopped skipped because channelStatePersister is not initialized, "
+            "checkpointId="
+            << checkpointId);
+    }
     if (lastBarrierId_ == checkpointId) {
         ResetLastBarrier();
     }

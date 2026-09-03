@@ -280,6 +280,46 @@ TEST(SingleCheckpointBarrierHandlerTest, ProcessBarrier_TriggerCheckpointFails_A
     EXPECT_FALSE(handler->IsCheckpointPending());
     EXPECT_TRUE(input0->resumedChannels_.count(0) > 0);
     EXPECT_TRUE(input1->resumedChannels_.count(0) > 0);
+    EXPECT_EQ(input0->normalResumeCount_, 1);
+    EXPECT_EQ(input1->normalResumeCount_, 1);
+    EXPECT_EQ(input0->timeoutResumeCount_, 0);
+    EXPECT_EQ(input1->timeoutResumeCount_, 0);
+
+    timerService->shutdownService();
+}
+
+TEST(SingleCheckpointBarrierHandlerTest, NewCheckpointAbortsOnlyChannelsBlockedByPreviousCheckpoint)
+{
+    auto mockTask = std::make_unique<NiceMock<MockCheckpointableTask>>();
+    auto mockCoordinator = std::make_unique<NiceMock<MockSubtaskCheckpointCoordinator>>();
+    Clock& clock = SystemClock::GetInstance();
+    auto input0 = std::make_unique<TestInput>(0);
+    auto input1 = std::make_unique<TestInput>(1);
+    std::vector<CheckpointableInput*> inputs = {input0.get(), input1.get()};
+    auto executor = std::make_unique<MailboxExecutorTest>();
+    auto timerService = std::make_unique<SystemProcessingTimeService>();
+    auto* delayableTimer =
+        BarrierAlignmentUtil::createRegisterTimerCallback<std::function<void()>>(executor.get(), timerService.get());
+    std::unique_ptr<BarrierAlignmentUtil::DelayableTimer<std::function<void()>>> timerGuard(delayableTimer);
+    auto* initialState = new AlternatingWaitingForFirstBarrier(ChannelState(inputs));
+    SingleCheckpointBarrierHandler handler(
+        "JoinTask", mockTask.get(), mockCoordinator.get(), clock, 2, initialState, true, delayableTimer, inputs, false);
+
+    auto targetLocation = CheckpointStorageLocationReference::GetDefault();
+    CheckpointOptions options(
+        CheckpointType::CHECKPOINT, targetLocation, CheckpointOptions::AlignmentType::ALIGNED, 3000);
+    CheckpointBarrier checkpoint1(1, clock.RelativeTimeMillis(), &options);
+    CheckpointBarrier checkpoint2(2, clock.RelativeTimeMillis(), &options);
+    EXPECT_CALL(*mockTask, abortCheckpointOnBarrier(1, _)).Times(1);
+
+    handler.ProcessBarrier(checkpoint1, InputChannelInfo(0, 0), false);
+    handler.ProcessBarrier(checkpoint2, InputChannelInfo(1, 0), false);
+
+    EXPECT_EQ(input0->normalResumeCount_, 1);
+    EXPECT_EQ(input1->normalResumeCount_, 0);
+    EXPECT_EQ(input0->timeoutResumeCount_, 0);
+    EXPECT_EQ(input1->timeoutResumeCount_, 0);
+    EXPECT_TRUE(handler.IsCheckpointPending());
 
     timerService->shutdownService();
 }
