@@ -24,7 +24,10 @@ public:
         const std::string& taskName,
         int taskType = 0);
 
-    ~SimpleSelectorRecordWriterV2() override = default;
+    ~SimpleSelectorRecordWriterV2() override
+    {
+        delete serializer;
+    }
 
     void emit(StreamRecord* record) override;
     ByteBuffer* serializeRecord(DataOutputSerializer* serializer, IOReadableWritable* record);
@@ -37,7 +40,7 @@ protected:
 private:
     ChannelSelectorV2<StreamRecord>* channelSelector;               // Raw pointer
     datastream::StreamPartitioner<IOReadableWritable>* partitioner; // Raw pointer
-    DataOutputSerializer* serializer;
+    DataOutputSerializer* serializer = nullptr;
 };
 } // namespace omnistream
 

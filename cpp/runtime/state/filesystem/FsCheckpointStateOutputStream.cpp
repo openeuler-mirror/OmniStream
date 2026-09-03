@@ -26,10 +26,12 @@ FsCheckpointStateOutputStream::FsCheckpointStateOutputStream(
     tempPath_ = Path(basePath_, relativeStatePath_ + ".tmp").toString(); // relativeStatePath_ is UUID
     finalPath_ = Path(basePath_, relativeStatePath_).toString();
     handle = nullptr;
-    outStream_ = new std::ofstream(tempPath_, std::ios::binary);
-    if (!static_cast<std::ofstream*>(outStream_)->is_open()) {
+    // 构造失败抛出异常时，由局部智能指针释放文件流
+    auto outStream = std::make_unique<std::ofstream>(tempPath_, std::ios::binary);
+    if (!outStream->is_open()) {
         throw std::runtime_error("Failed to open temp file for checkpoint output: " + tempPath_);
     }
+    outStream_ = outStream.release();
 }
 
 void FsCheckpointStateOutputStream::Write(const void* data, size_t length)
