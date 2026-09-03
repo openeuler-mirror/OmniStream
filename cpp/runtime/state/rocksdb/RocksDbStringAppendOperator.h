@@ -12,30 +12,47 @@
 #include "rocksdb/merge_operator.h"
 #include "rocksdb/slice.h"
 
-class RocksDbStringAppendOperator : public rocksdb::AssociativeMergeOperator {
+class RocksDbStringAppendOperator : public rocksdb::MergeOperator {
 public:
     explicit RocksDbStringAppendOperator(char delimiter) : delimiter(delimiter)
     {
     }
 
-    bool Merge(
+    bool FullMergeV2(const MergeOperationInput& merge_in, MergeOperationOutput* merge_out) const override
+    {
+        merge_out->new_value.clear();
+        size_t total_size = 0;
+        if (merge_in.existing_value) {
+            total_size += merge_in.existing_value->size();
+        }
+        for (const auto& op : merge_in.operand_list) {
+            if (total_size > 0) {
+                total_size += 1; // delimiter
+            }
+            total_size += op.size();
+        }
+
+        merge_out->new_value.reserve(total_size);
+        if (merge_in.existing_value) {
+            merge_out->new_value.append(merge_in.existing_value->data(), merge_in.existing_value->size());
+        }
+        for (const auto& op : merge_in.operand_list) {
+            if (!merge_out->new_value.empty()) {
+                merge_out->new_value.append(1, delimiter);
+            }
+            merge_out->new_value.append(op.data(), op.size());
+        }
+        return true;
+    }
+
+    bool PartialMergeMulti(
         const rocksdb::Slice& key,
-        const rocksdb::Slice* existing_value,
-        const rocksdb::Slice& value,
+        const std::deque<rocksdb::Slice>& operand_list,
         std::string* new_value,
         rocksdb::Logger* logger) const override
     {
-        new_value->clear();
-        if (!existing_value) {
-            new_value->assign(value.data(), value.size());
-        } else {
-            new_value->reserve(existing_value->size() + 1 + value.size());
-            new_value->assign(existing_value->data(), existing_value->size());
-            new_value->append(1, delimiter);
-            new_value->append(value.data(), value.size());
-        }
-        return true;
-    };
+        return false;
+    }
 
     [[nodiscard]] const char* Name() const override
     {
