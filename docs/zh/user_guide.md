@@ -769,3 +769,7 @@ SQL场景下，OmniStream支持通过Flink标准格式的Savepoint（SP），实
 3. 修改`$FLINK_HOME/conf`目录下的flink-conf.yaml文件，恢复Flink默认配置。
 
     具体操作为，将[安装指南-安装OmniStream-步骤4](installation_guide.md)中的修改还原至未修改前的状态。
+
+| 文档版本 | 发布日期 | 修改说明 |
+| --- | --- | --- |
+| 01 | 2026-09-30 | 第一次正式发布。 |

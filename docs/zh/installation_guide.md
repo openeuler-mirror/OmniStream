@@ -60,7 +60,7 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 
 |名称| 包名                                        |发布类型|说明| 获取地址                                                                                                                                                                                                                                                               |
 |--|-------------------------------------------|--|--|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|OmniStream压缩包| BoostKit-omniruntime-omnistream-1.3.0.zip |开源|OmniStream Flink Native化特性软件安装包。| [获取链接](https://boostkit-bigdata-public.obs.cn-north-4.myhuaweicloud.com/artifact/OmniStream/master/26.1.RC1.B027/release/BoostKit-omniruntime-omnistream-1.3.0.zip)                                                                                                                            |
+|OmniStream压缩包| BoostKit-omniruntime-omnistream-{version}.zip |开源|OmniStream Flink Native化特性软件安装包。请从开源仓Releases页面获取最新发布版本的软件包，{version}为实际发布版本号。| [获取链接](https://gitcode.com/openeuler/OmniStream/releases) |
 |UDF翻译工具| UNT-1.0-35.noarch.rpm                     |开源|UDF翻译工具RPM包，安装后在/opt路径下新增UDF翻译工具。| [获取链接](https://eur.openeuler.openatom.cn/results/cutie-deng/UNT/openeuler-22.03_LTS_SP4-aarch64/00110412-UNT/UNT-1.0-35.noarch.rpm)                                                                                                                                |
 |AI4C| AI4C-1.0.4-8.aarch64.rpm                  |开源|支持编译器集成机器学习驱动的优化技术的框架。RPM包直接安装。| [获取链接](https://gitcode.com/boostkit/boostkit-bigdata/releases/download/25.1.RC1-OmniStream-release/AI4C-1.0.4-8.aarch64.rpm)                                                                                                                                   |
 |KACC_JSON| BoostKit-kaccjson_1.1.0.zip               |闭源|用于UDF翻译中替换GSON的C++版实现，该ZIP包含适配层和KACC_JSON核心实现，内含若干头文件和静态库。<br>该文件从Dependency_library_OmniStream.zip解压获得。| [获取链接](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip)                                                                                                                                    |
@@ -445,10 +445,10 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
 
 1. 在物理机上创建目录`/usr/local/OmniStream`，用于存放OmniStream Flink Native化的二进制文件。
 
-    将从[**表 3** 软件获取列表](#软件获取列表)中获取的BoostKit-omniruntime-omnistream-1.3.0.zip安装包解压到`/usr/local/OmniStream`目录下。
+    将从[**表 3** 软件获取列表](#软件获取列表)中获取的BoostKit-omniruntime-omnistream-{version}.zip安装包解压到`/usr/local/OmniStream`目录下，{version}为实际下载的版本号，下同。
 
     ```bash
-    unzip BoostKit-omniruntime-omnistream-1.3.0.zip
+    unzip BoostKit-omniruntime-omnistream-*.zip
     mkdir -p /usr/local/OmniStream
     cp -r openEuler22.03_JDK17/OmniStream_Default/* /usr/local/OmniStream/
     chmod -R 550 /usr/local/OmniStream/*
@@ -758,3 +758,7 @@ rpm -ivh --nodeps AI4C-1.0.4-8.aarch64.rpm
         ```bash
         exit
         ```
+
+| 文档版本 | 发布日期 | 修改说明 |
+| --- | --- | --- |
+| 01 | 2026-09-30 | 第一次正式发布。 |

@@ -45,3 +45,7 @@ flink taskManager 在启动时会检测是否配置了JVM_OPTS环境变量。如
 ```yaml
 env.java.opts.taskmanager: -XX:+UseG1GC
 ```
+
+| 文档版本 | 发布日期 | 修改说明 |
+| --- | --- | --- |
+| 01 | 2026-09-30 | 第一次正式发布。 |
