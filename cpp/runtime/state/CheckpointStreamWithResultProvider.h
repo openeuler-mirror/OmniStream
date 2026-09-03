@@ -27,7 +27,7 @@ public:
     }
 
     static std::shared_ptr<CheckpointStreamWithResultProvider> createSimpleStream(
-        CheckpointedStateScope checkpointedStateScope, CheckpointStreamFactory* primaryStreamFactory);
+        CheckpointedStateScope checkpointedStateScope, std::shared_ptr<CheckpointStreamFactory> primaryStreamFactory);
 };
 
 class CheckpointStreamWithResultProvider::PrimaryStreamOnly : public CheckpointStreamWithResultProvider {
@@ -47,7 +47,7 @@ private:
 };
 
 inline std::shared_ptr<CheckpointStreamWithResultProvider> CheckpointStreamWithResultProvider::createSimpleStream(
-    CheckpointedStateScope checkpointedStateScope, CheckpointStreamFactory* primaryStreamFactory)
+    CheckpointedStateScope checkpointedStateScope, std::shared_ptr<CheckpointStreamFactory> primaryStreamFactory)
 {
     auto* rawOut = primaryStreamFactory->createCheckpointStateOutputStream(checkpointedStateScope);
     auto outPtr = std::shared_ptr<CheckpointStateOutputStream>(rawOut);

@@ -46,7 +46,7 @@ public:
         const std::shared_ptr<CompatibleSavepointSnapshotResources>& snapshotResources,
         long checkpointId,
         long,
-        CheckpointStreamFactory*,
+        std::shared_ptr<CheckpointStreamFactory>,
         CheckpointOptions* checkpointOptions,
         std::string keySerializer = "") override
     {

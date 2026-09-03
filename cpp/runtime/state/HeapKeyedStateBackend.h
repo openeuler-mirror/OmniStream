@@ -201,7 +201,10 @@ public:
     };
 
     std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>> snapshot(
-        long checkpointId, long timestamp, CheckpointStreamFactory* streamFactory, CheckpointOptions* checkpointOptions)
+        long checkpointId,
+        long timestamp,
+        std::shared_ptr<CheckpointStreamFactory> streamFactory,
+        CheckpointOptions* checkpointOptions)
     {
         auto snapshotRunner = std::make_unique<SnapshotStrategyRunner<KeyedStateHandle, FullSnapshotResources>>(
             "Heap full snapshot", checkpointStrategy_, SnapshotExecutionType::ASYNCHRONOUS);

@@ -538,10 +538,27 @@ std::vector<HandleAndLocalPath> handleCheckpointResult(
         jStateScope,
         jCloseableRegistry,
         jTmpResourcesRegistry);
-    auto chkResult = convertJavaListToCppVector(env, resultList);
+    std::vector<HandleAndLocalPath> chkResult;
+    try {
+        chkResult = convertJavaListToCppVector(env, resultList);
+    } catch (...) {
+        if (resultList != nullptr) {
+            env->DeleteLocalRef(resultList);
+        }
+        env->DeleteLocalRef(scopeClass);
+        env->DeleteLocalRef(jStateScope);
+        env->DeleteLocalRef(closeableClass);
+        env->DeleteLocalRef(jCloseableRegistry);
+        env->DeleteLocalRef(jTmpResourcesRegistry);
+        throw;
+    }
 
+    if (resultList != nullptr) {
+        env->DeleteLocalRef(resultList);
+    }
     env->DeleteLocalRef(scopeClass);
     env->DeleteLocalRef(jStateScope);
+    env->DeleteLocalRef(closeableClass);
     env->DeleteLocalRef(jCloseableRegistry);
     env->DeleteLocalRef(jTmpResourcesRegistry);
     return chkResult;
@@ -603,7 +620,18 @@ std::vector<HandleAndLocalPath> RocksDBStateUploader::callUploadFilesToCheckpoin
 
     auto HandleAndLocalPathJobj = bridge->CallUploadFilesToCheckpointFs(filePaths, numberOfSnapshottingThreads_);
     auto env = bridge->getJNIEnv();
-    return convertJavaListToCppVector(env, HandleAndLocalPathJobj);
+    try {
+        auto result = convertJavaListToCppVector(env, HandleAndLocalPathJobj);
+        if (HandleAndLocalPathJobj != nullptr) {
+            env->DeleteLocalRef(HandleAndLocalPathJobj);
+        }
+        return result;
+    } catch (...) {
+        if (HandleAndLocalPathJobj != nullptr) {
+            env->DeleteLocalRef(HandleAndLocalPathJobj);
+        }
+        throw;
+    }
 }
 
 RocksDBStateUploader::RocksDBStateUploader(int numberOfSnapshottingThreads)

@@ -172,10 +172,11 @@ private:
 
         void clearCacheFor(long checkpointId)
         {
+            // Async snapshots retain their own shared ownership after cache eviction.
             cache.erase(checkpointId);
         }
 
-        CheckpointStreamFactory* resolveCheckpointStorageLocation(
+        std::shared_ptr<CheckpointStreamFactory> resolveCheckpointStorageLocation(
             int64_t checkpointId, std::shared_ptr<CheckpointStorageLocationReference> reference) override;
 
         CheckpointStateOutputStream* createTaskOwnedStateStream() override;
@@ -183,7 +184,7 @@ private:
         CheckpointStateToolset* createTaskOwnedCheckpointStateToolset() override;
 
     private:
-        std::unordered_map<long, CheckpointStreamFactory*> cache;
+        std::unordered_map<long, std::shared_ptr<CheckpointStreamFactory>> cache;
         std::shared_ptr<CheckpointStorageWorkerView> delegate;
     };
 

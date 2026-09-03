@@ -45,7 +45,7 @@ std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>> RocksNativeFullSnapsho
     const std::shared_ptr<SnapshotResources>& snapshotResources,
     long checkpointId,
     long timestamp,
-    CheckpointStreamFactory* checkpointStreamFactory,
+    std::shared_ptr<CheckpointStreamFactory> checkpointStreamFactory,
     CheckpointOptions* checkpointOptions,
     std::string keySerializer)
 {
@@ -97,7 +97,7 @@ std::shared_ptr<PreviousSnapshot> RocksNativeFullSnapshotStrategy::snapshotMetaD
 // RocksDBNativeFullSnapshotOperation implementation
 RocksNativeFullSnapshotStrategy::RocksDBNativeFullSnapshotOperation::RocksDBNativeFullSnapshotOperation(
     int64_t checkpointId,
-    CheckpointStreamFactory* checkpointStreamFactory,
+    std::shared_ptr<CheckpointStreamFactory> checkpointStreamFactory,
     std::shared_ptr<SnapshotDirectory> localBackupDirectory,
     std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots,
     UUID backendUID,

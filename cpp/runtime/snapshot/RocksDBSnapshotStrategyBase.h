@@ -72,7 +72,7 @@ public:
         const std::shared_ptr<SnapshotResources>& snapshotResources,
         long checkpointId,
         long timestamp,
-        CheckpointStreamFactory* checkpointStreamFactory,
+        std::shared_ptr<CheckpointStreamFactory> checkpointStreamFactory,
         CheckpointOptions* checkpointOptions,
         std::string keySerializer = "") = 0;
 
@@ -117,7 +117,7 @@ protected:
     public:
         RocksDBSnapshotOperation(
             long checkpointId,
-            CheckpointStreamFactory* checkpointStreamFactory,
+            std::shared_ptr<CheckpointStreamFactory> checkpointStreamFactory,
             std::shared_ptr<SnapshotDirectory> localBackupDirectory,
             std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots,
             std::shared_ptr<TypeSerializer> keySerializer);
@@ -133,7 +133,7 @@ protected:
             std::vector<HandleAndLocalPath> sharedState);
 
         long checkpointId;
-        CheckpointStreamFactory* checkpointStreamFactory;
+        std::shared_ptr<CheckpointStreamFactory> checkpointStreamFactory;
         std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots;
         std::shared_ptr<SnapshotDirectory> localBackupDirectory;
         std::shared_ptr<CloseableRegistry> tmpResourcesRegistry;

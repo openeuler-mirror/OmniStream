@@ -27,7 +27,7 @@ public:
     virtual std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>> snapshot(
         long checkpointId,
         long timestamp,
-        CheckpointStreamFactory* streamFactory,
+        std::shared_ptr<CheckpointStreamFactory> streamFactory,
         CheckpointOptions* checkpointOptions) = 0;
 
     ~CheckpointableKeyedStateBackend() = default;

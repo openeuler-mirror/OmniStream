@@ -12,8 +12,8 @@
 
 FsCheckpointStreamFactory::FsCheckpointStreamFactory(
     int fileSystem,
-    Path* checkpointDirectory,
-    Path* sharedStateDirectory,
+    std::shared_ptr<Path> checkpointDirectory,
+    std::shared_ptr<Path> sharedStateDirectory,
     int fileStateSizeThreshold,
     int writeBufferSize)
     : writeBufferSize(writeBufferSize),
@@ -47,7 +47,7 @@ FsCheckpointStreamFactory::FsCheckpointStreamFactory(
 
 CheckpointStateOutputStream* FsCheckpointStreamFactory::createCheckpointStateOutputStream(CheckpointedStateScope scope)
 {
-    Path* target = getTargetPath(scope);
+    std::shared_ptr<Path> target = getTargetPath(scope);
     int bufferSize = std::max(writeBufferSize, fileStateThreshold);
     bool entropyInjecting = false; // NOT IMPLEMENTED
     bool absolutePath = entropyInjecting || (scope == CheckpointedStateScope::SHARED);
@@ -55,7 +55,7 @@ CheckpointStateOutputStream* FsCheckpointStreamFactory::createCheckpointStateOut
     return new FsCheckpointStateOutputStream(*target, fileSystem, bufferSize, fileStateThreshold, !absolutePath);
 }
 
-Path* FsCheckpointStreamFactory::getTargetPath(CheckpointedStateScope scope) const
+std::shared_ptr<Path> FsCheckpointStreamFactory::getTargetPath(CheckpointedStateScope scope) const
 {
     return (scope == CheckpointedStateScope::EXCLUSIVE) ? checkpointDirectory : sharedStateDirectory;
 }

@@ -225,7 +225,7 @@ void NativeRocksDBSnapshotResources::cleanup()
 
 RocksDBSnapshotStrategyBase::RocksDBSnapshotOperation::RocksDBSnapshotOperation(
     long checkpointId,
-    CheckpointStreamFactory* checkpointStreamFactory,
+    std::shared_ptr<CheckpointStreamFactory> checkpointStreamFactory,
     std::shared_ptr<SnapshotDirectory> localBackupDirectory,
     std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots,
     std::shared_ptr<TypeSerializer> keySerializer)

@@ -10,6 +10,7 @@
  */
 #ifndef FLINK_TNEL_CHECKPOINTSTREAMFACTORY_H
 #define FLINK_TNEL_CHECKPOINTSTREAMFACTORY_H
+#include <memory>
 #include <vector>
 #include <stdexcept>
 #include "StreamStateHandle.h"

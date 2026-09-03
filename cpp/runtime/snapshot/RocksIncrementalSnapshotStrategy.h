@@ -56,7 +56,7 @@ public:
         const std::shared_ptr<SnapshotResources>& snapshotResources,
         long checkpointId,
         long timestamp,
-        CheckpointStreamFactory* checkpointStreamFactory,
+        std::shared_ptr<CheckpointStreamFactory> checkpointStreamFactory,
         CheckpointOptions* checkpointOptions,
         std::string keySerializer = "") override;
 
@@ -73,7 +73,7 @@ protected:
         RocksDBIncrementalSnapshotOperation(
             std::shared_ptr<RocksIncrementalSnapshotStrategy> parent,
             long checkpointId,
-            CheckpointStreamFactory* checkpointStreamFactory,
+            std::shared_ptr<CheckpointStreamFactory> checkpointStreamFactory,
             std::shared_ptr<SnapshotDirectory> localBackupDirectory,
             std::shared_ptr<PreviousSnapshot> previousSnapshot,
             SnapshotType::SharingFilesStrategy sharingFilesStrategy,

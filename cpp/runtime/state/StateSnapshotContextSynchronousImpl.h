@@ -29,13 +29,13 @@ public:
     StateSnapshotContextSynchronousImpl(
         long checkpointId,
         long checkpointTimestamp,
-        CheckpointStreamFactory* streamFactory,
+        std::shared_ptr<CheckpointStreamFactory> streamFactory,
         KeyGroupRange* keyGroupRange);
 
     StateSnapshotContextSynchronousImpl(
         long checkpointId,
         long checkpointTimestamp,
-        CheckpointStreamFactory* streamFactory,
+        std::shared_ptr<CheckpointStreamFactory> streamFactory,
         KeyGroupRange* keyGroupRange,
         std::shared_ptr<omnistream::OmniTaskBridge> bridge,
         CheckpointOptions* checkpointOptions);
@@ -60,7 +60,7 @@ protected:
 private:
     long checkpointId_;
     long checkpointTimestamp_;
-    CheckpointStreamFactory* streamFactory_;
+    std::shared_ptr<CheckpointStreamFactory> streamFactory_;
     KeyGroupRange* keyGroupRange_;
     std::shared_ptr<omnistream::OmniTaskBridge> bridge_;
     CheckpointOptions* checkpointOptions_ = nullptr;
