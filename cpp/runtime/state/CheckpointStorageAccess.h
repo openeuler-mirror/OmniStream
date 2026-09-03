@@ -27,9 +27,9 @@ public:
 
     virtual bool hasDefaultSavepointLocation() = 0;
 
-    virtual CheckpointStreamFactory* resolveCheckpointStorageLocation(
+    virtual std::shared_ptr<CheckpointStreamFactory> resolveCheckpointStorageLocation(
         int64_t checkpointId, std::shared_ptr<CheckpointStorageLocationReference> reference) = 0;
-    virtual CheckpointStreamFactory* resolveCheckpointStorageLocation(long checkpointId) = 0;
+    virtual std::shared_ptr<CheckpointStreamFactory> resolveCheckpointStorageLocation(long checkpointId) = 0;
     virtual void initializeBaseLocations() = 0;
 };
 

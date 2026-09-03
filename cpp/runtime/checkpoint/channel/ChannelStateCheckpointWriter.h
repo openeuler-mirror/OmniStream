@@ -82,7 +82,7 @@ public:
     ChannelStateCheckpointWriter(
         const std::set<SubtaskID>& subtasks,
         int64_t checkpointId,
-        CheckpointStreamFactory* streamFactory,
+        std::shared_ptr<CheckpointStreamFactory> streamFactory,
         std::shared_ptr<ChannelStateSerializer> serializer,
         std::function<void()> onComplete);
 

@@ -12,7 +12,10 @@
 #include "core/include/common.h"
 
 StateSnapshotContextSynchronousImpl::StateSnapshotContextSynchronousImpl(
-    long checkpointId, long checkpointTimestamp, CheckpointStreamFactory* streamFactory, KeyGroupRange* keyGroupRange)
+    long checkpointId,
+    long checkpointTimestamp,
+    std::shared_ptr<CheckpointStreamFactory> streamFactory,
+    KeyGroupRange* keyGroupRange)
     : StateSnapshotContextSynchronousImpl(
           checkpointId, checkpointTimestamp, streamFactory, keyGroupRange, nullptr, nullptr)
 {
@@ -21,7 +24,7 @@ StateSnapshotContextSynchronousImpl::StateSnapshotContextSynchronousImpl(
 StateSnapshotContextSynchronousImpl::StateSnapshotContextSynchronousImpl(
     long checkpointId,
     long checkpointTimestamp,
-    CheckpointStreamFactory* streamFactory,
+    std::shared_ptr<CheckpointStreamFactory> streamFactory,
     KeyGroupRange* keyGroupRange,
     std::shared_ptr<omnistream::OmniTaskBridge> bridge,
     CheckpointOptions* checkpointOptions)

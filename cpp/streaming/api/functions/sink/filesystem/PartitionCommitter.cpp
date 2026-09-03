@@ -189,7 +189,7 @@ OperatorSnapshotFutures* PartitionCommitter::SnapshotState(
     long checkpointId,
     long timestamp,
     CheckpointOptions* checkpointOptions,
-    CheckpointStreamFactory* storageLocation,
+    std::shared_ptr<CheckpointStreamFactory> storageLocation,
     const std::shared_ptr<OmniTaskBridge>& bridge)
 {
     if (trigger_) {

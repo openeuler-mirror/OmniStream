@@ -29,8 +29,8 @@ namespace omnistream {
 class FsCheckpointStorageAccess : public AbstractFsCheckpointStorageAccess {
 public:
     FsCheckpointStorageAccess(
-        Path* checkpointBaseDirectory,
-        Path* defaultSavepointDirectory,
+        std::shared_ptr<Path> checkpointBaseDirectory,
+        std::shared_ptr<Path> defaultSavepointDirectory,
         JobIDPOD jobId,
         int fileSizeThreshold,
         int writeBufferSize)
@@ -46,8 +46,8 @@ public:
 
     FsCheckpointStorageAccess(
         int fs,
-        Path* checkpointBaseDirectory,
-        Path* defaultSavepointDirectory,
+        std::shared_ptr<Path> checkpointBaseDirectory,
+        std::shared_ptr<Path> defaultSavepointDirectory,
         JobIDPOD jobId,
         int fileSizeThreshold,
         int writeBufferSize)
@@ -61,8 +61,8 @@ public:
 
         fileSystem = fs;
         checkpointsDirectory = getCheckpointDirectoryForJob(*checkpointBaseDirectory, jobId);
-        sharedStateDirectory = new Path(*checkpointsDirectory, CHECKPOINT_SHARED_STATE_DIR);
-        taskOwnedStateDirectory = new Path(*checkpointsDirectory, CHECKPOINT_TASK_OWNED_STATE_DIR);
+        sharedStateDirectory = std::make_shared<Path>(*checkpointsDirectory, CHECKPOINT_SHARED_STATE_DIR);
+        taskOwnedStateDirectory = std::make_shared<Path>(*checkpointsDirectory, CHECKPOINT_TASK_OWNED_STATE_DIR);
         this->fileSizeThreshold = fileSizeThreshold;
         this->writeBufferSize = writeBufferSize;
     }
@@ -77,13 +77,13 @@ public:
         return nullptr;
     };
 
-    CheckpointStreamFactory* resolveCheckpointStorageLocation(
+    std::shared_ptr<CheckpointStreamFactory> resolveCheckpointStorageLocation(
         int64_t checkpointId, std::shared_ptr<CheckpointStorageLocationReference> reference) override
     {
         if (reference->IsDefaultReference()) {
-            Path* checkpointDir = createCheckpointDirectory(*checkpointsDirectory, checkpointId);
+            std::shared_ptr<Path> checkpointDir = createCheckpointDirectory(*checkpointsDirectory, checkpointId);
 
-            return new FsCheckpointStorageLocation(
+            return std::make_shared<FsCheckpointStorageLocation>(
                 fileSystem,
                 checkpointDir,
                 sharedStateDirectory,
@@ -92,9 +92,9 @@ public:
                 fileSizeThreshold,
                 writeBufferSize);
         } else {
-            Path* path = decodePathFromReference(reference);
+            std::shared_ptr<Path> path = decodePathFromReference(reference);
 
-            return new FsCheckpointStorageLocation(
+            return std::make_shared<FsCheckpointStorageLocation>(
                 path->getFileSystem(), path, path, path, reference, fileSizeThreshold, writeBufferSize);
         }
     };
@@ -115,7 +115,7 @@ public:
         return true; // NOT_IMPLEMENTED
     }
 
-    CheckpointStreamFactory* resolveCheckpointStorageLocation(long checkpointId) override
+    std::shared_ptr<CheckpointStreamFactory> resolveCheckpointStorageLocation(long checkpointId) override
     {
         return nullptr; // NOT_IMPLEMENTED
     }
@@ -126,9 +126,9 @@ public:
 
 private:
     int fileSystem;
-    Path* checkpointsDirectory;
-    Path* sharedStateDirectory;
-    Path* taskOwnedStateDirectory;
+    std::shared_ptr<Path> checkpointsDirectory;
+    std::shared_ptr<Path> sharedStateDirectory;
+    std::shared_ptr<Path> taskOwnedStateDirectory;
     int fileSizeThreshold;
     int writeBufferSize;
 };

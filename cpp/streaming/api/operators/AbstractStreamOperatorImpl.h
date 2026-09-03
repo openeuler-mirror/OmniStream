@@ -108,7 +108,7 @@ OperatorSnapshotFutures* AbstractStreamOperator<K>::SnapshotState(
     long checkpointId,
     long timestamp,
     CheckpointOptions* checkpointOptions,
-    CheckpointStreamFactory* storageLocation,
+    std::shared_ptr<CheckpointStreamFactory> storageLocation,
     const std::shared_ptr<OmniTaskBridge>& bridge)
 {
     return stateHandler->SnapshotState(

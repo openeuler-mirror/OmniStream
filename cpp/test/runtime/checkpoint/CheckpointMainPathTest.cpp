@@ -50,9 +50,9 @@ class MockStorage : public CheckpointStorage {
 public:
     std::shared_ptr<CheckpointStorageAccess> createCheckpointStorage(const JobIDPOD& jobId) override
     {
-        static Path checkpointDir("");
-        static Path savepointDir("");
-        return std::make_shared<FsCheckpointStorageAccess>(&checkpointDir, &savepointDir, jobId, 100, 100);
+        auto checkpointDir = std::make_shared<Path>("");
+        auto savepointDir = std::make_shared<Path>("");
+        return std::make_shared<FsCheckpointStorageAccess>(checkpointDir, savepointDir, jobId, 100, 100);
     }
 };
 

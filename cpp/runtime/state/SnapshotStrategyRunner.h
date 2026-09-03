@@ -48,7 +48,7 @@ public:
     std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<T>>()>> snapshot(
         long checkpointId,
         long timestamp,
-        CheckpointStreamFactory* streamFactory,
+        std::shared_ptr<CheckpointStreamFactory> streamFactory,
         CheckpointOptions* checkpointOptions,
         std::shared_ptr<omnistream::OmniTaskBridge> bridge,
         std::string keySerializer)

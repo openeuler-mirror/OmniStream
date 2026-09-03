@@ -175,7 +175,7 @@ public:
         long checkpointId,
         long timestamp,
         CheckpointOptions* checkpointOptions,
-        CheckpointStreamFactory* checkpointStreamFactory,
+        std::shared_ptr<CheckpointStreamFactory> checkpointStreamFactory,
         bool isUsingCustomRawKeyedState,
         const std::shared_ptr<OmniTaskBridge>& bridge)
     {
@@ -212,7 +212,7 @@ public:
         long checkpointId,
         long timestamp,
         CheckpointOptions* checkpointOptions,
-        CheckpointStreamFactory* checkpointStreamFactory,
+        std::shared_ptr<CheckpointStreamFactory> checkpointStreamFactory,
         OperatorSnapshotFutures* snapshotInProgress,
         StateSnapshotContextSynchronousImpl* snapshotContext,
         bool isUsingCustomRawKeyedState,
@@ -357,7 +357,7 @@ private:
         CheckpointableKeyedStateBackend<T>* keyedStateBackend,
         long checkpointId,
         long timestamp,
-        CheckpointStreamFactory* checkpointStreamFactory,
+        std::shared_ptr<CheckpointStreamFactory> checkpointStreamFactory,
         CheckpointOptions* checkpointOptions,
         const std::shared_ptr<OmniTaskBridge>& bridge,
         const std::string& keySerializer)
