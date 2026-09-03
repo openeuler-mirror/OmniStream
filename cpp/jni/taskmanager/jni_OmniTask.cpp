@@ -194,13 +194,22 @@ Java_com_huawei_omniruntime_flink_runtime_io_network_partition_RemoteDataFetcher
     jlong bufferAddress,
     jint bufferLength,
     jint readIndex,
+    jint memorySegmentOffset,
     jint sequenceNumber,
     jboolean isBuffer,
     jint bufferType)
 {
     auto task = reinterpret_cast<omnistream::OmniTask*>(nativeTask);
     task->notifyRemoteDataAvailable(
-        inputGateIndex, channelIndex, bufferAddress, bufferLength, readIndex, sequenceNumber, isBuffer, bufferType);
+        inputGateIndex,
+        channelIndex,
+        bufferAddress,
+        bufferLength,
+        readIndex,
+        memorySegmentOffset,
+        sequenceNumber,
+        isBuffer,
+        bufferType);
 }
 
 JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_createNativeTaskMetricGroup(

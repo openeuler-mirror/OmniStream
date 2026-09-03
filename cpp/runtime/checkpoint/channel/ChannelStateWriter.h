@@ -222,6 +222,21 @@ public:
         int startSeqNum,
         std::vector<omnistream::Buffer*> data) override
     {
+        for (omnistream::Buffer* buffer : data) {
+            if (buffer == nullptr) {
+                continue;
+            }
+            try {
+                buffer->RecycleBuffer();
+            } catch (const std::exception& e) {
+                INFO_RELEASE(
+                    "ERROR: Failed to recycle an input buffer discarded by NoOpChannelStateWriter: " << e.what());
+            } catch (...) {
+                INFO_RELEASE(
+                    "ERROR: Failed to recycle an input buffer discarded by NoOpChannelStateWriter due to an unknown "
+                    "exception");
+            }
+        }
     }
 
     void AddOutputData(

@@ -35,18 +35,30 @@ void ChannelStateWriteRequestExecutorImpl::start()
 
 void ChannelStateWriteRequestExecutorImpl::submit(std::shared_ptr<ChannelStateWriteRequest> req)
 {
-    std::lock_guard<std::mutex> lock(mutex);
-    if (!stopped) {
-        enqueue(req, false);
+    std::exception_ptr rejectionCause;
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        if (!stopped) {
+            enqueue(req, false);
+            return;
+        }
+        rejectionCause = exceptionPtr ? exceptionPtr : std::make_exception_ptr(std::runtime_error("executor stopped"));
     }
+    req->cancel(rejectionCause);
 }
 
 void ChannelStateWriteRequestExecutorImpl::submitPriority(std::shared_ptr<ChannelStateWriteRequest> req)
 {
-    std::lock_guard<std::mutex> lock(mutex);
-    if (!stopped) {
-        enqueue(req, true);
+    std::exception_ptr rejectionCause;
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        if (!stopped) {
+            enqueue(req, true);
+            return;
+        }
+        rejectionCause = exceptionPtr ? exceptionPtr : std::make_exception_ptr(std::runtime_error("executor stopped"));
     }
+    req->cancel(rejectionCause);
 }
 
 void ChannelStateWriteRequestExecutorImpl::registerSubtask(const JobVertexID& jvid, int idx)

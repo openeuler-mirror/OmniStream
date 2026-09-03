@@ -17,32 +17,49 @@
 #include "runtime/io/checkpointing/CheckpointBarrierHandler.h"
 #include <buffer/ReadOnlySlicedNetworkBuffer.h>
 #include "core/include/omni_const.h"
+#include <exception>
 
 namespace omnistream {
 namespace {
-VectorBatchBuffer* CopyVectorBatchBufferForCheckpoint(VectorBatchBuffer* source)
+void RecycleCheckpointBuffers(std::vector<Buffer*>& buffers) noexcept
 {
-    if (source == nullptr) {
-        return nullptr;
+    std::vector<Buffer*> buffersToRecycle;
+    buffersToRecycle.swap(buffers);
+    for (Buffer* buffer : buffersToRecycle) {
+        if (buffer == nullptr) {
+            continue;
+        }
+        try {
+            buffer->RecycleBuffer();
+        } catch (const std::exception& e) {
+            INFO_RELEASE("ERROR: Failed to recycle an inflight checkpoint buffer: " << e.what());
+        } catch (...) {
+            INFO_RELEASE("ERROR: Failed to recycle an inflight checkpoint buffer due to an unknown exception");
+        }
+    }
+}
+
+void RetainVectorBatchBufferForCheckpoint(VectorBatchBuffer* source, std::vector<Buffer*>& target)
+{
+    if (source == nullptr || source->GetObjectSegment() == nullptr) {
+        return;
     }
 
-    auto* oldObjectSegment = source->GetObjectSegment();
-    if (oldObjectSegment == nullptr) {
-        return nullptr;
+    Buffer* retainedBuffer = source->RetainBuffer();
+    if (retainedBuffer == nullptr) {
+        return;
     }
-
-    int offset = source->GetOffset();
-    int bufferLength = source->GetSize();
-    ObjectSegment* objectSegment = new ObjectSegment(bufferLength);
     try {
-        objectSegment->put(0, oldObjectSegment, offset, bufferLength);
+        target.push_back(retainedBuffer);
+    } catch (const std::exception& e) {
+        INFO_RELEASE("ERROR: Failed to retain a VectorBatchBuffer for checkpoint: " << e.what());
+        retainedBuffer->RecycleBuffer();
+        throw;
     } catch (...) {
-        delete objectSegment;
+        INFO_RELEASE("ERROR: Failed to retain a VectorBatchBuffer for checkpoint due to an unknown exception");
+        retainedBuffer->RecycleBuffer();
         throw;
     }
-    auto* copiedBuffer = new VectorBatchBuffer(objectSegment, std::make_shared<DeepCopiedObjectBufferRecycler>());
-    copiedBuffer->SetSize(bufferLength);
-    return copiedBuffer;
 }
 } // namespace
 
@@ -99,7 +116,7 @@ void RemoteInputChannel::notifyRemoteDataAvailableForVectorBatch(
         memcpy_s(&vertorBatchNum, sizeof(int32_t), buffer, sizeof(int32_t));
         // do data deserialization
         std::shared_ptr<ObjectSegment> objectSegment = this->DoDataDeserializationResult(buffer);
-        objectSegment->setData(reinterpret_cast<uint8_t*>(bufferAddress));
+        objectSegment->setData(reinterpret_cast<uint8_t*>(bufferAddress), static_cast<size_t>(bufferLength));
         auto vectorBatchBuffer = new VectorBatchBuffer(objectSegment, originalNetworkBufferRecycle);
         auto readOnlyVectorBatchBuffer = new ReadOnlySlicedVectorBatchBuffer(vectorBatchBuffer, 0, vertorBatchNum);
 
@@ -112,14 +129,13 @@ void RemoteInputChannel::notifyRemoteDataAvailableForVectorBatch(
             this->dataQueue.push(readOnlyVectorBatchBuffer);
             LOG("remote got an buffer  " << readOnlyVectorBatchBuffer->ToDebugString(true));
             if (isNeedPersistence_ || isNeedExpansion) {
-                auto* copy = CopyVectorBatchBufferForCheckpoint(readOnlyVectorBatchBuffer);
-                if (copy != nullptr) {
-                    inflightBuffers_.push_back(copy);
+                if (readOnlyVectorBatchBuffer != nullptr && readOnlyVectorBatchBuffer->GetObjectSegment() != nullptr) {
+                    channelStatePersister->MaybePersist(readOnlyVectorBatchBuffer);
                 }
             }
         }
-        auto bufferLength = readOnlyVectorBatchBuffer->GetSize();
-        insize += bufferLength;
+        auto vectorBatchCount = readOnlyVectorBatchBuffer->GetSize();
+        insize += vectorBatchCount;
         if (!isNeedExpansion) {
             lastSequenceNumber = sequenceNumber;
         }
@@ -293,6 +309,29 @@ void RemoteInputChannel::TimeOutResumeConsumption()
     }
 }
 
+void RemoteInputChannel::releaseAllResources()
+{
+    LocalInputChannel::releaseAllResources();
+
+    std::lock_guard<std::recursive_mutex> lock(queueMutex);
+    RecycleCheckpointBuffers(inflightBuffers_);
+    while (!dataQueue.empty()) {
+        Buffer* buffer = dataQueue.front();
+        dataQueue.pop();
+        if (buffer == nullptr) {
+            continue;
+        }
+        try {
+            buffer->RecycleBuffer();
+        } catch (const std::exception& e) {
+            INFO_RELEASE("ERROR: Failed to recycle a queued remote input buffer: " << e.what());
+        } catch (...) {
+            INFO_RELEASE("ERROR: Failed to recycle a queued remote input buffer due to an unknown exception");
+        }
+        delete buffer;
+    }
+}
+
 void RemoteInputChannel::CheckpointStarted(
     const CheckpointBarrier& barrier, std::shared_ptr<ChannelStateWriter> channelStateWriter)
 {
@@ -303,41 +342,74 @@ void RemoteInputChannel::CheckpointStarted(
     } else if (barrier.GetId() > lastBarrierId_) {
         ResetLastBarrier();
     }
+    RecycleCheckpointBuffers(inflightBuffers_);
     if (channelStatePersister == nullptr) {
         SetChannelStateWriter(channelStateWriter);
     }
-    inflightBuffers_.clear();
     std::vector<Buffer*> knownBuffers;
-    if (IsNeedPersistence()) {
-        if (taskType == 1) {
-            knownBuffers = GetInflightVectorBatchBuffersUnsafe(barrier.GetId());
-        } else {
-            knownBuffers = GetInflightBuffersUnsafe(barrier.GetId());
+    try {
+        if (IsNeedPersistence()) {
+            if (taskType == 1) {
+                knownBuffers = GetInflightVectorBatchBuffersUnsafe(barrier.GetId());
+            } else {
+                knownBuffers = GetInflightBuffersUnsafe(barrier.GetId());
+            }
         }
+        channelStatePersister->StartPersisting(barrier.GetId(), knownBuffers);
+        // Ownership is transferred to ChannelStateWriter.
+        knownBuffers.clear();
+    } catch (const std::exception& e) {
+        INFO_RELEASE("ERROR: Failed to start persisting remote input channel state: " << e.what());
+        RecycleCheckpointBuffers(knownBuffers);
+        throw;
+    } catch (...) {
+        INFO_RELEASE("ERROR: Failed to start persisting remote input channel state due to an unknown exception");
+        RecycleCheckpointBuffers(knownBuffers);
+        throw;
     }
-    channelStatePersister->StartPersisting(barrier.GetId(), knownBuffers);
 }
 
 void RemoteInputChannel::CheckpointStopped(long checkpointId)
 {
     std::lock_guard<std::recursive_mutex> lock(queueMutex);
-    if (channelStatePersister) {
-        channelStatePersister->StopPersisting(checkpointId);
-    } else {
-        LOG("RemoteInputChannel::CheckpointStopped skipped because channelStatePersister is not initialized, "
-            "checkpointId="
-            << checkpointId);
-    }
+    RecycleCheckpointBuffers(inflightBuffers_);
     if (lastBarrierId_ == checkpointId) {
         ResetLastBarrier();
     }
     startSize_ = 0;
-    inflightBuffers_.clear();
+    if (channelStatePersister != nullptr) {
+        channelStatePersister->StopPersisting(checkpointId);
+    }
 }
 
 void RemoteInputChannel::AddInputData(long checkpointId, const omnistream::InputChannelInfo& info)
 {
-    return channelStatePersister->AddInputData(inflightBuffers_, checkpointId, info);
+    std::lock_guard<std::recursive_mutex> lock(queueMutex);
+    if (channelStatePersister == nullptr) {
+        RecycleCheckpointBuffers(inflightBuffers_);
+        THROW_RUNTIME_ERROR("RemoteInputChannel::AddInputData called without a channel state persister");
+    }
+
+    try {
+        if (taskType == 1) {
+            // SQL 已通过 MaybePersist 逐个转交。
+            // 理论上这里应为空；防止异常残留引用被直接 clear 后泄漏。
+            RecycleCheckpointBuffers(inflightBuffers_);
+            return;
+        }
+        channelStatePersister->AddInputData(inflightBuffers_, checkpointId, info);
+        // Ownership is transferred to ChannelStateWriter. It recycles each buffer after writing or when the request
+        // exits exceptionally.
+        inflightBuffers_.clear();
+    } catch (const std::exception& e) {
+        INFO_RELEASE("ERROR: Failed to add remote inflight buffers to channel state: " << e.what());
+        RecycleCheckpointBuffers(inflightBuffers_);
+        throw;
+    } catch (...) {
+        INFO_RELEASE("ERROR: Failed to add remote inflight buffers to channel state due to an unknown exception");
+        RecycleCheckpointBuffers(inflightBuffers_);
+        throw;
+    }
 }
 
 std::vector<Buffer*> RemoteInputChannel::GetInflightVectorBatchBuffersUnsafe(long checkpointId)
@@ -355,10 +427,8 @@ std::vector<Buffer*> RemoteInputChannel::GetInflightVectorBatchBuffersUnsafe(lon
                 tmpQueue.pop();
                 continue;
             }
-            int bufferLength = buffer->GetSize();
             if (vectorBatchBuffer != nullptr) {
-                auto newVectorBatchBuffer = CopyVectorBatchBufferForCheckpoint(vectorBatchBuffer);
-                inflightBuffers.push_back(newVectorBatchBuffer);
+                RetainVectorBatchBufferForCheckpoint(vectorBatchBuffer, inflightBuffers);
                 tmpQueue.pop();
                 continue;
             }
@@ -371,13 +441,15 @@ std::vector<Buffer*> RemoteInputChannel::GetInflightVectorBatchBuffersUnsafe(lon
             }
             tmpQueue.pop();
         }
+    } catch (const std::exception& e) {
+        INFO_RELEASE("ERROR: Failed to collect inflight VectorBatchBuffers for checkpoint: " << e.what());
+        // These retained references have not been returned to ChannelStatePersister.
+        RecycleCheckpointBuffers(inflightBuffers);
+        throw;
     } catch (...) {
-        // These copies have not been returned to ChannelStatePersister.
-        for (Buffer* buffer : inflightBuffers) {
-            if (buffer != nullptr) {
-                buffer->RecycleBuffer();
-            }
-        }
+        INFO_RELEASE("ERROR: Failed to collect inflight VectorBatchBuffers for checkpoint due to an unknown exception");
+        // These retained references have not been returned to ChannelStatePersister.
+        RecycleCheckpointBuffers(inflightBuffers);
         throw;
     }
     LOG("RemoteInputChannel get inflight buffers success, buffer num:" << inflightBuffers.size()

@@ -145,8 +145,8 @@ ObjectSegmentChannelStateSerde::AppendResult ObjectSegmentChannelStateSerde::App
 
                 case StreamElementTag::VECTOR_BATCH: {
                     std::unique_ptr<VectorBatch> vb(VectorBatchDeserializationUtils::deserializeVectorBatch(cursor));
-                    element = new StreamElement(StreamElementTag::VECTOR_BATCH);
-                    element->setValue(vb.release());
+                    element = new StreamRecord(vb.get());
+                    vb.release();
                     break;
                 }
                 case StreamElementTag::TAG_REC_WITHOUT_TIMESTAMP: {

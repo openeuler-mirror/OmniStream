@@ -85,22 +85,37 @@ std::shared_ptr<ChannelStateWriteRequest> ChannelStateWriteRequest::completeOutp
 std::shared_ptr<ChannelStateWriteRequest> ChannelStateWriteRequest::writeInput(
     JobVertexID jobVertexID, int subtaskIndex, long checkpointId, InputChannelInfo info, std::vector<Buffer*> buffers)
 {
+    auto pendingBuffers = std::make_shared<std::vector<Buffer*>>(std::move(buffers));
     return std::make_shared<CheckpointInProgressRequest>(
         "WriteInput",
         jobVertexID,
         subtaskIndex,
         checkpointId,
-        [jobVertexID, subtaskIndex, info, buffers](std::shared_ptr<ChannelStateCheckpointWriter>& writer) {
-            for (Buffer* buffer : buffers) {
-                if (buffer) {
-                    writer->WriteInput(jobVertexID, subtaskIndex, info, buffer);
+        [jobVertexID, subtaskIndex, info, pendingBuffers](std::shared_ptr<ChannelStateCheckpointWriter>& writer) {
+            for (Buffer*& buffer : *pendingBuffers) {
+                if (buffer != nullptr) {
+                    Buffer* bufferToWrite = buffer;
+                    // From this point ChannelStateCheckpointWriter owns this reference and recycles it even if the
+                    // serialization or stream write throws.
+                    buffer = nullptr;
+                    writer->WriteInput(jobVertexID, subtaskIndex, info, bufferToWrite);
                 }
             }
         },
-        [buffers](const std::exception_ptr&) {
-            for (auto* buffer : buffers) {
-                if (buffer) {
-                    ReleaseCheckpointBuffer(buffer);
+        [pendingBuffers](const std::exception_ptr&) {
+            for (Buffer*& buffer : *pendingBuffers) {
+                if (buffer != nullptr) {
+                    Buffer* bufferToRecycle = buffer;
+                    buffer = nullptr;
+                    try {
+                        ReleaseCheckpointBuffer(bufferToRecycle);
+                    } catch (const std::exception& e) {
+                        INFO_RELEASE("ERROR: Failed to recycle a pending channel-state input buffer: " << e.what());
+                    } catch (...) {
+                        INFO_RELEASE(
+                            "ERROR: Failed to recycle a pending channel-state input buffer due to an unknown "
+                            "exception");
+                    }
                 }
             }
         });
@@ -305,8 +320,13 @@ void CheckpointInProgressRequest::execute(std::shared_ptr<ChannelStateCheckpoint
     try {
         action_(writer);
         state_ = CheckpointInProgressRequestState::COMPLETED;
+    } catch (const std::exception& e) {
+        state_ = CheckpointInProgressRequestState::FAILED;
+        INFO_RELEASE("ERROR: Failed to execute a channel-state checkpoint request: " << e.what());
+        throw;
     } catch (...) {
         state_ = CheckpointInProgressRequestState::FAILED;
+        INFO_RELEASE("ERROR: Failed to execute a channel-state checkpoint request due to an unknown exception");
         throw;
     }
 }
