@@ -51,7 +51,7 @@ class MetricManager {
 public:
     static const char* sharedMemoryKeyPrefix;
     static long omniStreamTaskProcessInputID; // OmniStreamTask::processInput
-    static const int sharedMemoryFDMode;
+    static const int sharedMemoryFDMode;      // POSIX shm 权限：仅属主可读写
     explicit MetricManager(const std::string& monitorKey);
     ~MetricManager();
 
@@ -127,6 +127,7 @@ private:
     static std::mutex singletonMutex;
 
     bool CreateSharedMemory(size_t size);
+    bool AttachSharedMemory(size_t size);
     void SetNumberOfMetrics(int number);
 };
 
