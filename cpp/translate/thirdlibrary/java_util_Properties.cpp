@@ -23,17 +23,19 @@ int lib_fun()
 
 void java_util_Properties::load(InputStream* input)
 {
-    Dl_info dl_info;
-    dladdr((void*)lib_fun, &dl_info);
-    static const char* filePath = nullptr;
-    std::string path;
-    std::string str = dl_info.dli_fname;
-    path = str.substr(0, str.find_last_of('/') + 1);
+    Dl_info dlInfo{};
+    if (dladdr(reinterpret_cast<void*>(lib_fun), &dlInfo) == 0 || dlInfo.dli_fname == nullptr) {
+        std::cerr << "Failed to resolve the library path for flinkMetrics.properties" << std::endl;
+        return;
+    }
 
-    filePath = path.append("flinkMetrics.properties").data();
+    const std::string libraryPath(dlInfo.dli_fname);
+    const size_t separator = libraryPath.find_last_of('/');
+    // 未包含目录分隔符时保持原有行为，从当前工作目录读取配置文件
+    const std::string directory = separator == std::string::npos ? "" : libraryPath.substr(0, separator + 1);
+    const std::string filePath = directory + "flinkMetrics.properties";
 
-    std::ifstream file;
-    file.open(filePath, std::ios::in);
+    std::ifstream file(filePath, std::ios::in);
 
     if (!file.is_open()) {
         return;

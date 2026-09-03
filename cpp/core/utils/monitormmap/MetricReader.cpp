@@ -13,6 +13,10 @@
 #include <sstream>
 
 namespace omnistream {
+namespace {
+constexpr off_t MIN_SHARED_MEMORY_SIZE = sizeof(uint64_t);
+}
+
 const char* MetricReader::sharedMemoryKeyPrefix = "OMNI_SHM_METRIC";
 
 MetricReader::MetricReader() : sharedMemoryFd(-1), sharedMemorySize(0), sharedMemoryPtr(nullptr)
@@ -43,7 +47,8 @@ bool MetricReader::Init(const std::string& monitorKey, pid_t managerPid)
     }
 
     std::stringstream ss_;
-    ss_ << monitorKey << "_" << managerPid;
+    // 使用与 MetricManager 完全一致的 POSIX shm 名称。
+    ss_ << "/" << monitorKey << "_" << managerPid;
     sharedMemoryKey = ss_.str();
 
     sharedMemoryFd = shm_open(sharedMemoryKey.c_str(), O_RDWR, 0);
@@ -58,6 +63,36 @@ bool MetricReader::Init(const std::string& monitorKey, pid_t managerPid)
     if (fstat(sharedMemoryFd, &shmStat) == -1) {
         std::stringstream ss_;
         ss_ << "fstat failed for key: " << sharedMemoryKey;
+        GErrorLog(ss_.str());
+        close(sharedMemoryFd);
+        sharedMemoryFd = -1;
+        return false;
+    }
+    // 普通用户只读取自己的指标；root 保留跨用户诊断能力。
+    const uid_t effectiveUserId = geteuid();
+    if (effectiveUserId != 0 && shmStat.st_uid != effectiveUserId) {
+        std::stringstream ss_;
+        ss_ << "shared memory owner mismatch for key: " << sharedMemoryKey << ", owner uid=" << shmStat.st_uid
+            << ", euid=" << effectiveUserId;
+        GErrorLog(ss_.str());
+        close(sharedMemoryFd);
+        sharedMemoryFd = -1;
+        return false;
+    }
+
+    const mode_t permissions = shmStat.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
+    if (permissions != MetricManager::sharedMemoryFDMode) {
+        std::stringstream ss_;
+        ss_ << "unsafe shared memory permissions for key: " << sharedMemoryKey;
+        GErrorLog(ss_.str());
+        close(sharedMemoryFd);
+        sharedMemoryFd = -1;
+        return false;
+    }
+
+    if (shmStat.st_size < MIN_SHARED_MEMORY_SIZE) {
+        std::stringstream ss_;
+        ss_ << "shared memory is too small for metric header, key: " << sharedMemoryKey << ", size=" << shmStat.st_size;
         GErrorLog(ss_.str());
         close(sharedMemoryFd);
         sharedMemoryFd = -1;
