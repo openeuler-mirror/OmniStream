@@ -256,7 +256,15 @@ std::string VectorBatch::TransformOnlyTime(int vectorID, int rowID, int precisio
     }
 
     char buf[32];
+    if (seconds == 0 && milliseconds == 0) {
+        std::snprintf(buf, sizeof(buf), "%02d:%02d", hours, minutes);
+        return std::string(buf);
+    }
+
     std::snprintf(buf, sizeof(buf), "%02d:%02d:%02d", hours, minutes, seconds);
+    if (milliseconds == 0) {
+        return std::string(buf);
+    }
 
     std::ostringstream oss;
     oss << buf << ".";
@@ -294,6 +302,10 @@ std::string VectorBatch::TransformTime(int vectorID, int rowID, int precision) c
 
     // 格式化为字符串
     char buffer[80];
+    if (milliseconds == 0 && timeinfo.tm_sec == 0) {
+        strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M", &timeinfo);
+        return std::string(buffer);
+    }
     strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%S", &timeinfo);
 
     if (milliseconds == 0) {
