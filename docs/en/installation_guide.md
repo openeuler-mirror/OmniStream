@@ -71,11 +71,41 @@ Before installing OmniStream, prepare the hardware and software environments to 
 
 After downloading a software package from the Kunpeng community, verify the software package to ensure that it is consistent with the original one on the website.
 
-Verification method:
+> ![](./public_sys-resources/icon-note.gif) **NOTE：**
+> This chapter uses BoostKit-omniruntime-omnistream-1.3.0.zip as an example.
 
-1. Obtain the software digital certificate and installation package.
-2. [Obtain the verification tool and method](https://support.huawei.com/enterprise/en/tool/pgp-verify-TL1000000054).
-3. Verify the package integrity by following the procedure described in the *OpenPGP Signature Verification Guide* obtained in the previous step.
+### 前提条件
+
+Before verifying the integrity of the release package, prepare the following files:
+
+- ZIP compressed file: BoostKit-omniruntime-omnistream-1.3.0.zip.
+
+- Verification file: Copy and save the SHA256 hash value corresponding to the Blue Zone code repository archive for
+  integrity verification.
+
+### Procedures
+
+To verify the file integrity, perform the following operations：
+
+1. Calculate the SHA256 checksum of the file. The Linux command is as follows：
+
+    ```sh
+    sha256sum BoostKit-omniruntime-omnistream-1.3.0.zip
+    ```
+
+   The Windows command is as follows:
+
+    ```sh
+    certutil -hashfile BoostKit-omniruntime-omnistream-1.3.0.zip SHA256
+    ```
+
+   After the command is executed, the checksum value is output.
+
+2. Compare the checksum value calculated in step 1 with the SHA256 value copied from the Blue Zone code repository to
+   check if they match.
+
+   If the checksum value matches, it indicates that the ZIP archive file is intact. If the checksum value does not
+   match, it can be confirmed that the file integrity has been compromised, and the file needs to be re-downloaded.
 
 ## Feature Installation<a name="ZH-CN_TOPIC_0000002549064703"></a>
 

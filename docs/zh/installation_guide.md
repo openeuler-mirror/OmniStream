@@ -67,15 +67,41 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 |KSL| BoostKit-ksl_2.5.1.zip                    |闭源|正则加速库，该zip包含ReplaceAll用于优化String基础库，内含头文件和1个静态库。| [获取链接](https://www.hikunpeng.com/boostkit/library/system?subtab=Hyperscan&version=2.5.1)                                                                                                                                                                           |
 |依赖库| Dependency_library_Default                |开源|OmniStream Flink Native化运行时所依赖的库文件。<br>该文件夹从Dependency_library_OmniStream.zip解压获得。| [获取链接](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip) |
 
-**软件安装包完整性校验<a name="zh-cn_topic_0000002228744546_section156811729327"></a>**
+**软件安装包完整性校验<a name="section16501429204018"></a>**
 
 从鲲鹏社区获取的软件安装包，下载软件安装包后需要校验软件安装包，确保与网站上的原始软件安装包一致。
+> ![](./public_sys-resources/icon-note.gif) **说明：**
+> 本章节以BoostKit-omniruntime-omnistream-1.3.0.zip为例。
 
-校验方法：
+### 前提条件
 
-1. 获取软件数字证书和软件安装包。
-2. [获取校验工具和校验方法](https://support.huawei.com/enterprise/zh/tool/pgp-verify-TL1000000054)。
-3. 参见上述链接下载的《OpenPGP签名验证指南》进行软件安装包完整性检查。
+在校验发布包完整性之前，需要准备如下文件：
+
+- zip压缩包文件：BoostKit-omniruntime-omnistream-1.3.0.zip。
+
+- 校验文件：蓝区代码仓压缩包对应完整性SHA256校验值，复制保存对应生成的SHA256校验值。
+
+### 操作指导
+
+文件完整性校验操作步骤如下：
+
+1. 计算文件的sha256校验值。linux执行命令如下：
+
+    ```sh
+    sha256sum BoostKit-omniruntime-omnistream-1.3.0.zip
+    ```
+
+   windows执行命令如下：
+
+    ```sh
+    certutil -hashfile BoostKit-omniruntime-omnistream-1.3.0.zip SHA256
+    ```
+
+   命令执行完成后，输出校验值。
+
+2. 对比步骤 1 计算的校验值与蓝区代码仓复制的 SHA256 值是否一致
+
+   如果校验值一致说明zip压缩包文件完整，如果校验值不一致则可以确认文件完整性已被破坏，需要重新获取。
 
 ## 安装特性<a name="ZH-CN_TOPIC_0000002549064703"></a>
 
