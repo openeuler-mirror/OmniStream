@@ -16,6 +16,32 @@
 #include "ChannelStateWriter.h"
 #include "state/filesystem/FileStateHandle.h"
 namespace omnistream {
+namespace {
+class BufferRecycleGuard {
+public:
+    explicit BufferRecycleGuard(Buffer* buffer) : buffer_(buffer)
+    {
+    }
+
+    ~BufferRecycleGuard()
+    {
+        if (buffer_ == nullptr) {
+            return;
+        }
+        try {
+            ReleaseCheckpointBuffer(buffer_);
+        } catch (const std::exception& e) {
+            INFO_RELEASE("ERROR: Failed to recycle a channel-state input buffer: " << e.what());
+        } catch (...) {
+            INFO_RELEASE("ERROR: Failed to recycle a channel-state input buffer due to an unknown exception");
+        }
+    }
+
+private:
+    Buffer* buffer_;
+};
+} // namespace
+
 ChannelStateCheckpointWriter::ChannelStateCheckpointWriter(
     const std::set<SubtaskID>& subtasks,
     int64_t checkpointId,
@@ -81,15 +107,13 @@ void ChannelStateCheckpointWriter::ReleaseSubtask(const SubtaskID& id)
 void ChannelStateCheckpointWriter::WriteInput(
     const JobVertexID& jvid, int subtaskIndex, const InputChannelInfo& info, Buffer* buffer)
 {
+    BufferRecycleGuard recycleGuard(buffer);
     if (IsDone()) {
-        ReleaseCheckpointBuffer(buffer);
         return;
     }
 
     ChannelStatePendingResult* pending = GetChannelStatePendingResult(jvid, subtaskIndex);
     Write(pending->GetInputChannelOffsets(), info, buffer, !pending->IsAllInputsReceived(), "ChannelState#WriteInput");
-
-    ReleaseCheckpointBuffer(buffer);
 }
 
 void ChannelStateCheckpointWriter::WriteOutput(
@@ -249,7 +273,7 @@ void ChannelStateCheckpointWriter::failResultAndCloseStream(const std::exception
     try {
         checkpointStream->Close();
     } catch (const std::exception& ex) {
-        std::cerr << "Failed to close checkpointStream: " << ex.what() << std::endl;
+        INFO_RELEASE("ERROR: Failed to close checkpointStream: " << ex.what());
     }
 }
 

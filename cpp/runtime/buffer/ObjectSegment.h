@@ -95,14 +95,20 @@ public:
         return size;
     }
 
-    void setData(uint8_t* bufferAddress)
+    void setData(uint8_t* bufferAddress, size_t bufferLength = 0)
     {
         offHeapBuffer_ = bufferAddress;
+        offHeapBufferLength_ = bufferLength;
     }
 
     uint8_t* getData()
     {
         return offHeapBuffer_;
+    }
+
+    size_t getDataLength() const
+    {
+        return offHeapBufferLength_;
     }
 
 private:
@@ -111,11 +117,14 @@ private:
     size_t size;
     bool ownsObjects_ = false;
 
+    // These fields point to the immutable serialized payload owned by the Java network Buffer. The
+    // VectorBatchBuffer reference count keeps that Buffer alive until all consumers and checkpoint writers recycle it.
     // This is for RemoteInputChannel::notifyRemoteDataAvailableForVectorBatch.
     // When VectorBatchBuffer from RemoteInputChannel should be recycled, OriginalNetworkBufferRecycler needs to push
     // offHeapBuffer_ to originalNetworkBufferQueue, making the buffer recycler thread in
     // RemoteDataFetcher(OmniAdaptor) could correctly recycle the buffer.
     uint8_t* offHeapBuffer_ = nullptr;
+    size_t offHeapBufferLength_ = 0;
 
     //  it is actually a  StreamRecord * [size] , allocate mem in constructor, StreamRecord.value are VectorBatch *
     //  notice in order to get high performance, the data related object are using raw pointer
