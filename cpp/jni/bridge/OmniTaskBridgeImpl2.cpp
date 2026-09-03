@@ -464,7 +464,18 @@ std::shared_ptr<SnapshotResult<StreamStateHandle>> OmniTaskBridgeImpl2::CallMate
     env->DeleteLocalRef(cls);
     env->DeleteLocalRef(jcheckpointOptionsStr);
 
-    return ConvertSnapshotResult(env, resultObj);
+    try {
+        auto result = ConvertSnapshotResult(env, resultObj);
+        if (resultObj != nullptr) {
+            env->DeleteLocalRef(resultObj);
+        }
+        return result;
+    } catch (...) {
+        if (resultObj != nullptr) {
+            env->DeleteLocalRef(resultObj);
+        }
+        throw;
+    }
 }
 
 jobject OmniTaskBridgeImpl2::CallUploadFilesToCheckpointFs(
