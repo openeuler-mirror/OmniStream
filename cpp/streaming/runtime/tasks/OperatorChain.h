@@ -185,7 +185,7 @@ public:
         CheckpointOptions* checkpointOptions,
         std::shared_ptr<Supplier<bool>> isRunning,
         std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> channelStateWriteResult,
-        CheckpointStreamFactory* storage,
+        std::shared_ptr<CheckpointStreamFactory> storage,
         const std::shared_ptr<OmniTaskBridge>& bridge);
     bool IsTaskDeployedAsFinished()
     {
@@ -301,14 +301,14 @@ private:
         StreamOperator* op,
         std::shared_ptr<Supplier<bool>> isRunning,
         std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> channelStateWriteResult,
-        CheckpointStreamFactory* storage,
+        std::shared_ptr<CheckpointStreamFactory> storage,
         const std::shared_ptr<OmniTaskBridge>& bridge);
 
     OperatorSnapshotFutures* CheckpointStreamOperator(
         StreamOperator* op,
         CheckpointMetaData checkpointMetaData,
         CheckpointOptions* checkpointOptions,
-        CheckpointStreamFactory* storageLocation,
+        std::shared_ptr<CheckpointStreamFactory> storageLocation,
         std::shared_ptr<Supplier<bool>> isRunning,
         const std::shared_ptr<OmniTaskBridge>& bridge);
     // std::vector<OperatorConfig> & opChainConfig_;

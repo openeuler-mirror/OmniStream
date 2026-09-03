@@ -20,7 +20,7 @@
 namespace omnistream {
 class CheckpointStorageWorkerView {
 public:
-    virtual CheckpointStreamFactory* resolveCheckpointStorageLocation(
+    virtual std::shared_ptr<CheckpointStreamFactory> resolveCheckpointStorageLocation(
         int64_t checkpointId, std::shared_ptr<CheckpointStorageLocationReference> reference) = 0;
 
     virtual CheckpointStateOutputStream* createTaskOwnedStateStream() = 0;

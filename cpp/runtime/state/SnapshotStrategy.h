@@ -36,7 +36,7 @@ public:
         const std::shared_ptr<SR>& snapshotResources,
         long checkpointId,
         long timestamp,
-        CheckpointStreamFactory* streamFactory,
+        std::shared_ptr<CheckpointStreamFactory> streamFactory,
         CheckpointOptions* checkpointOptions,
         std::string keySerializer = "") = 0;
 

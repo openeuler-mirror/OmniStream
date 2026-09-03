@@ -63,8 +63,7 @@ public:
 
     static std::shared_ptr<BssPreviousSnapshot> empty()
     {
-        static auto emptySnapshot =
-            std::make_shared<BssPreviousSnapshot>(std::vector<BssHandleAndLocalPath>{});
+        static auto emptySnapshot = std::make_shared<BssPreviousSnapshot>(std::vector<BssHandleAndLocalPath>{});
         return emptySnapshot;
     }
 
@@ -86,7 +85,9 @@ public:
 
     // Keep completed local snapshots available for local recovery. Failed snapshots
     // are removed explicitly by BssIncrementalSnapshotOperation.
-    void cleanup() override {}
+    void cleanup() override
+    {
+    }
 
     std::shared_ptr<SnapshotDirectory> snapshotDirectory;
     std::shared_ptr<BssPreviousSnapshot> previousSnapshot;
@@ -154,15 +155,14 @@ public:
         }
         INFO_RELEASE("[BSS-CP-sync] prepared checkpointId=" << checkpointId);
 
-        return std::make_shared<BssSnapshotResources>(
-            snapshotDirectory, previousSnapshot, stateMetaInfoSnapshots);
+        return std::make_shared<BssSnapshotResources>(snapshotDirectory, previousSnapshot, stateMetaInfoSnapshots);
     }
 
     std::shared_ptr<SnapshotResultSupplier<BssSnapshotKeyedStateHandle>> asyncSnapshot(
         const std::shared_ptr<SnapshotResources>& snapshotResources,
         long checkpointId,
         long timestamp,
-        CheckpointStreamFactory* checkpointStreamFactory,
+        std::shared_ptr<CheckpointStreamFactory> checkpointStreamFactory,
         CheckpointOptions* checkpointOptions,
         std::string keySerializer = "") override
     {
@@ -184,11 +184,8 @@ public:
                 previousSnapshot = bssResources->previousSnapshot;
                 break;
             case SnapshotType::SharingFilesStrategy::FORWARD:
-            case SnapshotType::SharingFilesStrategy::NO_SHARING:
-                previousSnapshot = BssPreviousSnapshot::empty();
-                break;
-            default:
-                bss_adapter::ThrowWithLog<std::logic_error>("Unsupported sharing files strategy");
+            case SnapshotType::SharingFilesStrategy::NO_SHARING: previousSnapshot = BssPreviousSnapshot::empty(); break;
+            default: bss_adapter::ThrowWithLog<std::logic_error>("Unsupported sharing files strategy");
         }
 
         return std::make_shared<BssIncrementalSnapshotOperation>(
@@ -244,8 +241,7 @@ private:
             auto directoryProvider = localRecoveryConfig_->GetLocalStateDirectoryProvider();
             fs::path directory = directoryProvider->SubtaskSpecificCheckpointDirectory(checkpointId);
             if (!fs::exists(directory) && !fs::create_directories(directory)) {
-                bss_adapter::ThrowWithLog<std::logic_error>(
-                    "Failed to create directory: " + directory.string());
+                bss_adapter::ThrowWithLog<std::logic_error>("Failed to create directory: " + directory.string());
             }
             fs::path bssSnapshotDir = directory;
             bssSnapshotDir /= localDirectoryName_;
@@ -321,8 +317,7 @@ private:
                     checkpointOptions_,
                     keySerializerJson_);
                 if (metaStateHandle == nullptr || metaStateHandle->GetJobManagerOwnedSnapshot() == nullptr) {
-                    bss_adapter::ThrowWithLog<std::logic_error>(
-                        "BSS checkpoint failed to materialize metadata");
+                    bss_adapter::ThrowWithLog<std::logic_error>("BSS checkpoint failed to materialize metadata");
                 }
 
                 // Flush fresh/slice data into the prepared checkpoint directory.
@@ -348,10 +343,9 @@ private:
                     metaStateHandle->GetStateSize() + uploadedSize);
 
                 INFO_RELEASE(
-                    "[BSS-CP-async] completed checkpointId=" << checkpointId_
-                                                              << ", sharedFiles=" << sharedFiles.size()
-                                                              << ", privateFiles=" << miscFiles.size()
-                                                              << ", uploadedBytes=" << uploadedSize);
+                    "[BSS-CP-async] completed checkpointId=" << checkpointId_ << ", sharedFiles=" << sharedFiles.size()
+                                                             << ", privateFiles=" << miscFiles.size()
+                                                             << ", uploadedBytes=" << uploadedSize);
                 completed = true;
                 return SnapshotResult<BssSnapshotKeyedStateHandle>::Of(jmHandle);
             } catch (const std::exception& e) {
@@ -394,16 +388,16 @@ private:
 
             long totalSize = 0;
             if (!sharedPathsToUpload.empty()) {
-                auto handles = bss_adapter::UploadSnapshotFiles(
-                    bridge, sharedPathsToUpload, parent_->numberOfTransferThreads_);
+                auto handles =
+                    bss_adapter::UploadSnapshotFiles(bridge, sharedPathsToUpload, parent_->numberOfTransferThreads_);
                 for (const auto& handle : handles) {
                     totalSize += handle.GetStateSize();
                 }
                 sharedFiles.insert(sharedFiles.end(), handles.begin(), handles.end());
             }
             if (!miscPathsToUpload.empty()) {
-                auto handles = bss_adapter::UploadSnapshotFiles(
-                    bridge, miscPathsToUpload, parent_->numberOfTransferThreads_);
+                auto handles =
+                    bss_adapter::UploadSnapshotFiles(bridge, miscPathsToUpload, parent_->numberOfTransferThreads_);
                 for (const auto& handle : handles) {
                     totalSize += handle.GetStateSize();
                 }
@@ -453,8 +447,7 @@ private:
     };
 
     ock::bss::BoostStateDBPtr db_;
-    const std::unordered_map<std::string, std::shared_ptr<RegisteredKeyValueStateBackendMetaInfo>>*
-        kvStateInformation_;
+    const std::unordered_map<std::string, std::shared_ptr<RegisteredKeyValueStateBackendMetaInfo>>* kvStateInformation_;
     KeyGroupRange keyGroupRange_;
     std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig_;
     std::string instanceBasePath_;

@@ -100,7 +100,7 @@ public:
         const std::shared_ptr<SnapshotResources>& snapshotResources,
         long checkpointId,
         long timestamp, /* not used */
-        CheckpointStreamFactory* streamFactory,
+        std::shared_ptr<CheckpointStreamFactory> streamFactory,
         CheckpointOptions* checkpointOptions,
         std::string keySerializer_ = "") override
     {

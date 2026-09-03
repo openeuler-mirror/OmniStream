@@ -79,7 +79,7 @@ public:
         const std::shared_ptr<SnapshotResources>&,
         long,
         long,
-        CheckpointStreamFactory*,
+        std::shared_ptr<CheckpointStreamFactory>,
         CheckpointOptions*,
         std::string) override
     {
@@ -111,7 +111,7 @@ public:
         const std::shared_ptr<SnapshotResources>&,
         long,
         long,
-        CheckpointStreamFactory*,
+        std::shared_ptr<CheckpointStreamFactory>,
         CheckpointOptions*,
         std::string) override
     {

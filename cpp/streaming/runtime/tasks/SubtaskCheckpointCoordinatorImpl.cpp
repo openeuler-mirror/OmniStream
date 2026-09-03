@@ -127,7 +127,7 @@ bool SubtaskCheckpointCoordinatorImpl::takeSnapshotSync(
                                        ? channelStateWriter->GetAndRemoveWriteResult(checkpointId)
                                        : ChannelStateWriter::ChannelStateWriteResult::CreateEmpty();
 
-    CheckpointStreamFactory* storage =
+    std::shared_ptr<CheckpointStreamFactory> storage =
         checkpointStorage->resolveCheckpointStorageLocation(checkpointId, checkpointOptions->GetTargetLocation());
 
     try {
@@ -497,7 +497,7 @@ SubtaskCheckpointCoordinatorImpl::SubtaskCheckpointCoordinatorImpl(
 {
 }
 
-CheckpointStreamFactory*
+std::shared_ptr<CheckpointStreamFactory>
 SubtaskCheckpointCoordinatorImpl::CachingCheckpointStorageWorkerView::resolveCheckpointStorageLocation(
     int64_t checkpointId, std::shared_ptr<CheckpointStorageLocationReference> reference)
 {
@@ -506,7 +506,8 @@ SubtaskCheckpointCoordinatorImpl::CachingCheckpointStorageWorkerView::resolveChe
         return it->second;
     }
     try {
-        CheckpointStreamFactory* factory = delegate->resolveCheckpointStorageLocation(checkpointId, reference);
+        std::shared_ptr<CheckpointStreamFactory> factory =
+            delegate->resolveCheckpointStorageLocation(checkpointId, reference);
         cache[checkpointId] = factory;
         return factory;
     } catch (const std::exception& e) {

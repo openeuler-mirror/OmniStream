@@ -45,7 +45,7 @@ public:
         const std::shared_ptr<SnapshotResources>& snapshotResources,
         long checkpointId,
         long timestamp,
-        CheckpointStreamFactory* checkpointStreamFactory,
+        std::shared_ptr<CheckpointStreamFactory> checkpointStreamFactory,
         CheckpointOptions* checkpointOptions,
         std::string keySerializer = "") override;
 
@@ -64,7 +64,7 @@ private:
     public:
         RocksDBNativeFullSnapshotOperation(
             int64_t checkpointId,
-            CheckpointStreamFactory* checkpointStreamFactory,
+            std::shared_ptr<CheckpointStreamFactory> checkpointStreamFactory,
             std::shared_ptr<SnapshotDirectory> localBackupDirectory,
             std::vector<std::shared_ptr<StateMetaInfoSnapshot>> stateMetaInfoSnapshots,
             UUID backendUID,

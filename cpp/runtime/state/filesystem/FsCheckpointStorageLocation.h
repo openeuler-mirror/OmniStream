@@ -22,9 +22,9 @@ class FsCheckpointStorageLocation : public FsCheckpointStreamFactory {
 public:
     FsCheckpointStorageLocation(
         int fileSystem,
-        Path* checkpointDir,
-        Path* sharedStateDir,
-        Path* taskOwnedStateDir,
+        std::shared_ptr<Path> checkpointDir,
+        std::shared_ptr<Path> sharedStateDir,
+        std::shared_ptr<Path> taskOwnedStateDir,
         std::shared_ptr<CheckpointStorageLocationReference> reference,
         int fileStateSizeThreshold,
         int writeBufferSize)
@@ -46,35 +46,35 @@ public:
         }
 
         Path metadataDir = Path(*checkpointDir); // TTODO EntropyInjector.removeEntropyMarkerIfPresent
-        metadataFilePath = new Path(metadataDir, AbstractFsCheckpointStorageAccess::METADATA_FILE_NAME);
+        metadataFilePath = std::make_shared<Path>(metadataDir, AbstractFsCheckpointStorageAccess::METADATA_FILE_NAME);
     }
 
-    Path* getCheckpointDirectory()
+    std::shared_ptr<Path> getCheckpointDirectory()
     {
         return checkpointDirectory;
     }
 
-    Path* getSharedStateDirectory()
+    std::shared_ptr<Path> getSharedStateDirectory()
     {
         return sharedStateDirectory;
     }
 
-    Path* getTaskOwnedStateDirectory()
+    std::shared_ptr<Path> getTaskOwnedStateDirectory()
     {
         return taskOwnedStateDirectory;
     }
 
-    Path* getMetadataFilePath()
+    std::shared_ptr<Path> getMetadataFilePath()
     {
         return metadataFilePath;
     }
 
 private:
     int fileSystem;
-    Path* checkpointDirectory;
-    Path* sharedStateDirectory;
-    Path* taskOwnedStateDirectory;
-    Path* metadataFilePath;
+    std::shared_ptr<Path> checkpointDirectory;
+    std::shared_ptr<Path> sharedStateDirectory;
+    std::shared_ptr<Path> taskOwnedStateDirectory;
+    std::shared_ptr<Path> metadataFilePath;
     std::shared_ptr<CheckpointStorageLocationReference> reference;
     int fileStateSizeThreshold;
     int writeBufferSize;

@@ -29,7 +29,7 @@ public:
     DefaultOperatorSnapshotOperation(
         long checkpointId,
         CheckpointOptions* checkpointOptions,
-        CheckpointStreamFactory* streamFactory,
+        std::shared_ptr<CheckpointStreamFactory> streamFactory,
         std::shared_ptr<DefaultOperatorStateBackendSnapshotResources> snapshotResources)
         : checkpointId_(checkpointId),
           checkpointOptions_(checkpointOptions),
@@ -113,7 +113,7 @@ public:
 protected:
     long checkpointId_;
     CheckpointOptions* checkpointOptions_;
-    CheckpointStreamFactory* streamFactory_;
+    std::shared_ptr<CheckpointStreamFactory> streamFactory_;
     std::shared_ptr<DefaultOperatorStateBackendSnapshotResources> snapshotResources_;
 };
 

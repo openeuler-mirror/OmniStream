@@ -41,7 +41,8 @@ class CheckpointStorageTest : public CheckpointStorage {
 public:
     std::shared_ptr<CheckpointStorageAccess> createCheckpointStorage(const JobIDPOD& jobId) override
     {
-        return std::make_shared<FsCheckpointStorageAccess>(new Path(""), new Path(""), jobId, 100, 100);
+        return std::make_shared<FsCheckpointStorageAccess>(
+            std::make_shared<Path>(""), std::make_shared<Path>(""), jobId, 100, 100);
     }
 };
 

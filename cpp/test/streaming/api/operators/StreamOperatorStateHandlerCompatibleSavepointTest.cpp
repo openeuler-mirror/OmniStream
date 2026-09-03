@@ -87,7 +87,7 @@ public:
     }
 
     std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>> snapshot(
-        long, long, CheckpointStreamFactory*, CheckpointOptions*) override
+        long, long, std::shared_ptr<CheckpointStreamFactory>, CheckpointOptions*) override
     {
         snapshotCount_++;
         return std::make_shared<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>>(
