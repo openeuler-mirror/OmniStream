@@ -61,6 +61,7 @@ std::string flinkPathToString(JNIEnv* env, jobject flinkPathObj)
     if (env->ExceptionCheck()) {
         env->ExceptionDescribe();
         env->ExceptionClear();
+        env->DeleteLocalRef(pathStr);
         env->DeleteLocalRef(pathClass);
         throw std::runtime_error("Failed to call Path.getPath() method");
     }
@@ -83,6 +84,13 @@ jobject RocksDBStateUploader::addToJavaPathList(
     jclass pathsClass,
     jmethodID pathsGet)
 {
+    jclass stringClass = env->FindClass("java/lang/String");
+    if (!stringClass) {
+        env->ExceptionDescribe();
+        env->ExceptionClear();
+        ERROR_RELEASE("Failed to find java.lang.String class");
+        throw std::runtime_error("Failed to find java.lang.String class");
+    }
     for (const auto& cppPath : files) {
         // 转换为Java String
         std::string pathStr = cppPath.string();
@@ -94,7 +102,7 @@ jobject RocksDBStateUploader::addToJavaPathList(
         }
 
         // 创建空的String数组（用于可变参数）
-        jobjectArray moreParts = env->NewObjectArray(0, env->FindClass("java/lang/String"), nullptr);
+        jobjectArray moreParts = env->NewObjectArray(0, stringClass, nullptr);
         if (!moreParts) {
             env->ExceptionClear();
             env->DeleteLocalRef(javaStr);
@@ -120,6 +128,8 @@ jobject RocksDBStateUploader::addToJavaPathList(
         env->DeleteLocalRef(javaPath);
     }
 
+    env->DeleteLocalRef(stringClass);
+
     return javaList;
 }
 
@@ -141,9 +151,14 @@ jobject RocksDBStateUploader::createJavaPathList(JNIEnv* env, const std::vector<
     }
 
     jclass pathsClass = env->FindClass("java/nio/file/Paths");
+    if (!pathsClass) {
+        std::cerr << "Failed to find Paths class" << std::endl;
+        env->DeleteLocalRef(arrayListClass);
+        return nullptr;
+    }
     jmethodID pathsGet =
         env->GetStaticMethodID(pathsClass, "get", "(Ljava/lang/String;[Ljava/lang/String;)Ljava/nio/file/Path;");
-    if (!pathsClass || !pathsGet) {
+    if (!pathsGet) {
         std::cerr << "Failed to find Paths.get method" << std::endl;
         env->DeleteLocalRef(arrayListClass);
         env->DeleteLocalRef(pathsClass);
@@ -160,7 +175,15 @@ jobject RocksDBStateUploader::createJavaPathList(JNIEnv* env, const std::vector<
     }
 
     // 3. 遍历转换并添加路径
-    javaList = addToJavaPathList(env, files, javaList, arrayListAdd, pathsClass, pathsGet);
+    try {
+        javaList = addToJavaPathList(env, files, javaList, arrayListAdd, pathsClass, pathsGet);
+    } catch (...) {
+        env->DeleteLocalRef(javaList);
+        env->DeleteLocalRef(arrayListClass);
+        env->DeleteLocalRef(pathsClass);
+        ERROR_RELEASE("Failed to add paths to Java path list");
+        throw;
+    }
 
     // 4. 释放临时引用
     env->DeleteLocalRef(arrayListClass);
@@ -397,7 +420,10 @@ std::shared_ptr<StreamStateHandle> getStreamStateHandle(JNIEnv* env, jobject jHa
             case StreamStateHandleType::ByteStreamStateHandle:
                 handle = createByteStreamStateHandle(env, jHandle);
                 break;
-            default: throw std::runtime_error("Unknown StreamStateHandle type");
+            default:
+                env->DeleteLocalRef(jHandle);
+                ERROR_RELEASE("Unknown StreamStateHandle type");
+                throw std::runtime_error("Unknown StreamStateHandle type");
         }
         env->DeleteLocalRef(jHandle);
     }
@@ -475,6 +501,7 @@ std::vector<HandleAndLocalPath> convertJavaListToCppVector(JNIEnv* env, jobject 
         if (env->ExceptionCheck()) {
             env->ExceptionDescribe();
             env->ExceptionClear();
+            env->DeleteLocalRef(element);
             env->DeleteLocalRef(listClass);
             throw std::runtime_error("Failed to call List.get () method");
         }
@@ -501,10 +528,25 @@ std::vector<HandleAndLocalPath> handleCheckpointResult(
 {
     // 转换CheckpointedStateScope枚举
     jclass scopeClass = env->FindClass("org/apache/flink/runtime/state/CheckpointedStateScope");
+    if (!scopeClass) {
+        env->ExceptionDescribe();
+        env->ExceptionClear();
+        ERROR_RELEASE("Failed to find CheckpointedStateScope class");
+        throw std::runtime_error("Failed to find CheckpointedStateScope class");
+    }
     jfieldID scopeField = env->GetStaticFieldID(
         scopeClass,
         stateScope == CheckpointedStateScope::EXCLUSIVE ? "EXCLUSIVE" : "SHARED",
         "Lorg/apache/flink/runtime/state/CheckpointedStateScope;");
+    if (scopeField == nullptr || env->ExceptionCheck()) {
+        if (env->ExceptionCheck()) {
+            env->ExceptionDescribe();
+            env->ExceptionClear();
+        }
+        env->DeleteLocalRef(scopeClass);
+        ERROR_RELEASE("Failed to get CheckpointedStateScope field");
+        throw std::runtime_error("Failed to get CheckpointedStateScope field");
+    }
     jobject jStateScope = env->GetStaticObjectField(scopeClass, scopeField);
 
     // 转换CloseableRegistry
@@ -512,6 +554,8 @@ std::vector<HandleAndLocalPath> handleCheckpointResult(
     if (env->ExceptionCheck()) {
         env->ExceptionDescribe();
         env->ExceptionClear();
+        env->DeleteLocalRef(scopeClass);
+        env->DeleteLocalRef(jStateScope);
         throw std::runtime_error("Failed to find CloseableRegistry class");
     }
     jmethodID closeableCtor = env->GetMethodID(closeableClass, "<init>", "()V");
@@ -585,28 +629,47 @@ std::vector<HandleAndLocalPath> RocksDBStateUploader::callUploadFilesToCheckpoin
     if (env->ExceptionCheck()) {
         env->ExceptionDescribe();
         env->ExceptionClear();
+        env->DeleteLocalRef(uploaderClass);
         throw std::runtime_error("Failed to NewObject");
     }
 
-    // 3. 准备方法参数
-    jobject javaFiles = createJavaPathList(env, files);
+    jobject javaFiles = nullptr;
+    auto cleanupLocalRefs = [&]() {
+        if (javaFiles != nullptr) {
+            env->DeleteLocalRef(javaFiles);
+            javaFiles = nullptr;
+        }
+        if (uploaderInstance != nullptr) {
+            env->DeleteLocalRef(uploaderInstance);
+            uploaderInstance = nullptr;
+        }
+        if (uploaderClass != nullptr) {
+            env->DeleteLocalRef(uploaderClass);
+            uploaderClass = nullptr;
+        }
+    };
 
-    auto chkResult =
-        handleCheckpointResult(env, stateScope, uploaderClass, uploaderInstance, javaFiles, jCheckpointStreamFactory);
+    try {
+        // 3. 准备方法参数
+        javaFiles = createJavaPathList(env, files);
+        auto chkResult = handleCheckpointResult(
+            env, stateScope, uploaderClass, uploaderInstance, javaFiles, jCheckpointStreamFactory);
 
-    // 7. 释放局部引用
-    env->DeleteLocalRef(uploaderClass);
-    env->DeleteLocalRef(uploaderInstance);
-    env->DeleteLocalRef(javaFiles);
+        // 检查JNI调用异常
+        if (env->ExceptionCheck()) {
+            env->ExceptionDescribe();
+            env->ExceptionClear();
+            ERROR_RELEASE("Exception occurred during RocksDBStateUploader JNI call");
+            throw std::runtime_error("Exception occurred during JNI call");
+        }
 
-    // 检查JNI调用异常
-    if (env->ExceptionCheck()) {
-        env->ExceptionDescribe();
-        env->ExceptionClear();
-        throw std::runtime_error("Exception occurred during JNI call");
+        cleanupLocalRefs();
+        return chkResult;
+    } catch (...) {
+        cleanupLocalRefs();
+        ERROR_RELEASE("Failed to upload RocksDB state files to checkpoint filesystem");
+        throw;
     }
-
-    return chkResult;
 }
 
 std::vector<HandleAndLocalPath> RocksDBStateUploader::callUploadFilesToCheckpointFs(
