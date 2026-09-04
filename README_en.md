@@ -1,5 +1,7 @@
 # Introduction to OmniStream<a name="ZH-CN_TOPIC_0000002549521549"></a>
 
+English | [简体中文](README.md)
+
 ## Latest Updates<a name="ZH-CN_TOPIC_0000002517961774"></a>
 
 - \[2026-06-30\]: Released OmniStream 1.3.0. Added the following support in SQL scenarios: WindowAgg and WindowJoin operators are supported. The Calc operator supports UDF registration, as well as built-in functions such as JSON_VALUE, JSON_QUERY, COALESCE, PROCTIME_MATERIALIZE, CHAR_LENGTH, and TO_TIMESTAMP_LTZ. The Calc operator also supports data types including INTEGER and TIMESTAMP_WITH_LOCAL_TIMEZONE(3).

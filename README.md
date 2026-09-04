@@ -1,7 +1,10 @@
 # OmniStream介绍<a name="ZH-CN_TOPIC_0000002549521549"></a>
 
+[English](README_en.md) | 简体中文
+
 ## 最新消息<a name="ZH-CN_TOPIC_0000002517961774"></a>
 
+- \[2026.09.30\]：发布OmniStream 1.4.0。支持checkpoint/savepoint；SQL场景下，支持Join/Deduplicate/Rank算子通过canonical格式的savepoint与Flink进行作业切换。
 - \[2026.06.30\]：发布OmniStream 1.3.0。在SQL场景中，支持WindowAgg、WindowJoin算子，Calc算子支持UDF函数注册，Calc算子支持JSON_VALUE、JSON_QUERY、COALESCE、PROCTIME_MATERIALIZE、CHAR_LENGTH、TO_TIMESTAMP_LTZ内置函数，Calc算子支持INTEGER、TIMESTAMP_WITH_LOCAL_TIMEZONE(3)数据类型。
 - \[2026.03.30\]：发布OmniStream 1.2.0。增加UDF翻译工具所使用依赖的头文件安装内容，在有状态场景下使能OmniStateStore加速特性。
 - \[2025.12.30\]：发布OmniStream 1.1.0。在SQL场景中，新增支持task级别算子回退机制；在DataStream场景中，KeyedCoProcess算子支持checkpoint、restore。
