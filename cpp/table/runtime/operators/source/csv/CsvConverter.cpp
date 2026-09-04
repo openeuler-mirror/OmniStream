@@ -57,7 +57,10 @@ bool isCsvNullValue(const std::string& value, const CsvSchema& schema)
 // integer must be <= precision (0 has precision 1). Throws out_of_range on overflow.
 void EnsureDecimalPrecision(const std::string& unscaledAbs, int32_t precision)
 {
-    if (precision <= 0 || unscaledAbs.empty()) {
+    if (unscaledAbs.empty()) {
+        throw std::invalid_argument("empty unscaled decimal");
+    }
+    if (precision <= 0) {
         return;
     }
     size_t start = 0;
@@ -94,7 +97,7 @@ std::string BuildUnscaledAbs(const std::string& value, int32_t scale, bool& nega
     }
     std::string unscaledAbs = intPart + fracPart;
     if (unscaledAbs.empty()) {
-        unscaledAbs = "0";
+        throw std::invalid_argument("invalid decimal literal: " + value);
     }
     return unscaledAbs;
 }
