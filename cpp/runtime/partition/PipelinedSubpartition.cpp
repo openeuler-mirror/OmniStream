@@ -16,6 +16,7 @@
 #include "io/network/api/serialization/EventSerializer.h"
 #include "PipelinedSubpartition.h"
 
+#include "buffer/ReadOnlySlicedVectorBatchBuffer.h"
 #include "runtime/buffer/ObjectBufferRecycler.h"
 #include "runtime/buffer/ObjectSegment.h"
 #include "event/EndOfPartitionEvent.h"
@@ -569,11 +570,17 @@ bool PipelinedSubpartition::ProcessPriorityBuffer(
             for (const auto& current : elements) {
                 auto buffer = current->getBufferConsumer();
                 if (buffer->isBuffer()) {
-                    Buffer* inflightbuffer = buffer->buildForPeek();
-                    if (inflightbuffer == nullptr || inflightbuffer->GetSize() == 0) {
-                        LOG("writeOutput buffers is null ");
+                    auto inflightbuffer = std::unique_ptr<Buffer>(buffer->buildForPeek());
+                    if (inflightbuffer == nullptr) {
+                        WARN_RELEASE("inflightbuffer is nullptr");
                         continue;
                     }
+                    if (inflightbuffer->GetSize() == 0) {
+                        WARN_RELEASE("inflightbuffer size is 0");
+                        inflightbuffer->RecycleBuffer();
+                        continue;
+                    }
+
                     Segment* segment = inflightbuffer->GetSegment();
                     if (segment->isObjectSegment()) {
                         ObjectSegment* newSegment = new ObjectSegment(inflightbuffer->GetSize());
@@ -586,16 +593,16 @@ bool PipelinedSubpartition::ProcessPriorityBuffer(
                         } catch (...) {
                             delete newSegment;
                             inflightbuffer->RecycleBuffer();
-                            delete inflightbuffer;
                             throw;
                         }
                         auto* copiedBuffer =
                             new VectorBatchBuffer(newSegment, std::make_shared<DeepCopiedObjectBufferRecycler>());
-                        copiedBuffer->SetSize(inflightbuffer->GetSize());
+                        auto readOnlyCopiedBuffer =
+                            new ReadOnlySlicedVectorBatchBuffer(copiedBuffer, 0, inflightbuffer->GetSize());
                         inflightbuffer->RecycleBuffer();
-                        inflightBuffers.push_back(copiedBuffer);
+                        inflightBuffers.push_back(readOnlyCopiedBuffer);
                     } else {
-                        inflightBuffers.push_back(inflightbuffer);
+                        inflightBuffers.push_back(inflightbuffer.release());
                     }
                 }
             }
