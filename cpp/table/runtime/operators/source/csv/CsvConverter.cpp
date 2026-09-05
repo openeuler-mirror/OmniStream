@@ -53,15 +53,35 @@ bool isCsvNullValue(const std::string& value, const CsvSchema& schema)
     return isDefaultNullLiteral(value);
 }
 
-long parseDecimal64ToUnscaledLong(const std::string& value, int32_t scale)
+// Aligns with Flink DecimalData.fromBigDecimal: significant digits of the unscaled
+// integer must be <= precision (0 has precision 1). Throws out_of_range on overflow.
+void EnsureDecimalPrecision(const std::string& unscaledAbs, int32_t precision)
+{
+    if (unscaledAbs.empty()) {
+        throw std::invalid_argument("empty unscaled decimal");
+    }
+    if (precision <= 0) {
+        return;
+    }
+    size_t start = 0;
+    while (start + 1 < unscaledAbs.size() && unscaledAbs[start] == '0') {
+        ++start;
+    }
+    if (static_cast<int32_t>(unscaledAbs.size() - start) > precision) {
+        throw std::out_of_range("decimal precision overflow");
+    }
+}
+
+std::string BuildUnscaledAbs(const std::string& value, int32_t scale, bool& negative)
 {
     std::string valueStr = value;
-    bool negative = false;
+    negative = false;
     if (!valueStr.empty() && valueStr[0] == '-') {
         negative = true;
         valueStr = valueStr.substr(1);
     }
-    std::string intPart, fracPart;
+    std::string intPart;
+    std::string fracPart;
     size_t dotPos = valueStr.find('.');
     if (dotPos != std::string::npos) {
         intPart = valueStr.substr(0, dotPos);
@@ -75,40 +95,34 @@ long parseDecimal64ToUnscaledLong(const std::string& value, int32_t scale)
     } else if (static_cast<int32_t>(fracPart.length()) > scale) {
         fracPart = fracPart.substr(0, scale);
     }
-    long unscaledValue = std::stol(intPart + fracPart);
+    std::string unscaledAbs = intPart + fracPart;
+    if (unscaledAbs.empty()) {
+        throw std::invalid_argument("invalid decimal literal: " + value);
+    }
+    return unscaledAbs;
+}
+
+long parseDecimal64ToUnscaledLong(const std::string& value, int32_t precision, int32_t scale)
+{
+    bool negative = false;
+    std::string unscaledAbs = BuildUnscaledAbs(value, scale, negative);
+    EnsureDecimalPrecision(unscaledAbs, precision);
+    long unscaledValue = std::stol(unscaledAbs);
     if (negative) {
         unscaledValue = -unscaledValue;
     }
     return unscaledValue;
 }
 
-Decimal128 parseDecimal128ToValue(const std::string& value, int32_t scale)
+Decimal128 parseDecimal128ToValue(const std::string& value, int32_t precision, int32_t scale)
 {
-    std::string valueStr = value;
     bool negative = false;
-    if (!valueStr.empty() && valueStr[0] == '-') {
-        negative = true;
-        valueStr = valueStr.substr(1);
-    }
-    std::string intPart, fracPart;
-    size_t dotPos = valueStr.find('.');
-    if (dotPos != std::string::npos) {
-        intPart = valueStr.substr(0, dotPos);
-        fracPart = valueStr.substr(dotPos + 1);
-    } else {
-        intPart = valueStr;
-        fracPart = "";
-    }
-    if (static_cast<int32_t>(fracPart.length()) < scale) {
-        fracPart += std::string(scale - fracPart.length(), '0');
-    } else if (static_cast<int32_t>(fracPart.length()) > scale) {
-        fracPart = fracPart.substr(0, scale);
-    }
-    std::string unscaledStr = intPart + fracPart;
+    std::string unscaledAbs = BuildUnscaledAbs(value, scale, negative);
+    EnsureDecimalPrecision(unscaledAbs, precision);
     if (negative) {
-        unscaledStr = "-" + unscaledStr;
+        unscaledAbs = "-" + unscaledAbs;
     }
-    return Decimal128(std::string_view(unscaledStr));
+    return Decimal128(std::string_view(unscaledAbs));
 }
 
 } // namespace
@@ -170,8 +184,9 @@ BinaryRowData* CsvConverter::convert(const CsvRow& csvRow)
         } else if (type == omniruntime::type::DataTypeId::OMNI_DECIMAL64) {
             LOG("CsvConverter: Converting value '" << value << "' to decimal64 for column " << i);
             try {
+                int32_t precision = schema.getPrecisionAtIdx(i);
                 int32_t scale = schema.getScaleAtIdx(i);
-                rowData->setLong(i, parseDecimal64ToUnscaledLong(value, scale));
+                rowData->setLong(i, parseDecimal64ToUnscaledLong(value, precision, scale));
             } catch (const std::invalid_argument& e) {
                 LOG("CsvConverter: Invalid decimal64 value '" << value << "' for column " << i << ", setting it as null.");
                 rowData->setNullAt(i);
@@ -183,8 +198,9 @@ BinaryRowData* CsvConverter::convert(const CsvRow& csvRow)
         } else if (type == omniruntime::type::DataTypeId::OMNI_DECIMAL128) {
             LOG("CsvConverter: Converting value '" << value << "' to decimal128 for column " << i);
             try {
+                int32_t precision = schema.getPrecisionAtIdx(i);
                 int32_t scale = schema.getScaleAtIdx(i);
-                Decimal128 decimalValue = parseDecimal128ToValue(value, scale);
+                Decimal128 decimalValue = parseDecimal128ToValue(value, precision, scale);
                 rowData->setDecimal128(i, decimalValue.LowBits(), decimalValue.HighBits());
             } catch (const std::invalid_argument& e) {
                 LOG("CsvConverter: Invalid decimal128 value '" << value << "' for column " << i << ", setting it as null.");
@@ -281,11 +297,19 @@ omnistream::VectorBatch* CsvConverter::convert(std::vector<CsvRow>& csvRows, std
     auto vectorBatch = omnistream::VectorBatch::CreateVectorBatch(csvRows.size(), newVecBatchTypes);
     for (size_t i = 0; i < oneMap.size(); i++) {
         if (newVecBatchTypes[i] == DataTypeId::OMNI_DECIMAL64) {
+            int32_t precision = csvRows[0].getSchema().getPrecisionAtIdx(oneMap[i]);
             int32_t scale = csvRows[0].getSchema().getScaleAtIdx(oneMap[i]);
-            vectorBatch->Get(i)->SetDataType(std::make_shared<Decimal64DataType>(18, scale));
+            if (precision <= 0) {
+                precision = DECIMAL64_DEFAULT_PRECISION;
+            }
+            vectorBatch->Get(i)->SetDataType(std::make_shared<Decimal64DataType>(precision, scale));
         } else if (newVecBatchTypes[i] == DataTypeId::OMNI_DECIMAL128) {
+            int32_t precision = csvRows[0].getSchema().getPrecisionAtIdx(oneMap[i]);
             int32_t scale = csvRows[0].getSchema().getScaleAtIdx(oneMap[i]);
-            vectorBatch->Get(i)->SetDataType(std::make_shared<Decimal128DataType>(38, scale));
+            if (precision <= 0) {
+                precision = DECIMAL128_DEFAULT_PRECISION;
+            }
+            vectorBatch->Get(i)->SetDataType(std::make_shared<Decimal128DataType>(precision, scale));
         }
     }
     // Put data
@@ -369,8 +393,10 @@ omnistream::VectorBatch* CsvConverter::convert(std::vector<CsvRow>& csvRows, std
                 }
                 case omniruntime::type::DataTypeId::OMNI_DECIMAL64: {
                     try {
+                        int32_t precision = schema.getPrecisionAtIdx(csvFieldIndex);
                         int32_t scale = schema.getScaleAtIdx(csvFieldIndex);
-                        vectorBatch->SetValueAt(colIndex, rowIndex, parseDecimal64ToUnscaledLong(nodeValue, scale));
+                        vectorBatch->SetValueAt(colIndex, rowIndex,
+                            parseDecimal64ToUnscaledLong(nodeValue, precision, scale));
                     } catch (const std::invalid_argument& e) {
                         vectorBatch->Get(colIndex)->SetNull(rowIndex);
                     } catch (const std::out_of_range& e) {
@@ -380,8 +406,9 @@ omnistream::VectorBatch* CsvConverter::convert(std::vector<CsvRow>& csvRows, std
                 }
                 case omniruntime::type::DataTypeId::OMNI_DECIMAL128: {
                     try {
+                        int32_t precision = schema.getPrecisionAtIdx(csvFieldIndex);
                         int32_t scale = schema.getScaleAtIdx(csvFieldIndex);
-                        Decimal128 decimalValue = parseDecimal128ToValue(nodeValue, scale);
+                        Decimal128 decimalValue = parseDecimal128ToValue(nodeValue, precision, scale);
                         vectorBatch->SetValueAt(colIndex, rowIndex, decimalValue);
                     } catch (const std::invalid_argument& e) {
                         vectorBatch->Get(colIndex)->SetNull(rowIndex);

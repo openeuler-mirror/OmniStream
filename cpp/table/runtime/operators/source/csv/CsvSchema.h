@@ -33,6 +33,7 @@ public:
         hasNullValue_ = false;
         nullValue_ = "";
         scales_.resize(arity_, 0);
+        precisions_.resize(arity_, 0);
     }
 
     // Setter methods
@@ -136,6 +137,24 @@ public:
         return scales_[idx];
     }
 
+    void setPrecisions(const std::vector<int32_t>& precisions)
+    {
+        precisions_ = precisions;
+    }
+
+    std::vector<int32_t> getPrecisions() const
+    {
+        return precisions_;
+    }
+
+    int32_t getPrecisionAtIdx(int idx) const
+    {
+        if (idx < 0 || static_cast<size_t>(idx) >= precisions_.size()) {
+            return 0;
+        }
+        return precisions_[idx];
+    }
+
 private:
     char columnSeparator_;
     char quoteChar_;
@@ -148,6 +167,7 @@ private:
     int arity_;
     std::vector<omniruntime::type::DataTypeId> types_;
     std::vector<int32_t> scales_;
+    std::vector<int32_t> precisions_;
 };
 
 } // namespace csv
