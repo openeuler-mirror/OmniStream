@@ -158,9 +158,14 @@ BinaryRowData* CsvConverter::convert(const CsvRow& csvRow)
         } else if (type == omniruntime::type::DataTypeId::OMNI_BOOLEAN) {
             LOG("CsvConverter: Converting value '" << value << "' to boolean for column " << i);
             try {
-                std::string lower = value;
-                std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
-                if (lower == "true") {
+                std::string trimmed = value;
+                trimmed.erase(trimmed.begin(), std::find_if(trimmed.begin(), trimmed.end(),
+                    [](unsigned char ch) { return !::isspace(ch); }));
+                trimmed.erase(std::find_if(trimmed.rbegin(), trimmed.rend(),
+                    [](unsigned char ch) { return !::isspace(ch); }).base(), trimmed.end());
+                std::transform(trimmed.begin(), trimmed.end(), trimmed.begin(),
+                    [](unsigned char ch) { return static_cast<char>(::tolower(ch)); });
+                if (trimmed == "true") {
                     rowData->setBool(i, true);
                 } else {
                     rowData->setBool(i, false); //不能识别的也默认false，不报错
@@ -362,13 +367,16 @@ omnistream::VectorBatch* CsvConverter::convert(std::vector<CsvRow>& csvRows, std
                     try {
                         LOG("CsvConverter: Converting value '" << nodeValue << "' to boolean for column " << colIndex
                                                             << " in row " << rowIndex);
-                        std::string lower = nodeValue;
-                        std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
-                        bool boolVal;
-                        if (lower == "true") {
+                        bool boolVal = false;
+                        std::string trimmed = nodeValue;
+                        trimmed.erase(trimmed.begin(), std::find_if(trimmed.begin(), trimmed.end(),
+                            [](unsigned char ch) { return !::isspace(ch); }));
+                        trimmed.erase(std::find_if(trimmed.rbegin(), trimmed.rend(),
+                            [](unsigned char ch) { return !::isspace(ch); }).base(), trimmed.end());
+                        std::transform(trimmed.begin(), trimmed.end(), trimmed.begin(),
+                            [](unsigned char ch) { return static_cast<char>(::tolower(ch)); });
+                        if (trimmed == "true") {
                             boolVal = true;
-                        } else {
-                            boolVal = false; //那些不能识别的都默认false，不报错
                         }
                         vectorBatch->SetValueAt(colIndex, rowIndex, boolVal);
                     } catch (const std::invalid_argument& e) {
