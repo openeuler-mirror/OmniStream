@@ -193,7 +193,7 @@ void ChannelStateWriteRequestDispatcherImpl::failAndClearWriter(
     const JobVertexID& jvid, int idx, const std::exception_ptr& e)
 {
     std::shared_ptr<ChannelStateCheckpointWriter> writer = nullptr;
-    auto it = writers.find(idx);
+    auto it = writers.find(ongoingCheckpointId);
     if (it != writers.end()) {
         writer = it->second;
     }
