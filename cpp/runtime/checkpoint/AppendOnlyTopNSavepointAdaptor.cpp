@@ -51,7 +51,8 @@ void AppendOnlyTopNSavepointAdaptor::prepareForSave(const nlohmann::json& operat
     }
     sortKeySelector_ = KeySelector<RowData*>(sortKeyTypeIds_, sortKeyIndices_);
 
-    rowSerializer_ = std::make_unique<RowDataSerializer>(new omnistream::RowType(false, compatibleColumnTypes_));
+    omnistream::RowType rowType(false, compatibleColumnTypes_);
+    rowSerializer_ = std::make_unique<RowDataSerializer>(&rowType);
 }
 
 void AppendOnlyTopNSavepointAdaptor::prepareForRestore(const nlohmann::json& operatorDescription)
@@ -64,7 +65,8 @@ void AppendOnlyTopNSavepointAdaptor::prepareForRestore(const nlohmann::json& ope
     }
     sortKeySelector_ = KeySelector<RowData*>(sortKeyTypeIds_, sortKeyIndices_);
 
-    rowSerializer_ = std::make_unique<RowDataSerializer>(new omnistream::RowType(false, compatibleColumnTypes_));
+    omnistream::RowType rowType(false, compatibleColumnTypes_);
+    rowSerializer_ = std::make_unique<RowDataSerializer>(&rowType);
 }
 
 void AppendOnlyTopNSavepointAdaptor::validateForSave(
@@ -378,10 +380,12 @@ std::shared_ptr<StateMetaInfoSnapshot> AppendOnlyTopNSavepointAdaptor::buildFlin
 
     // key
     std::vector<std::string> typeNames = {compatibleColumnTypes_[sortKeyIndices_[0]]};
-    auto keyRowSerializer = std::make_unique<RowDataSerializer>(new omnistream::RowType(false, typeNames));
+    omnistream::RowType keyRowType(false, typeNames);
+    auto keyRowSerializer = std::make_unique<RowDataSerializer>(&keyRowType);
 
     // value
-    auto valRowSerializer = std::make_unique<RowDataSerializer>(new omnistream::RowType(false, compatibleColumnTypes_));
+    omnistream::RowType valRowType(false, compatibleColumnTypes_);
+    auto valRowSerializer = std::make_unique<RowDataSerializer>(&valRowType);
     auto listSerializer = std::make_unique<ListSerializer>(valRowSerializer.release());
 
     stateSerializer_ = std::make_unique<MapSerializer>(keyRowSerializer.release(), listSerializer.release());
