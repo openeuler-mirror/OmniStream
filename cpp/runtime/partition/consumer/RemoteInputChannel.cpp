@@ -376,7 +376,6 @@ std::vector<Buffer*> RemoteInputChannel::GetInflightVectorBatchBuffersUnsafe(lon
         for (Buffer* buffer : inflightBuffers) {
             if (buffer != nullptr) {
                 buffer->RecycleBuffer();
-                delete buffer;
             }
         }
         throw;
@@ -405,6 +404,7 @@ std::vector<Buffer*> RemoteInputChannel::GetInflightBuffersUnsafe(long checkpoin
         if (readOnlyBuffer->isBuffer()) {
             if (bufferLength > IO_SIZE_512M) {
                 INFO_RELEASE("Error: invalid buffer size:" << bufferLength);
+                tmpQueue.pop();
                 continue;
             }
             uint8_t* bufferAddress = new uint8_t[bufferLength];

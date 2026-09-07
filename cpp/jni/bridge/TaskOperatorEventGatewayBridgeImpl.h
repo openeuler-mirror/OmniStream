@@ -18,6 +18,28 @@ public:
     {
         this->m_globalTaskOperatorEventGateWayRef = m_globalTaskOperatorEventGateWayRef;
     }
+    ~TaskOperatorEventGatewayBridgeImpl() override
+    {
+        if (m_globalTaskOperatorEventGateWayRef == nullptr || g_OmniStreamJVM == nullptr) {
+            return;
+        }
+        JNIEnv* env = nullptr;
+        bool attachedHere = false;
+        jint ret = g_OmniStreamJVM->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_8);
+        if (ret == JNI_EDETACHED) {
+            if (g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr) != JNI_OK) {
+                return;
+            }
+            attachedHere = true;
+        } else if (ret != JNI_OK || env == nullptr) {
+            return;
+        }
+        env->DeleteGlobalRef(m_globalTaskOperatorEventGateWayRef);
+        m_globalTaskOperatorEventGateWayRef = nullptr;
+        if (attachedHere) {
+            g_OmniStreamJVM->DetachCurrentThread();
+        }
+    }
     void sendOperatorEventToCoordinator(std::string operatorid, std::string event) override
     {
         JNIEnv* env;

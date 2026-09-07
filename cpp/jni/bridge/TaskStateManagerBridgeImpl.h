@@ -22,7 +22,28 @@ public:
     {
         this->m_globalTaskStateMgrRef = mGlobalTaskStateMgrRef;
     }
-    // ~TaskStateManagerBridgeImpl() override;
+    ~TaskStateManagerBridgeImpl() override
+    {
+        if (m_globalTaskStateMgrRef == nullptr || g_OmniStreamJVM == nullptr) {
+            return;
+        }
+        JNIEnv* env = nullptr;
+        bool attachedHere = false;
+        jint ret = g_OmniStreamJVM->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_8);
+        if (ret == JNI_EDETACHED) {
+            if (g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr) != JNI_OK) {
+                return;
+            }
+            attachedHere = true;
+        } else if (ret != JNI_OK || env == nullptr) {
+            return;
+        }
+        env->DeleteGlobalRef(m_globalTaskStateMgrRef);
+        m_globalTaskStateMgrRef = nullptr;
+        if (attachedHere) {
+            g_OmniStreamJVM->DetachCurrentThread();
+        }
+    }
     void ReportTaskStateSnapshots(
         std::string& checkpointMetaDataJson,
         std::string& checkpointMetricsJson,
