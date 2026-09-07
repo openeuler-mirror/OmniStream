@@ -12,6 +12,7 @@
 #include <memory>
 
 #include "ChannelStateCheckpointWriter.h"
+#include "CheckpointBufferUtils.h"
 #include "ChannelStateWriter.h"
 #include "state/filesystem/FileStateHandle.h"
 namespace omnistream {
@@ -81,21 +82,21 @@ void ChannelStateCheckpointWriter::WriteInput(
     const JobVertexID& jvid, int subtaskIndex, const InputChannelInfo& info, Buffer* buffer)
 {
     if (IsDone()) {
-        buffer->RecycleBuffer();
+        ReleaseCheckpointBuffer(buffer);
         return;
     }
 
     ChannelStatePendingResult* pending = GetChannelStatePendingResult(jvid, subtaskIndex);
     Write(pending->GetInputChannelOffsets(), info, buffer, !pending->IsAllInputsReceived(), "ChannelState#WriteInput");
 
-    buffer->RecycleBuffer();
+    ReleaseCheckpointBuffer(buffer);
 }
 
 void ChannelStateCheckpointWriter::WriteOutput(
     const JobVertexID& jvid, int subtaskIndex, const ResultSubpartitionInfoPOD& info, Buffer* buffer)
 {
     if (IsDone()) {
-        buffer->RecycleBuffer();
+        ReleaseCheckpointBuffer(buffer);
         return;
     }
 
@@ -106,7 +107,7 @@ void ChannelStateCheckpointWriter::WriteOutput(
         buffer,
         !pending->IsAllOutputsReceived(),
         "ChannelState#WriteOutput");
-    buffer->RecycleBuffer();
+    ReleaseCheckpointBuffer(buffer);
 }
 
 void ChannelStateCheckpointWriter::CompleteInput(const JobVertexID& jvid, int subtaskIndex)

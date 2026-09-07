@@ -9,6 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "ChannelStateWriteRequest.h"
+#include "CheckpointBufferUtils.h"
 
 namespace omnistream {
 
@@ -99,7 +100,7 @@ std::shared_ptr<ChannelStateWriteRequest> ChannelStateWriteRequest::writeInput(
         [buffers](const std::exception_ptr&) {
             for (auto* buffer : buffers) {
                 if (buffer) {
-                    buffer->RecycleBuffer();
+                    ReleaseCheckpointBuffer(buffer);
                 }
             }
         });
@@ -127,7 +128,7 @@ std::shared_ptr<ChannelStateWriteRequest> ChannelStateWriteRequest::writeOutput(
         [buffers](const std::exception_ptr&) {
             for (auto* buffer : buffers) {
                 if (buffer) {
-                    buffer->RecycleBuffer();
+                    ReleaseCheckpointBuffer(buffer);
                 }
             }
         });
@@ -162,7 +163,7 @@ std::shared_ptr<ChannelStateWriteRequest> ChannelStateWriteRequest::writeOutputF
                 auto buffers = dataFuture->GetNow({});
                 for (auto* buffer : buffers) {
                     if (buffer) {
-                        buffer->RecycleBuffer();
+                        ReleaseCheckpointBuffer(buffer);
                     }
                 }
             }

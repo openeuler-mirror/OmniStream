@@ -376,7 +376,6 @@ std::vector<Buffer*> RemoteInputChannel::GetInflightVectorBatchBuffersUnsafe(lon
         for (Buffer* buffer : inflightBuffers) {
             if (buffer != nullptr) {
                 buffer->RecycleBuffer();
-                delete buffer;
             }
         }
         throw;

@@ -16,12 +16,14 @@
 #include "io/network/api/serialization/EventSerializer.h"
 #include "PipelinedSubpartition.h"
 
+#include "buffer/ReadOnlySlicedNetworkBuffer.h"
 #include "buffer/ReadOnlySlicedVectorBatchBuffer.h"
 #include "runtime/buffer/ObjectBufferRecycler.h"
 #include "runtime/buffer/ObjectSegment.h"
 #include "event/EndOfPartitionEvent.h"
 #include "event/EndOfChannelStateEvent.h"
 #include "checkpoint/channel/ChannelStateWriter.h"
+#include "checkpoint/channel/CheckpointBufferUtils.h"
 #include "runtime/buffer/VectorBatchBuffer.h"
 
 namespace omnistream {
@@ -597,10 +599,9 @@ bool PipelinedSubpartition::ProcessPriorityBuffer(
                         }
                         auto* copiedBuffer =
                             new VectorBatchBuffer(newSegment, std::make_shared<DeepCopiedObjectBufferRecycler>());
-                        auto readOnlyCopiedBuffer =
-                            new ReadOnlySlicedVectorBatchBuffer(copiedBuffer, 0, inflightbuffer->GetSize());
+                        copiedBuffer->SetSize(inflightbuffer->GetSize());
                         inflightbuffer->RecycleBuffer();
-                        inflightBuffers.push_back(readOnlyCopiedBuffer);
+                        inflightBuffers.push_back(copiedBuffer);
                     } else {
                         inflightBuffers.push_back(inflightbuffer.release());
                     }
@@ -610,8 +611,7 @@ bool PipelinedSubpartition::ProcessPriorityBuffer(
             // Ownership has not been transferred to channelStateWriter_.
             for (Buffer* buffer : inflightBuffers) {
                 if (buffer != nullptr) {
-                    buffer->RecycleBuffer();
-                    delete buffer;
+                    ReleaseCheckpointBuffer(buffer);
                 }
             }
             throw;
