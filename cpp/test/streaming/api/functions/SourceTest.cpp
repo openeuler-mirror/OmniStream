@@ -7,6 +7,11 @@
 #include "datagen/nexmark/generator/NexmarkGenerator.h"
 #include "datagen/nexmark/NexmarkSourceFunction.h"
 #include "core/typeinfo/TypeInfoFactory.h"
+#include "core/api/common/state/ListStateDescriptor.h"
+#include "core/typeutils/LongSerializer.h"
+#include "runtime/state/DefaultOperatorStateBackend.h"
+#include "runtime/state/DefaultOperatorStateBackendBuilder.h"
+#include "runtime/state/StateInitializationContextImpl.h"
 #include "streaming/api/operators/StreamingRuntimeContext.h"
 #include "runtime/taskmanager/OmniRuntimeEnvironment.h"
 
@@ -22,6 +27,7 @@ public:
             std::lock_guard<std::mutex> guard(collectMutex);
             reUseRecord = element;
             hasCollected = true;
+            collectCount++;
         }
         collectCondition.notify_all();
     }
@@ -57,6 +63,11 @@ public:
         return collectCondition.wait_for(guard, timeout, [this]() { return hasCollected; });
     }
 
+    int getCollectCount() const
+    {
+        return collectCount;
+    }
+
     void* reUseRecord;
     Object* lock;
 
@@ -64,7 +75,31 @@ private:
     std::mutex collectMutex;
     std::condition_variable collectCondition;
     bool hasCollected = false;
+    int collectCount = 0;
 };
+
+namespace {
+std::unique_ptr<DefaultOperatorStateBackend> CreateOperatorStateBackend()
+{
+    DefaultOperatorStateBackendBuilder builder(false, "nexmark-source-test", {}, nullptr, nullptr);
+    return std::unique_ptr<DefaultOperatorStateBackend>(static_cast<DefaultOperatorStateBackend*>(builder.build()));
+}
+
+std::shared_ptr<ListState<long>> GetNexmarkOffsetState(DefaultOperatorStateBackend* backend)
+{
+    std::string stateName = "elements-count-state";
+    auto* descriptor = new ListStateDescriptor<long>(stateName, new LongSerializer());
+    return backend->getListState<long>(descriptor);
+}
+
+void SetRuntimeContext(NexmarkSourceFunction<omnistream::VectorBatch>& source)
+{
+    auto* runtimeEnv = new omnistream::RuntimeEnvironmentV2();
+    auto* runtimeCtx = new StreamingRuntimeContext<int>();
+    runtimeCtx->setEnvironment(runtimeEnv);
+    source.setRuntimeContext(runtimeCtx);
+}
+} // namespace
 
 TEST(SourceTest, NexmarkDataGeneratorTest)
 {
@@ -138,4 +173,60 @@ TEST(SourceTest, NexmarkCancelInterruptsEventRateWait)
     const auto cancelDuration = std::chrono::steady_clock::now() - cancelStart;
 
     EXPECT_LT(cancelDuration, std::chrono::seconds(1));
+}
+
+TEST(SourceTest, NexmarkCheckpointCommitsOnlyCompleteBatches)
+{
+    constexpr int batchSize = 10;
+    NexmarkConfiguration nexmarkConfig;
+    GeneratorConfig config{nexmarkConfig, 1740182400000, 0, 3, 0};
+    NexmarkSourceFunction<omnistream::VectorBatch> source{
+        config, new BatchEventDeserializer(batchSize), TypeInfoFactory::createTypeInfo("String")};
+    SetRuntimeContext(source);
+
+    auto backend = CreateOperatorStateBackend();
+    StateInitializationContextImpl initializationContext(
+        std::optional<uint64_t>{}, backend.get(), static_cast<DefaultKeyedStateStore<int>*>(nullptr));
+    source.initializeState(&initializationContext);
+    source.open(Configuration());
+
+    thread_local Object lock;
+    DummySourceContext sourceContext(&lock);
+    source.run(&sourceContext);
+    source.snapshotState(nullptr);
+
+    auto values = GetNexmarkOffsetState(backend.get())->get();
+    ASSERT_EQ(values->size(), 1);
+    EXPECT_EQ(values->at(0), 0);
+    EXPECT_EQ(sourceContext.getCollectCount(), 0);
+}
+
+TEST(SourceTest, NexmarkOpenPreservesRestoredGeneratorOffset)
+{
+    constexpr int batchSize = 10;
+    NexmarkConfiguration nexmarkConfig;
+    GeneratorConfig config{nexmarkConfig, 1740182400000, 0, 20, 0};
+    NexmarkSourceFunction<omnistream::VectorBatch> source{
+        config, new BatchEventDeserializer(batchSize), TypeInfoFactory::createTypeInfo("String")};
+    SetRuntimeContext(source);
+
+    auto backend = CreateOperatorStateBackend();
+    auto offsetState = GetNexmarkOffsetState(backend.get());
+    long restoredOffset = 10;
+    offsetState->add(restoredOffset);
+    StateInitializationContextImpl initializationContext(
+        std::optional<uint64_t>{1}, backend.get(), static_cast<DefaultKeyedStateStore<int>*>(nullptr));
+
+    source.initializeState(&initializationContext);
+    source.open(Configuration());
+
+    thread_local Object lock;
+    DummySourceContext sourceContext(&lock);
+    source.run(&sourceContext);
+    source.snapshotState(nullptr);
+
+    auto values = offsetState->get();
+    ASSERT_EQ(values->size(), 1);
+    EXPECT_EQ(values->at(0), 20);
+    EXPECT_EQ(sourceContext.getCollectCount(), 1);
 }

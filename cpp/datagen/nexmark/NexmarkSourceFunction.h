@@ -47,8 +47,9 @@ class NexmarkSourceFunction : public SourceFunction<K>, public AbstractRichFunct
     // Transient generator pointer.
     std::unique_ptr<NexmarkGenerator> generator;
 
-    // The number of elements emitted already.
-    volatile long numElementsEmitted;
+    // Number of events contained in batches successfully emitted downstream. Checkpointing this
+    // committed position (rather than the generator position) makes a partially built batch replayable.
+    long numCommittedEvents;
 
     // Flag to make the source cancelable.
     std::atomic_bool isRunning;
@@ -64,7 +65,7 @@ public:
           deserializer(deserializer),
           resultType(resultType),
           generator(nullptr),
-          numElementsEmitted(0),
+          numCommittedEvents(0),
           isRunning(true)
     {
     }
@@ -73,7 +74,10 @@ public:
     void open(const Configuration& parameters) override
     {
         AbstractRichFunction::open(parameters);
-        this->generator.reset(new NexmarkGenerator(getSubGeneratorConfig()));
+        // initializeState() creates the generator when restoring. Do not overwrite its restored offset.
+        if (this->generator == nullptr) {
+            this->generator = std::make_unique<NexmarkGenerator>(getSubGeneratorConfig());
+        }
     }
 
     // Private method to get sub-generator config.
@@ -113,14 +117,12 @@ public:
                 if (!isRunning.load()) {
                     break;
                 }
-                numElementsEmitted = generator->getEventsCountSoFar();
                 // Only do output when a batch is prepared
                 if (next) {
-                    try {
-                        ctx->collect(next->getValue());
-                    } catch (const std::exception& e) {
-                        std::cerr << "Exception during collect: " << e.what() << std::endl;
-                    }
+                    // Advance the recoverable position only after the complete batch was accepted.
+                    // A collect failure must fail the task; continuing would silently lose the batch.
+                    ctx->collect(next->getValue());
+                    numCommittedEvents = generator->getEventsCountSoFar();
                 }
             }
         }
@@ -151,7 +153,7 @@ public:
     void snapshotState(StateSnapshotContextSynchronousImpl* context) override
     {
         this->checkpointedState->clear();
-        this->checkpointedState->add(const_cast<long&>(numElementsEmitted));
+        this->checkpointedState->add(numCommittedEvents);
     }
 
     void initializeState(StateInitializationContextImpl* context) override
@@ -169,9 +171,26 @@ public:
             if (retrievedStates.size() != 1) {
                 throw std::runtime_error("NexmarkSourceFunction retrieve invalid state.");
             }
-            auto numElementToSkip = retrievedStates[0];
-            INFO_RELEASE("NexmarkSourceFunction::initializeState, numElementToSkip: " << numElementToSkip);
-            this->generator.reset(new NexmarkGenerator(getSubGeneratorConfig(), numElementToSkip, 0));
+            const long restoredOffset = retrievedStates[0];
+            const GeneratorConfig subGeneratorConfig = getSubGeneratorConfig();
+            if (restoredOffset < 0 || restoredOffset > subGeneratorConfig.maxEvents) {
+                throw std::runtime_error(
+                    "NexmarkSourceFunction restored offset is outside the sub-generator range: " +
+                    std::to_string(restoredOffset));
+            }
+            numCommittedEvents = restoredOffset;
+            INFO_RELEASE("NexmarkSourceFunction::initializeState, restoredOffset: " << restoredOffset);
+            // Make the first restored event immediately eligible while retaining the configured rate
+            // for subsequent events. Passing -1 here would delay the first event by the elapsed event
+            // time represented by restoredOffset.
+            const int64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                    std::chrono::system_clock::now().time_since_epoch())
+                                    .count();
+            const int64_t restoredEventTime =
+                subGeneratorConfig.timestampForEvent(subGeneratorConfig.nextEventNumber(restoredOffset));
+            const int64_t restoredWallclockBaseTime = now - (restoredEventTime - subGeneratorConfig.baseTime);
+            this->generator =
+                std::make_unique<NexmarkGenerator>(subGeneratorConfig, restoredOffset, restoredWallclockBaseTime);
         }
     }
 };
