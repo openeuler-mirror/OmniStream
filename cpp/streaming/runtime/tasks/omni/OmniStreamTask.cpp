@@ -612,8 +612,11 @@ std::shared_ptr<CompletableFutureV2<void>> OmniStreamTask::prepareInputSnapshot(
     std::shared_ptr<ChannelStateWriter> channelStateWriter, long checkpointID)
 {
     if (inputProcessor_ == nullptr) {
-        // Java would return CompletableFuture.completedFuture(null)
-        return std::make_shared<CompletableFutureV2<void>>();
+        // Source tasks have no input channels. Return an already-completed future so the
+        // channel-state writer can immediately finish the input side of an unaligned checkpoint.
+        auto completed = std::make_shared<CompletableFutureV2<void>>();
+        completed->Complete();
+        return completed;
     }
     return inputProcessor_->PrepareSnapshot(channelStateWriter, checkpointID);
 }
