@@ -110,6 +110,7 @@ void RecoveredInputChannel::onRecoveredStateBufferForObjectBuffer(Buffer* buffer
         }
         if (recycleBuffer && readOnlyBuffer != nullptr) {
             readOnlyBuffer->RecycleBuffer();
+            delete readOnlyBuffer;
         }
         return;
     }
@@ -160,7 +161,7 @@ void RecoveredInputChannel::onRecoveredStateBufferForObjectBuffer(Buffer* buffer
     }
 
     if (recycleBuffer && vectorBatchBuffer != nullptr) {
-        vectorBatchBuffer->RecycleBuffer();
+        delete vectorBatchBuffer;
     }
 }
 
