@@ -49,12 +49,6 @@ StreamCalcBatch::StreamCalcBatch(const nlohmann::json& description, Output* outp
 
 StreamCalcBatch::~StreamCalcBatch()
 {
-    // The evaluator owns an LLVM JIT session (Filter/Projection unique_ptrs), so leaking it
-    // retains the compiled code and its ORC materialization units for the life of the process --
-    // one set per Calc operator per job. ~ExpressionEvaluator also frees filterExpr and projExprs,
-    // so those must not be deleted here as well.
-    delete exprEvaluator;
-    exprEvaluator = nullptr;
     delete timestampedCollector_;
     timestampedCollector_ = nullptr;
 }

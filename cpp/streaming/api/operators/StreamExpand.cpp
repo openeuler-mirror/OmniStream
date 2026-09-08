@@ -23,14 +23,6 @@ StreamExpand::StreamExpand(const nlohmann::json& description, Output* output)
 
 StreamExpand::~StreamExpand()
 {
-    // Each evaluator owns an LLVM JIT session; leaking them retains the compiled code and its
-    // ORC materialization units for the process lifetime. ~ExpressionEvaluator also frees the
-    // projExprs handed to it, so this must not delete those again. Entries are null-initialised
-    // by resize(), and parseDescription can throw partway, so some may legitimately be null.
-    for (auto* evaluator : exprEvaluators) {
-        delete evaluator;
-    }
-    exprEvaluators.clear();
     delete timestampedCollector_;
     timestampedCollector_ = nullptr;
 }
