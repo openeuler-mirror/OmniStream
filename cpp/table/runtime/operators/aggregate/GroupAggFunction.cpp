@@ -49,6 +49,17 @@ GroupAggFunction::~GroupAggFunction()
     for (auto func : functions) {
         delete func;
     }
+    // Members allocated in the constructor and in open(). accDesc is deliberately absent: the
+    // keyed state backend takes it over and deletes it with its registered states.
+    delete groupByKeySelector;
+    groupByKeySelector = nullptr;
+    delete resultRow;
+    resultRow = nullptr;
+    // Allocated in open() and owned by this function.
+    delete reUsePrevAggValue;
+    reUsePrevAggValue = nullptr;
+    delete reUseNewAggValue;
+    reUseNewAggValue = nullptr;
 }
 
 bool IntEqualiser(RowData* r1, RowData* r2, int colIdx)
@@ -160,7 +171,6 @@ void GroupAggFunction::open(const Configuration& parameters)
     reUsePrevAggValue = BinaryRowData::createBinaryRowDataWithMem(functions.size());
     LOG("init reUsePrevAggValue getArity : " << reUsePrevAggValue->getArity());
     reUseNewAggValue = BinaryRowData::createBinaryRowDataWithMem(functions.size());
-    sharedAccmulators = BinaryRowData::createBinaryRowDataWithMem(accTypes.size());
 }
 
 void GroupAggFunction::InitAggFunctions(int& accStartingIndex, int& aggValueIndex)
@@ -564,17 +574,17 @@ void GroupAggFunction::ClearEnv(
     if (!resultKeys.empty()) {
         resultBatch = createOutputBatch(resultKeys, resultValues, resultRowKinds);
         collectOutputBatch(out, resultBatch);
-
-        // clear bundle
-        for (auto& pair : keyToRowIndices) {
-            delete pair.first;
-        }
-        keyToRowIndices.clear();
-        // clear resultRows
-        resultKeys.clear();
-        deleteRowData(resultValues);
-        resultRowKinds.clear();
     }
+
+    // The keys and values are allocated per batch, so they must be released even when this batch
+    // produced no output. resultKeys only aliases the keys owned by keyToRowIndices.
+    for (auto& pair : keyToRowIndices) {
+        delete pair.first;
+    }
+    keyToRowIndices.clear();
+    resultKeys.clear();
+    deleteRowData(resultValues);
+    resultRowKinds.clear();
 }
 
 void GroupAggFunction::AssembleResultForBatch(

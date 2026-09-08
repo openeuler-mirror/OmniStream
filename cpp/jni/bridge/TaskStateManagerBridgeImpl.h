@@ -22,7 +22,25 @@ public:
     {
         this->m_globalTaskStateMgrRef = mGlobalTaskStateMgrRef;
     }
-    // ~TaskStateManagerBridgeImpl() override;
+
+    // The ref handed in by the constructor is a JNI global one, so it pins its Java object until it
+    // is deleted here. While this destructor was commented out, every task submission leaked the
+    // Java TaskStateManagerWrapper and everything reachable from it, including the task and its
+    // TaskMetricGroup -- a heap leak that killed the TaskManager after about 38 job submissions.
+    ~TaskStateManagerBridgeImpl() override
+    {
+        if (m_globalTaskStateMgrRef == nullptr) {
+            return;
+        }
+        JNIEnv* env;
+        jint res = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr);
+        if (res != JNI_OK) {
+            return;
+        }
+        env->DeleteGlobalRef(m_globalTaskStateMgrRef);
+        m_globalTaskStateMgrRef = nullptr;
+        g_OmniStreamJVM->DetachCurrentThread();
+    }
     void ReportTaskStateSnapshots(
         std::string& checkpointMetaDataJson,
         std::string& checkpointMetricsJson,

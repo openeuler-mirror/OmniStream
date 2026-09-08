@@ -41,6 +41,14 @@ namespace omnistream {
         // Byte size one stored StreamElement contributes. Public so a sliced buffer can sum the
         // bytes over its slot range when recycling.
         static int64_t calculateStoredObjectSizeInBytes(const StreamElement* record);
+
+        // --- leak diagnostics -------------------------------------------------------------
+        // Every StreamElement stored here must eventually be handed to a consumer, which then
+        // owns it. countDrained() is called by each drain loop for every element it takes.
+        // stored - drained is the number of elements nothing can ever free: ~ObjectSegment
+        // releases only the pointer array, so an undrained element is leaked.
+        static void countDrained();
+        static void reportCounters(const char* where);
     private:
 
         size_t size;

@@ -11,7 +11,7 @@
 
 #ifndef VECTORBATCHBUFFER_H
 #define VECTORBATCHBUFFER_H
-#include <mutex>
+#include <atomic>
 
 #include "ObjectBuffer.h"
 
@@ -26,7 +26,7 @@ public:
         event_type = -1;
         readerIndex_ = -1;
         isCompressed_ = false;
-        refCount = 1;
+        refCount_.store(1, std::memory_order_relaxed);
     }
 
     explicit VectorBatchBuffer(std::shared_ptr<ObjectSegment> segment)
@@ -36,7 +36,7 @@ public:
         event_type = -1;
         readerIndex_ = -1;
         isCompressed_ = false;
-        refCount = 1;
+        refCount_.store(1, std::memory_order_relaxed);
     }
 
     explicit VectorBatchBuffer(int event_)
@@ -49,7 +49,7 @@ public:
         bufferType = 1;
         event_type = event_;
         currentSize = 1;
-        refCount = 1;
+        refCount_.store(1, std::memory_order_relaxed);
     }
 
     ~VectorBatchBuffer() override = default;
@@ -63,20 +63,25 @@ public:
 
     bool IsRecycled() const override
     {
-        std::lock_guard<std::mutex> lock(refCountMutex_);
-        return isRecycled_;
+        return isRecycled_.load(std::memory_order_acquire);
     }
 
     Buffer* RetainBuffer() override
     {
         LOG_TRACE("retain ");
-        std::lock_guard<std::mutex> lock(refCountMutex_);
-        if (isRecycled_ || refCount <= 0) {
-            throw std::runtime_error("RetainBuffer on a released VectorBatchBuffer");
+        int current = refCount_.load(std::memory_order_relaxed);
+        while (current > 0) {
+            if (refCount_.compare_exchange_weak(
+                    current,
+                    current + 1,
+                    std::memory_order_relaxed,
+                    std::memory_order_relaxed)) {
+                LOG_PART("RetainBuffer The buffer " << this << " refCount is incremented from " << current
+                                                     << " to " << (current + 1));
+                return this;
+            }
         }
-        LOG_PART("RetainBuffer The buffer " << this << " refCount is incremented from " << refCount << " to " << (refCount + 1));
-        ++refCount;
-        return this;
+        throw std::runtime_error("RetainBuffer on a released VectorBatchBuffer");
     }
 
     Buffer* ReadOnlySlice() override
@@ -140,8 +145,7 @@ public:
 
     int RefCount() const override
     {
-        std::lock_guard<std::mutex> lock(refCountMutex_);
-        return refCount;
+        return refCount_.load(std::memory_order_relaxed);
     }
 
     std::string ToDebugString(bool includeHash) const override
@@ -184,11 +188,10 @@ private:
 
     int currentSize = 0;
     bool isCompressed_;
-    bool isRecycled_ = false;
+    std::atomic<bool> isRecycled_{false};
     int readerIndex_;
 
-    int refCount = 0;
-    mutable std::mutex refCountMutex_;
+    std::atomic<int> refCount_{0};
 };
 
 } // namespace omnistream

@@ -18,6 +18,24 @@ public:
     {
         this->m_globalTaskOperatorEventGateWayRef = m_globalTaskOperatorEventGateWayRef;
     }
+
+    // The ref handed in by the constructor is a JNI global one and pins its Java object until it is
+    // deleted here. Without this, every task submission leaked the Java TaskOperatorEventGateway
+    // and everything reachable from it.
+    ~TaskOperatorEventGatewayBridgeImpl() override
+    {
+        if (m_globalTaskOperatorEventGateWayRef == nullptr) {
+            return;
+        }
+        JNIEnv* env;
+        jint res = g_OmniStreamJVM->AttachCurrentThread(reinterpret_cast<void**>(&env), nullptr);
+        if (res != JNI_OK) {
+            return;
+        }
+        env->DeleteGlobalRef(m_globalTaskOperatorEventGateWayRef);
+        m_globalTaskOperatorEventGateWayRef = nullptr;
+        g_OmniStreamJVM->DetachCurrentThread();
+    }
     void sendOperatorEventToCoordinator(std::string operatorid, std::string event) override
     {
         JNIEnv* env;

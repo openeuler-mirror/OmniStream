@@ -63,6 +63,19 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Om
     return 1;
 }
 
+/*
+ * Hands ownership of the task to the native ResultPartitionManager. Java calls this only after it
+ * has unregistered every metric that reads through nativeTaskRef, because the task may be deleted
+ * during this call, or later on a netty thread once the last consumer releases its view.
+ */
+JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_notifyNativeTaskRunFinished(
+    JNIEnv*, jobject, jlong nativeTask)
+{
+    auto task = reinterpret_cast<omnistream::OmniTask*>(nativeTask);
+    // May delete the task, so nothing may touch `task` after this call.
+    task->NotifyRunFinished();
+}
+
 JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_doRunRestoreNativeTask(
     JNIEnv*, jobject, jlong nativeTask, jlong streamTaskAddress)
 {

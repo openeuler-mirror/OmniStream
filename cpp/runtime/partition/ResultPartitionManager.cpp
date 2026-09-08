@@ -13,6 +13,7 @@
 #include "ResultPartitionManager.h"
 #include <iostream>
 #include "PartitionNotFoundException.h"
+#include "taskmanager/OmniTask.h"
 
 namespace omnistream {
 
@@ -39,6 +40,44 @@ void ResultPartitionManager::registerResultPartition(std::shared_ptr<ResultParti
     }
 
     LOG_PART("Registered " << partition->toString() << std::endl);
+}
+
+void ResultPartitionManager::bindOwningTask(const ResultPartitionIDPOD& partitionId, OmniTask* owningTask)
+{
+    if (owningTask == nullptr) {
+        return;
+    }
+
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    auto result = partitionToOwningTask_.insert({partitionId, owningTask});
+    if (!result.second) {
+        THROW_RUNTIME_ERROR("Result partition already bound to a task.");
+    }
+    if (unconsumedPartitionsPerTask_[owningTask]++ == 0) {
+        // First partition of this task, so this is a task newly handed to the manager.
+        boundTaskCount_++;
+    }
+
+    LOG_PART("Bound " << partitionId.toString() << " to task " << owningTask << std::endl);
+}
+
+OmniTask* ResultPartitionManager::unbindOwningTask(const ResultPartitionIDPOD& partitionId)
+{
+    auto binding = partitionToOwningTask_.find(partitionId);
+    if (binding == partitionToOwningTask_.end()) {
+        return nullptr;
+    }
+
+    OmniTask* owningTask = binding->second;
+    partitionToOwningTask_.erase(binding);
+
+    auto unconsumed = unconsumedPartitionsPerTask_.find(owningTask);
+    if (unconsumed == unconsumedPartitionsPerTask_.end() || --unconsumed->second > 0) {
+        return nullptr;
+    }
+
+    unconsumedPartitionsPerTask_.erase(unconsumed);
+    return owningTask;
 }
 
 std::shared_ptr<ResultSubpartitionView> ResultPartitionManager::createSubpartitionView(
@@ -70,6 +109,13 @@ void ResultPartitionManager::releasePartition(
         std::shared_ptr<ResultPartition> resultPartition = it->second;
         registeredPartitions.erase(it);
         resultPartition->release(cause);
+        // The partition was released instead of consumed (cancel/fail); stop tracking the task but leave
+        // it alone, its cleanup is driven by the Java side on that path.
+        OmniTask* unboundTask = unbindOwningTask(partitionId);
+        if (unboundTask != nullptr) {
+            tasksAwaitingRunFinish_.erase(unboundTask);
+            finishedTasks_.erase(unboundTask);
+        }
         std::cout << "Released partition " << partitionId.toString() << " produced by " << partitionId.toString()
                   << std::endl;
     }
@@ -85,18 +131,87 @@ void ResultPartitionManager::shutdown()
     }
 
     registeredPartitions.clear();
+    partitionToOwningTask_.clear();
+    unconsumedPartitionsPerTask_.clear();
+    tasksAwaitingRunFinish_.clear();
+    finishedTasks_.clear();
     isShutdown = true;
+    // One line that answers "were they all freed" without any log arithmetic.
+    std::cout << "OmniTask accounting at shutdown: " << deletedTaskCount_ << " deleted of "
+              << boundTaskCount_ << " bound"
+              << (deletedTaskCount_ == boundTaskCount_ ? "" : "  <-- LEAK") << std::endl;
     std::cout << "Successful shutdown." << std::endl;
 }
 
 void ResultPartitionManager::onConsumedPartition(std::shared_ptr<ResultPartition> partition)
 {
-    std::lock_guard<std::recursive_mutex> lock(mutex_);
-    auto it = registeredPartitions.find(partition->getPartitionId());
-    if (it != registeredPartitions.end() && it->second == partition) {
-        registeredPartitions.erase(partition->getPartitionId());
+    OmniTask* taskToDelete = nullptr;
+    {
+        std::lock_guard<std::recursive_mutex> lock(mutex_);
+        auto it = registeredPartitions.find(partition->getPartitionId());
+        if (it == registeredPartitions.end() || it->second != partition) {
+            return;
+        }
+        registeredPartitions.erase(it);
         partition->release();
+
+        OmniTask* consumedTask = unbindOwningTask(partition->getPartitionId());
+        if (consumedTask != nullptr) {
+            if (finishedTasks_.erase(consumedTask) > 0) {
+                taskToDelete = consumedTask;
+            } else {
+                // The run loop is still active, it deletes the task through onTaskRunFinished().
+                tasksAwaitingRunFinish_.insert(consumedTask);
+            }
+        }
     }
+
+    // Deleted outside the lock: ~OmniTask closes its partitions and gates, which calls back into the manager.
+    if (taskToDelete != nullptr) {
+        deleteOwningTask(taskToDelete, "all partitions consumed");
+    }
+}
+
+void ResultPartitionManager::deleteOwningTask(OmniTask* task, const std::string& reason)
+{
+    void* taskAddress = task;
+    std::cout << "Deleting upstream task " << taskAddress << " (" << reason << ")" << std::endl;
+    delete task;
+
+    long deleted;
+    long bound;
+    {
+        std::lock_guard<std::recursive_mutex> lock(mutex_);
+        deleted = ++deletedTaskCount_;
+        bound = boundTaskCount_;
+    }
+    // Printed only after the destructor has returned, so this line is the proof that the task was
+    // actually torn down rather than merely scheduled for deletion.
+    std::cout << "Deleted upstream task " << taskAddress << " (" << deleted << " of " << bound
+              << " bound tasks deleted so far)" << std::endl;
+}
+
+bool ResultPartitionManager::onTaskRunFinished(OmniTask* task)
+{
+    if (task == nullptr) {
+        return false;
+    }
+
+    {
+        std::lock_guard<std::recursive_mutex> lock(mutex_);
+        if (tasksAwaitingRunFinish_.erase(task) == 0) {
+            if (unconsumedPartitionsPerTask_.count(task) == 0) {
+                // Never bound (a task without produced partitions); the Java side owns its deletion.
+                return false;
+            }
+            // Some partitions are still being consumed, onConsumedPartition() deletes the task later.
+            finishedTasks_.insert(task);
+            return false;
+        }
+    }
+
+    deleteOwningTask(task, "run loop returned with all partitions consumed");
+    return true;
 }
 
 std::vector<ResultPartitionIDPOD> ResultPartitionManager::getUnreleasedPartitions()

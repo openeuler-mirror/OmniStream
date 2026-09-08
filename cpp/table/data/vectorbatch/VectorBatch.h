@@ -30,7 +30,8 @@ class VectorBatch : public omniruntime::vec::VectorBatch {
 public:
     explicit VectorBatch(size_t rowCnt);
 
-    // construct a new vectorbatch with ort vectorbatch
+    // Construct a new vectorbatch with ort vectorbatch. Takes ownership of baseVecBatch's vectors
+    // (baseVecBatch is left empty and must still be deleted by the caller) and of timestamps/rowkinds.
     VectorBatch(omniruntime::vec::VectorBatch* baseVecBatch, int64_t* timestamps, RowKind* rowkinds);
 
     ~VectorBatch();
@@ -71,6 +72,14 @@ public:
     RowKind* getRowKinds()
     {
         return rowKinds;
+    }
+
+    // Give up ownership of the timestamp/rowKind arrays after handing them to another batch,
+    // so this batch's destructor does not free arrays that are still in use.
+    void releaseTimestampsAndRowKinds()
+    {
+        timestamps = nullptr;
+        rowKinds = nullptr;
     }
 
     int32_t getSizeInBytes() const

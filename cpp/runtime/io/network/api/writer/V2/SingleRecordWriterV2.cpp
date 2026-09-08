@@ -11,7 +11,8 @@ SingleRecordWriterV2::SingleRecordWriterV2(RecordWriterV2* recordWriter) : recor
 
 RecordWriterV2* SingleRecordWriterV2::getRecordWriter(int outputIndex)
 {
-    return recordWriter_;
+    // Observer only - ownership stays with this delegate.
+    return recordWriter_.get();
 }
 
 void SingleRecordWriterV2::close()

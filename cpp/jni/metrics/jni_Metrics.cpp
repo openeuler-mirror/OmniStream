@@ -191,7 +191,12 @@ Java_com_huawei_omniruntime_flink_runtime_metrics_utils_OmniMetricHelper_createN
 JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniSimpleCounter_getNativeCounter(
     JNIEnv*, jobject, jlong nativeCounter)
 {
+    // Same lifetime hazard as getNativeCounterNew: the address outlives the counter once the
+    // owning task is destroyed, so validate before dereferencing.
     auto counter = reinterpret_cast<SimpleCounter*>(nativeCounter);
+    if (!SimpleCounter::IsLive(counter)) {
+        return 0;
+    }
     return counter->GetCount();
 }
 

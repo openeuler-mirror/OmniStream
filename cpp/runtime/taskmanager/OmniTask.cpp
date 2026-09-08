@@ -19,6 +19,7 @@
 #include <streaming/runtime/tasks/omni/OmniSourceOperatorStreamTask.h>
 #include <streaming/runtime/tasks/omni/OmniSourceStreamTask.h>
 #include "common.h"
+#include "runtime/buffer/ObjectSegment.h"
 #include "OmniRuntimeEnvironment.h"
 #include "partition/consumer/RemoteInputChannel.h"
 #include "partition/ResultPartitionManager.h"
@@ -142,6 +143,31 @@ OmniTask::OmniTask(
     int32_t strategy_id = std::stoi(taskInfo_.getStreamConfigPOD().getOmniConf()["omni.bindcore.strategy"]);
     strategy = static_cast<omnistream::BindCoreStrategy>(strategy_id);
     BindCoreManager::GetInstance()->SetBindStrategy(strategy);
+}
+
+OmniTask::~OmniTask()
+{
+    // Logged on both sides of the member teardown: the "begin" line alone would only prove the
+    // destructor was entered, the "end" line proves it ran to completion.
+    INFO_RELEASE("~OmniTask begin " << this << " name: " << taskNameWithSubtask_);
+    // Running totals for the StreamRecord leak hunt. The last task to tear down carries the
+    // whole-job figures; stored-drained is the count nothing can ever free.
+    ObjectSegment::reportCounters("~OmniTask");
+    consumableNotifyingPartitionWriters.clear();
+    inputGates.clear();
+    // The remote input channels hold a shared_ptr to this bridge and outlive the task, so its
+    // destructor will not run here. Release the JNI global reference on the Java RemoteDataFetcher
+    // explicitly; without it that object -- and the input gate and OmniTask reachable from it --
+    // can never be collected. Late resumeConsumption calls from a still-draining channel find a
+    // null reference and return without doing anything.
+    if (remoteDataFetcherBridge_ != nullptr) {
+        remoteDataFetcherBridge_->ReleaseJavaRemoteDataFetcher();
+    }
+    // invokable_.reset();
+    // use_count > 1 here means something outside this task still holds the OmniStreamTask, and its
+    // record writers / output flusher threads cannot be released.
+    INFO_RELEASE("~OmniTask end " << this << " name: " << taskNameWithSubtask_
+                                  << " invokable_ use_count=" << invokable_.use_count());
 }
 
 std::shared_ptr<RuntimeEnvironmentV2> OmniTask::getRuntimeEnv()
@@ -357,14 +383,34 @@ void OmniTask::setupPartitionsAndGates(
     std::vector<std::shared_ptr<ResultPartitionWriter>>& producedPartitions,
     std::vector<std::shared_ptr<SingleInputGate>>& inputGates)
 {
+    auto omniShuffleEnv = std::dynamic_pointer_cast<OmniShuffleEnvironment>(this->shuffleEnv_);
+    std::shared_ptr<ResultPartitionManager> resultPartitionManager =
+        omniShuffleEnv ? omniShuffleEnv->getResultPartitionManager() : nullptr;
+
     for (auto& producedPartition : producedPartitions) {
         producedPartition->setup();
+        if (resultPartitionManager != nullptr) {
+            // Bind this task to the partition so the manager can delete the task once every partition
+            // it produces has been consumed by all downstream tasks.
+            resultPartitionManager->bindOwningTask(producedPartition->getPartitionId(), this);
+        }
     }
     LOG("producedPartition after setup");
     for (auto& inputGate : inputGates) {
         inputGate->setup();
     }
     LOG("inputGate after setup");
+}
+
+bool OmniTask::NotifyRunFinished()
+{
+    auto omniShuffleEnv = std::dynamic_pointer_cast<OmniShuffleEnvironment>(this->shuffleEnv_);
+    if (omniShuffleEnv == nullptr) {
+        return false;
+    }
+    // Deletes this task when all of its partitions have already been consumed. Nothing may touch the
+    // task after this call.
+    return omniShuffleEnv->getResultPartitionManager()->onTaskRunFinished(this);
 }
 
 void OmniTask::ReleaseResources()

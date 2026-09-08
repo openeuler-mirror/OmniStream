@@ -12,19 +12,45 @@
 #include "ObjectSegment.h"
 
 #include <algorithm>
+#include <atomic>
 
+#include "core/include/common.h"
 #include "streaming/runtime/streamrecord/StreamRecord.h"
 #include "table/data/vectorbatch/VectorBatch.h"
 
 namespace omnistream {
 
+namespace {
+std::atomic<long> g_segCreated{0};
+std::atomic<long> g_segDestroyed{0};
+std::atomic<long> g_stored{0};    // putObject calls
+std::atomic<long> g_drained{0};   // elements actually taken by a consumer
+}
+
+void ObjectSegment::countDrained()
+{
+    g_drained.fetch_add(1, std::memory_order_relaxed);
+}
+
+void ObjectSegment::reportCounters(const char* where)
+{
+    long stored = g_stored.load();
+    long drained = g_drained.load();
+    INFO_RELEASE("OBJSEG_COUNTERS[" << where << "] created=" << g_segCreated.load()
+        << " destroyed=" << g_segDestroyed.load()
+        << " stored=" << stored << " drained=" << drained
+        << " undrained=" << (stored - drained));
+}
+
 ObjectSegment::ObjectSegment(size_t size)
     : Segment(SegmentType::OBJECT_SEGMENT), size(size), objects_(new StreamElement*[size]())
 {
+    g_segCreated.fetch_add(1, std::memory_order_relaxed);
 }
 
 ObjectSegment::~ObjectSegment()
 {
+    g_segDestroyed.fetch_add(1, std::memory_order_relaxed);
     delete[] objects_;
 }
 
@@ -38,6 +64,7 @@ int ObjectSegment::putObject(int offset, StreamElement* record)
     LOG("objects size()" << size);
 
     objects_[offset] = record;
+    g_stored.fetch_add(1, std::memory_order_relaxed);
     sizeInBytes_ += calculateStoredObjectSizeInBytes(record);
     return 1;
 }

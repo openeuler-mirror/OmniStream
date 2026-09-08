@@ -29,9 +29,9 @@ public:
 
     virtual ~BidGenerator()
     {
-        delete channelBuffer;
-        delete urlBuffer;
-        delete extraBuffer;
+        delete[] channelBuffer;
+        delete[] urlBuffer;
+        delete[] extraBuffer;
     };
 
 private:

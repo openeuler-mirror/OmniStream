@@ -112,15 +112,14 @@ private:
     using equalizerFuncType = bool (*)(RowData*, RowData*, int);
     std::vector<equalizerFuncType> equalisers;
     nlohmann::json description;
-    BinaryRowData* reUsePrevAggValue;
-    BinaryRowData* reUseNewAggValue;
-    BinaryRowData* sharedAccmulators;
+    BinaryRowData* reUsePrevAggValue = nullptr;
+    BinaryRowData* reUseNewAggValue = nullptr;
     std::vector<std::string> inputTypes;
     std::vector<std::string> outputTypes;
     std::vector<int32_t> keyedTypes;
     std::vector<int32_t> keyedIndex;
     std::vector<DistinctInfo> distinctInfos;
-    KeySelector<RowData*>* groupByKeySelector;
+    KeySelector<RowData*>* groupByKeySelector = nullptr;
     int indexOfCountStar = -1;
 
     inline void setInt(

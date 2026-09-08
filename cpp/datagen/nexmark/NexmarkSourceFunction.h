@@ -64,6 +64,15 @@ public:
     {
     }
 
+    // StreamOperatorFactory hands both pointers over with `new` and keeps no reference to them,
+    // so the source function owns them. Without this, every job submission leaked one
+    // deserializer (and the batch it was still filling) and one TypeInformation per source subtask.
+    ~NexmarkSourceFunction() override
+    {
+        delete deserializer;
+        delete resultType;
+    }
+
     // Overriding open method.
     void open(const Configuration& parameters) override
     {
@@ -142,9 +151,11 @@ public:
     void initializeState(StateInitializationContextImpl* context) override
     {
         std::string stateName = "elements-count-state";
-        auto* listStateDescriptor = new ListStateDescriptor<long>(stateName, new LongSerializer());
+        // The backend copies the descriptor's name and keeps its serializer, but never the descriptor
+        // itself, so it can live on the stack. ~StateDescriptor does not touch the serializer.
+        ListStateDescriptor<long> descriptor(stateName, new LongSerializer());
         auto* stateBackend = static_cast<DefaultOperatorStateBackend*>(context->getOperatorStateBackend());
-        this->checkpointedState = stateBackend->template getListState<long>(listStateDescriptor);
+        this->checkpointedState = stateBackend->template getListState<long>(&descriptor);
 
         if (context->isRestored()) {
             std::vector<long> retrievedStates;

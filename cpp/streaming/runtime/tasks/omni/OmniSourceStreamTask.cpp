@@ -95,7 +95,10 @@ void OmniSourceStreamTask::CompleteProcessing()
 
 void OmniSourceStreamTask::AdvanceToEndOfEventTime()
 {
-    operatorChain->GetMainOperatorOutput()->emitWatermark(new Watermark(LONG_MAX));
+    // emitWatermark leaves ownership with the caller, as StatusWatermarkValve does.
+    auto* endOfTime = new Watermark(LONG_MAX);
+    operatorChain->GetMainOperatorOutput()->emitWatermark(endOfTime);
+    delete endOfTime;
 }
 
 const std::string OmniSourceStreamTask::getName() const
@@ -105,6 +108,13 @@ const std::string OmniSourceStreamTask::getName() const
 
 void OmniSourceStreamTask::cancel()
 {
+    // Cancel the writer first: the source thread may be blocked waiting for output buffers, and
+    // only cancelling the writer releases it. Joining before that would wait on a thread that
+    // cannot exit until this call runs. Null until postConstruct() runs, so guard the deref.
+    if (recordWriter_) {
+        recordWriter_->cancel();
+    }
+
     if (mainOperator_) {
         auto* source = dynamic_cast<StreamSource<omnistream::VectorBatch>*>(mainOperator_);
         if (source) {
@@ -116,8 +126,6 @@ void OmniSourceStreamTask::cancel()
         sourceThread_->join();
     }
     OmniStreamTask::cancel();
-    // avoid back pressure
-    recordWriter_->cancel();
 }
 
 OmniSourceStreamTask::~OmniSourceStreamTask()

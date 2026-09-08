@@ -66,7 +66,28 @@ VectorBatch::~VectorBatch()
           maxTimestamp(INT64_MIN)
     {
         auto baseVectors = baseVecBatch->GetVectors();
-        this->vectors.insert(this->vectors.end(), baseVectors, baseVectors + baseVecBatch->GetVectorCount());
+        const int32_t baseCount = baseVecBatch->GetVectorCount();
+        // The vector array arrives as a raw pointer plus a count with no invariant attached, and
+        // refreshSizeInBytes() below dereferences every entry to compute the payload size. A single
+        // unpopulated slot therefore faults inside size computation, far from whatever produced the
+        // malformed batch -- observed as an intermittent SIGSEGV in BaseVector::GetSize() under
+        // StreamCalcBatch::processBatch. Validate the handoff so that a bad batch reports what is
+        // wrong instead of corrupting the process.
+        if (baseVectors == nullptr && baseCount > 0) {
+            THROW_LOGIC_EXCEPTION("VectorBatch: null vector array with count " + std::to_string(baseCount));
+        }
+        for (int32_t i = 0; i < baseCount; i++) {
+            if (baseVectors[i] == nullptr) {
+                INFO_RELEASE("VectorBatch: null vector at index " << i << " of " << baseCount
+                                                                 << " rowCount=" << baseVecBatch->GetRowCount());
+                THROW_LOGIC_EXCEPTION("VectorBatch: null vector at index " + std::to_string(i) + " of " +
+                    std::to_string(baseCount));
+            }
+        }
+        this->vectors.insert(this->vectors.end(), baseVectors, baseVectors + baseCount);
+        // The vectors now belong to this batch, so drop them from baseVecBatch. That leaves an empty
+        // shell the caller can delete without freeing the vectors we just took over.
+        baseVecBatch->ClearVectors();
         refreshSizeInBytes();
     }
 

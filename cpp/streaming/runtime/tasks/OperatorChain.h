@@ -119,6 +119,12 @@ public:
         delete mainOperatorWrapper;
         mainOperatorWrapper = nullptr;
         tailOperatorWrapper = nullptr;
+        // Outputs the chain allocated itself. RecordWriterOutputs are deliberately absent: they
+        // are owned via the recordWriterOutputs map, so deleting them here would double free.
+        for (auto* output : ownedOutputs_) {
+            delete output;
+        }
+        ownedOutputs_.clear();
     }
 
     void finishOperators(StreamTaskActionExecutor* actionExecutor);
@@ -205,6 +211,8 @@ protected:
     bool isClosed_ = false;
     // WatermarkGaugeExposingOutput<StreamRecord<OUT>> mainOperatorOutput;
     WatermarkGaugeExposingOutput* mainOperatorOutput;
+    // Every output this chain constructs with new, freed in the destructor.
+    std::vector<WatermarkGaugeExposingOutput*> ownedOutputs_;
 
     std::unordered_map<std::string, OperatorEventHandler*> handlers;
 

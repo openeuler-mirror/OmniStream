@@ -74,6 +74,7 @@ namespace omnistream {
         void ResumeConsumption() ;
         std::shared_ptr<NettyBufferInfo> CreateNettyBufferInfo();
         void DestroyNettyBufferPool();
+        void releaseAllResources();
 
 
     private:

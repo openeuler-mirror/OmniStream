@@ -21,7 +21,11 @@ StreamExpand::StreamExpand(const nlohmann::json& description, Output* output)
     LOG("StreamExpand description: " << description);
 }
 
-StreamExpand::~StreamExpand() = default;
+StreamExpand::~StreamExpand()
+{
+    delete timestampedCollector_;
+    timestampedCollector_ = nullptr;
+}
 
 void StreamExpand::parseDescription(nlohmann::json& subDesc, int index)
 {
@@ -97,6 +101,9 @@ void StreamExpand::processBatch(StreamRecord* input)
     for (auto expr : exprEvaluators) {
         auto projectedVecs = expr->Evaluate(record, executionContext.get(), &selectedRowsBuffer);
         auto outputBatch = copyTimestampAndKind(record, projectedVecs);
+        // outputBatch took over the vectors, so this only frees the empty shell. When
+        // copyTimestampAndKind returned nullptr the vectors are still here and get freed too.
+        delete projectedVecs;
         if (outputBatch) {
             timestampedCollector_->collect(outputBatch);
         }

@@ -150,16 +150,27 @@ protected:
         bool inputIsLeft);
 
 private:
-    JoinedRowFilterFunc generateJoinFilterFunction(const nlohmann::json& description)
+    // generatedFilter points into code JIT-compiled inside the codegen's LLVM engine, and
+    // CodegenBase only keeps a non-owning pointer to the expression -- so both have to stay alive
+    // for as long as the operator may call the filter. Owning them here ties their lifetime to the
+    // operator, which the task destroys at the end of each job.
+    //
+    // Declaration order is load-bearing: members are destroyed in reverse, so the codegen is torn
+    // down before the expression it points at.
+    std::unique_ptr<omniruntime::expressions::Expr> nonEquiConditionExpr_;
+    std::unique_ptr<SimpleFilterCodeGen> nonEquiFilterCodegen_;
+
+    JoinedRowFilterFunc generateJoinFilterFunction(const nlohmann::json &description)
     {
         JoinedRowFilterFunc filterFuncPtrs;
 
         if (description.contains("nonEquiCondition") && !description["nonEquiCondition"].is_null()) {
             auto filter = description["nonEquiCondition"];
-            Expr* jExpr = JSONParser::ParseJSON(filter);
-            SimpleFilterCodeGen* filterCodegen = new SimpleFilterCodeGen("nonEquiCondition", *jExpr, nullptr);
-            int64_t filterAddress = filterCodegen->GetFunction();
-            generatedFilter = *static_cast<FilterFuncPtr*>(reinterpret_cast<void*>(&filterAddress));
+            nonEquiConditionExpr_.reset(JSONParser::ParseJSON(filter));
+            nonEquiFilterCodegen_ =
+                std::make_unique<SimpleFilterCodeGen>("nonEquiCondition", *nonEquiConditionExpr_, nullptr);
+            int64_t filterAddress = nonEquiFilterCodegen_->GetFunction();
+            generatedFilter = *static_cast<FilterFuncPtr *>(reinterpret_cast<void *>(&filterAddress));
 
             colRefsForNonEquiCondition = getColRefs(filter);
 
