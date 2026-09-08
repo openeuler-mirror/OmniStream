@@ -46,6 +46,30 @@ flink taskManager 在启动时会检测是否配置了JVM_OPTS环境变量。如
 env.java.opts.taskmanager: -XX:+UseG1GC
 ```
 
+## SQL作业使用Kafka数据源且包含Window算子时，处于正常运行状态但无结果产生
+
+**问题现象描述**
+
+前提：SQL作业使用Kafka数据源；Source算子并行度大于对应Kafka topic分区数；作业包含事件时间语义下的Window算子
+
+现象：作业正常运行但无结果产生
+
+**关键过程、根本原因分析**
+
+事件时间语义下Window算子的计算结果依赖Watermark推进后触发窗口计算。
+当Kafka Source算子并行度大于topic分区数时，会存在部分Source并行实例未分配到Kafka分区。
+下游算子的Watermark由各上游输入共同决定，由于这些并行实例始终无法接收到数据，因此也无法正常推进对应的Watermark，从而阻塞下游算子Watermark的推进。
+当下游Window算子的Watermark始终无法超过窗口的触发时间时，窗口不会触发计算，因此作业表现为持续运行但没有结果输出。
+
+**结论、解决方案及效果**
+
+- Flink可通过配置数据源空闲超时时间，在Source长时间无数据输入后将其标记为Idle，使该输入暂时不参与Watermark计算，
+从而避免阻塞整体Watermark推进，但当前OmniStream暂不支持该能力，见[约束与限制](../../README.md#约束与限制)。
+
+- 使用Kafka数据源且作业包含依赖Watermark触发的Window算子时，应避免Source算子出现无Kafka分区可消费的情况。
+建议重新创建Kafka topic，并将topic分区数设置为大于等于Kafka Source算子并行度的值，确保每个Source并行实例均能够分配到至少一个Kafka分区。
+调整后，各Source并行实例均可正常消费数据并推进Watermark，下游Window能够按照事件时间正常触发并输出计算结果。
+
 | 文档版本 | 发布日期 | 修改说明 |
 | --- | --- | --- |
 | 01 | 2026-09-30 | 第一次正式发布。 |

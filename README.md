@@ -89,7 +89,10 @@ OmniStream Flink Native化的配置限制包括数据类型、算子支持、状
 - LookupJoin算子的外部表数据源仅支持CSV文件。
 - 状态后端只支持内存和RocksDB。
 - Flink会将状态存储在内存状态后端中，内存使用会随时间和处理数据量增长，OmniStream使用列式向量化架构优化性能，状态存储跟原生行为一致，处理速度比原生Flink更快，使用内存增长速度比原生快，提升性能的同时对于空间的需求也增大，因此当前Nexmark基准测试用例输入数据量最大只支持5千万数据。
-- SQL场景下，OmniStream 当前仅支持Join算子/Deduplicate算子/Rank算子通过canonical 格式的SP 实现与Flink进行任务切换。
+- SQL场景下，OmniStream当前仅支持Join算子/Deduplicate算子/Rank算子通过canonical格式的SP实现与Flink进行任务切换。
+- SQL场景下，OmniStream当前仅支持事件时间语义，且仅支持指定数据类型为TIMESTAMP(3)的字段作为事件时间。
+- 受列式向量化架构影响，在Kafka数据源下，OmniStream的Watermark推进机制与Flink存在差异，依赖Watermark推进的算子（如Window算子）可能产生与Flink不一致的计算结果。
+- SQL场景下，OmniStream暂不支持配置数据源的空闲超时时间（table.exec.source.idle-timeout）。
 
 **DataStream<a name="zh-cn_topic_0000002512242608_section14862183194614"></a>**
 
