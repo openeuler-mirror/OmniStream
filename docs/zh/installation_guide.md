@@ -491,7 +491,7 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
 
     ```bash
     flink-tnel-0.1-SNAPSHOT.jar
-    libtnel.so
+    libboostkit-omnistream-xxxx.so
     libboundscheck.so
     libboostkit-omniop-codegen-2.2.0-aarch64.so
     libboostkit-omniop-operator-2.2.0-aarch64.so
@@ -530,7 +530,7 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
         vi /usr/local/flink/conf/flink-conf.yaml
         ```
 
-    2. 按`i`进入编辑模式，添加libtnel.so文件所在的路径到env.java.opts中，即[2](#zh-cn_topic_0000002263584129_li146334222212)中解压后so文件所在的目录。
+    2. 按`i`进入编辑模式，添加libboostkit-omnistream-xxxx.so文件所在的路径到env.java.opts中，即[2](#zh-cn_topic_0000002263584129_li146334222212)中解压后so文件所在的目录。
 
         ```bash
         env.java.opts: -Djava.library.path=/usr/local/OmniStream/

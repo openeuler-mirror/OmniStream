@@ -495,7 +495,7 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 
     ```bash
     flink-tnel-0.1-SNAPSHOT.jar
-    libtnel.so
+    libboostkit-omnistream-xxxx.so
     libboundscheck.so
     libboostkit-omniop-codegen-2.2.0-aarch64.so
     libboostkit-omniop-operator-2.2.0-aarch64.so
@@ -534,7 +534,7 @@ In independent deployment mode, you can install the precompiled OmniStream binar
         vi /usr/local/flink/conf/flink-conf.yaml
         ```
 
-    2. Press `i` to enter the insert mode. In `env.java.opts`, add the `libtnel.so` file path, that is, the path to the `.so` files extracted in [2](#zh-cn_topic_0000002263584129_li146334222212).
+    2. Press `i` to enter the insert mode. In `env.java.opts`, add the `libboostkit-omnistream-xxxx.so` file path, that is, the path to the `.so` files extracted in [2](#zh-cn_topic_0000002263584129_li146334222212).
 
         ```bash
         env.java.opts: -Djava.library.path=/usr/local/OmniStream/
