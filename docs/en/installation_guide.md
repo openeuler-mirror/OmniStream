@@ -60,12 +60,12 @@ Before installing OmniStream, prepare the hardware and software environments to 
 
 |Name| Package Name                                       |Release Type|Description| How to Obtain                                                                                                                                                                                                                                                              |
 |--|-------------------------------------------|--|--|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|OmniStream package| BoostKit-omniruntime-omnistream-1.3.0.zip |Open source|OmniStream software installation package.| [Get Link](https://boostkit-bigdata-public.obs.cn-north-4.myhuaweicloud.com/artifact/OmniStream/master/26.1.RC1.B027/release/BoostKit-omniruntime-omnistream-1.3.0.zip)                                                                                                                           |
-|UDF translator| UNT-1.0-35.noarch.rpm                     |Open source|UDF translator RPM package. After the installation is complete, the UDF translator is added to the `/opt` directory.| [Get Link](https://eur.openeuler.openatom.cn/results/cutie-deng/UNT/openeuler-22.03_LTS_SP4-aarch64/00110412-UNT/UNT-1.0-35.noarch.rpm)                                                                                                                               |
-|AI4C| AI4C-1.0.4-8.aarch64.rpm                  |Open source|A framework that allows the compiler to integrate machine learning–driven optimization technologies. Install the RPM package.| [Get Link](https://gitee.com/kunpengcompute/boostkit-bigdata/releases/download/25.1.RC1-OmniStream-release/AI4C-1.0.4-8.aarch64.rpm)                                                                                                                                   |
-|KACC_JSON| BoostKit-kaccjson_1.1.0.zip               |Closed source|C++ implementation package used to replace GSON in UDF translation. This ZIP package contains the adaptation layer and KACC_JSON implementation, and also contains header files and a static library.<br>This file is extracted from the `Dependency_library_OmniStream.zip` package.| [Get Link](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip)                                                                                                                                   |
-|KSL| BoostKit-ksl_2.5.1.zip                    |Closed source|Regular expression acceleration library, which contains the ReplaceAll function for optimizing the basic string library and contains header files and a static library.|                                                                                                                                                                           |
-|Dependency library| Dependency_library_Default                |Open source|Library file on which OmniStream depends.<br>This folder is extracted from the `Dependency_library_OmniStream.zip` package.| [Get Link](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip)|
+|OmniStream package| BoostKit-omniruntime-omnistream-{version}.zip |Open source|OmniStream software installation package. Obtain the latest package from the `Releases` page in the open-source repository. Replace {version} with the actual release version.| [Link](https://gitcode.com/openeuler/OmniStream/releases) |
+|UDF Translator| UNT-1.0-37.noarch.rpm                     |Open source|UDF Translator RPM package. After the installation is complete, the UDF Translator is added to the `/opt` directory.| [Link](https://eur.openeuler.openatom.cn/results/cutie-deng/UNT/openeuler-22.03_LTS_SP4-aarch64/00113849-UNT/UNT-1.0-37.noarch.rpm)                                                                                                                               |
+|AI4C| AI4C-1.0.4-8.aarch64.rpm                  |Open source|A framework that integrates compiler optimization techniques driven by machine learning. Install the RPM package directly.| [Link](https://gitcode.com/boostkit/boostkit-bigdata/releases/download/25.1.RC1-OmniStream-release/AI4C-1.0.4-8.aarch64.rpm)                                                                                                                                   |
+|KACC_JSON| BoostKit-kaccjson_1.1.0.zip               |Closed source|C++ implementation package used to replace GSON in UDF translation. This ZIP package contains the adaptation layer and KACC_JSON implementation, and also contains header files and static libraries.<br>This file is extracted from the `Dependency_library_OmniStream.zip` package.| [Link](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip)                                                                                                                                   |
+|KSL| BoostKit-ksl_2.5.1.zip                    |Closed source|Regular expression acceleration library, which contains the `ReplaceAll` function for optimizing the basic string library, and includes header files and static libraries.|[Link](https://www.hikunpeng.com/boostkit/library/system?subtab=Hyperscan&version=2.5.1)                                                                                                                                                                           |
+|Dependency library| Dependency_library_Default                |Open source|Library file on which OmniStream depends.<br>This folder is extracted from the `Dependency_library_OmniStream.zip` package.| [Link](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip)|
 
 **Software Package Integrity Check<a name="zh-cn_topic_0000002228744546_section156811729327"></a>**
 
@@ -464,8 +464,8 @@ In independent deployment mode, you can install the precompiled OmniStream binar
     After the binary package is extracted, the JAR package, SO files, basic library, and `include` directory are obtained.
 
     ```bash
-    flink-tnel-0.1-SNAPSHOT.jar
-    libtnel.so
+    boostkit-omniadaptor-flink-1.4.0.jar
+    libboostkit-omnistream.so.1.4.0
     libboundscheck.so
     libboostkit-omniop-codegen-2.2.0-aarch64.so
     libboostkit-omniop-operator-2.2.0-aarch64.so
@@ -487,7 +487,7 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 
         ```bash
         # echo "$FLINK_CLASSPATH""$FLINK_DIST"
-        PATCH=/usr/local/OmniStream/flink-tnel-0.1-SNAPSHOT.jar
+        PATCH=/usr/local/OmniStream/boostkit-omniadaptor-flink-1.4.0.jar
         echo $PATCH:"$FLINK_CLASSPATH""$FLINK_DIST"
         ```
 
@@ -504,7 +504,7 @@ In independent deployment mode, you can install the precompiled OmniStream binar
         vi /usr/local/flink/conf/flink-conf.yaml
         ```
 
-    2. Press `i` to enter the insert mode. In `env.java.opts`, add the `libtnel.so` file path, that is, the path to the `.so` files extracted in [2](#zh-cn_topic_0000002263584129_li146334222212).
+    2. Press `i` to enter the insert mode. In `env.java.opts`, add the `libboostkit-omnistream.so.1.4.0` file path, that is, the path to the `.so` files extracted in [2](#zh-cn_topic_0000002263584129_li146334222212).
 
         ```bash
         env.java.opts: -Djava.library.path=/usr/local/OmniStream/
@@ -536,7 +536,7 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 2. Install the RPM package in the `flink\_jm\_8c32g` container. The default installation directory is `/opt`.
 
     ```bash
-    rpm -ivh UNT-1.0-35.noarch.rpm
+    rpm -ivh UNT-1.0-37.noarch.rpm
     ```
 
     After the command is executed, the `/opt/udf-trans-opt` directory is automatically created.
