@@ -303,10 +303,10 @@ std::string VectorBatch::TransformTime(int vectorID, int rowID, int precision) c
     // 格式化为字符串
     char buffer[80];
     if (milliseconds == 0 && timeinfo.tm_sec == 0) {
-        strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M", &timeinfo);
+        strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M", &timeinfo);
         return std::string(buffer);
     }
-    strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%S", &timeinfo);
+    strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
 
     if (milliseconds == 0) {
         return std::string(buffer);
