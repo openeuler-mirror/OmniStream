@@ -64,6 +64,9 @@ void OmniTaskBridgeImpl2::declineCheckpoint(
 
 OmniTaskBridgeImpl2::~OmniTaskBridgeImpl2()
 {
+    // This destructor is what releases the JNI global ref on the Java OmniTask. While it does not
+    // run, that Java object -- and the TaskMetricGroup it holds -- stays alive for the life of the
+    // TaskManager, which is a heap leak of roughly 32 groups per job submission.
     if (m_globalOmniTaskRef != nullptr) {
         JNIEnv* env;
         // Attach the current thread to the Jvm

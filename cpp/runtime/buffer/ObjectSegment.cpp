@@ -10,3 +10,88 @@
  */
 
 #include "ObjectSegment.h"
+
+#include <algorithm>
+#include <atomic>
+
+#include "core/include/common.h"
+#include "streaming/runtime/streamrecord/StreamRecord.h"
+#include "table/data/vectorbatch/VectorBatch.h"
+
+namespace omnistream {
+
+namespace {
+std::atomic<long> g_segCreated{0};
+std::atomic<long> g_segDestroyed{0};
+std::atomic<long> g_stored{0};    // putObject calls
+std::atomic<long> g_drained{0};   // elements actually taken by a consumer
+}
+
+void ObjectSegment::countDrained()
+{
+    g_drained.fetch_add(1, std::memory_order_relaxed);
+}
+
+void ObjectSegment::countCreated()
+{
+    g_segCreated.fetch_add(1, std::memory_order_relaxed);
+}
+
+void ObjectSegment::countDestroyed()
+{
+    g_segDestroyed.fetch_add(1, std::memory_order_relaxed);
+}
+
+void ObjectSegment::countStored()
+{
+    g_stored.fetch_add(1, std::memory_order_relaxed);
+}
+
+void ObjectSegment::reportCounters(const char* where)
+{
+    long stored = g_stored.load();
+    long drained = g_drained.load();
+    INFO_RELEASE("OBJSEG_COUNTERS[" << where << "] created=" << g_segCreated.load()
+        << " destroyed=" << g_segDestroyed.load()
+        << " stored=" << stored << " drained=" << drained
+        << " undrained=" << (stored - drained));
+}
+
+int64_t ObjectSegment::getObjectSizeInBytes() const
+{
+    return sizeInBytes_;
+}
+
+void ObjectSegment::reset()
+{
+    sizeInBytes_ = 0;
+    capacityInBytes_ = 0;
+    //reset elements in objects
+    std::fill(objects_, objects_ + size, nullptr);
+}
+
+int64_t ObjectSegment::calculateStoredObjectSizeInBytes(const StreamElement* record)
+{
+    // A watermark is not a StreamRecord and its getValue() is not a VectorBatch, so it must be
+    // handled before the cast below. It carries only a timestamp, so account a fixed size for it.
+    if (record->getTag() == StreamElementTag::TAG_WATERMARK) {
+        return static_cast<int64_t>(sizeof(int64_t));
+    }
+    // ObjectSegment is used by the vector-batch transport path, so only StreamRecord payloads
+    // contribute bytes here and they are expected to be VectorBatch instances.
+    auto* vectorBatch = static_cast<const VectorBatch*>(record->getValue());
+    return vectorBatch == nullptr ? 0 : vectorBatch->getSizeInBytes();
+}
+
+void ObjectSegment::setCapacity(int64_t capacity)
+{
+    capacityInBytes_ = capacity;
+}
+
+int64_t ObjectSegment::getCapacity()
+{
+    return capacityInBytes_;
+}
+
+
+} // namespace omnistream

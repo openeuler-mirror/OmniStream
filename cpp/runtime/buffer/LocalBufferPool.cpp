@@ -11,25 +11,28 @@
 
 #include "LocalBufferPool.h"
 
+
 namespace omnistream {
 
-LocalBufferPool::LocalBufferPool(
-    std::shared_ptr<NetworkBufferPool> networkBufferPool,
-    int numberOfSubpartitions,
-    int maxBuffersPerChannel,
-    int currentPoolSize,
-    int numberOfRequiredSegments,
-    int maxNumberOfSegments,
-    std::shared_ptr<AvailabilityHelper> availabilityHelper)
-    : networkBufferPool(networkBufferPool),
-      maxBuffersPerChannel_(maxBuffersPerChannel),
-      currentPoolSize_(currentPoolSize),
-      numberOfRequiredSegments_(numberOfRequiredSegments),
-      maxNumberOfSegments(maxNumberOfSegments),
-      availabilityHelper_(availabilityHelper),
-      subpartitionBuffersCount_(numberOfSubpartitions, 0)
-{
-}
+    const int LocalBufferPool::UNKNOWN_CHANNEL;
+
+    LocalBufferPool::LocalBufferPool(
+            std::shared_ptr<NetworkBufferPool> networkBufferPool,
+            int numberOfSubpartitions,
+            int maxBuffersPerChannel,
+            int currentPoolSize,
+            int numberOfRequiredSegments,
+            int maxNumberOfSegments,
+            std::shared_ptr<AvailabilityHelper> availabilityHelper)
+        : networkBufferPool(networkBufferPool),
+          maxBuffersPerChannel_(maxBuffersPerChannel),
+          currentPoolSize_(currentPoolSize),
+          numberOfRequiredSegments_(numberOfRequiredSegments),
+          maxNumberOfSegments(maxNumberOfSegments),
+          availabilityHelper_(availabilityHelper),
+          subpartitionBuffersCount_(numberOfSubpartitions, 0)
+    {
+    }
 
 void LocalBufferPool::checkConsistentAvailability()
 {

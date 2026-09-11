@@ -26,6 +26,7 @@ enum class EventType {
 class Event {
 public:
     explicit Event(const EventType& eventType) : type(eventType) {};
+    virtual ~Event() = default;
     virtual bool operator==(const Event& other) const = 0;
     virtual std::size_t hash() const = 0;
     virtual std::string toString() const = 0;

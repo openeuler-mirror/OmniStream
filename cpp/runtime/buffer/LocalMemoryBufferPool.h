@@ -64,11 +64,11 @@ public:
 
     BufferBuilder* requestBufferBuilder() override;
 
-    BufferBuilder* requestBufferBuilder(int targetChannel) override;
+        BufferBuilder *requestBufferBuilder(int targetChannel, uint64_t bytes = 0) override;
 
     BufferBuilder* requestBufferBuilderBlocking() override;
 
-    BufferBuilder* requestBufferBuilderBlocking(int targetChannel) override;
+        BufferBuilder *requestBufferBuilderBlocking(int targetChannel,uint64_t bytes = 0) override;
 
     std::shared_ptr<NetworkBuffer> requestNetworkBuffer();
 

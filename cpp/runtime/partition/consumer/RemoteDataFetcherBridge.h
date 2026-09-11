@@ -12,7 +12,19 @@
 namespace omnistream {
 class RemoteDataFetcherBridge : public std::enable_shared_from_this<RemoteDataFetcherBridge> {
 public:
+    // Implementations own a JNI global reference, so this base needs a virtual destructor for it to
+    // run through a base-class pointer.
+    virtual ~RemoteDataFetcherBridge() = default;
+
     virtual void InvokeJavaRemoteDataFetcherResumeConsumption(int inputGateIndex, int channelIndex) = 0;
+
+    // Drops the JNI global reference on the Java RemoteDataFetcher.
+    //
+    // InitCppRemoteInputChannel hands every remote input channel a shared_ptr to this bridge, and
+    // those channels outlive the task -- they are released only once drained. The destructor
+    // therefore does not run at task teardown, so the reference has to be released explicitly or
+    // the Java RemoteDataFetcher stays alive, and with it the input gate and the whole OmniTask.
+    virtual void ReleaseJavaRemoteDataFetcher() {}
 
     virtual void InitCppRemoteInputChannel(std::vector<std::shared_ptr<SingleInputGate>> inputGates);
 };

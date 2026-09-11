@@ -44,6 +44,11 @@ void BinaryRowWriter::writeInt(int pos, int value)
     MemorySegmentUtils::putInt(memoryBuffer, row_->getBufferCapacity(), getFieldOffset(pos), value);
 }
 
+void BinaryRowWriter::writeDouble(int pos, double value)
+{
+    MemorySegmentUtils::putDouble(memoryBuffer, row_->getBufferCapacity(), getFieldOffset(pos), value);
+}
+
 void BinaryRowWriter::reset()
 {
     cursor_ = fixedSize_;

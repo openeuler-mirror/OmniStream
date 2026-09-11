@@ -36,7 +36,9 @@ void RowTimeDeduplicateFunction::initOutputVector(
             dataType == omniruntime::type::DataTypeId::OMNI_TIMESTAMP) {
             auto newVec = new omniruntime::vec::Vector<int64_t>(rowCount);
             out->Append(newVec);
-        } else if (dataType == omniruntime::type::DataTypeId::OMNI_CHAR) {
+        } else if (
+            dataType == omniruntime::type::DataTypeId::OMNI_CHAR ||
+            dataType == omniruntime::type::DataTypeId::OMNI_VARCHAR) {
             auto newVec =
                 std::make_unique<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>>(
                     rowCount);
@@ -321,10 +323,13 @@ void RowTimeDeduplicateFunction::CopyTargetVectorBatchToOut(
         if (dataType == omniruntime::type::DataTypeId::OMNI_INT) {
             auto val = reinterpret_cast<omniruntime::vec::Vector<int32_t>*>(batch->Get(col))->GetValue(rowId);
             reinterpret_cast<omniruntime::vec::Vector<int32_t>*>(outputVB->Get(col))->SetValue(rowIndex, val);
-        } else if (dataType == omniruntime::type::DataTypeId::OMNI_LONG) {
+        } else if (dataType == omniruntime::type::DataTypeId::OMNI_LONG||
+            dataType == omniruntime::type::DataTypeId::OMNI_TIMESTAMP) {
             auto val = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(batch->Get(col))->GetValue(rowId);
             reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(outputVB->Get(col))->SetValue(rowIndex, val);
-        } else if (dataType == omniruntime::type::DataTypeId::OMNI_CHAR) {
+        } else if (
+            dataType == omniruntime::type::DataTypeId::OMNI_CHAR ||
+            dataType == omniruntime::type::DataTypeId::OMNI_VARCHAR) {
             if (batch->Get(col)->GetEncoding() == omniruntime::vec::OMNI_FLAT) {
                 auto casted = reinterpret_cast<
                                   omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(

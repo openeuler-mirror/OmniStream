@@ -11,6 +11,7 @@
 
 #include "MemoryBufferBuilder.h"
 
+#include <core/utils/ByteBuffer.h>
 #include <streaming/runtime/streamrecord/StreamRecord.h>
 
 namespace omnistream::datastream {

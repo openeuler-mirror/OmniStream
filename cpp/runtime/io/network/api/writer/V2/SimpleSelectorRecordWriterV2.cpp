@@ -12,7 +12,6 @@
 #include "SimpleSelectorRecordWriterV2.h"
 
 #include <streaming/runtime/streamrecord/StreamElementSerializer.h>
-
 namespace omnistream {
 SimpleSelectorRecordWriterV2::SimpleSelectorRecordWriterV2(
     std::shared_ptr<ResultPartitionWriter> writer,

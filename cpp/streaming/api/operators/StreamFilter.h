@@ -59,7 +59,11 @@ public:
 
     void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override
     {
-        // do nothing
+        // initializeState takes ownership of keySerializer: stateful operators hand it to
+        // AbstractKeyedStateBackend, whose destructor frees it. This operator is stateless and
+        // has no backend to hand it to, so it frees it here rather than dropping it. The chain
+        // allocates a fresh one per operator, so this is never shared. Null for non-SQL types.
+        delete keySerializer;
     }
 
     void processElement(StreamRecord* record) override

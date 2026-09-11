@@ -59,8 +59,19 @@ public:
         currentNamespace = nameSpace;
     };
     V value() override;
-    void update(const V& value, bool copyKey = false) override;
-    void clear() override;
+    void update(const V &value, bool copyKey = false) override;
+    void clear() override
+    {
+        // removed container's elements from the running counter and free it before removing the key.
+        if constexpr (StateSizeUtil::is_container_value<V>::value) {
+            V old = stateTable->get(currentNamespace);
+            if (old != nullptr) {
+                stateTable->liveNumElements_ -= static_cast<int64_t>(old->size());
+                delete old;
+            }
+        }
+        stateTable->remove(currentNamespace);
+    };
     void setDefaultValue(V value)
     {
         defaultValue = value;
@@ -126,15 +137,24 @@ void HeapValueState<K, N, V>::update(const V& value, bool copyKey)
             auto newValue = static_cast<Object*>(value);
             stateTable->put(currentNamespace, newValue);
         }
+    } else if constexpr (StateSizeUtil::is_container_value<V>::value) {
+        // container-valued VALUE state (SET_LONG, std::vector<long>*) is a full replace
+        // through this API. Maintain liveNumElements_ with an exact before/after size diff (task thread
+        // only) so the data-size metric needs no CopyOnWriteStateMap walk. update() owns freeing the
+        // replaced container (callers no longer pre-delete the old value).
+        V oldValue = stateTable->get(currentNamespace);
+        int64_t before = (oldValue != nullptr) ? static_cast<int64_t>(oldValue->size()) : 0;
+        stateTable->put(currentNamespace, value);
+        int64_t after = (value != nullptr) ? static_cast<int64_t>(value->size()) : 0;
+        stateTable->liveNumElements_ += after - before;
+        if (oldValue != nullptr && oldValue != value) {
+            delete oldValue;
+        }
     } else {
         stateTable->put(currentNamespace, value);
     }
-}
-
-template <typename K, typename N, typename V>
-void HeapValueState<K, N, V>::clear()
-{
-    stateTable->remove(currentNamespace);
+    // bytes from cached atomics without ever touching a live map entry. No-op once sampled.
+    stateTable->refreshSampledWidthsIfNeeded();
 }
 
 template <typename K, typename N, typename V>
@@ -146,6 +166,7 @@ void HeapValueState<K, N, V>::clearVectorBatches(int64_t currentTimestamp)
          ++keyGroup) {
         auto nextSequenceNumber = this->getNextSequenceNumber(keyGroup);
         for (uint32_t sequenceNumber = 0; sequenceNumber < nextSequenceNumber; ++sequenceNumber) {
+            State::releaseVbStatistic(vectorBatchStateTable->get(sequenceNumber, keyGroup, nameSpace));
             vectorBatchStateTable->remove(sequenceNumber, keyGroup, nameSpace);
         }
     }
@@ -156,6 +177,7 @@ void HeapValueState<K, N, V>::clearVectorBatches(int32_t keyGroup, std::vector<u
 {
     VoidNamespace nameSpace;
     for (auto sequenceNumber : sequenceNumbersToDelete) {
+        State::releaseVbStatistic(vectorBatchStateTable->get(sequenceNumber, keyGroup, nameSpace));
         vectorBatchStateTable->remove(sequenceNumber, keyGroup, nameSpace);
     }
 }
@@ -173,6 +195,7 @@ void HeapValueState<K, N, V>::addVectorBatch(int32_t keyGroup, omnistream::Vecto
     auto sequenceNumber = vectorBatchStateTable->getNextSequenceNumber(keyGroup);
     vectorBatchStateTable->put(sequenceNumber, keyGroup, nameSpace, vectorBatch);
     vectorBatchStateTable->addNextSequenceNumber(keyGroup);
+    State::recordVbStatistic(vectorBatch);
 }
 
 template <typename K, typename N, typename V>
@@ -184,6 +207,7 @@ void HeapValueState<K, N, V>::addVectorBatches(
         auto nextSequenceNumber = vectorBatchStateTable->getNextSequenceNumber(keyGroup);
         vectorBatchStateTable->put(nextSequenceNumber, keyGroup, nameSpace, vectorBatch);
         vectorBatchStateTable->addNextSequenceNumber(keyGroup);
+        State::recordVbStatistic(vectorBatch);
     }
 }
 

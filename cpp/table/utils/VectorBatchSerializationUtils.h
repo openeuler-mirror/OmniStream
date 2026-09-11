@@ -27,10 +27,26 @@ using namespace std;
 namespace omnistream {
 
 struct SerializedBatchInfo {
-    uint8_t* buffer;
-    int32_t size;
-    int event = -1;
-    int bufferType = 0; // 0 for vector batch, 1 memory segment buffer ,2  memory segment event
+    SerializedBatchInfo(uint8_t* bufferAddress, int32_t sizeValue, int type = 0)
+        : memorySegmentAddress(bufferAddress), dataAddress(bufferAddress), dataSize(sizeValue), bufferType(type)
+    {
+    }
+
+    SerializedBatchInfo(uint8_t* segmentAddress, uint8_t* payloadAddress, int32_t sizeValue, int type = 0)
+        : memorySegmentAddress(segmentAddress), dataAddress(payloadAddress), dataSize(sizeValue), bufferType(type)
+    {
+    }
+
+    uint8_t* memorySegmentAddress;
+    union {
+        uint8_t* dataAddress;
+        uint8_t* buffer; // compatibility name for state serialization paths
+    };
+    union {
+        int32_t dataSize;
+        int32_t size; // compatibility name for state serialization paths
+    };
+    int bufferType; // 0 for vector batch, 1 memory segment buffer, 2 memory segment event
 };
 
 // we assume all the char ana varchar data are stored
@@ -42,7 +58,8 @@ public:
 
     static void serializeTimestampAndRowKinds(VectorBatch* vectorBatch, uint8_t*& buffer, int32_t bufferSize);
 
-    static int32_t calculateVectorBatchSerializableSize(VectorBatch* vectorBatch);
+    static int32_t calculateVectorBatchSerializableSize(VectorBatch *vectorBatch);
+    static int32_t calculateVectorBatchPayloadSize(VectorBatch *vectorBatch);
 
     static int32_t calculateVectorSerializableSize(BaseVector* baseVector);
 
@@ -154,26 +171,27 @@ public:
 
         int32_t* offsetArr = UnsafeStringContainer::GetOffsets(stringContainer.get());
 
-        int32_t rowCount = unsafe::UnsafeDictionaryContainer::GetDictSize(string_dictionary.get());
-
         // real data size
-        int32_t stringBodySize = offsetArr[rowCount];
+        int32_t stringBodySize = offsetArr[dictSize];
         ret = memcpy_s(buffer, bufferSize, &stringBodySize, sizeof(int32_t));
         if (ret != EOK) {
             throw std::runtime_error("memcpy_s failed");
         }
         buffer += sizeof(int32_t);
         serializeStringDictionaryTail(
-            baseVector, buffer, bufferSize, valueSize, offsetArr, rowCount, stringBodySize, stringContainer);
+            baseVector, buffer, bufferSize, valueSize, offsetArr, dictSize, stringBodySize, stringContainer);
     }
 
+    // valueSize is the vector's row count, dictSize the number of distinct dictionary entries.
+    // The two are unrelated: the null bitmap and value indices are per row, the offset array and
+    // string body are per dictionary entry.
     static void serializeStringDictionaryTail(
         BaseVector* baseVector,
         uint8_t*& buffer,
         int32_t bufferSize,
         int32_t valueSize,
         int32_t* offsetArr,
-        int32_t rowCount,
+        int32_t dictSize,
         int32_t stringBodySize,
         std::shared_ptr<LargeStringContainer<std::string_view>> stringContainer)
     {
@@ -190,11 +208,11 @@ public:
         buffer += nullByteSize;
 
         // offset array
-        ret = memcpy_s(buffer, bufferSize, offsetArr, sizeof(int32_t) * (rowCount + 1));
+        ret = memcpy_s(buffer, bufferSize, offsetArr, sizeof(int32_t) * (dictSize + 1));
         if (ret != EOK) {
             throw std::runtime_error("memcpy_s failed");
         }
-        buffer += sizeof(int32_t) * (rowCount + 1);
+        buffer += sizeof(int32_t) * (dictSize + 1);
 
         // real data
         std::string dataStr(UnsafeStringContainer::GetStringBufferAddr(stringContainer.get()), stringBodySize);

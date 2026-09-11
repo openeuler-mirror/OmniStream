@@ -292,6 +292,11 @@ void OmniLocalChannelReader::WrapBufferInfoIntoBinaryRowDataInfo(
             valueOutputBufferStatus->ownership = 0;
             delete valueOutputSerializer;
             delete valueOutputBufferStatus;
+            // Draining the segment takes ownership of the element and ~ObjectSegment frees only
+            // the pointer array, so the watermark is ours. broadcastEmit allocates one per
+            // channel per watermark; at 96 bytes and ~2% slab utilisation they are cheap to
+            // leak in bytes but pin whole slabs.
+            delete watermark;
         }
     }
 

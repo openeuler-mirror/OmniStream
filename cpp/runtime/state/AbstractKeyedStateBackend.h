@@ -22,6 +22,10 @@
 #include "runtime/checkpoint/SnapshotType.h"
 #include "runtime/checkpoint/CheckpointListener.h"
 
+namespace omnistream {
+    class OperatorStateMetricGroup;
+}
+
 template <typename K>
 class AbstractKeyedStateBackend : public CheckpointableKeyedStateBackend<K>, public CheckpointListener {
 public:

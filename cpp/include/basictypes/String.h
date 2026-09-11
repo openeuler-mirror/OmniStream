@@ -123,7 +123,11 @@ public:
 
     void putRefCount() override;
 
-    String* next = nullptr;
+    String *next = nullptr;
+    int64_t sizeInBytes() const override
+    {
+        return static_cast<int64_t>(sizeof(String) + inner.size());
+    }
 
 private:
     std::string inner;

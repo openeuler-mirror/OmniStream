@@ -15,16 +15,14 @@
 
 ChainingOutput::ChainingOutput(Input* op)
     : operator_(op),
-      announcedStatus(new WatermarkStatus(WatermarkStatus::activeStatus))
+      announcedStatus(WatermarkStatus::activeStatus)
 {
-    watermarkGauge = new WatermarkGauge();
 }
 
 ChainingOutput::ChainingOutput(
     Input* op, const std::shared_ptr<omnistream::TaskMetricGroup>& metricGroup, omnistream::OperatorPOD& opConfig)
     : operator_(op),
-      watermarkGauge(new WatermarkGauge()),
-      announcedStatus(new WatermarkStatus(WatermarkStatus::activeStatus))
+      announcedStatus(WatermarkStatus::activeStatus)
 {
     if (metricGroup != nullptr) {
         auto ptr = metricGroup->GetInternalOperatorIOMetric(opConfig.getName(), "numRecordsOut");
@@ -56,14 +54,14 @@ void ChainingOutput::close()
 void ChainingOutput::emitWatermark(Watermark* mark)
 {
     LOG("ChainingOutput::emitWatermark: " << mark->getTimestamp() << " name: " << operator_->getName());
-    watermarkGauge->setCurrentwatermark(mark->getTimestamp());
+    watermarkGauge.setCurrentwatermark(mark->getTimestamp());
     operator_->ProcessWatermark(mark);
 }
 
 void ChainingOutput::emitWatermarkStatus(WatermarkStatus* watermarkStatus)
 {
-    if (!announcedStatus->Equals(watermarkStatus)) {
-        announcedStatus = watermarkStatus;
+    if (announcedStatus != watermarkStatus->GetStatus()) {
+        announcedStatus = watermarkStatus->GetStatus();
         operator_->processWatermarkStatus(watermarkStatus);
     }
 }

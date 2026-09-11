@@ -51,6 +51,8 @@ StreamCalcBatch::StreamCalcBatch(const nlohmann::json& description, Output* outp
 
 StreamCalcBatch::~StreamCalcBatch()
 {
+    delete timestampedCollector_;
+    timestampedCollector_ = nullptr;
 }
 
 void StreamCalcBatch::processBatch(StreamRecord* input)
@@ -136,12 +138,15 @@ void StreamCalcBatch::open()
         // todo: ofConfig is empty now. Is it needed?
         auto ofConfig = new omniruntime::op::OverflowConfig();
         // This calls codegen and generates the functions
+        // preferVectorization=true: use OmniOperator's vectorized expression framework
+        bool preferVectorization = true;
         if (hasFilter) {
-            exprEvaluator =
-                new omniruntime::codegen::ExpressionEvaluator(filterCondition, projExprs, inputTypes_, ofConfig);
+            exprEvaluator = new omniruntime::codegen::ExpressionEvaluator
+                    (filterCondition, projExprs, inputTypes_, ofConfig, preferVectorization);
             exprEvaluator->FilterFuncGeneration();
         } else {
-            exprEvaluator = new omniruntime::codegen::ExpressionEvaluator(projExprs, inputTypes_, ofConfig);
+            exprEvaluator = new omniruntime::codegen::ExpressionEvaluator
+                    (projExprs, inputTypes_, ofConfig, preferVectorization);
             exprEvaluator->ProjectFuncGeneration();
         }
     }

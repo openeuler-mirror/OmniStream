@@ -80,7 +80,7 @@ void AbstractStreamOperator<K>::initializeState(
     LOG("abstractStreamOperator::initializeState");
     auto operatorID = this->GetOperatorID();
     StreamOperatorStateContextImpl<K>* context = initializer->streamOperatorStateContext<K>(
-        keySerializer, this, processingTimeService, &operatorID, flinkSavepointAdaptorInfo_, desc);
+        keySerializer, this, processingTimeService, &operatorID, flinkSavepointAdaptorInfo_, desc, GetOpName());
     stateHandler = new StreamOperatorStateHandler<K>(context);
     auto stateStore = stateHandler->getKeyedStateStore();
     if (runtimeContext != nullptr) {

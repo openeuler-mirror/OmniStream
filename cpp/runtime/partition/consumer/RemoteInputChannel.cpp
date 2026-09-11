@@ -82,6 +82,10 @@ void RemoteInputChannel::notifyRemoteDataAvailableForVectorBatch(
     int sequenceNumber,
     const std::shared_ptr<OriginalNetworkBufferRecycler>& originalNetworkBufferRecycle)
 {
+    std::unique_lock<std::recursive_mutex> lock(queueMutex);
+    if(isReleased()){
+        return;
+    }
     taskType = 1;
     if (bufferAddress == -1) {
         // event
@@ -89,7 +93,6 @@ void RemoteInputChannel::notifyRemoteDataAvailableForVectorBatch(
         LOG("remote got an event data:::: event type: " << eventType);
         INFO_RELEASE("remote got an event data:::: event type: " << eventType);
         auto eventData = new VectorBatchBuffer(eventType);
-        std::lock_guard<std::recursive_mutex> lock(queueMutex);
         if (eventData != nullptr) {
             this->dataQueue.push(eventData);
         }
@@ -124,12 +127,16 @@ void RemoteInputChannel::notifyRemoteDataAvailableForVectorBatch(
             lastSequenceNumber = sequenceNumber;
         }
     }
+    lock.unlock();
     this->notifyDataAvailable();
 }
 
 std::optional<BufferAndAvailability> RemoteInputChannel::getNextBuffer()
 {
     std::lock_guard<std::recursive_mutex> lock(queueMutex);
+    if (isReleased()) {
+        return std::nullopt;
+    }
     if (this->dataQueue.size() == 0) {
         return std::nullopt;
     }
@@ -254,10 +261,39 @@ void RemoteInputChannel::notifyRemoteDataAvailableForNetworkBuffer(
             lastSequenceNumber = sequenceNumber;
         }
     }
+    if (!isBuffer) {
+        INFO_RELEASE("REMOTE_EVENT_ENQUEUE gate=" << getChannelInfo().getGateIdx()
+                                                  << " channel=" << getChannelIndex()
+                                                  << " sequence=" << sequenceNumber
+                                                  << " wasEmpty=" << wasEmpty
+                                                  << " queueSize=" << dataQueue.size());
+    }
     lock.unlock();
 
     if (wasEmpty) {
         this->notifyDataAvailable();
+    }
+}
+
+void RemoteInputChannel::releaseAllResources()
+{
+    // Base first: it sets isReleased_, which stops the notify paths from queueing anything new.
+    LocalInputChannel::releaseAllResources();
+
+    std::queue<Buffer*> queuedBuffers;
+    {
+        std::lock_guard<std::recursive_mutex> lock(queueMutex);
+        dataQueue.swap(queuedBuffers);
+    }
+
+    while (!queuedBuffers.empty()) {
+        Buffer* buffer = queuedBuffers.front();
+        queuedBuffers.pop();
+        if (buffer == nullptr) {
+            continue;
+        }
+        buffer->RecycleBuffer();
+        delete buffer;
     }
 }
 

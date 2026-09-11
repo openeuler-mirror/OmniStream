@@ -59,6 +59,9 @@ Java_org_apache_flink_runtime_io_network_netty_OmniCreditBasedSequenceNumberingV
     }
     auto viewReader = reinterpret_cast<omnistream::OmniCreditBasedSequenceNumberingViewReader*>(
         creditBasedSequenceNumberingViewReaderRef);
+    // Notifies the producing partition that this consumer is done, which may delete the upstream task.
+    // The view reader is not owned by that task, so it is safe to free it afterwards.
+    viewReader->releaseAllResources();
     delete viewReader;
 }
 

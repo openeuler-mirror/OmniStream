@@ -99,6 +99,26 @@ public:
         }
     }
 
+    static inline double *getDouble(uint8_t *offHeapBuffer, int size, int index)
+    {
+        if (index >= 0 && index <= size - static_cast<int>(sizeof(double))) {
+            return reinterpret_cast<double *>(offHeapBuffer + index);
+        } else {
+            std::cerr << "Index: " << index << " size: " << size << std::endl;
+            throw std::logic_error("IndexOutOfBoundsException");
+        }
+    }
+
+    static inline void putDouble(uint8_t *offHeapBuffer, int size, int index, double value)
+    {
+        if (index >= 0 && index <= size - static_cast<int>(sizeof(double))) {
+            memcpy_s(offHeapBuffer + index, sizeof(double), &value, sizeof(double));
+        } else {
+            std::cerr << "Index: " << index << " size: " << size << std::endl;
+            throw std::logic_error("IndexOutOfBoundsException");
+        }
+    }
+
     static inline bool* getBool(uint8_t* offHeapBuffer, int size, int index)
     {
         if (index >= 0 && index <= size - static_cast<int>(sizeof(bool))) {
