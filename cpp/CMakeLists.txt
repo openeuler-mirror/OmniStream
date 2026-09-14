@@ -206,6 +206,27 @@ endif()
 
 
 MESSAGE(STATUS "OmniRuntime Dir ${OMNIRUNTIME_DIR} ${OMNIRUNTIME_LIB_DIR} ${OMNIRUNTIME_SRC_DIR}")
+
+set(_OMNI_STREAM_CONFIG "${CMAKE_SOURCE_DIR}/../config.conf")
+if(NOT EXISTS "${_OMNI_STREAM_CONFIG}")
+    message(FATAL_ERROR "config.conf not found: ${_OMNI_STREAM_CONFIG}")
+endif()
+file(STRINGS "${_OMNI_STREAM_CONFIG}" _OMNI_STREAM_CONFIG_LINES)
+set(OMNI_STREAM_VERSION "")
+foreach(_line IN LISTS _OMNI_STREAM_CONFIG_LINES)
+    if(_line MATCHES "^[ \t]*OMNI_STREAM_VERSION='([^']+)'")
+        set(OMNI_STREAM_VERSION "${CMAKE_MATCH_1}")
+    elseif(_line MATCHES "^[ \t]*OMNI_STREAM_VERSION=\"([^\"]+)\"")
+        set(OMNI_STREAM_VERSION "${CMAKE_MATCH_1}")
+    elseif(_line MATCHES "^[ \t]*OMNI_STREAM_VERSION=([^ \t#]+)")
+        set(OMNI_STREAM_VERSION "${CMAKE_MATCH_1}")
+    endif()
+endforeach()
+if(NOT OMNI_STREAM_VERSION)
+    message(FATAL_ERROR "OMNI_STREAM_VERSION not found in ${_OMNI_STREAM_CONFIG}")
+endif()
+message(STATUS "OMNI_STREAM_VERSION ${OMNI_STREAM_VERSION}")
+
 # common libraries for all modules
 add_subdirectory(translate/basictypes)
 add_subdirectory(translate/functions)

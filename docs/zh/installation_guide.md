@@ -490,8 +490,8 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
     解压二进制包后主要得到如下JAR包、so文件和基础库、头文件目录include。
 
     ```bash
-    flink-tnel-0.1-SNAPSHOT.jar
-    libboostkit-omnistream-xxxx.so
+    boostkit-adaptor-omnistream-1.4.0.jar
+    libboostkit-omnistream.so.1.4.0
     libboundscheck.so
     libboostkit-omniop-codegen-2.2.0-aarch64.so
     libboostkit-omniop-operator-2.2.0-aarch64.so
@@ -513,7 +513,7 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
 
         ```bash
         # echo "$FLINK_CLASSPATH""$FLINK_DIST"
-        PATCH=/usr/local/OmniStream/flink-tnel-0.1-SNAPSHOT.jar
+        PATCH=/usr/local/OmniStream/boostkit-adaptor-omnistream-1.4.0.jar
         echo $PATCH:"$FLINK_CLASSPATH""$FLINK_DIST"
         ```
 
@@ -530,7 +530,7 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
         vi /usr/local/flink/conf/flink-conf.yaml
         ```
 
-    2. 按`i`进入编辑模式，添加libboostkit-omnistream-xxxx.so文件所在的路径到env.java.opts中，即[2](#zh-cn_topic_0000002263584129_li146334222212)中解压后so文件所在的目录。
+    2. 按`i`进入编辑模式，添加libboostkit-omnistream.so.1.4.0文件所在的路径到env.java.opts中，即[2](#zh-cn_topic_0000002263584129_li146334222212)中解压后so文件所在的目录。
 
         ```bash
         env.java.opts: -Djava.library.path=/usr/local/OmniStream/
