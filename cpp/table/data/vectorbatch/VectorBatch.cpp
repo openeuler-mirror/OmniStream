@@ -217,7 +217,7 @@ std::string VectorBatch::TransformTimeWithTimeZone(
     struct tm timeinfo;
     gmtime_r(&adjusted_seconds, &timeinfo);
     char buffer[80];
-    strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%S", &timeinfo);
+    strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
 
     if (milliseconds == 0) {
         return std::string(buffer) + "Z";
@@ -256,11 +256,6 @@ std::string VectorBatch::TransformOnlyTime(int vectorID, int rowID, int precisio
     }
 
     char buf[32];
-    if (seconds == 0 && milliseconds == 0) {
-        std::snprintf(buf, sizeof(buf), "%02d:%02d", hours, minutes);
-        return std::string(buf);
-    }
-
     std::snprintf(buf, sizeof(buf), "%02d:%02d:%02d", hours, minutes, seconds);
     if (milliseconds == 0) {
         return std::string(buf);
@@ -302,10 +297,6 @@ std::string VectorBatch::TransformTime(int vectorID, int rowID, int precision) c
 
     // 格式化为字符串
     char buffer[80];
-    if (milliseconds == 0 && timeinfo.tm_sec == 0) {
-        strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M", &timeinfo);
-        return std::string(buffer);
-    }
     strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
 
     if (milliseconds == 0) {
@@ -410,7 +401,7 @@ void VectorBatch::WriteToFileInternal(
             LOG("vb writefile inputType is " << inputTypes[vectorID]);
             if (inputTypes[vectorID].substr(0, 30) == "TIMESTAMP_WITH_LOCAL_TIME_ZONE") {
                 auto result = TransformTimeWithTimeZone(vectorID, rowID, tzStr);
-                file << result;
+                file << "\"" << result << "\"";
             } else if (inputTypes[vectorID].substr(0, 9) == "TIMESTAMP") {
                 int precision = 3;
                 size_t parenPos = inputTypes[vectorID].find('(');
@@ -422,7 +413,7 @@ void VectorBatch::WriteToFileInternal(
                     }
                 }
                 auto result = TransformTime(vectorID, rowID, precision);
-                file << result;
+                file << "\"" << result << "\"";
             } else if (inputTypes[vectorID].substr(0, 22) == "TIME_WITHOUT_TIME_ZONE") {
                 int precision = 3;
                 size_t parenPos = inputTypes[vectorID].find('(');
