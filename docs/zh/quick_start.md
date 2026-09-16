@@ -23,7 +23,8 @@ systemctl start docker
 docker version
 ```
 
-> **截图：** 此处插入`docker version`执行结果截图。
+> 下图是已安装信息。
+> ![img.png](img.png)
 
 ### 2. 导入openEuler镜像
 
@@ -38,11 +39,18 @@ docker load -i openEuler-docker.aarch64.tar.xz
 docker images
 ```
 
-> **截图：** 此处插入`docker images`执行结果截图。
 
 ### 3. 创建并进入容器
 
-执行以下命令创建容器。`YourContainName`为示例容器名，请根据实际情况进行替换。容器的8081端口映射到宿主机的30211端口，用于访问Flink Web UI。
+执行以下命令检查宿主机的30211端口是否被占用：
+
+```bash
+ss -tuln | grep -w 30211
+```
+
+命令没有输出表示端口未被占用。如果端口已被占用，请将后续命令中的30211替换为其他空闲端口。
+
+执行以下命令创建容器。`YourContainName`为示例容器名，根据实际情况进行替换。容器的8081端口映射到宿主机的30211端口，用于访问Flink Web UI。
 
 ```bash
 CONTAINER_NAME=YourContainName
@@ -52,7 +60,7 @@ docker run -itd --name $CONTAINER_NAME --hostname $CONTAINER_NAME --privileged=t
 进入容器：
 
 ```bash
-docker exec -it YourContainName /bin/bash
+docker exec -it YourContainName /bin/bash --login
 ```
 
 以下操作均在容器内以root用户执行。
@@ -60,10 +68,10 @@ docker exec -it YourContainName /bin/bash
 ### 4. 安装基础依赖
 
 ```bash
-yum install -y wget findutils unzip git vim net-tools iproute iputils libXext libX11 libXrender libXtst libXi
+yum install -y wget findutils unzip libXext libX11 libXrender libXtst libXi
 ```
 
-> 如果所在环境需要通过代理访问网络，请根据实际网络环境配置代理。请勿在公开文档中填写真实的代理账号和密码。
+> 如果所在环境需要通过代理访问网络，需要根据实际网络环境配置代理。
 
 ### 5. 安装JDK
 
@@ -97,7 +105,8 @@ source /etc/profile
 java -version
 ```
 
-> **截图：** 此处插入`java -version`执行结果截图。
+> 执行结果
+> ![img_1.png](img_1.png)
 
 ### 6. 安装Flink
 
@@ -129,7 +138,8 @@ wget --no-check-certificate https://repo.maven.apache.org/maven2/com/google/code
 ls -la "$FLINK_HOME/lib" | grep -E "json|gson"
 ```
 
-> **截图：** 此处插入JSON和Gson依赖检查结果截图。
+> 检查结果
+> ![img_2.png](img_2.png)
 
 执行以下命令验证Flink是否安装成功：
 
@@ -137,7 +147,8 @@ ls -la "$FLINK_HOME/lib" | grep -E "json|gson"
 "$FLINK_HOME/bin/flink" --version
 ```
 
-> **截图：** 此处插入Flink版本检查结果截图。
+> 检查结果
+> ![img_3.png](img_3.png)
 
 ### 7. 安装OmniStream和依赖库
 
@@ -173,7 +184,8 @@ chmod -R 550 /opt/Dependency_library/*
 ls -la /opt/Dependency_library
 ```
 
-> **截图：** 此处插入`/opt/Dependency_library`目录检查结果截图，截图中建议包含`librocksdb.so`、`librdkafka.so`和`libxxhash.so`等文件。
+> 应看到
+> ![img_4.png](img_4.png)
 
 安装OmniStream：
 
@@ -191,7 +203,8 @@ chmod -R 550 /usr/local/OmniStream/*
 ls -la /usr/local/OmniStream
 ```
 
-> **截图：** 此处插入`/usr/local/OmniStream`目录检查结果截图，截图中建议包含`libtnel.so`和`flink-tnel-0.1-SNAPSHOT.jar`。
+> 应看到
+> ![img_5.png](img_5.png)
 
 配置动态库搜索路径：
 
@@ -226,7 +239,8 @@ echo $PATCH:"$FLINK_CLASSPATH""$FLINK_DIST"
 
 按`Esc`键，输入`:wq`，按`Enter`键保存并退出。
 
-> **截图：** 此处插入`constructFlinkClassPath`函数修改结果截图。
+> 修改结果
+> ![img_6.png](img_6.png)
 
 编辑Flink配置文件：
 
@@ -234,7 +248,7 @@ echo $PATCH:"$FLINK_CLASSPATH""$FLINK_DIST"
 vi "$FLINK_HOME/conf/flink-conf.yaml"
 ```
 
-在文件末尾添加以下配置。该配置必须位于同一个物理行中，不能将参数拆分为多行：
+在文件末尾添加以下配置。该配置必须位于同一行中，不能将参数拆分为多行：
 
 ```yaml
 env.java.opts: -Djava.library.path=/usr/local/OmniStream:/opt/Dependency_library --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.util.concurrent=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.base/sun.security.ssl=ALL-UNNAMED --add-exports java.base/sun.net.dns=ALL-UNNAMED --add-exports java.base/sun.net.util=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.invoke=ALL-UNNAMED --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/java.math=ALL-UNNAMED --add-opens java.base/java.text=ALL-UNNAMED --add-opens java.base/java.time=ALL-UNNAMED
@@ -242,7 +256,8 @@ env.java.opts: -Djava.library.path=/usr/local/OmniStream:/opt/Dependency_library
 
 按`Esc`键，输入`:wq`，按`Enter`键保存并退出。
 
-> **截图：** 此处插入`flink-conf.yaml`配置结果截图。
+> 配置结果
+> ![img_7.png](img_7.png)
 
 ### 9. 安装Nexmark
 
@@ -262,7 +277,7 @@ cp /usr/local/nexmark/lib/nexmark-flink-0.2-SNAPSHOT.jar "$FLINK_HOME/lib/"
 vi /usr/local/nexmark/bin/config.sh
 ```
 
-在文件末尾添加以下配置。该配置必须位于同一个物理行中：
+在文件末尾添加以下配置。该配置必须位于同一行中：
 
 ```bash
 export JAVA_TOOL_OPTIONS="-Djava.library.path=/usr/local/OmniStream:/opt/Dependency_library --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/sun.security.ssl=ALL-UNNAMED --add-exports=java.base/sun.net.dns=ALL-UNNAMED --add-exports=java.base/sun.net.util=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.math=ALL-UNNAMED --add-opens=java.base/java.text=ALL-UNNAMED --add-opens=java.base/java.time=ALL-UNNAMED"
@@ -270,7 +285,8 @@ export JAVA_TOOL_OPTIONS="-Djava.library.path=/usr/local/OmniStream:/opt/Depende
 
 按`Esc`键，输入`:wq`，按`Enter`键保存并退出。
 
-> **截图：** 此处插入Nexmark的`config.sh`配置结果截图。
+> 配置结果
+> ![img_8.png](img_8.png)
 
 ## 快速开始
 
@@ -283,7 +299,8 @@ source /etc/profile
 
 执行`jps`检查Flink进程。输出中包含`StandaloneSessionClusterEntrypoint`和`TaskManagerRunner`，表示Flink启动成功。
 
-> **截图：** 此处插入Flink进程检查结果截图。
+> Flink进程检查结果
+> ![img_9.png](img_9.png)
 
 ### 2. 初始化Nexmark
 
@@ -293,7 +310,8 @@ bash /usr/local/nexmark/bin/setup_cluster.sh
 
 再次执行`jps`。输出中包含`CpuMetricSender`，表示Nexmark初始化成功。
 
-> **截图：** 此处插入包含`CpuMetricSender`的进程检查结果截图。
+> 检查结果
+> ![img_10.png](img_10.png)
 
 ### 3. 执行Q0用例
 
@@ -301,7 +319,8 @@ bash /usr/local/nexmark/bin/setup_cluster.sh
 bash /usr/local/nexmark/bin/run_query.sh q0
 ```
 
-> **截图：** 此处插入Q0执行成功截图，截图中建议包含`Benchmark Queries: [q0]`及任务执行结果。
+> 任务执行结果
+> ![img_11.png](img_11.png)
 
 ### 4. 验证OmniStream是否生效
 
@@ -311,9 +330,9 @@ grep "welcome to native" "$FLINK_HOME"/log/*
 
 日志中出现`OmniTask::DoRunInvoke welcome to native`，表示OmniStream已经成功使能。
 
-> **截图：** 此处插入包含`welcome to native`日志的截图。
+> 执行结果
+> ![img_12.png](img_12.png)
 
-也可以在浏览器中访问`http://<宿主机IP>:30211`查看Flink Web UI。
 
 ## 常见问题
 
