@@ -23,8 +23,9 @@ Verify the installation:
 docker version
 ```
 
-> Installation information:
-> ![Docker version](../zh/figures/quick-start/docker-version.png)
+Installation information:
+
+![Docker version](../zh/figures/quick-start/docker-version.png)
 
 ### 2. Import the openEuler image
 
@@ -104,8 +105,9 @@ Verify the JDK installation:
 java -version
 ```
 
-> Command output:
-> ![JDK version](../zh/figures/quick-start/jdk-version.png)
+Command output:
+
+![JDK version](../zh/figures/quick-start/jdk-version.png)
 
 ### 6. Install Flink
 
@@ -137,8 +139,9 @@ Check the downloaded dependencies:
 ls -la "$FLINK_HOME/lib" | grep -E "json|gson"
 ```
 
-> Dependency files:
-> ![Flink JSON and Gson dependencies](../zh/figures/quick-start/flink-json-gson-libs.png)
+Dependency files:
+
+![Flink JSON and Gson dependencies](../zh/figures/quick-start/flink-json-gson-libs.png)
 
 Verify the Flink installation:
 
@@ -146,8 +149,9 @@ Verify the Flink installation:
 "$FLINK_HOME/bin/flink" --version
 ```
 
-> Command output:
-> ![Flink version](../zh/figures/quick-start/flink-version.png)
+Command output:
+
+![Flink version](../zh/figures/quick-start/flink-version.png)
 
 ### 7. Install OmniStream and its dependencies
 
@@ -183,8 +187,9 @@ Check the dependency directory:
 ls -la /opt/Dependency_library
 ```
 
-> Installed dependencies:
-> ![OmniStream dependency libraries](../zh/figures/quick-start/dependency-libraries.png)
+Installed dependencies:
+
+![OmniStream dependency libraries](../zh/figures/quick-start/dependency-libraries.png)
 
 Install OmniStream:
 
@@ -202,8 +207,9 @@ Check the OmniStream files:
 ls -la /usr/local/OmniStream
 ```
 
-> Installed files:
-> ![OmniStream files](../zh/figures/quick-start/omnistream-files.png)
+Installed files:
+
+![OmniStream files](../zh/figures/quick-start/omnistream-files.png)
 
 Configure the native library search path:
 
@@ -238,8 +244,9 @@ echo $PATCH:"$FLINK_CLASSPATH""$FLINK_DIST"
 
 Press `Esc`, enter `:wq`, and press `Enter`.
 
-> Updated class path:
-> ![Flink class path configuration](../zh/figures/quick-start/flink-classpath-config.png)
+Updated class path:
+
+![Flink class path configuration](../zh/figures/quick-start/flink-classpath-config.png)
 
 Open the Flink configuration file:
 
@@ -255,8 +262,9 @@ env.java.opts: -Djava.library.path=/usr/local/OmniStream:/opt/Dependency_library
 
 Press `Esc`, enter `:wq`, and press `Enter`.
 
-> Updated JVM options:
-> ![Flink JVM options](../zh/figures/quick-start/flink-jvm-options.png)
+Updated JVM options:
+
+![Flink JVM options](../zh/figures/quick-start/flink-jvm-options.png)
 
 ### 9. Install Nexmark
 
@@ -284,8 +292,9 @@ export JAVA_TOOL_OPTIONS="-Djava.library.path=/usr/local/OmniStream:/opt/Depende
 
 Press `Esc`, enter `:wq`, and press `Enter`.
 
-> Updated Nexmark JVM options:
-> ![Nexmark JVM options](../zh/figures/quick-start/nexmark-jvm-options.png)
+Updated Nexmark JVM options:
+
+![Nexmark JVM options](../zh/figures/quick-start/nexmark-jvm-options.png)
 
 ## Quick Start
 
@@ -298,8 +307,9 @@ source /etc/profile
 
 Run `jps`. Flink has started successfully if the output contains `StandaloneSessionClusterEntrypoint` and `TaskManagerRunner`.
 
-> Flink processes:
-> ![Flink processes](../zh/figures/quick-start/flink-processes.png)
+Flink processes:
+
+![Flink processes](../zh/figures/quick-start/flink-processes.png)
 
 ### 2. Initialize Nexmark
 
@@ -309,8 +319,9 @@ bash /usr/local/nexmark/bin/setup_cluster.sh
 
 Run `jps` again. Nexmark initialization has succeeded if the output contains `CpuMetricSender`.
 
-> Process check:
-> ![Nexmark metric process](../zh/figures/quick-start/nexmark-process.png)
+Process check:
+
+![Nexmark metric process](../zh/figures/quick-start/nexmark-process.png)
 
 ### 3. Run Q0
 
@@ -318,8 +329,9 @@ Run `jps` again. Nexmark initialization has succeeded if the output contains `Cp
 bash /usr/local/nexmark/bin/run_query.sh q0
 ```
 
-> Execution result:
-> ![Nexmark Q0 result](../zh/figures/quick-start/nexmark-q0-result.png)
+Execution result:
+
+![Nexmark Q0 result](../zh/figures/quick-start/nexmark-q0-result.png)
 
 ### 4. Verify OmniStream
 
@@ -329,8 +341,9 @@ grep "welcome to native" "$FLINK_HOME"/log/*
 
 OmniStream is enabled if the log contains `OmniTask::DoRunInvoke welcome to native`.
 
-> Command output:
-> ![OmniStream native log](../zh/figures/quick-start/omnistream-native-log.png)
+Command output:
+
+![OmniStream native log](../zh/figures/quick-start/omnistream-native-log.png)
 
 ## FAQ
 
@@ -353,7 +366,7 @@ Run `grep -nE "ERROR|Exception|Caused by" /usr/local/nexmark/log/nexmark-flink.l
 
 ## More Information
 
-- [Build Guide](../zh/compile_guide.md)
+- [Build Guide](./compile_guide.md)
 - [Installation Guide](./installation_guide.md)
 - [User Guide](./user_guide.md)
 - [FAQ](./faq.md)

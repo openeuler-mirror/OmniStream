@@ -23,8 +23,8 @@ systemctl start docker
 docker version
 ```
 
-> 下图是已安装信息。
-> ![Docker版本信息](figures/quick-start/docker-version.png)
+下图是已安装信息
+![Docker版本信息](figures/quick-start/docker-version.png)
 
 ### 2. 导入openEuler镜像
 
@@ -105,8 +105,8 @@ source /etc/profile
 java -version
 ```
 
-> 执行结果
-> ![JDK版本信息](figures/quick-start/jdk-version.png)
+执行结果
+![JDK版本信息](figures/quick-start/jdk-version.png)
 
 ### 6. 安装Flink
 
@@ -138,8 +138,8 @@ wget --no-check-certificate https://repo.maven.apache.org/maven2/com/google/code
 ls -la "$FLINK_HOME/lib" | grep -E "json|gson"
 ```
 
-> 检查结果
-> ![Flink的JSON和Gson依赖](figures/quick-start/flink-json-gson-libs.png)
+检查结果
+![Flink的JSON和Gson依赖](figures/quick-start/flink-json-gson-libs.png)
 
 执行以下命令验证Flink是否安装成功：
 
@@ -147,8 +147,8 @@ ls -la "$FLINK_HOME/lib" | grep -E "json|gson"
 "$FLINK_HOME/bin/flink" --version
 ```
 
-> 检查结果
-> ![Flink版本信息](figures/quick-start/flink-version.png)
+检查结果
+![Flink版本信息](figures/quick-start/flink-version.png)
 
 ### 7. 安装OmniStream和依赖库
 
@@ -184,8 +184,8 @@ chmod -R 550 /opt/Dependency_library/*
 ls -la /opt/Dependency_library
 ```
 
-> 应看到
-> ![OmniStream依赖库](figures/quick-start/dependency-libraries.png)
+应看到
+![OmniStream依赖库](figures/quick-start/dependency-libraries.png)
 
 安装OmniStream：
 
@@ -203,8 +203,8 @@ chmod -R 550 /usr/local/OmniStream/*
 ls -la /usr/local/OmniStream
 ```
 
-> 应看到
-> ![OmniStream安装文件](figures/quick-start/omnistream-files.png)
+应看到
+![OmniStream安装文件](figures/quick-start/omnistream-files.png)
 
 配置动态库搜索路径：
 
@@ -239,8 +239,8 @@ echo $PATCH:"$FLINK_CLASSPATH""$FLINK_DIST"
 
 按`Esc`键，输入`:wq`，按`Enter`键保存并退出。
 
-> 修改结果
-> ![Flink类路径配置](figures/quick-start/flink-classpath-config.png)
+修改结果
+![Flink类路径配置](figures/quick-start/flink-classpath-config.png)
 
 编辑Flink配置文件：
 
@@ -256,8 +256,8 @@ env.java.opts: -Djava.library.path=/usr/local/OmniStream:/opt/Dependency_library
 
 按`Esc`键，输入`:wq`，按`Enter`键保存并退出。
 
-> 配置结果
-> ![Flink JVM参数配置](figures/quick-start/flink-jvm-options.png)
+配置结果
+![Flink JVM参数配置](figures/quick-start/flink-jvm-options.png)
 
 ### 9. 安装Nexmark
 
@@ -285,8 +285,8 @@ export JAVA_TOOL_OPTIONS="-Djava.library.path=/usr/local/OmniStream:/opt/Depende
 
 按`Esc`键，输入`:wq`，按`Enter`键保存并退出。
 
-> 配置结果
-> ![Nexmark JVM参数配置](figures/quick-start/nexmark-jvm-options.png)
+配置结果
+![Nexmark JVM参数配置](figures/quick-start/nexmark-jvm-options.png)
 
 ## 快速开始
 
@@ -299,8 +299,8 @@ source /etc/profile
 
 执行`jps`检查Flink进程。输出中包含`StandaloneSessionClusterEntrypoint`和`TaskManagerRunner`，表示Flink启动成功。
 
-> Flink进程检查结果
-> ![Flink进程](figures/quick-start/flink-processes.png)
+Flink进程检查结果
+![Flink进程](figures/quick-start/flink-processes.png)
 
 ### 2. 初始化Nexmark
 
@@ -310,8 +310,8 @@ bash /usr/local/nexmark/bin/setup_cluster.sh
 
 再次执行`jps`。输出中包含`CpuMetricSender`，表示Nexmark初始化成功。
 
-> 检查结果
-> ![Nexmark指标采集进程](figures/quick-start/nexmark-process.png)
+检查结果
+![Nexmark指标采集进程](figures/quick-start/nexmark-process.png)
 
 ### 3. 执行Q0用例
 
@@ -319,8 +319,8 @@ bash /usr/local/nexmark/bin/setup_cluster.sh
 bash /usr/local/nexmark/bin/run_query.sh q0
 ```
 
-> 任务执行结果
-> ![Nexmark Q0执行结果](figures/quick-start/nexmark-q0-result.png)
+任务执行结果
+![Nexmark Q0执行结果](figures/quick-start/nexmark-q0-result.png)
 
 ### 4. 验证OmniStream是否生效
 
@@ -330,8 +330,8 @@ grep "welcome to native" "$FLINK_HOME"/log/*
 
 日志中出现`OmniTask::DoRunInvoke welcome to native`，表示OmniStream已经成功使能。
 
-> 执行结果
-> ![OmniStream Native日志](figures/quick-start/omnistream-native-log.png)
+执行结果
+![OmniStream Native日志](figures/quick-start/omnistream-native-log.png)
 
 
 ## 常见问题

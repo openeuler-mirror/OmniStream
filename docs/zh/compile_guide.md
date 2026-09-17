@@ -133,6 +133,9 @@
     cmake -S cpp -B cpp/build -G Ninja -DCMAKE_BUILD_TYPE=Release
     cmake --build cpp/build --parallel 32
     ```
+结果如下：
+
+![OmniStream编译结果](figures/compile-guide/build-result.png)
 
 ### 单元测试
 
@@ -142,3 +145,6 @@
 cd /opt/buildtools/OmniStream/cpp/build/test
 ./tneltest
 ```
+结果如下：
+
+![单元测试结果](figures/compile-guide/unit-test-result.png)
