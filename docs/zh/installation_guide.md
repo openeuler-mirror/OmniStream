@@ -490,7 +490,7 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
     解压二进制包后主要得到如下JAR包、so文件和基础库、头文件目录include。
 
     ```bash
-    boostkit-adaptor-omnistream-1.4.0.jar
+    boostkit-omniadaptor-flink-1.4.0.jar
     libboostkit-omnistream.so.1.4.0
     libboundscheck.so
     libboostkit-omniop-codegen-2.2.0-aarch64.so
@@ -513,7 +513,7 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
 
         ```bash
         # echo "$FLINK_CLASSPATH""$FLINK_DIST"
-        PATCH=/usr/local/OmniStream/boostkit-adaptor-omnistream-1.4.0.jar
+        PATCH=/usr/local/OmniStream/boostkit-omniadaptor-flink-1.4.0.jar
         echo $PATCH:"$FLINK_CLASSPATH""$FLINK_DIST"
         ```
 

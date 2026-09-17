@@ -494,7 +494,7 @@ In independent deployment mode, you can install the precompiled OmniStream binar
     After the binary package is extracted, the JAR package, SO files, basic library, and `include` directory are obtained.
 
     ```bash
-    boostkit-adaptor-omnistream-1.4.0.jar
+    boostkit-omniadaptor-flink-1.4.0.jar
     libboostkit-omnistream.so.1.4.0
     libboundscheck.so
     libboostkit-omniop-codegen-2.2.0-aarch64.so
@@ -517,7 +517,7 @@ In independent deployment mode, you can install the precompiled OmniStream binar
 
         ```bash
         # echo "$FLINK_CLASSPATH""$FLINK_DIST"
-        PATCH=/usr/local/OmniStream/boostkit-adaptor-omnistream-1.4.0.jar
+        PATCH=/usr/local/OmniStream/boostkit-omniadaptor-flink-1.4.0.jar
         echo $PATCH:"$FLINK_CLASSPATH""$FLINK_DIST"
         ```
 
