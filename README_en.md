@@ -169,6 +169,7 @@ For instructions on quickly verifying whether OmniStream is active and its perfo
 |[Quick Start](./docs/en/quick_start.md)|Provides guidance on how to quickly enable and verify the OmniStream feature.|
 |[Release Notes](./docs/en/release_notes.md)|Provides basic information and feature updates of each OmniStream version.|
 |[Installation Guide](./docs/en/installation_guide.md)|Describes how to install OmniStream.|
+|[Build Guide](./docs/en/compile_guide.md)|Describes how to build OmniStream and run its unit tests.|
 |[User Guide](./docs/en/user_guide.md)|Provides details about how to use OmniStream.|
 |[FAQs](./docs/zh/faq.md)|Provides answers to frequently asked questions (FAQs) about installing and using OmniStream.|
 
