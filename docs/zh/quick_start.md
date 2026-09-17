@@ -39,7 +39,6 @@ docker load -i openEuler-docker.aarch64.tar.xz
 docker images
 ```
 
-
 ### 3. 创建并进入容器
 
 执行以下命令检查宿主机的30211端口是否被占用：
@@ -332,7 +331,6 @@ grep "welcome to native" "$FLINK_HOME"/log/*
 
 执行结果
 ![OmniStream Native日志](figures/quick-start/omnistream-native-log.png)
-
 
 ## 常见问题
 
