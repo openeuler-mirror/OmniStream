@@ -372,4 +372,4 @@ Run `grep -nE "ERROR|Exception|Caused by" /usr/local/nexmark/log/nexmark-flink.l
 
 # Disclaimer
 
-This repository is intended to participate in the Flink open source ecosystem and only provides Flink functionality extensions and performance improvements. Vulnerabilities and security issues in upstream software are handled by the corresponding communities under their security response processes.
+This code repository contributes to the Flink open-source project solely for performance optimization. It strictly adheres to the coding style and methods, as well as security design of the native open-source software. Any vulnerability and security issues of the software shall be resolved by the corresponding upstream communities according to their response mechanisms. Please pay attention to the notifications and version updates released by the upstream communities. The Kunpeng computing community does not assume any responsibility for software vulnerabilities and security issues.
