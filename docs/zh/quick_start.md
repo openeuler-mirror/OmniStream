@@ -24,7 +24,7 @@ docker version
 ```
 
 > 下图是已安装信息。
-> ![img.png](img.png)
+> ![Docker版本信息](figures/quick-start/docker-version.png)
 
 ### 2. 导入openEuler镜像
 
@@ -106,7 +106,7 @@ java -version
 ```
 
 > 执行结果
-> ![img_1.png](img_1.png)
+> ![JDK版本信息](figures/quick-start/jdk-version.png)
 
 ### 6. 安装Flink
 
@@ -139,7 +139,7 @@ ls -la "$FLINK_HOME/lib" | grep -E "json|gson"
 ```
 
 > 检查结果
-> ![img_2.png](img_2.png)
+> ![Flink的JSON和Gson依赖](figures/quick-start/flink-json-gson-libs.png)
 
 执行以下命令验证Flink是否安装成功：
 
@@ -148,7 +148,7 @@ ls -la "$FLINK_HOME/lib" | grep -E "json|gson"
 ```
 
 > 检查结果
-> ![img_3.png](img_3.png)
+> ![Flink版本信息](figures/quick-start/flink-version.png)
 
 ### 7. 安装OmniStream和依赖库
 
@@ -185,7 +185,7 @@ ls -la /opt/Dependency_library
 ```
 
 > 应看到
-> ![img_4.png](img_4.png)
+> ![OmniStream依赖库](figures/quick-start/dependency-libraries.png)
 
 安装OmniStream：
 
@@ -204,7 +204,7 @@ ls -la /usr/local/OmniStream
 ```
 
 > 应看到
-> ![img_5.png](img_5.png)
+> ![OmniStream安装文件](figures/quick-start/omnistream-files.png)
 
 配置动态库搜索路径：
 
@@ -240,7 +240,7 @@ echo $PATCH:"$FLINK_CLASSPATH""$FLINK_DIST"
 按`Esc`键，输入`:wq`，按`Enter`键保存并退出。
 
 > 修改结果
-> ![img_6.png](img_6.png)
+> ![Flink类路径配置](figures/quick-start/flink-classpath-config.png)
 
 编辑Flink配置文件：
 
@@ -257,7 +257,7 @@ env.java.opts: -Djava.library.path=/usr/local/OmniStream:/opt/Dependency_library
 按`Esc`键，输入`:wq`，按`Enter`键保存并退出。
 
 > 配置结果
-> ![img_7.png](img_7.png)
+> ![Flink JVM参数配置](figures/quick-start/flink-jvm-options.png)
 
 ### 9. 安装Nexmark
 
@@ -286,7 +286,7 @@ export JAVA_TOOL_OPTIONS="-Djava.library.path=/usr/local/OmniStream:/opt/Depende
 按`Esc`键，输入`:wq`，按`Enter`键保存并退出。
 
 > 配置结果
-> ![img_8.png](img_8.png)
+> ![Nexmark JVM参数配置](figures/quick-start/nexmark-jvm-options.png)
 
 ## 快速开始
 
@@ -300,7 +300,7 @@ source /etc/profile
 执行`jps`检查Flink进程。输出中包含`StandaloneSessionClusterEntrypoint`和`TaskManagerRunner`，表示Flink启动成功。
 
 > Flink进程检查结果
-> ![img_9.png](img_9.png)
+> ![Flink进程](figures/quick-start/flink-processes.png)
 
 ### 2. 初始化Nexmark
 
@@ -311,7 +311,7 @@ bash /usr/local/nexmark/bin/setup_cluster.sh
 再次执行`jps`。输出中包含`CpuMetricSender`，表示Nexmark初始化成功。
 
 > 检查结果
-> ![img_10.png](img_10.png)
+> ![Nexmark指标采集进程](figures/quick-start/nexmark-process.png)
 
 ### 3. 执行Q0用例
 
@@ -320,7 +320,7 @@ bash /usr/local/nexmark/bin/run_query.sh q0
 ```
 
 > 任务执行结果
-> ![img_11.png](img_11.png)
+> ![Nexmark Q0执行结果](figures/quick-start/nexmark-q0-result.png)
 
 ### 4. 验证OmniStream是否生效
 
@@ -331,7 +331,7 @@ grep "welcome to native" "$FLINK_HOME"/log/*
 日志中出现`OmniTask::DoRunInvoke welcome to native`，表示OmniStream已经成功使能。
 
 > 执行结果
-> ![img_12.png](img_12.png)
+> ![OmniStream Native日志](figures/quick-start/omnistream-native-log.png)
 
 
 ## 常见问题
