@@ -353,7 +353,6 @@ Run `ldd /usr/local/OmniStream/libtnel.so | grep "not found"` to check the nativ
 
 ```bash
 yum install -y libXext libX11 libXrender libXtst libXi
-ldconfig
 ```
 
 ### Flink reports that the configuration cannot be parsed

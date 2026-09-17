@@ -23,7 +23,7 @@ systemctl start docker
 docker version
 ```
 
-下图是已安装信息
+如图是已安装信息
 ![Docker版本信息](figures/quick-start/docker-version.png)
 
 ### 2. 导入openEuler镜像
@@ -342,7 +342,6 @@ grep "welcome to native" "$FLINK_HOME"/log/*
 
 ```bash
 yum install -y libXext libX11 libXrender libXtst libXi
-ldconfig
 ```
 
 ### Flink日志提示无法解析配置
