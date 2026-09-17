@@ -83,7 +83,11 @@ void RemoteInputChannel::notifyRemoteDataAvailableForVectorBatch(
     const std::shared_ptr<OriginalNetworkBufferRecycler>& originalNetworkBufferRecycle)
 {
     std::unique_lock<std::recursive_mutex> lock(queueMutex);
-    if(isReleased()){
+    if (isReleased()) {
+        lock.unlock();
+        if (bufferAddress != -1 && originalNetworkBufferRecycle != nullptr) {
+            originalNetworkBufferRecycle->recycle(bufferAddress);
+        }
         return;
     }
     taskType = 1;

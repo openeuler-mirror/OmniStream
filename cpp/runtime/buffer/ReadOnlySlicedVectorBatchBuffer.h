@@ -5,7 +5,6 @@
 #ifndef READONLYSLICEDVECTORBATCHBUFFER_H
 #define READONLYSLICEDVECTORBATCHBUFFER_H
 
-#include "LocalObjectBufferPool.h"
 #include "ObjectBuffer.h"
 #include "ObjectSegment.h"
 #include "VectorBatchBuffer.h"
@@ -38,12 +37,12 @@ public:
         if (parent_ == nullptr) {
             THROW_LOGIC_EXCEPTION("ReadOnlySlicedVectorBatchBuffer::RecycleBuffer(), parent_ is nullptr");
         }
-        LOG_TRACE("Calling RecycleBuffer() from ReadOnlySlicedVectorBatchBuffer");
-        auto recycler = std::dynamic_pointer_cast<LocalObjectBufferPool::SubpartitionBufferRecycler>(GetRecycler());
-        if (recycler != nullptr) {
-            recycler->recycleBytes(byteToRecycle);
-            LOG_TRACE("ReadOnlySlicedVectorBatchBuffer bytesToRecycle = " << byteToRecycle);
+        if (recycled_.exchange(true, std::memory_order_acq_rel)) {
+            THROW_LOGIC_EXCEPTION("ReadOnlySlicedVectorBatchBuffer::RecycleBuffer() called twice");
         }
+        LOG_TRACE("Calling RecycleBuffer() from ReadOnlySlicedVectorBatchBuffer");
+        parent_->RecycleBytes(byteToRecycle);
+        LOG_TRACE("ReadOnlySlicedVectorBatchBuffer bytesToRecycle = " << byteToRecycle);
         parent_->RecycleBuffer();
     }
 
@@ -88,6 +87,7 @@ private:
     int index_;
     int length_;
     int64_t byteToRecycle = 0;
+    std::atomic<bool> recycled_{false};
 };
 } // namespace omnistream
 

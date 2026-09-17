@@ -298,6 +298,7 @@ void LocalObjectBufferPool::recycle(Segment* segment, int channel)
             requestedSegmentCount = requestSegmentNumber;
             recycledSegmentCount = recycleSegmentNumber;
         } else {
+            objectSegment->reset();
             availableSegments.push_back(objectSegment);
         }
     }

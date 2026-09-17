@@ -63,6 +63,8 @@ public:
 
     void RecycleBuffer() override;
 
+    void RecycleBytes(int64_t bytes);
+
     bool IsRecycled() const
     {
         return isRecycled_.load(std::memory_order_acquire);
@@ -177,6 +179,8 @@ protected:
     void recycleBuffer(bool selfDelete);
 
 private:
+    void recycleRemainingBytes();
+
     ObjectSegment *objectSegment;
     std::shared_ptr<ObjectSegment> ownedSegment_;
     std::shared_ptr<BufferRecycler> recycler;
@@ -192,6 +196,7 @@ private:
     int readerIndex_;
 
     std::atomic<int> refCount_{0};
+    std::atomic<int64_t> accountedBytes_{0};
 };
 
 } // namespace omnistream

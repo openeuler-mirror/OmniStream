@@ -11,6 +11,9 @@
 
 #include "VectorBatchBuffer.h"
 
+#include <algorithm>
+
+#include "LocalObjectBufferPool.h"
 #include "ReadOnlySlicedVectorBatchBuffer.h"
 
 namespace omnistream {
@@ -58,9 +61,43 @@ void VectorBatchBuffer::recycleBuffer(bool selfDelete)
 
     LOG_PART("VectorBatch Buffer recycled " << this);
     isRecycled_.store(true, std::memory_order_release);
+    recycleRemainingBytes();
     recycler->recycle(GetObjectSegment());
     if (selfDelete) {
         delete this;
+    }
+}
+
+void VectorBatchBuffer::RecycleBytes(int64_t bytes)
+{
+    if (bytes <= 0) {
+        return;
+    }
+
+    auto localRecycler =
+        std::dynamic_pointer_cast<LocalObjectBufferPool::SubpartitionBufferRecycler>(recycler);
+    if (localRecycler == nullptr) {
+        return;
+    }
+
+    accountedBytes_.fetch_add(bytes, std::memory_order_relaxed);
+    localRecycler->recycleBytes(bytes);
+}
+
+void VectorBatchBuffer::recycleRemainingBytes()
+{
+    auto localRecycler =
+        std::dynamic_pointer_cast<LocalObjectBufferPool::SubpartitionBufferRecycler>(recycler);
+    if (localRecycler == nullptr || objectSegment == nullptr) {
+        return;
+    }
+
+    const int64_t totalBytes = objectSegment->getObjectSizeInBytes();
+    const int64_t returnedBytes = accountedBytes_.load(std::memory_order_relaxed);
+    const int64_t bytesToRecycle = std::max<int64_t>(0, totalBytes - returnedBytes);
+
+    if (bytesToRecycle > 0) {
+        localRecycler->recycleBytes(bytesToRecycle);
     }
 }
 

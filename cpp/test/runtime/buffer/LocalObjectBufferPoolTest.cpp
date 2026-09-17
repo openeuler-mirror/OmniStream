@@ -1,7 +1,10 @@
 #include <gtest/gtest.h>
 
+#include "runtime/buffer/BufferBuilder.h"
+#include "runtime/buffer/BufferConsumer.h"
 #include "runtime/buffer/LocalObjectBufferPool.h"
 #include "runtime/buffer/NetworkObjectBufferPool.h"
+#include "streaming/api/watermark/Watermark.h"
 
 using namespace omnistream;
 
@@ -106,4 +109,29 @@ TEST(LocalObjectBufferPoolTest, DISABLED_Recycle)
     buffer6.reset();
     EXPECT_EQ(localObjectBufferPool->getNumberOfAvailableSegments(), 5);
     EXPECT_EQ(networkObjectBufferPool->getNumberOfAvailableObjectSegments(), segmentNum);
+}
+
+TEST(LocalObjectBufferPoolTest, ClosingUnreadVectorBatchReturnsChargedBytes)
+{
+    auto networkPool = std::make_shared<NetworkObjectBufferPool>(10, 1024);
+    auto bufferPool = std::dynamic_pointer_cast<LocalObjectBufferPool>(
+        networkPool->createBufferPool(1, 2, 1, 2));
+    ASSERT_NE(bufferPool, nullptr);
+
+    constexpr uint64_t watermarkBytes = sizeof(int64_t);
+    ASSERT_TRUE(bufferPool->chargeMemory(0, watermarkBytes));
+
+    BufferBuilder* builder = bufferPool->requestBufferBuilder(0, watermarkBytes);
+    ASSERT_NE(builder, nullptr);
+    auto* watermark = new Watermark(123);
+    builder->appendAndCommit(watermark);
+    auto consumer = builder->createBufferConsumerFromBeginning();
+    builder->finish();
+    builder->close();
+    delete builder;
+
+    EXPECT_EQ(bufferPool->getUsedMemory(), watermarkBytes);
+    consumer->close();
+    EXPECT_EQ(bufferPool->getUsedMemory(), 0);
+    delete watermark;
 }
