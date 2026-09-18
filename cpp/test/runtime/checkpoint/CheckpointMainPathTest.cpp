@@ -20,7 +20,9 @@
 #include "runtime/checkpoint/channel/ChannelStateWriteRequestDispatcherImpl.h"
 #include "runtime/checkpoint/channel/ChannelStateSerializer.h"
 #include "runtime/checkpoint/channel/ChannelStateCheckpointWriter.h"
+#include "runtime/checkpoint/channel/CheckpointBufferUtils.h"
 #include "runtime/buffer/ObjectBufferRecycler.h"
+#include "runtime/buffer/ReadOnlySlicedVectorBatchBuffer.h"
 #include "runtime/state/CheckpointStorage.h"
 #include "runtime/state/filesystem/FsCheckpointStorageAccess.h"
 #include "runtime/executiongraph/JobIDPOD.h"
@@ -50,9 +52,9 @@ class MockStorage : public CheckpointStorage {
 public:
     std::shared_ptr<CheckpointStorageAccess> createCheckpointStorage(const JobIDPOD& jobId) override
     {
-        static Path checkpointDir("");
-        static Path savepointDir("");
-        return std::make_shared<FsCheckpointStorageAccess>(&checkpointDir, &savepointDir, jobId, 100, 100);
+        auto checkpointDir = std::make_shared<Path>("");
+        auto savepointDir = std::make_shared<Path>("");
+        return std::make_shared<FsCheckpointStorageAccess>(checkpointDir, savepointDir, jobId, 100, 100);
     }
 };
 
@@ -140,6 +142,23 @@ public:
         return {nullptr, 0};
     }
     bool recycled = false;
+};
+
+class TrackingVectorBatchSlice : public ReadOnlySlicedVectorBatchBuffer {
+public:
+    TrackingVectorBatchSlice(VectorBatchBuffer* parent, int* destroyed)
+        : ReadOnlySlicedVectorBatchBuffer(parent, 0, 1),
+          destroyed_(destroyed)
+    {
+    }
+
+    ~TrackingVectorBatchSlice() override
+    {
+        ++(*destroyed_);
+    }
+
+private:
+    int* destroyed_;
 };
 
 // =========================================================================
@@ -313,6 +332,34 @@ TEST(ChannelStateWriteRequestTest, WriteOutputDiscardRecyclesBuffers)
     EXPECT_FALSE(buf->recycled);
     req->cancel(std::make_exception_ptr(std::runtime_error("cancel")));
     EXPECT_TRUE(buf->recycled);
+}
+
+TEST(ChannelStateWriteRequestTest, WriteInputDiscardDeletesReadOnlySlice)
+{
+    ObjectSegment segment(1);
+    auto* parent = new VectorBatchBuffer(&segment, DummyObjectBufferRecycler::getInstance());
+    parent->SetSize(1);
+    int destroyed = 0;
+    std::vector<Buffer*> buffers = {new TrackingVectorBatchSlice(parent, &destroyed)};
+
+    auto req = ChannelStateWriteRequest::writeInput(JobVertexID(1, 1), 0, 1, InputChannelInfo{}, buffers);
+    req->cancel(std::make_exception_ptr(std::runtime_error("cancel")));
+
+    EXPECT_EQ(destroyed, 1);
+}
+
+TEST(ChannelStateWriteRequestTest, WriteOutputDiscardDeletesReadOnlySlice)
+{
+    ObjectSegment segment(1);
+    auto* parent = new VectorBatchBuffer(&segment, DummyObjectBufferRecycler::getInstance());
+    parent->SetSize(1);
+    int destroyed = 0;
+    std::vector<Buffer*> buffers = {new TrackingVectorBatchSlice(parent, &destroyed)};
+
+    auto req = ChannelStateWriteRequest::writeOutput(JobVertexID(1, 1), 0, 1, ResultSubpartitionInfoPOD{}, buffers);
+    req->cancel(std::make_exception_ptr(std::runtime_error("cancel")));
+
+    EXPECT_EQ(destroyed, 1);
 }
 
 TEST(ChannelStateWriteRequestTest, CompleteInputHasDoneFuture)

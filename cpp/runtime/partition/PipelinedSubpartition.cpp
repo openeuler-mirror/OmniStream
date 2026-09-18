@@ -16,11 +16,14 @@
 #include "io/network/api/serialization/EventSerializer.h"
 #include "PipelinedSubpartition.h"
 
+#include "buffer/ReadOnlySlicedNetworkBuffer.h"
+#include "buffer/ReadOnlySlicedVectorBatchBuffer.h"
 #include "runtime/buffer/ObjectBufferRecycler.h"
 #include "runtime/buffer/ObjectSegment.h"
 #include "event/EndOfPartitionEvent.h"
 #include "event/EndOfChannelStateEvent.h"
 #include "checkpoint/channel/ChannelStateWriter.h"
+#include "checkpoint/channel/CheckpointBufferUtils.h"
 #include "runtime/buffer/VectorBatchBuffer.h"
 
 namespace omnistream {
@@ -545,8 +548,8 @@ std::shared_ptr<CheckpointBarrier> PipelinedSubpartition::ParseCheckpointBarrier
     const std::shared_ptr<BufferConsumer>& bufferConsumer)
 {
     // auto buffer = bufferConsumer->build();
-    auto buffer = bufferConsumer->buildForPeek();
-    auto event = EventSerializer::fromBuffer(buffer);
+    auto buffer = std::unique_ptr<Buffer>(bufferConsumer->buildForPeek());
+    auto event = EventSerializer::fromBuffer(buffer.get());
     // auto event = EventSerializer::fromBuffe_V2r(buffer);
     return std::dynamic_pointer_cast<CheckpointBarrier>(event);
 }
@@ -569,11 +572,17 @@ bool PipelinedSubpartition::ProcessPriorityBuffer(
             for (const auto& current : elements) {
                 auto buffer = current->getBufferConsumer();
                 if (buffer->isBuffer()) {
-                    Buffer* inflightbuffer = buffer->buildForPeek();
-                    if (inflightbuffer == nullptr || inflightbuffer->GetSize() == 0) {
-                        LOG("writeOutput buffers is null ");
+                    auto inflightbuffer = std::unique_ptr<Buffer>(buffer->buildForPeek());
+                    if (inflightbuffer == nullptr) {
+                        ERROR_RELEASE("inflightbuffer is nullptr");
                         continue;
                     }
+                    if (inflightbuffer->GetSize() == 0) {
+                        ERROR_RELEASE("inflightbuffer size is 0");
+                        inflightbuffer->RecycleBuffer();
+                        continue;
+                    }
+
                     Segment* segment = inflightbuffer->GetSegment();
                     if (segment->isObjectSegment()) {
                         ObjectSegment* newSegment = new ObjectSegment(inflightbuffer->GetSize());
@@ -586,7 +595,6 @@ bool PipelinedSubpartition::ProcessPriorityBuffer(
                         } catch (...) {
                             delete newSegment;
                             inflightbuffer->RecycleBuffer();
-                            delete inflightbuffer;
                             throw;
                         }
                         auto* copiedBuffer =
@@ -595,7 +603,7 @@ bool PipelinedSubpartition::ProcessPriorityBuffer(
                         inflightbuffer->RecycleBuffer();
                         inflightBuffers.push_back(copiedBuffer);
                     } else {
-                        inflightBuffers.push_back(inflightbuffer);
+                        inflightBuffers.push_back(inflightbuffer.release());
                     }
                 }
             }
@@ -603,8 +611,7 @@ bool PipelinedSubpartition::ProcessPriorityBuffer(
             // Ownership has not been transferred to channelStateWriter_.
             for (Buffer* buffer : inflightBuffers) {
                 if (buffer != nullptr) {
-                    buffer->RecycleBuffer();
-                    delete buffer;
+                    ReleaseCheckpointBuffer(buffer);
                 }
             }
             throw;

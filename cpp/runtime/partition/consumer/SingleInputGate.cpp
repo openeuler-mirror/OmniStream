@@ -25,6 +25,7 @@
 #include "LocalRecoveredInputChannel.h"
 #include "RemoteRecoveredInputChannel.h"
 #include "OmniLocalInputChannel.h"
+#include "buffer/ReadOnlySlicedNetworkBuffer.h"
 
 namespace omnistream {
 
@@ -715,7 +716,16 @@ BufferOrEvent* SingleInputGate::transformEvent(
 {
     bool hasPriority = buffer->GetDataType().hasPriority();
     int size = buffer->GetSize();
+
+    bool bufferIsReadOnly = false;
+    if (dynamic_cast<ReadOnlySlicedNetworkBuffer*>(buffer)) {
+        bufferIsReadOnly = true;
+    }
     std::shared_ptr<AbstractEvent> event = EventSerializer::fromBuffer(buffer);
+
+    if (bufferIsReadOnly) {
+        delete buffer;
+    }
 
     if (dynamic_cast<EndOfPartitionEvent*>(event.get())) {
         INFO_RELEASE(

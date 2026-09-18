@@ -35,6 +35,7 @@ public:
     BarrierHandlerState* AlignedCheckpointTimeout(Controller* controller, CheckpointBarrier* barrier) override;
 
     BarrierHandlerState* FinishCheckpoint() override;
+    void AbortCheckpoint() override;
     BarrierHandlerState* FinishSavepoint(long id);
 
 private:

@@ -54,7 +54,7 @@ void OmniLocalInputChannel::notifyOriginalDataAvailable(
     }
     int type = bufferType;
     if (bufferType > 1) {
-        isUnlock = true;
+        isBlockedByCheckpoint_.store(true);
         type = 1;
     }
     MemorySegment* memorySegment = new MemorySegment(reinterpret_cast<uint8_t*>(bufferAddress), bufferLength, this);
@@ -133,15 +133,16 @@ void OmniLocalInputChannel::releaseAllResources()
 
 void OmniLocalInputChannel::resumeConsumption()
 {
+    // Clear the hint before the bridge call so a newly arriving blocking event is not
+    // overwritten after the producer has been resumed.
+    isBlockedByCheckpoint_.store(false);
     omniLocalInputChannelBridge->InvokeDoResumeConsumption();
-    isUnlock = false;
 }
 
 void OmniLocalInputChannel::TimeOutResumeConsumption()
 {
-    if (isUnlock) {
+    if (isBlockedByCheckpoint_.exchange(false)) {
         omniLocalInputChannelBridge->InvokeDoResumeConsumption();
-        isUnlock = false;
     }
 }
 
@@ -167,7 +168,15 @@ void OmniLocalInputChannel::CheckpointStarted(
 void OmniLocalInputChannel::CheckpointStopped(long checkpointId)
 {
     startSize_ = 0;
+    if (!channelStatePersister) {
+        LOG("OmniLocalInputChannel::CheckpointStopped skipped because channelStatePersister is not initialized, "
+            "checkpointId="
+            << checkpointId);
+        inflightBuffers_.clear();
+        return;
+    }
     channelStatePersister->StopPersisting(checkpointId);
+    inflightBuffers_.clear();
 }
 void OmniLocalInputChannel::AddInputData(long checkpointId, const omnistream::InputChannelInfo& info)
 {

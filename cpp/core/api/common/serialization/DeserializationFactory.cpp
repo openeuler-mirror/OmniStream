@@ -14,6 +14,8 @@
 #include "JsonRowDataDeserializationSchema.h"
 #include "SimpleStringSchema.h"
 
+#include <stdexcept>
+
 DeserializationSchema* DeserializationFactory::getDeserializationSchema(nlohmann::json& opDescriptionJSON)
 {
     auto& schemaName = opDescriptionJSON["deserializationSchema"];
@@ -27,5 +29,5 @@ DeserializationSchema* DeserializationFactory::getDeserializationSchema(nlohmann
         return new JsonRowDataDeserializationSchema(opDescriptionJSON);
     }
 
-    return nullptr;
+    throw std::runtime_error("Unsupported deserialization schema: " + schemaName.dump());
 }

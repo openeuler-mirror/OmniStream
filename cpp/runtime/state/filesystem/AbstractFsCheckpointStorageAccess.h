@@ -29,12 +29,12 @@ public:
     static constexpr unsigned char REFERENCE_MAGIC_NUMBER[4] = {0x05, 0x5F, 0x3F, 0x18};
 
 protected:
-    static Path* createCheckpointDirectory(const Path& baseDirectory, int64_t checkpointId)
+    static std::shared_ptr<Path> createCheckpointDirectory(const Path& baseDirectory, int64_t checkpointId)
     {
-        return new Path(baseDirectory, std::string(CHECKPOINT_DIR_PREFIX) + std::to_string(checkpointId));
+        return std::make_shared<Path>(baseDirectory, std::string(CHECKPOINT_DIR_PREFIX) + std::to_string(checkpointId));
     };
 
-    static Path* decodePathFromReference(std::shared_ptr<CheckpointStorageLocationReference> reference)
+    static std::shared_ptr<Path> decodePathFromReference(std::shared_ptr<CheckpointStorageLocationReference> reference)
     {
         if (reference->IsDefaultReference()) {
             THROW_LOGIC_EXCEPTION("Cannot decode default reference");
@@ -51,7 +51,7 @@ protected:
 
             try {
                 std::string pathStr(bytes->begin() + headerLen, bytes->end());
-                return new Path(pathStr);
+                return std::make_shared<Path>(pathStr);
             } catch (...) {
                 THROW_LOGIC_EXCEPTION("Reference cannot be decoded to a path");
             }
@@ -60,9 +60,9 @@ protected:
         }
     };
 
-    Path* getCheckpointDirectoryForJob(const Path& baseDirectory, const omnistream::JobIDPOD& jobId)
+    std::shared_ptr<Path> getCheckpointDirectoryForJob(const Path& baseDirectory, const omnistream::JobIDPOD& jobId)
     {
-        return new Path(baseDirectory, jobId.AbstractIDPOD::toString());
+        return std::make_shared<Path>(baseDirectory, jobId.AbstractIDPOD::toString());
     }
 };
 

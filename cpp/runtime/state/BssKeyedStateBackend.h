@@ -119,8 +119,7 @@ public:
     uintptr_t createOrUpdateInternalState(TypeSerializer* namespaceSerializer, StateDescriptor* stateDesc) override;
 
     void setSnapshotBridge(
-        std::shared_ptr<omnistream::OmniTaskBridge> bridge,
-        std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig)
+        std::shared_ptr<omnistream::OmniTaskBridge> bridge, std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig)
     {
         omniTaskBridge_ = std::move(bridge);
         localRecoveryConfig_ = std::move(localRecoveryConfig);
@@ -185,8 +184,10 @@ public:
     }
 
     std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>> snapshot(
-        long checkpointId, long timestamp, CheckpointStreamFactory* streamFactory, CheckpointOptions* checkpointOptions)
-        override
+        long checkpointId,
+        long timestamp,
+        std::shared_ptr<CheckpointStreamFactory> streamFactory,
+        CheckpointOptions* checkpointOptions) override
     {
         if (checkpointId < 0) {
             bss_adapter::ThrowWithLog<std::invalid_argument>("checkpointId must not be negative");
@@ -196,8 +197,7 @@ public:
                 []() { return SnapshotResult<KeyedStateHandle>::Empty(); });
         }
         if (omniTaskBridge_ == nullptr) {
-            bss_adapter::ThrowWithLog<std::runtime_error>(
-                "OmniStateStore checkpoint requires an OmniTaskBridge");
+            bss_adapter::ThrowWithLog<std::runtime_error>("OmniStateStore checkpoint requires an OmniTaskBridge");
         }
 
         if (snapshotStrategy_ == SnapshotStrategyType::INCREMENTAL) {
@@ -306,8 +306,7 @@ public:
                     db->NotifyDBSnapshotAbort(static_cast<uint64_t>(checkpointId));
                     std::error_code cleanupError;
                     fs::remove_all(checkpointPath, cleanupError);
-                    ERROR_RELEASE(
-                        "OmniStateStore checkpoint failed, checkpointId=" << checkpointId);
+                    ERROR_RELEASE("OmniStateStore checkpoint failed, checkpointId=" << checkpointId);
                     throw;
                 }
             });
@@ -384,10 +383,9 @@ public:
             return;
         }
         const char* configuredLogFile = std::getenv("OMNISTREAM_BSS_LOG_FILE");
-        std::string logFile =
-            (configuredLogFile != nullptr && configuredLogFile[0] != '\0')
-                ? configuredLogFile
-                : checkpointConfig.getJniLogDirectory();
+        std::string logFile = (configuredLogFile != nullptr && configuredLogFile[0] != '\0')
+                                  ? configuredLogFile
+                                  : checkpointConfig.getJniLogDirectory();
         std::filesystem::path logPath(logFile);
         if (logPath.has_parent_path()) {
             std::error_code ec;
@@ -402,8 +400,8 @@ public:
             return;
         }
         constexpr int64_t bytesPerMb = 1024 * 1024;
-        const jint logSizeMb = static_cast<jint>(
-            std::max<int64_t>(1, checkpointConfig.getJniLogSizeBytes() / bytesPerMb));
+        const jint logSizeMb =
+            static_cast<jint>(std::max<int64_t>(1, checkpointConfig.getJniLogSizeBytes() / bytesPerMb));
         const jlong handle = Java_com_huawei_ock_bss_ockdb_OckDBLog_initial(
             env,
             nullptr,
@@ -449,10 +447,7 @@ private:
         checkpointMetaInfos_.emplace(
             stateDesc->getName(),
             std::make_shared<RegisteredKeyValueStateBackendMetaInfo>(
-                stateDesc->getType(),
-                stateDesc->getName(),
-                namespaceSerializer,
-                stateDesc->getStateSerializer()));
+                stateDesc->getType(), stateDesc->getName(), namespaceSerializer, stateDesc->getStateSerializer()));
     }
 
     ock::bss::BoostStateDBPtr getOrCreateBoostStateDB()
@@ -492,8 +487,8 @@ private:
         }
         sharedBoostStateDB_ = db;
         INFO_RELEASE(
-            "[BSS] BoostStateDB lazily opened, uid=" << backendUID_.ToString() << ", keyGroups=[" << startGroup_
-                                                      << "," << endGroup_ << "]");
+            "[BSS] BoostStateDB lazily opened, uid=" << backendUID_.ToString() << ", keyGroups=[" << startGroup_ << ","
+                                                     << endGroup_ << "]");
         return sharedBoostStateDB_;
     }
 
@@ -629,8 +624,7 @@ uintptr_t BssKeyedStateBackend<K>::GetMapState(TypeSerializer* namespaceSerializ
     STD_LOG("stateType_ is StateDescriptor::Type::MAP " << ", keyId " << keyId << " , value id " << valueId);
 
     if (namespaceSerializer->getBackendId() != BackendDataType::VOID_NAMESPACE_BK) {
-        bss_adapter::ThrowWithLog<std::logic_error>(
-            "OmniStateStore MapState only supports VoidNamespace");
+        bss_adapter::ThrowWithLog<std::logic_error>("OmniStateStore MapState only supports VoidNamespace");
     }
     if (keyId == BackendDataType::INT_BK && valueId == BackendDataType::INT_BK) {
         return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, int32_t, int32_t>(
@@ -670,8 +664,8 @@ uintptr_t BssKeyedStateBackend<K>::GetMapState(TypeSerializer* namespaceSerializ
             namespaceSerializer, stateDesc);
     }
     bss_adapter::ThrowWithLog<std::logic_error>(
-        "OmniStateStore does not support MapState key/value backend types " +
-        std::to_string(static_cast<int>(keyId)) + "/" + std::to_string(static_cast<int>(valueId)));
+        "OmniStateStore does not support MapState key/value backend types " + std::to_string(static_cast<int>(keyId)) +
+        "/" + std::to_string(static_cast<int>(valueId)));
 }
 
 template <typename K>

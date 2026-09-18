@@ -37,8 +37,8 @@ public:
         // const std::string dir = std::filesystem::temp_directory_path().string();
         const std::string dir = "";
 
-        Path* checkpointDir = new Path(dir);
-        Path* savepointDir = new Path(dir);
+        auto checkpointDir = std::make_shared<Path>(dir);
+        auto savepointDir = std::make_shared<Path>(dir);
 
         return std::make_shared<FsCheckpointStorageAccess>(checkpointDir, savepointDir, jobId, 100, 100);
     }

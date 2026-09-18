@@ -134,6 +134,10 @@ public:
             {
                 std::lock_guard<std::mutex> lock(mutex_);
                 completedExceptionally_ = true;
+                // ThenApply callbacks expect a value. Supply a default value on
+                // cancellation so they can release their completion resources
+                // without dereferencing an empty optional.
+                result_ = T{};
             }
             promise_.set_exception(cause);
             NotifyCallbacks();
@@ -141,7 +145,7 @@ public:
     }
     bool IsDone() const
     {
-        return completed_.load();
+        return completed_.load() || completedExceptionally_.load();
     }
 
     // Callback after completion

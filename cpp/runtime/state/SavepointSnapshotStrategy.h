@@ -32,7 +32,7 @@ public:
         const std::shared_ptr<FullSnapshotResources>& snapshotResources,
         long checkpointId,
         long timestamp,
-        CheckpointStreamFactory* streamFactory,
+        std::shared_ptr<CheckpointStreamFactory> streamFactory,
         CheckpointOptions* checkpointOptions,
         std::string keySerializer = "") override
     {

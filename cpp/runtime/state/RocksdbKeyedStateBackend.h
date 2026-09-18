@@ -122,7 +122,10 @@ public:
     }
 
     std::shared_ptr<std::packaged_task<std::shared_ptr<SnapshotResult<KeyedStateHandle>>()>> snapshot(
-        long checkpointId, long timestamp, CheckpointStreamFactory* streamFactory, CheckpointOptions* options)
+        long checkpointId,
+        long timestamp,
+        std::shared_ptr<CheckpointStreamFactory> streamFactory,
+        CheckpointOptions* options)
     {
         flushFalconCacheBeforeCheckpoint(); // [FALCON] flush falcon cache before snapshot
 

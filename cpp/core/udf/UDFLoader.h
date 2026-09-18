@@ -11,7 +11,12 @@
 #ifndef FLINK_TNEL_UDFLOADER_H
 #define FLINK_TNEL_UDFLOADER_H
 
+#include <cstdlib>
+#include <iostream>
+#include <memory>
 #include <string>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "dlfcn.h"
 #include "functions/MapFunction.h"
 #include "functions/ReduceFunction.h"
@@ -125,10 +130,74 @@ public:
     }
 
 private:
+    struct FreeDeleter {
+        void operator()(char* value) const noexcept
+        {
+            std::free(value);
+        }
+    };
+
+    static bool IsTrustedOwner(const struct stat& st)
+    {
+        return st.st_uid == 0 || st.st_uid == geteuid();
+    }
+
+    static bool IsTrustedDirectory(const struct stat& st)
+    {
+        if (!S_ISDIR(st.st_mode) || !IsTrustedOwner(st)) {
+            return false;
+        }
+        const bool writableByOthers = (st.st_mode & (S_IWGRP | S_IWOTH)) != 0;
+        // /tmp 一类 sticky 目录不允许其他用户替换当前用户拥有的目录项。
+        return !writableByOthers || (st.st_mode & S_ISVTX) != 0;
+    }
+
+    // 允许任意受保护目录中的 SO，兼容 Flink 动态生成的 blobStorage 路径。
+    // 文件及目录链必须属于 root/当前用户；文件不可被组或其他用户改写。
+    static bool IsTrustedUdfPath(const std::string& realPath)
+    {
+        struct stat st{};
+        if (stat(realPath.c_str(), &st) != 0 || !S_ISREG(st.st_mode) || !IsTrustedOwner(st) ||
+            (st.st_mode & (S_IWGRP | S_IWOTH)) != 0) {
+            return false;
+        }
+
+        size_t separator = realPath.rfind('/');
+        std::string directory = separator == 0 ? "/" : realPath.substr(0, separator);
+        while (!directory.empty()) {
+            if (stat(directory.c_str(), &st) != 0 || !IsTrustedDirectory(st)) {
+                return false;
+            }
+            if (directory == "/") {
+                break;
+            }
+            separator = directory.rfind('/');
+            directory = separator == 0 ? "/" : directory.substr(0, separator);
+        }
+        return true;
+    }
+
     template <typename FuncType>
     FuncType* LoadUDFFunction(const std::string& filePath, const std::string& funcSignature)
     {
-        void* handle = dlopen(filePath.c_str(), RTLD_LAZY);
+        if (filePath.empty() || filePath.find('\0') != std::string::npos) {
+            std::cerr << "Error: rejected invalid UDF library path" << std::endl;
+            return nullptr;
+        }
+
+        // 由 realpath 分配结果，消解符号链接和 ".."，避免固定长度输出缓冲。
+        std::unique_ptr<char, FreeDeleter> resolved(realpath(filePath.c_str(), nullptr));
+        if (resolved == nullptr) {
+            std::cerr << "Error: cannot resolve UDF library path: " << filePath << std::endl;
+            return nullptr;
+        }
+        const std::string realPath(resolved.get());
+        if (!IsTrustedUdfPath(realPath)) {
+            std::cerr << "Error: rejected untrusted UDF library path: " << filePath << std::endl;
+            return nullptr;
+        }
+
+        void* handle = dlopen(realPath.c_str(), RTLD_LAZY);
         if (not handle) {
             std::cerr << "Error loading library: " << dlerror() << std::endl;
             return nullptr;

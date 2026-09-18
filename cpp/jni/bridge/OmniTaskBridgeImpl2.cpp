@@ -464,7 +464,18 @@ std::shared_ptr<SnapshotResult<StreamStateHandle>> OmniTaskBridgeImpl2::CallMate
     env->DeleteLocalRef(cls);
     env->DeleteLocalRef(jcheckpointOptionsStr);
 
-    return ConvertSnapshotResult(env, resultObj);
+    try {
+        auto result = ConvertSnapshotResult(env, resultObj);
+        if (resultObj != nullptr) {
+            env->DeleteLocalRef(resultObj);
+        }
+        return result;
+    } catch (...) {
+        if (resultObj != nullptr) {
+            env->DeleteLocalRef(resultObj);
+        }
+        throw;
+    }
 }
 
 jobject OmniTaskBridgeImpl2::CallUploadFilesToCheckpointFs(
@@ -1351,6 +1362,7 @@ jobject OmniTaskBridgeImpl2::AcquireSavepointOutputStream(long checkpointId, Che
         cls,
         "acquireSavepointOutputStream",
         "(JLjava/lang/String;)Lorg/apache/flink/runtime/state/CheckpointStreamWithResultProvider;");
+    env->DeleteLocalRef(cls);
     jstring jcheckpointOptionsStr = env->NewStringUTF(checkpointOptionsStr.c_str());
     auto localProvider = env->CallObjectMethod(m_globalOmniTaskRef, mid, checkpointId, jcheckpointOptionsStr);
     if (env->ExceptionCheck()) {
@@ -1390,6 +1402,7 @@ std::shared_ptr<SnapshotResult<StreamStateHandle>> OmniTaskBridgeImpl2::CloseSav
         "closeSavepointOutputStream",
         "(Lorg/apache/flink/runtime/state/CheckpointStreamWithResultProvider;)Lorg/apache/"
         "flink/runtime/state/SnapshotResult;");
+    env->DeleteLocalRef(cls);
     jobject javaResult = env->CallObjectMethod(m_globalOmniTaskRef, mid, provider);
     if (env->ExceptionCheck()) {
         env->ExceptionDescribe();
@@ -1398,9 +1411,21 @@ std::shared_ptr<SnapshotResult<StreamStateHandle>> OmniTaskBridgeImpl2::CloseSav
         INFO_RELEASE("Error: Failed to call CloseSavepointOutputStream");
         throw std::runtime_error("Failed to call CloseSavepointOutputStream");
     }
-    auto res = ConvertSnapshotResult(env, javaResult);
-    env->DeleteGlobalRef(provider);
-    return res;
+    try {
+        auto res = ConvertSnapshotResult(env, javaResult);
+        if (javaResult != nullptr) {
+            env->DeleteLocalRef(javaResult);
+        }
+        env->DeleteGlobalRef(provider);
+        return res;
+    } catch (...) {
+        if (javaResult != nullptr) {
+            env->DeleteLocalRef(javaResult);
+        }
+        env->DeleteGlobalRef(provider);
+        ERROR_RELEASE("Failed to convert CloseSavepointOutputStream result");
+        throw;
+    }
 }
 
 void OmniTaskBridgeImpl2::AbortSavepointOutputStream(jobject provider)
@@ -1646,6 +1671,7 @@ void OmniTaskBridgeImpl2::WriteSavepointMetadata(
         cls,
         "writeSavepointMetadata",
         "(Lorg/apache/flink/runtime/state/CheckpointStreamWithResultProvider;Ljava/lang/String;)V");
+    env->DeleteLocalRef(cls);
     jstring jStateMetaInfoStr = env->NewStringUTF(stateMetaInfoStr.c_str());
     env->CallVoidMethod(m_globalOmniTaskRef, mid, provider, jStateMetaInfoStr);
     if (env->ExceptionCheck()) {
@@ -1757,6 +1783,7 @@ long OmniTaskBridgeImpl2::GetSavepointOutputStreamPos(jobject provider)
     jclass cls = env->GetObjectClass(m_globalOmniTaskRef);
     jmethodID mid = env->GetMethodID(
         cls, "getSavepointOutputStreamPos", "(Lorg/apache/flink/runtime/state/CheckpointStreamWithResultProvider;)J");
+    env->DeleteLocalRef(cls);
     auto pos = env->CallLongMethod(m_globalOmniTaskRef, mid, provider);
     if (env->ExceptionCheck()) {
         env->ExceptionDescribe();

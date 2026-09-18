@@ -73,7 +73,8 @@ BaseVector* RegexpExtract(BaseVector* inputVec, std::string& regexToMatch, int32
                 continue;
             }
             auto val = castedVec->GetValue(i);
-            if (std::regex_search(val.begin(), val.end(), match, re)) {
+            if (std::regex_search(val.begin(), val.end(), match, re) && group >= 0 &&
+                static_cast<size_t>(group) < match.size() && match[group].matched) {
                 std::string_view sv(&(*match[group].first), std::distance(match[group].first, match[group].second));
                 returnVec->SetValue(i, sv);
             } else {
@@ -90,7 +91,8 @@ BaseVector* RegexpExtract(BaseVector* inputVec, std::string& regexToMatch, int32
                 continue;
             }
             auto val = castedVec->GetValue(i);
-            if (std::regex_search(val.begin(), val.end(), match, re)) {
+            if (std::regex_search(val.begin(), val.end(), match, re) && group >= 0 &&
+                static_cast<size_t>(group) < match.size() && match[group].matched) {
                 std::string_view sv(&(*match[group].first), std::distance(match[group].first, match[group].second));
                 returnVec->SetValue(i, sv);
             } else {

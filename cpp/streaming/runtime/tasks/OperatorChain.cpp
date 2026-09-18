@@ -646,7 +646,7 @@ void OperatorChainV2::SnapshotState(
     CheckpointOptions* checkpointOptions,
     std::shared_ptr<Supplier<bool>> isRunning,
     std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> channelStateWriteResult,
-    CheckpointStreamFactory* storage,
+    std::shared_ptr<CheckpointStreamFactory> storage,
     const std::shared_ptr<OmniTaskBridge>& bridge)
 {
     try {
@@ -677,7 +677,7 @@ OperatorSnapshotFutures* OperatorChainV2::BuildOperatorSnapshotFutures(
     StreamOperator* op,
     std::shared_ptr<Supplier<bool>> isRunning,
     std::shared_ptr<ChannelStateWriter::ChannelStateWriteResult> channelStateWriteResult,
-    CheckpointStreamFactory* storage,
+    std::shared_ptr<CheckpointStreamFactory> storage,
     const std::shared_ptr<OmniTaskBridge>& bridge)
 {
     OperatorSnapshotFutures* snapshotInProgress =
@@ -725,7 +725,7 @@ OperatorSnapshotFutures* OperatorChainV2::CheckpointStreamOperator(
     StreamOperator* op,
     CheckpointMetaData checkpointMetaData,
     CheckpointOptions* checkpointOptions,
-    CheckpointStreamFactory* storageLocation,
+    std::shared_ptr<CheckpointStreamFactory> storageLocation,
     std::shared_ptr<Supplier<bool>> isRunning,
     const std::shared_ptr<OmniTaskBridge>& bridge)
 {

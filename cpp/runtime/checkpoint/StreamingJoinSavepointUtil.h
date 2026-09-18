@@ -666,8 +666,8 @@ inline std::shared_ptr<StateMetaInfoSnapshot> StreamingJoinSavepointUtil::create
     TypeSerializer* valueSerializer = outerJoinState
                                           ? static_cast<TypeSerializer*>(new Tuple2Serializer(tupleFieldTypes))
                                           : static_cast<TypeSerializer*>(new IntSerializer());
-    auto* stateSerializer =
-        new MapSerializer(new RowDataSerializer(new RowType(true, inputTypeNames)), valueSerializer);
+    RowType rowType(true, inputTypeNames);
+    auto* stateSerializer = new MapSerializer(new RowDataSerializer(&rowType), valueSerializer);
     RegisteredKeyValueStateBackendMetaInfo convertedMetaInfo(
         StateDescriptor::Type::MAP, flinkStateName, namespaceSerializer, stateSerializer);
 

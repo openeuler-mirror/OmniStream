@@ -20,6 +20,8 @@
 namespace omnistream {
 class TaskStateManagerBridge {
 public:
+    virtual ~TaskStateManagerBridge() = default;
+
     virtual void ReportTaskStateSnapshots(
         std::string& checkpointMetaData,
         std::string& checkpointMetrics,

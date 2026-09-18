@@ -47,7 +47,7 @@ std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>> RocksIncrementalSnapsh
     const std::shared_ptr<SnapshotResources>& snapshotResources,
     long checkpointId,
     long timestamp,
-    CheckpointStreamFactory* checkpointStreamFactory,
+    std::shared_ptr<CheckpointStreamFactory> checkpointStreamFactory,
     CheckpointOptions* checkpointOptions,
     std::string keySerializer)
 {
@@ -138,7 +138,7 @@ std::shared_ptr<PreviousSnapshot> RocksIncrementalSnapshotStrategy::snapshotMeta
 RocksIncrementalSnapshotStrategy::RocksDBIncrementalSnapshotOperation::RocksDBIncrementalSnapshotOperation(
     std::shared_ptr<RocksIncrementalSnapshotStrategy> parent,
     long checkpointId,
-    CheckpointStreamFactory* checkpointStreamFactory,
+    std::shared_ptr<CheckpointStreamFactory> checkpointStreamFactory,
     std::shared_ptr<SnapshotDirectory> localBackupDirectory,
     std::shared_ptr<PreviousSnapshot> previousSnapshot,
     SnapshotType::SharingFilesStrategy sharingFilesStrategy,

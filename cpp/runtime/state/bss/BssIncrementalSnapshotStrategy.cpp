@@ -17,8 +17,7 @@
 
 BssIncrementalSnapshotStrategy::BssIncrementalSnapshotStrategy(
     ock::bss::BoostStateDBPtr db,
-    const std::unordered_map<std::string, std::shared_ptr<RegisteredKeyValueStateBackendMetaInfo>>*
-        kvStateInformation,
+    const std::unordered_map<std::string, std::shared_ptr<RegisteredKeyValueStateBackendMetaInfo>>* kvStateInformation,
     KeyGroupRange keyGroupRange,
     std::shared_ptr<LocalRecoveryConfig> localRecoveryConfig,
     const std::string& instanceBasePath,
@@ -26,16 +25,17 @@ BssIncrementalSnapshotStrategy::BssIncrementalSnapshotStrategy(
     const std::map<long, std::vector<HandleAndLocalPath>>& uploadedStateHandles,
     long lastCompletedCheckpointId,
     int numberOfTransferThreads)
-    : impl_(std::make_unique<BssIncrementalSnapshotStrategyImpl>(
-          std::move(db),
-          kvStateInformation,
-          std::move(keyGroupRange),
-          std::move(localRecoveryConfig),
-          instanceBasePath,
-          std::move(backendUID),
-          uploadedStateHandles,
-          lastCompletedCheckpointId,
-          numberOfTransferThreads))
+    : impl_(
+          std::make_unique<BssIncrementalSnapshotStrategyImpl>(
+              std::move(db),
+              kvStateInformation,
+              std::move(keyGroupRange),
+              std::move(localRecoveryConfig),
+              instanceBasePath,
+              std::move(backendUID),
+              uploadedStateHandles,
+              lastCompletedCheckpointId,
+              numberOfTransferThreads))
 {
 }
 
@@ -55,7 +55,7 @@ std::shared_ptr<SnapshotResultSupplier<KeyedStateHandle>> BssIncrementalSnapshot
     const std::shared_ptr<SnapshotResources>& snapshotResources,
     long checkpointId,
     long timestamp,
-    CheckpointStreamFactory* checkpointStreamFactory,
+    std::shared_ptr<CheckpointStreamFactory> checkpointStreamFactory,
     CheckpointOptions* checkpointOptions,
     std::string keySerializer)
 {

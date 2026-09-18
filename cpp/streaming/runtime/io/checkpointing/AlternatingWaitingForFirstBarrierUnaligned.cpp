@@ -75,3 +75,8 @@ BarrierHandlerState* AlternatingWaitingForFirstBarrierUnaligned::FinishCheckpoin
         return new AlternatingWaitingForFirstBarrierUnaligned(false, state_.EmptyState());
     }
 }
+
+void AlternatingWaitingForFirstBarrierUnaligned::AbortCheckpoint()
+{
+    state_.UnblockAllChannels();
+}
