@@ -10,7 +10,11 @@ OmniStream currently supports Flink 1.16.3. For its architecture, supported oper
 
 ## Quick Installation
 
+Follow these steps to install and configure the required components inside an openEuler container.
+
 ### 1. Install Docker
+
+Run the following commands to install and start Docker:
 
 ```bash
 yum install -y docker
@@ -29,6 +33,8 @@ Installation information:
 
 ### 2. Import the openEuler image
 
+Download and import the image:
+
 ```bash
 wget --no-check-certificate https://mirrors.huaweicloud.com/openeuler/openEuler-22.03-LTS-SP4/docker_img/aarch64/openEuler-docker.aarch64.tar.xz
 docker load -i openEuler-docker.aarch64.tar.xz
@@ -40,203 +46,225 @@ Verify that the image was imported:
 docker images
 ```
 
+> ![](../zh/public_sys-resources/icon-note.gif) **Note:**
+>
+> An image entry named `openeuler-22.03-lts-sp4` in the output indicates that the import succeeded.
+
 ### 3. Create and enter the container
 
-Check whether port 30211 is already in use on the host:
+1) Check whether port 30211 is already in use on the host:
 
-```bash
-ss -tuln | grep -w 30211
-```
+    ```bash
+    ss -tuln | grep -w 30211
+    ```
 
-No output means the port is available. If it is occupied, replace 30211 in the following command with another available port.
+    > ![](../zh/public_sys-resources/icon-note.gif) **Note:**
+    >
+    > No output means the port is available. If it is occupied, replace 30211 in the following command with another available port.
 
-`YourContainName` is an example container name. Replace it as needed. Container port 8081 is mapped to host port 30211 for access to the Flink Web UI.
+2) Create the container:
 
-```bash
-CONTAINER_NAME=YourContainName
-docker run -itd --name $CONTAINER_NAME --hostname $CONTAINER_NAME --privileged=true -p 0.0.0.0:30211:8081 openeuler-22.03-lts-sp4 /bin/bash
-```
+    ```bash
+    CONTAINER_NAME=YourContainName
+    docker run -itd --name $CONTAINER_NAME --hostname $CONTAINER_NAME --privileged=true -p 0.0.0.0:30211:8081 openeuler-22.03-lts-sp4 /bin/bash
+    ```
 
-Enter the container with a login shell so that variables in `/etc/profile` are loaded automatically on subsequent logins:
+    > ![](../zh/public_sys-resources/icon-notice.gif) **Notice:**
+    >
+    > `YourContainName` is an example container name. Replace it as needed. Container port 8081 is mapped to host port 30211 for access to the Flink Web UI.
 
-```bash
-docker exec -it YourContainName /bin/bash --login
-```
+3) Enter the container:
 
-Run all remaining commands as `root` inside the container.
+    ```bash
+    docker exec -it YourContainName /bin/bash --login
+    ```
+
+> ![](../zh/public_sys-resources/icon-note.gif) **Note:**
+>
+> Run all remaining commands as `root` inside the container.
 
 ### 4. Install basic dependencies
+
+Install the following dependencies:
 
 ```bash
 yum install -y wget findutils unzip libXext libX11 libXrender libXtst libXi
 ```
 
+> ![](../zh/public_sys-resources/icon-notice.gif) **Notice:**
+>
 > If your network requires a proxy, configure it according to your environment.
 
 ### 5. Install the JDK
 
-```bash
-mkdir -p /usr/local
-cd /usr/local
-JDK_TAR="bisheng-jdk-17.0.18-b13-linux-aarch64.tar.gz"
-wget --no-check-certificate "https://mirrors.huaweicloud.com/kunpeng/archive/compiler/bisheng_jdk/${JDK_TAR}"
-JDK_DIR=$(tar -tf "${JDK_TAR}" | head -1 | cut -d/ -f1)
-tar -zxf "${JDK_TAR}"
-chown -R root:root "/usr/local/${JDK_DIR}"
-ln -sfn "/usr/local/${JDK_DIR}" /usr/local/java
-rm -f "${JDK_TAR}"
-```
+1) Install the JDK:
 
-Configure the JDK environment variables:
+    ```bash
+    mkdir -p /usr/local
+    cd /usr/local
+    JDK_TAR="bisheng-jdk-17.0.18-b13-linux-aarch64.tar.gz"
+    wget --no-check-certificate "https://mirrors.huaweicloud.com/kunpeng/archive/compiler/bisheng_jdk/${JDK_TAR}"
+    JDK_DIR=$(tar -tf "${JDK_TAR}" | head -1 | cut -d/ -f1)
+    tar -zxf "${JDK_TAR}"
+    chown -R root:root "/usr/local/${JDK_DIR}"
+    ln -sfn "/usr/local/${JDK_DIR}" /usr/local/java
+    rm -f "${JDK_TAR}"
+    ```
 
-```bash
-echo 'export JAVA_HOME=/usr/local/java' >> /etc/profile
-echo 'export PATH=$JAVA_HOME/bin:$PATH' >> /etc/profile
-echo 'export C_INCLUDE_PATH=$JAVA_HOME/include:$JAVA_HOME/include/linux:$C_INCLUDE_PATH' >> /etc/profile
-echo 'export CPLUS_INCLUDE_PATH=$JAVA_HOME/include:$JAVA_HOME/include/linux:$CPLUS_INCLUDE_PATH' >> /etc/profile
-echo 'export LIBRARY_PATH=$JAVA_HOME/lib:$JAVA_HOME/lib/server:$LIBRARY_PATH' >> /etc/profile
-echo 'export LD_LIBRARY_PATH=$JAVA_HOME/lib:$JAVA_HOME/lib/server:$LD_LIBRARY_PATH' >> /etc/profile
-source /etc/profile
-```
+2) Configure the JDK environment variables:
 
-Verify the JDK installation:
+    ```bash
+    echo 'export JAVA_HOME=/usr/local/java' >> /etc/profile
+    echo 'export PATH=$JAVA_HOME/bin:$PATH' >> /etc/profile
+    echo 'export C_INCLUDE_PATH=$JAVA_HOME/include:$JAVA_HOME/include/linux:$C_INCLUDE_PATH' >> /etc/profile
+    echo 'export CPLUS_INCLUDE_PATH=$JAVA_HOME/include:$JAVA_HOME/include/linux:$CPLUS_INCLUDE_PATH' >> /etc/profile
+    echo 'export LIBRARY_PATH=$JAVA_HOME/lib:$JAVA_HOME/lib/server:$LIBRARY_PATH' >> /etc/profile
+    echo 'export LD_LIBRARY_PATH=$JAVA_HOME/lib:$JAVA_HOME/lib/server:$LD_LIBRARY_PATH' >> /etc/profile
+    source /etc/profile
+    ```
 
-```bash
-java -version
-```
+3) Verify the JDK installation:
 
-Command output:
+    ```bash
+    java -version
+    ```
 
-![JDK version](../zh/figures/quick-start/jdk-version.png)
+    Command output:
+
+    ![JDK version](../zh/figures/quick-start/jdk-version.png)
 
 ### 6. Install Flink
 
-```bash
-mkdir -p /usr/local
-cd /usr/local
-FLINK_TAR="flink-1.16.3-bin-scala_2.12.tgz"
-wget --no-check-certificate "https://mirrors.huaweicloud.com/apache/flink/flink-1.16.3/${FLINK_TAR}"
-FLINK_DIR=$(tar -tf "${FLINK_TAR}" | head -1 | cut -d/ -f1)
-tar -zxf "${FLINK_TAR}"
-chown -R root:root "/usr/local/${FLINK_DIR}"
-ln -sfn "/usr/local/${FLINK_DIR}" /usr/local/flink
-rm -f "${FLINK_TAR}"
-echo 'export FLINK_HOME=/usr/local/flink' >> /etc/profile
-source /etc/profile
-```
+1) Install Flink:
 
-Download the JSON and Gson dependencies:
+    ```bash
+    mkdir -p /usr/local
+    cd /usr/local
+    FLINK_TAR="flink-1.16.3-bin-scala_2.12.tgz"
+    wget --no-check-certificate "https://mirrors.huaweicloud.com/apache/flink/flink-1.16.3/${FLINK_TAR}"
+    FLINK_DIR=$(tar -tf "${FLINK_TAR}" | head -1 | cut -d/ -f1)
+    tar -zxf "${FLINK_TAR}"
+    chown -R root:root "/usr/local/${FLINK_DIR}"
+    ln -sfn "/usr/local/${FLINK_DIR}" /usr/local/flink
+    rm -f "${FLINK_TAR}"
+    echo 'export FLINK_HOME=/usr/local/flink' >> /etc/profile
+    source /etc/profile
+    ```
 
-```bash
-cd "$FLINK_HOME/lib"
-wget --no-check-certificate https://repo.maven.apache.org/maven2/org/json/json/20240303/json-20240303.jar
-wget --no-check-certificate https://repo.maven.apache.org/maven2/com/google/code/gson/gson/2.11.0/gson-2.11.0.jar
-```
+2) Download the JSON and Gson dependencies:
 
-Check the downloaded dependencies:
+    ```bash
+    cd "$FLINK_HOME/lib"
+    wget --no-check-certificate https://repo.maven.apache.org/maven2/org/json/json/20240303/json-20240303.jar
+    wget --no-check-certificate https://repo.maven.apache.org/maven2/com/google/code/gson/gson/2.11.0/gson-2.11.0.jar
+    ```
 
-```bash
-ls -la "$FLINK_HOME/lib" | grep -E "json|gson"
-```
+3) Check the downloaded dependencies:
 
-Dependency files:
+    ```bash
+    ls -la "$FLINK_HOME/lib" | grep -E "json|gson"
+    ```
 
-![Flink JSON and Gson dependencies](../zh/figures/quick-start/flink-json-gson-libs.png)
+    Dependency files:
 
-Verify the Flink installation:
+    ![Flink JSON and Gson dependencies](../zh/figures/quick-start/flink-json-gson-libs.png)
 
-```bash
-"$FLINK_HOME/bin/flink" --version
-```
+4) Verify the Flink installation:
 
-Command output:
+    ```bash
+    "$FLINK_HOME/bin/flink" --version
+    ```
 
-![Flink version](../zh/figures/quick-start/flink-version.png)
+    Command output:
+
+    ![Flink version](../zh/figures/quick-start/flink-version.png)
 
 ### 7. Install OmniStream and its dependencies
 
-Download the following packages for the current version from the [OmniStream releases page](https://gitcode.com/openeuler/OmniStream/releases):
+1) Download the following packages for the current version from the [OmniStream releases page](https://gitcode.com/openeuler/OmniStream/releases):
 
-- `BoostKit-omniruntime-omnistream-{version}.zip`
-- `Dependency_library_OmniStream.zip`
+    - `BoostKit-omniruntime-omnistream-{version}.zip`
+    - `Dependency_library_OmniStream.zip`
 
-The following commands use OmniStream 1.3.0 as an example:
+    The following commands use OmniStream 1.3.0 as an example:
 
-```bash
-mkdir -p /opt/omnistream-packages
-cd /opt/omnistream-packages
-wget --no-check-certificate https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.1.RC1.B030_001/BoostKit-omniruntime-omnistream-1.3.0.zip
-wget --no-check-certificate https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.1.RC1.B030_001/Dependency_library_OmniStream.zip
-unzip BoostKit-omniruntime-omnistream-1.3.0.zip
-unzip Dependency_library_OmniStream.zip
-```
+    ```bash
+    mkdir -p /opt/omnistream-packages
+    cd /opt/omnistream-packages
+    wget --no-check-certificate https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.1.RC1.B030_001/BoostKit-omniruntime-omnistream-1.3.0.zip
+    wget --no-check-certificate https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.1.RC1.B030_001/Dependency_library_OmniStream.zip
+    unzip BoostKit-omniruntime-omnistream-1.3.0.zip
+    unzip Dependency_library_OmniStream.zip
+    ```
 
-Install the dependency libraries:
+2) Install the dependency libraries:
 
-```bash
-DEPENDENCY_DIR=$(find /opt/omnistream-packages -type d -name Dependency_library_Default -print -quit)
-test -n "${DEPENDENCY_DIR}"
-mkdir -p /opt/Dependency_library
-cp -rf "${DEPENDENCY_DIR}/"* /opt/Dependency_library/
-chmod -R 550 /opt/Dependency_library/*
-```
+    ```bash
+    DEPENDENCY_DIR=$(find /opt/omnistream-packages -type d -name Dependency_library_Default -print -quit)
+    test -n "${DEPENDENCY_DIR}"
+    mkdir -p /opt/Dependency_library
+    cp -rf "${DEPENDENCY_DIR}/"* /opt/Dependency_library/
+    chmod -R 550 /opt/Dependency_library/*
+    ```
 
-Check the dependency directory:
+    Check the dependency directory:
 
-```bash
-ls -la /opt/Dependency_library
-```
+    ```bash
+    ls -la /opt/Dependency_library
+    ```
 
-Installed dependencies:
+    Installed dependencies:
 
-![OmniStream dependency libraries](../zh/figures/quick-start/dependency-libraries.png)
+    ![OmniStream dependency libraries](../zh/figures/quick-start/dependency-libraries.png)
 
-Install OmniStream:
+3) Install OmniStream:
 
-```bash
-OMNISTREAM_DIR=$(find /opt/omnistream-packages -type d -name OmniStream_Default -print -quit)
-test -n "${OMNISTREAM_DIR}"
-mkdir -p /usr/local/OmniStream
-cp -rf "${OMNISTREAM_DIR}/"* /usr/local/OmniStream/
-chmod -R 550 /usr/local/OmniStream/*
-```
+    ```bash
+    OMNISTREAM_DIR=$(find /opt/omnistream-packages -type d -name OmniStream_Default -print -quit)
+    test -n "${OMNISTREAM_DIR}"
+    mkdir -p /usr/local/OmniStream
+    cp -rf "${OMNISTREAM_DIR}/"* /usr/local/OmniStream/
+    chmod -R 550 /usr/local/OmniStream/*
+    ```
 
-Check the OmniStream files:
+    Check the OmniStream files:
 
-```bash
-ls -la /usr/local/OmniStream
-```
+    ```bash
+    ls -la /usr/local/OmniStream
+    ```
 
-Installed files:
+    Installed files:
 
-![OmniStream files](../zh/figures/quick-start/omnistream-files.png)
+    ![OmniStream files](../zh/figures/quick-start/omnistream-files.png)
 
-Configure the native library search path:
+4) Configure the native library search path:
 
-```bash
-echo 'export LD_LIBRARY_PATH=/opt/Dependency_library:/usr/local/OmniStream:$LD_LIBRARY_PATH' >> /etc/profile
-source /etc/profile
-```
+    ```bash
+    echo 'export LD_LIBRARY_PATH=/opt/Dependency_library:/usr/local/OmniStream:$LD_LIBRARY_PATH' >> /etc/profile
+    source /etc/profile
+    ```
 
-Check the dependencies of `libtnel.so`:
+5) Check the dependencies of `libtnel.so`:
 
-```bash
-ldd /usr/local/OmniStream/libtnel.so | grep "not found"
-```
+    ```bash
+    ldd /usr/local/OmniStream/libtnel.so | grep "not found"
+    ```
 
-No output means that all dependencies were found.
+    > ![](../zh/public_sys-resources/icon-note.gif) **Note:**
+    >
+    > No output means that all dependencies were found.
 
 ### 8. Configure Flink
 
-Open the Flink configuration script:
+1) Open the Flink configuration script:
 
-```bash
-vi "$FLINK_HOME/bin/config.sh"
-```
+    ```bash
+    vi "$FLINK_HOME/bin/config.sh"
+    ```
 
-Locate `constructFlinkClassPath`, comment out its original `echo` command, and add the following lines at the end of the function:
+    Locate `constructFlinkClassPath`, comment out its original `echo` command, and add the following lines at the end of the function:
 
-```bash
+    ```bash
 # echo "$FLINK_CLASSPATH""$FLINK_DIST"
 PATCH=/usr/local/OmniStream/flink-tnel-0.1-SNAPSHOT.jar
 echo $PATCH:"$FLINK_CLASSPATH""$FLINK_DIST"
@@ -254,7 +282,7 @@ Open the Flink configuration file:
 vi "$FLINK_HOME/conf/flink-conf.yaml"
 ```
 
-Add the following configuration at the end of the file. The entire value must remain on one physical line:
+Add the following configuration at the end of the file:
 
 ```yaml
 env.java.opts: -Djava.library.path=/usr/local/OmniStream:/opt/Dependency_library --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.util.concurrent=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.base/sun.security.ssl=ALL-UNNAMED --add-exports java.base/sun.net.dns=ALL-UNNAMED --add-exports java.base/sun.net.util=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.invoke=ALL-UNNAMED --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/java.math=ALL-UNNAMED --add-opens java.base/java.text=ALL-UNNAMED --add-opens java.base/java.time=ALL-UNNAMED
@@ -262,68 +290,102 @@ env.java.opts: -Djava.library.path=/usr/local/OmniStream:/opt/Dependency_library
 
 Press `Esc`, enter `:wq`, and press `Enter`.
 
+> ![](../zh/public_sys-resources/icon-notice.gif) **Notice:**
+>
+> Keep this configuration on one physical line. Do not split the arguments across multiple lines.
+
 Updated JVM options:
 
 ![Flink JVM options](../zh/figures/quick-start/flink-jvm-options.png)
 
 ### 9. Install Nexmark
 
-```bash
-cd /usr/local
-wget --no-check-certificate https://github.com/nexmark/nexmark/releases/download/v0.2.0/nexmark-flink.tgz
-tar -zxf nexmark-flink.tgz
-mv nexmark-flink nexmark
-chown -R root:root /usr/local/nexmark
-rm -f nexmark-flink.tgz
-cp /usr/local/nexmark/lib/nexmark-flink-0.2-SNAPSHOT.jar "$FLINK_HOME/lib/"
-```
+1) Run the following commands to install Nexmark:
 
-Open the Nexmark configuration script:
+    ```bash
+    cd /usr/local
+    wget --no-check-certificate https://github.com/nexmark/nexmark/releases/download/v0.2.0/nexmark-flink.tgz
+    tar -zxf nexmark-flink.tgz
+    mv nexmark-flink nexmark
+    chown -R root:root /usr/local/nexmark
+    rm -f nexmark-flink.tgz
+    cp /usr/local/nexmark/lib/nexmark-flink-0.2-SNAPSHOT.jar "$FLINK_HOME/lib/"
+    ```
 
-```bash
-vi /usr/local/nexmark/bin/config.sh
-```
+2) Open the Nexmark configuration script:
 
-Append the following configuration as one physical line:
+    ```bash
+    vi /usr/local/nexmark/bin/config.sh
+    ```
 
-```bash
-export JAVA_TOOL_OPTIONS="-Djava.library.path=/usr/local/OmniStream:/opt/Dependency_library --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/sun.security.ssl=ALL-UNNAMED --add-exports=java.base/sun.net.dns=ALL-UNNAMED --add-exports=java.base/sun.net.util=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.math=ALL-UNNAMED --add-opens=java.base/java.text=ALL-UNNAMED --add-opens=java.base/java.time=ALL-UNNAMED"
-```
+    Append the following configuration:
 
-Press `Esc`, enter `:wq`, and press `Enter`.
+    ```bash
+    export JAVA_TOOL_OPTIONS="-Djava.library.path=/usr/local/OmniStream:/opt/Dependency_library --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/sun.security.ssl=ALL-UNNAMED --add-exports=java.base/sun.net.dns=ALL-UNNAMED --add-exports=java.base/sun.net.util=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.math=ALL-UNNAMED --add-opens=java.base/java.text=ALL-UNNAMED --add-opens=java.base/java.time=ALL-UNNAMED"
+    ```
 
-Updated Nexmark JVM options:
+    Press `Esc`, enter `:wq`, and press `Enter`.
 
-![Nexmark JVM options](../zh/figures/quick-start/nexmark-jvm-options.png)
+    > ![](../zh/public_sys-resources/icon-notice.gif) **Notice:**
+    >
+    > Keep this configuration on one physical line. Do not split the arguments across multiple lines.
+
+    Updated Nexmark JVM options:
+
+    ![Nexmark JVM options](../zh/figures/quick-start/nexmark-jvm-options.png)
 
 ## Quick Start
 
+Start Flink and initialize Nexmark, then run Q0 to verify that OmniStream is enabled.
+
 ### 1. Start Flink
 
-```bash
-source /etc/profile
-"$FLINK_HOME/bin/start-cluster.sh"
-```
+1) Start the cluster:
 
-Run `jps`. Flink has started successfully if the output contains `StandaloneSessionClusterEntrypoint` and `TaskManagerRunner`.
+    ```bash
+    source /etc/profile
+    "$FLINK_HOME/bin/start-cluster.sh"
+    ```
 
-Flink processes:
+2) Check the Flink processes:
 
-![Flink processes](../zh/figures/quick-start/flink-processes.png)
+    ```bash
+    jps
+    ```
+
+    Flink processes:
+
+    ![Flink processes](../zh/figures/quick-start/flink-processes.png)
+
+    > ![](../zh/public_sys-resources/icon-note.gif) **Note:**
+    >
+    > The output must contain `StandaloneSessionClusterEntrypoint` and `TaskManagerRunner`, indicating that Flink started successfully.
 
 ### 2. Initialize Nexmark
 
-```bash
-bash /usr/local/nexmark/bin/setup_cluster.sh
-```
+1) Initialize the cluster:
 
-Run `jps` again. Nexmark initialization has succeeded if the output contains `CpuMetricSender`.
+    ```bash
+    bash /usr/local/nexmark/bin/setup_cluster.sh
+    ```
 
-Process check:
+2) Check the processes:
 
-![Nexmark metric process](../zh/figures/quick-start/nexmark-process.png)
+    ```bash
+    jps
+    ```
+
+    Process check:
+
+    ![Nexmark metric process](../zh/figures/quick-start/nexmark-process.png)
+
+    > ![](../zh/public_sys-resources/icon-note.gif) **Note:**
+    >
+    > The output must contain `CpuMetricSender`, indicating that Nexmark initialization succeeded.
 
 ### 3. Run Q0
+
+Run the following command:
 
 ```bash
 bash /usr/local/nexmark/bin/run_query.sh q0
@@ -335,25 +397,27 @@ Execution result:
 
 ### 4. Verify OmniStream
 
+Search the logs:
+
 ```bash
 grep "welcome to native" "$FLINK_HOME"/log/*
 ```
-
-OmniStream is enabled if the log contains `OmniTask::DoRunInvoke welcome to native`.
 
 Command output:
 
 ![OmniStream native log](../zh/figures/quick-start/omnistream-native-log.png)
 
+> ![](../zh/public_sys-resources/icon-note.gif) **Note:**
+>
+> The log entry `OmniTask::DoRunInvoke welcome to native` indicates that OmniStream is enabled.
+
 ## FAQ
+
+The following issues may occur during installation and verification.
 
 ### Flink processes exit immediately after startup
 
-Run `ldd /usr/local/OmniStream/libtnel.so | grep "not found"` to check the native dependencies. If `libXext.so.6`, `libX11.so.6`, `libXrender.so.1`, `libXtst.so.6`, or `libXi.so.6` is missing, install the libraries:
-
-```bash
-yum install -y libXext libX11 libXrender libXtst libXi
-```
+Run `ldd /usr/local/OmniStream/libtnel.so | grep "not found"` to check the native dependencies, and install any missing libraries.
 
 ### Flink reports that the configuration cannot be parsed
 
@@ -364,6 +428,8 @@ yum install -y libXext libX11 libXrender libXtst libXi
 Run `grep -nE "ERROR|Exception|Caused by" /usr/local/nexmark/log/nexmark-flink.log`. If the log contains `InaccessibleObjectException`, verify that `JAVA_TOOL_OPTIONS` is configured in `/usr/local/nexmark/bin/config.sh`.
 
 ## More Information
+
+For additional features and detailed instructions, see the following guides:
 
 - [Build Guide](./compile_guide.md)
 - [Installation Guide](./installation_guide.md)
