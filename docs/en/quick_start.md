@@ -79,9 +79,7 @@ docker images
     docker exec -it YourContainName /bin/bash --login
     ```
 
-> ![](../zh/public_sys-resources/icon-note.gif) **Note:**
->
-> Run all remaining commands as `root` inside the container.
+Run all remaining commands as `root` inside the container.
 
 ### 4. Install basic dependencies
 
@@ -91,9 +89,7 @@ Install the following dependencies:
 yum install -y wget findutils unzip libXext libX11 libXrender libXtst libXi
 ```
 
-> ![](../zh/public_sys-resources/icon-notice.gif) **Notice:**
->
-> If your network requires a proxy, configure it according to your environment.
+If your network requires a proxy, configure it according to your environment.
 
 ### 5. Install the JDK
 

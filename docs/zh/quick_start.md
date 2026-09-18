@@ -79,9 +79,7 @@ docker images
     docker exec -it YourContainName /bin/bash --login
     ```
 
-> ![](public_sys-resources/icon-note.gif) **说明：**
->
-> 以下操作均在容器内以root用户执行。
+以下操作均在容器内以root用户执行。
 
 ### 4. 安装基础依赖
 
@@ -91,9 +89,7 @@ docker images
 yum install -y wget findutils unzip libXext libX11 libXrender libXtst libXi
 ```
 
-> ![](public_sys-resources/icon-notice.gif) **须知：**
->
-> 如果所在环境需要通过代理访问网络，需要根据实际网络环境配置代理。
+如果所在环境需要通过代理访问网络，需要根据实际网络环境配置代理。
 
 ### 5. 安装JDK
 
