@@ -1,6 +1,6 @@
 # Documentation
 
-1. [Project Introduction](../../README_en.md)
+1. [README](../../README_en.md)
 2. [Release Notes](./release_notes.md)
 3. [Quick Start](./quick_start.md)
 4. [Installation Guide](./installation_guide.md)
