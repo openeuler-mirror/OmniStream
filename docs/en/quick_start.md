@@ -265,38 +265,38 @@ yum install -y wget findutils unzip libXext libX11 libXrender libXtst libXi
     Locate `constructFlinkClassPath`, comment out its original `echo` command, and add the following lines at the end of the function:
 
     ```bash
-# echo "$FLINK_CLASSPATH""$FLINK_DIST"
-PATCH=/usr/local/OmniStream/flink-tnel-0.1-SNAPSHOT.jar
-echo $PATCH:"$FLINK_CLASSPATH""$FLINK_DIST"
-```
+    # echo "$FLINK_CLASSPATH""$FLINK_DIST"
+    PATCH=/usr/local/OmniStream/flink-tnel-0.1-SNAPSHOT.jar
+    echo $PATCH:"$FLINK_CLASSPATH""$FLINK_DIST"
+    ```
 
-Press `Esc`, enter `:wq`, and press `Enter`.
+    Press `Esc`, enter `:wq`, and press `Enter`.
 
-Updated class path:
+    Updated class path:
 
-![Flink class path configuration](../zh/figures/quick-start/flink-classpath-config.png)
+    ![Flink class path configuration](../zh/figures/quick-start/flink-classpath-config.png)
 
-Open the Flink configuration file:
+2) Open the Flink configuration file:
 
-```bash
-vi "$FLINK_HOME/conf/flink-conf.yaml"
-```
+    ```bash
+    vi "$FLINK_HOME/conf/flink-conf.yaml"
+    ```
 
-Add the following configuration at the end of the file:
+    Add the following configuration at the end of the file:
 
-```yaml
-env.java.opts: -Djava.library.path=/usr/local/OmniStream:/opt/Dependency_library --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.util.concurrent=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.base/sun.security.ssl=ALL-UNNAMED --add-exports java.base/sun.net.dns=ALL-UNNAMED --add-exports java.base/sun.net.util=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.invoke=ALL-UNNAMED --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/java.math=ALL-UNNAMED --add-opens java.base/java.text=ALL-UNNAMED --add-opens java.base/java.time=ALL-UNNAMED
-```
+    ```yaml
+    env.java.opts: -Djava.library.path=/usr/local/OmniStream:/opt/Dependency_library --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.util.concurrent=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.base/sun.security.ssl=ALL-UNNAMED --add-exports java.base/sun.net.dns=ALL-UNNAMED --add-exports java.base/sun.net.util=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.invoke=ALL-UNNAMED --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/java.math=ALL-UNNAMED --add-opens java.base/java.text=ALL-UNNAMED --add-opens java.base/java.time=ALL-UNNAMED
+    ```
 
-Press `Esc`, enter `:wq`, and press `Enter`.
+    Press `Esc`, enter `:wq`, and press `Enter`.
 
-> ![](../zh/public_sys-resources/icon-notice.gif) **Notice:**
->
-> Keep this configuration on one physical line. Do not split the arguments across multiple lines.
+    > ![](../zh/public_sys-resources/icon-notice.gif) **Notice:**
+    >
+    > Keep this configuration on one physical line. Do not split the arguments across multiple lines.
 
-Updated JVM options:
+    Updated JVM options:
 
-![Flink JVM options](../zh/figures/quick-start/flink-jvm-options.png)
+    ![Flink JVM options](../zh/figures/quick-start/flink-jvm-options.png)
 
 ### 9. Install Nexmark
 
