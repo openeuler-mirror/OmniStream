@@ -47,6 +47,7 @@ VectorBatch* createVectorBatchFromCSV(std::string filepath, int nrow, int ncol)
 
 TEST(AppendOnlyTopNFunctionTest, OneLongPartitionKeyOneLongSortKey)
 {
+    // State is Flink-aligned MapState<sortKey, List<RowData>> named data-state-with-append.
     // partition by field0, sort desceding by field 1
     std::string description = R"DELIM({"originDescription":null,
 "inputTypes":["BIGINT", "BIGINT", "BIGINT"],
@@ -202,7 +203,10 @@ TEST(AppendOnlyTopNFunctionTest, Q19Top10)
     auto inputVB = createVectorBatchFromCSV("input/q19_input.csv", 150, 3);
     op->processBatch(new StreamRecord(inputVB));
     auto expectedVB = createVectorBatchFromCSV("input/q19_expected_output.csv", 511, 4);
+    ASSERT_NE(inputVB, nullptr);
+    ASSERT_NE(expectedVB, nullptr);
     bool matched = omniruntime::TestUtil::VecBatchMatch(output->getVectorBatch(), expectedVB);
+    EXPECT_EQ(matched, true);
 }
 
 TEST(AppendOnlyTopNFunctionTest, WithoutRowNumber)
@@ -252,5 +256,8 @@ TEST(AppendOnlyTopNFunctionTest, WithoutRowNumber)
     auto inputVB = createVectorBatchFromCSV("input/q19_input.csv", 150, 3);
     op->processBatch(new StreamRecord(inputVB));
     auto expectedVB = createVectorBatchFromCSV("input/without_rownumber.csv", 59, 3);
+    ASSERT_NE(inputVB, nullptr);
+    ASSERT_NE(expectedVB, nullptr);
     bool matched = omniruntime::TestUtil::VecBatchMatch(output->getVectorBatch(), expectedVB);
+    EXPECT_EQ(matched, true);
 }
