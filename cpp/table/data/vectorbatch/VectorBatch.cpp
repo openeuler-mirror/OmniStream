@@ -383,6 +383,31 @@ void VectorBatch::WriteString(std::ofstream& file, int vectorID, int rowID) cons
     }
 }
 
+void VectorBatch::WriteBinary(std::ofstream& file, int vectorID, int rowID) const
+{
+    std::string_view value;
+    if (vectors[vectorID]->GetEncoding() == omniruntime::vec::OMNI_FLAT) {
+        auto casted =
+            reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(
+                vectors[vectorID]);
+        value = casted->GetValue(rowID);
+    } else { // DICTIONARY
+        auto casted = reinterpret_cast<omniruntime::vec::Vector<
+            omniruntime::vec::DictionaryContainer<std::string_view, omniruntime::vec::LargeStringContainer>>*>(
+            vectors[vectorID]);
+        value = casted->GetValue(rowID);
+    }
+    // BINARY/VARBINARY 按 Flink print sink 的表示输出：有符号字节数组，形如 "[104, 101]"；空字节串输出为 "[]"。
+    file << "[";
+    for (size_t i = 0; i < value.size(); ++i) {
+        if (i > 0) {
+            file << ", ";
+        }
+        file << static_cast<int32_t>(static_cast<int8_t>(value[i]));
+    }
+    file << "]";
+}
+
 void VectorBatch::WriteToFileInternal(
     int vectorID,
     int rowID,
@@ -432,6 +457,7 @@ void VectorBatch::WriteToFileInternal(
             break;
         case omniruntime::type::DataTypeId::OMNI_VARCHAR:
         case omniruntime::type::DataTypeId::OMNI_CHAR: WriteString(file, vectorID, rowID); break;
+        case omniruntime::type::DataTypeId::OMNI_VARBINARY: WriteBinary(file, vectorID, rowID); break;
         case omniruntime::type::DataTypeId::OMNI_DOUBLE:
             file << FormatDoubleLikeJava(
                 reinterpret_cast<omniruntime::vec::Vector<double>*>(vectors[vectorID])->GetValue(rowID));
@@ -607,7 +633,8 @@ std::vector<XXH128_hash_t> VectorBatch::getXXH128s()
     for (size_t i = 0; i < rowCnt; ++i) {
         XXH3_state_t* state = XXH3_createState();
         XXH3_128bits_reset(state);
-        for (auto vec : vectors) {
+        for (size_t colIdx = 0; colIdx < vectors.size(); colIdx++) {
+            auto vec = vectors[colIdx];
             auto dataTypeId = vec->GetTypeId();
             switch (dataTypeId) {
                 case OMNI_LONG:
@@ -617,6 +644,12 @@ std::vector<XXH128_hash_t> VectorBatch::getXXH128s()
                     auto casted = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(vec);
                     auto val = casted->GetValue(i);
                     XXH3_128bits_update(state, &val, sizeof(int64_t));
+                    break;
+                }
+                case OMNI_BOOLEAN: {
+                    auto casted = reinterpret_cast<omniruntime::vec::Vector<bool>*>(vec);
+                    bool val = casted->GetValue(i);
+                    XXH3_128bits_update(state, &val, sizeof(bool));
                     break;
                 }
                 case OMNI_VARCHAR:
@@ -635,7 +668,12 @@ std::vector<XXH128_hash_t> VectorBatch::getXXH128s()
                     }
                     break;
                 }
-                default: XXH3_freeState(state); throw std::runtime_error("Type not supported yet");
+                default:
+                    XXH3_freeState(state);
+                    throw std::runtime_error(
+                        "Type not supported yet, typeId: " + std::to_string(static_cast<int>(dataTypeId)) +
+                        ", colIdx: " + std::to_string(colIdx) + ", vectorCount: " + std::to_string(vectors.size()) +
+                        ", rowCnt: " + std::to_string(rowCnt));
             }
         }
         // Compute the final hash
