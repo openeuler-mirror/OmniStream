@@ -199,7 +199,7 @@ private:
             }
         } else {
             // Add other join filters
-            WARN_RELEASE("no JoinFilter or not supported JoinFilter: ");
+            INFO_RELEASE("no JoinFilter or not supported JoinFilter: ");
         }
 
         return filterFuncPtrs;

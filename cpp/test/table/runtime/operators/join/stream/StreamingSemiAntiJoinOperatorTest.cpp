@@ -13,7 +13,7 @@
 
 #include <gtest/gtest.h>
 #include <memory>
-#include "table/runtime/operators/join/StreamingSemiAntiJoinOperator.h"
+#include "table/runtime/operators/join/stream/StreamingSemiAntiJoinOperator.h"
 #include "runtime/taskmanager/OmniRuntimeEnvironment.h"
 #include "test/core/operators/OutputTest.h"
 #include "core/typeutils/LongSerializer.h"
@@ -127,7 +127,7 @@ TEST(StreamingSemiAntiJoinOperatorTest, SemiEmitOnRightArrivalAndDedup)
     auto* out = new OutputTestVectorBatch();
     auto* op = makeOp(semiDesc, out);
 
-    op->processBatch1(new StreamRecord(getLeftBatch()));   // right empty -> no emit
+    op->processBatch1(new StreamRecord(getLeftBatch())); // right empty -> no emit
     EXPECT_EQ(out->getAll().size(), 0u);
 
     op->processBatch2(new StreamRecord(getRightBatch(1))); // left (1,10) 0->1 -> emit +I(1,10)
@@ -154,7 +154,7 @@ TEST(StreamingSemiAntiJoinOperatorTest, SemiEmitOnLeftArrivalWithExistingRight)
     op->processBatch2(new StreamRecord(getRightBatch(1))); // left empty -> no emit
     EXPECT_EQ(out->getAll().size(), 0u);
 
-    op->processBatch1(new StreamRecord(getLeftBatch()));   // (1,10) has match -> +I; (2,20) no match -> none
+    op->processBatch1(new StreamRecord(getLeftBatch())); // (1,10) has match -> +I; (2,20) no match -> none
     ASSERT_EQ(out->getAll().size(), 1u);
     ASSERT_EQ(out->getAll()[0]->GetRowCount(), 1);
     EXPECT_TRUE(colEqualsInt64(out->getAll()[0]->Get(0), {1}));
@@ -171,7 +171,7 @@ TEST(StreamingSemiAntiJoinOperatorTest, AntiEmitOnLeftAndRetractOnRightLateMatch
     auto* out = new OutputTestVectorBatch();
     auto* op = makeOp(antiDesc, out);
 
-    op->processBatch1(new StreamRecord(getLeftBatch()));   // right empty -> ANTI emits both as +I
+    op->processBatch1(new StreamRecord(getLeftBatch())); // right empty -> ANTI emits both as +I
     ASSERT_EQ(out->getAll().size(), 1u);
     ASSERT_EQ(out->getAll()[0]->GetRowCount(), 2);
     EXPECT_TRUE(colEqualsInt64(out->getAll()[0]->Get(0), {1, 2}));
