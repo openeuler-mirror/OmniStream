@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <optional>
 #include <stdexcept>
+#include "core/typeutils/ExternalSerializer.h"
 #include "core/typeutils/LongSerializer.h"
 #include "runtime/dataview/PerKeyStateDataViewStore.h"
 
@@ -155,7 +156,7 @@ void SharedDistinctCountContainerFunction::open(StateDataViewStore* store)
     for (auto& group : groups_) {
         group.distinctMapView = reinterpret_cast<KeyedStateMapViewWithKeysNullable<VoidNamespace, long, long>*>(
             perKeyViewStore->getStateMapView<VoidNamespace, long, long>(
-                group.stateName, true, createOwnedSharedDistinctSerializer(group.typeId), new LongSerializer()));
+                group.stateName, true, ExternalSerializer::of(BasicLogicalType::BIGINT), ExternalSerializer::of(BasicLogicalType::BIGINT)));
     }
 }
 
