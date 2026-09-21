@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <functional>
 #include <unordered_map>
 
 #include "core/typeutils/TypeSerializer.h"
@@ -84,7 +85,8 @@ public:
     void createTable(
         ROCKSDB_NAMESPACE::DB* db,
         std::string cfName,
-        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation);
+        std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
+        const std::function<ROCKSDB_NAMESPACE::ColumnFamilyOptions(const std::string&)>& columnFamilyOptionsFactory);
 
     void clear() override;
     uint32_t getNextSequenceNumber(int32_t keyGroup) override;
@@ -418,9 +420,10 @@ template <typename K, typename N, typename V>
 void RocksdbValueState<K, N, V>::createTable(
     ROCKSDB_NAMESPACE::DB* db,
     std::string cfName,
-    std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation)
+    std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation,
+    const std::function<ROCKSDB_NAMESPACE::ColumnFamilyOptions(const std::string&)>& columnFamilyOptionsFactory)
 {
-    stateTable->createTable(db, cfName, kvStateInformation);
+    stateTable->createTable(db, cfName, kvStateInformation, columnFamilyOptionsFactory);
 }
 
 template <typename K, typename N, typename V>
