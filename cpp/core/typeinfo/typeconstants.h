@@ -80,4 +80,6 @@ extern const char* TYPE_NAME_TIME_WINDOW;
 extern const char* TYPE_NAME_TIME_WINDOW_CLASS;
 extern const char* TYPE_NAME_TIME_WINDOW_CLASS_LINE;
 
+extern const char* TYPE_NAME_EXTERNAL_SERIALIZER;
+
 #endif // FLINK_TNEL_TYPECONSTANTS_H

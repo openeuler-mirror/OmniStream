@@ -148,10 +148,11 @@ public:
                         CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<TimeWindow, TimeWindow>*>*>(
                         stateTablePtr);
                     delete stateTable;
-                } else if (keyId == BackendDataType::EXTERNAL_BIGINT_BK && valueId == BackendDataType::EXTERNAL_BIGINT_BK) {
+                } else if (
+                    keyId == BackendDataType::EXTERNAL_BIGINT_BK && valueId == BackendDataType::EXTERNAL_BIGINT_BK) {
                     auto stateTable =
                         reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<int64_t, int64_t>*>*>(
-                        stateTablePtr);
+                            stateTablePtr);
                     delete stateTable;
                 } else {
                     NOT_IMPL_EXCEPTION;
@@ -181,7 +182,7 @@ public:
                     auto stateTable =
                         reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<long>*>*>(stateTablePtr);
                     delete stateTable;
-                } else if (dataId == BackendDataType::BIGINT_BK) {
+                } else if (dataId == BackendDataType::EXTERNAL_BIGINT_BK) {
                     auto stateTable =
                         reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, int64_t>*>(stateTablePtr);
                     delete stateTable;
@@ -460,7 +461,7 @@ uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(
         } else if (dataId == BackendDataType::SET_LONG) {
             return (uintptr_t)createOrUpdateInternalValueState<VoidNamespace, std::vector<long>*>(
                 namespaceSerializer, stateDesc);
-        } else if (dataId == BackendDataType::EXTERNAL_BIGINT_BK ) {
+        } else if (dataId == BackendDataType::EXTERNAL_BIGINT_BK) {
             return (uintptr_t)createOrUpdateInternalValueState<VoidNamespace, int64_t>(namespaceSerializer, stateDesc);
         } else {
             NOT_IMPL_EXCEPTION;

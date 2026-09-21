@@ -218,7 +218,7 @@ private:
                         preparedData.stateIterators.push_back(
                             std::make_unique<HeapSingleStateIterator<K, VoidNamespace, int>>(
                                 table, kvStateId, preparedData.keyGroupPrefixBytes));
-                    } else if (dataId == BackendDataType::BIGINT_BK) {
+                    } else if (dataId == BackendDataType::BIGINT_BK || dataId == BackendDataType::EXTERNAL_BIGINT_BK) {
                         auto* table =
                             reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, int64_t>*>(stateTablePtr);
                         preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
@@ -275,7 +275,10 @@ private:
                         preparedData.stateIterators.push_back(
                             std::make_unique<HeapSingleStateIterator<K, VoidNamespace, S>>(
                                 table, kvStateId, preparedData.keyGroupPrefixBytes));
-                    } else if (keyId == BackendDataType::BIGINT_BK && valueId == BackendDataType::BIGINT_BK) {
+                    } else if (
+                        keyId == BackendDataType::BIGINT_BK && valueId == BackendDataType::BIGINT_BK ||
+                        keyId == BackendDataType::EXTERNAL_BIGINT_BK &&
+                            valueId == BackendDataType::EXTERNAL_BIGINT_BK) {
                         using S = emhash7::HashMap<int64_t, int64_t>*;
                         auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S>*>(stateTablePtr);
                         preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
