@@ -154,9 +154,8 @@ private:
             }
         } else {
             this->hitCount++;
-            if constexpr (std::is_same<K, RowData*>::value) {
-                delete currentKey;
-            }
+            // Do not delete currentKey here: it is bound as the operator keyed-state
+            // current key after ctx.setCurrentKey, and dataState->put still uses it.
         }
     }
 
