@@ -135,6 +135,7 @@ public:
         std::vector<std::string> inputTypes,
         const std::string& tzStr) const;
     void WriteString(std::ofstream& file, int vectorID, int rowID) const;
+    void WriteBinary(std::ofstream& file, int vectorID, int rowID) const;
     VectorBatch* copy()
     {
         auto value = this;

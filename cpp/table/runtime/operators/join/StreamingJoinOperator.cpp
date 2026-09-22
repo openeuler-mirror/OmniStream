@@ -64,7 +64,7 @@ void StreamingJoinOperator<K>::processBatch(
             }
         }
     } catch (std::runtime_error& e) {
-        throw std::runtime_error("join process element failed");
+        throw std::runtime_error(std::string("join process element failed: ") + e.what());
     }
 }
 
@@ -153,6 +153,9 @@ void StreamingJoinOperator<K>::AssembleFisrtTime(
             case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 outputVB->SetVector(outCol, buildInputSideColumn<int64_t, int64_t>(input, icol, inputIsOuter));
                 break;
+            case DataTypeId::OMNI_BOOLEAN:
+                outputVB->SetVector(outCol, buildInputSideColumn<bool, bool>(input, icol, inputIsOuter));
+                break;
             case DataTypeId::OMNI_VARCHAR:
                 if (input->Get(icol)->GetEncoding() == omniruntime::vec::OMNI_FLAT) {
                     outputVB->SetVector(
@@ -170,7 +173,7 @@ void StreamingJoinOperator<K>::AssembleFisrtTime(
                             input, icol, inputIsOuter));
                 }
                 break;
-            default: std::runtime_error("DataType not supported yet!");
+            default: throw std::runtime_error("DataType not supported yet!");
         }
     }
 }
@@ -197,10 +200,14 @@ void StreamingJoinOperator<K>::AssembleSecondTime(
                 outputVB->SetVector(
                     outCol, buildOtherSideColumn<int64_t, int64_t>(input, otherSideStateView, icol, inputIsOuter));
                 break;
+            case DataTypeId::OMNI_BOOLEAN:
+                outputVB->SetVector(
+                    outCol, buildOtherSideColumn<bool, bool>(input, otherSideStateView, icol, inputIsOuter));
+                break;
             case DataTypeId::OMNI_VARCHAR:
                 outputVB->SetVector(outCol, buildOtherSideColumnVarchar(input, otherSideStateView, icol, inputIsOuter));
                 break;
-            default: std::runtime_error("DataType not supported yet!");
+            default: throw std::runtime_error("DataType not supported yet!");
         }
     }
 }
@@ -397,6 +404,9 @@ void StreamingJoinOperator<K>::setOutPutValueInput(
             case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 outputVB->SetVector(outCol, buildInputSideColumn<int64_t, int64_t>(input, icol, inputIsOuter));
                 break;
+            case DataTypeId::OMNI_BOOLEAN:
+                outputVB->SetVector(outCol, buildInputSideColumn<bool, bool>(input, icol, inputIsOuter));
+                break;
             case DataTypeId::OMNI_VARCHAR:
                 if (input->Get(icol)->GetEncoding() == omniruntime::vec::OMNI_FLAT) {
                     outputVB->SetVector(
@@ -414,7 +424,7 @@ void StreamingJoinOperator<K>::setOutPutValueInput(
                             input, icol, inputIsOuter));
                 }
                 break;
-            default: std::runtime_error("DataType not supported yet!");
+            default: throw std::runtime_error("DataType not supported yet!");
         }
     }
 }
@@ -441,10 +451,14 @@ void StreamingJoinOperator<K>::setOutPutValueOther(
                 outputVB->SetVector(
                     outCol, buildOtherSideColumn<int64_t, int64_t>(input, otherSideStateView, icol, inputIsOuter));
                 break;
+            case DataTypeId::OMNI_BOOLEAN:
+                outputVB->SetVector(
+                    outCol, buildOtherSideColumn<bool, bool>(input, otherSideStateView, icol, inputIsOuter));
+                break;
             case DataTypeId::OMNI_VARCHAR:
                 outputVB->SetVector(outCol, buildOtherSideColumnVarchar(input, otherSideStateView, icol, inputIsOuter));
                 break;
-            default: std::runtime_error("DataType not supported yet!");
+            default: throw std::runtime_error("DataType not supported yet!");
         }
     }
 }

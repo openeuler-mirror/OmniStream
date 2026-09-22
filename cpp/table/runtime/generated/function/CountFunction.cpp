@@ -75,8 +75,9 @@ void CountFunction::accumulate(omnistream::VectorBatch* input, const std::vector
     const auto filterData =
         hasFilterCol ? reinterpret_cast<omniruntime::vec::Vector<bool>*>(input->Get(filterIndex)) : nullptr;
 
+    // COUNT(*) has no input column: aggIdx is -1 and must not be used to index the batch.
     omniruntime::vec::BaseVector* columnData = nullptr;
-    if (!isCountStar) {
+    if (!isCountStar && aggIdx >= 0) {
         columnData = input->Get(aggIdx);
     }
 
@@ -118,6 +119,12 @@ void CountFunction::retract(RowData* retractInput)
         aggCount = !valueIsNull ? aggCount - 1 : aggCount;
         return;
     }
+    if (aggIdx == -1) {
+        // COUNT(*) has no input column, keep the same semantics as the batch overload.
+        aggCount = aggCount != -1 ? aggCount - 1 : aggCount;
+        valueIsNull = false;
+        return;
+    }
     bool isFieldNull = retractInput->isNullAt(aggIdx);
     if (!isFieldNull) {
         aggCount = !valueIsNull ? aggCount - 1 : aggCount;
@@ -126,8 +133,9 @@ void CountFunction::retract(RowData* retractInput)
 
 void CountFunction::retract(omnistream::VectorBatch* input, const std::vector<int>& indices)
 {
-    omniruntime::vec::BaseVector* columnData;
-    if (!isCountStar) {
+    // COUNT(*) has no input column: aggIdx is -1 and must not be used to index the batch.
+    omniruntime::vec::BaseVector* columnData = nullptr;
+    if (!isCountStar && aggIdx >= 0) {
         columnData = input->Get(aggIdx);
     }
     for (int rowIndex : indices) {
