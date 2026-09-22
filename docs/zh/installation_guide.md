@@ -13,7 +13,7 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 
 ### 环境要求<a name="ZH-CN_TOPIC_0000002517344922"></a>
 
-安装OmniStream Flink Native化特性前，请参见本节内容，提前准备软硬件安装环境，以确保后续安装操作顺利进行。
+安装OmniStream Flink Native化特性前，请参见本节内容，提前准备软硬件安装环境，以确保后续安装操作正常进行。
 
 **硬件要求<a name="zh-cn_topic_0000002228744546_section7861618121914"></a>**
 
@@ -79,7 +79,7 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 
 - zip压缩包文件：BoostKit-omniruntime-omnistream-1.3.0.zip。
 
-- 校验文件：蓝区代码仓压缩包对应完整性SHA256校验值，复制保存对应生成的SHA256校验值。
+- 校验文件：软件发布仓中代码仓压缩包对应的完整性SHA256校验值，复制并保存对应生成的SHA256校验值。
 
 ### 操作指导
 
@@ -99,7 +99,7 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 
    命令执行完成后，输出校验值。
 
-2. 对比步骤 1 计算的校验值与蓝区代码仓复制的 SHA256 值是否一致
+2. 对比步骤1计算的校验值与软件发布仓中提供的SHA256值是否一致。
 
    如果校验值一致说明zip压缩包文件完整，如果校验值不一致则可以确认文件完整性已被破坏，需要重新获取。
 
@@ -109,7 +109,7 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 
 #### 安装Docker<a name="ZH-CN_TOPIC_0000002549064717"></a>
 
-安装Docker并部署多个容器以搭建Flink环境。如果服务器无法连接外网，请根据实际情况配置本地Yum源，确保安装过程顺利。
+安装Docker并部署多个容器以搭建Flink环境。如果服务器无法连接外网，请根据实际情况配置本地Yum源，确保安装过程正常进行。
 
 1. 请参见《[Docker 安装指南（CentOS&openEuler）](https://www.hikunpeng.com/document/detail/zh/kunpengcpfs/ecosystemEnable/Docker/kunpengdocker_03_0001.html)》安装Docker，并导入基础镜像。
 

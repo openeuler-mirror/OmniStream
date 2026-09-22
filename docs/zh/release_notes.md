@@ -144,7 +144,7 @@
 
 ### 更新说明<a name="ZH-CN_TOPIC_0000002550202869"></a>
 
-鲲鹏BoostKit大数据OmniStream Flink Native化特性通过使用Native Code（C/C++）实现开源软件对应算子，Flink引擎的执行效率得到提升，查询性能随之增强。
+V1.3.0扩展了SQL场景下的算子、内置函数和数据类型支持，并支持Calc算子注册UDF函数。
 
 **新增特性<a name="section9559165534817"></a>**
 
@@ -172,7 +172,7 @@
 
 ### 更新说明<a name="ZH-CN_TOPIC_0000002550202869"></a>
 
-鲲鹏BoostKit大数据OmniStream Flink Native化特性通过使用Native Code（C/C++）实现开源软件对应算子，Flink引擎的执行效率得到提升，查询性能随之增强。
+V1.2.0补充UDF翻译工具依赖的头文件，并新增OmniStateStore加速特性，提升有状态场景的执行性能。
 
 **新增特性<a name="section9559165534817"></a>**
 
@@ -199,7 +199,7 @@
 
 ### 更新说明<a name="ZH-CN_TOPIC_0000002548933521"></a>
 
-鲲鹏BoostKit大数据OmniStream Flink Native化特性通过使用Native Code（C/C++）实现开源软件对应算子，Flink引擎的执行效率得到提升，查询性能随之增强。
+V1.1.0增强SQL算子回退能力，并完善DataStream KeyedCoProcess算子的checkpoint和restore支持。
 
 **新增特性<a name="section9559165534817"></a>**
 
@@ -226,7 +226,7 @@
 
 ### 更新说明<a name="ZH-CN_TOPIC_0000002548933491"></a>
 
-鲲鹏BoostKit大数据OmniStream Flink Native化特性通过使用Native Code（C/C++）实现开源软件对应算子，Flink引擎的执行效率得到提升，查询性能随之增强。
+V1.0.0首次提供SQL和DataStream常用算子的Native化加速能力，并支持基础UDF翻译及状态后端。
 
 **新增特性<a name="section9559165534817"></a>**
 
@@ -260,11 +260,7 @@ DataStream
 
 ## 版本配套文档<a name="ZH-CN_TOPIC_0000002548933523"></a>
 
-### 版本配套文档<a name="ZH-CN_TOPIC_0000002517333760"></a>
-
-## 1.3 版本配套文档
-
-### 版本配套文档
+### 1.3版本配套文档<a name="ZH-CN_TOPIC_0000002517333760"></a>
 
 <table>
   <thead>
