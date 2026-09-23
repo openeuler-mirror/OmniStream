@@ -1,6 +1,8 @@
 # Release Notes<a name="ZH-CN_TOPIC_0000002549054105"></a>
 
-## Version Mapping<a name="ZH-CN_TOPIC_0000002517493640"></a>
+<!-- md-trans-meta sourceCommit=5026f58a00bad13ca98c61abcbe55e9934715eb7 translatedAt=2026-09-15T08:19:44.303Z pushedAt=2026-09-15T09:54:24.783Z -->
+
+## Version Requirements<a name="ZH-CN_TOPIC_0000002517493640"></a>
 
 ### Product Version<a name="ZH-CN_TOPIC_0000002517333734"></a>
 
@@ -41,7 +43,7 @@
 <td class="cellrowborder" valign="top" width="70%" headers="mcps1.1.3.1.1 "><p id="p319mcpsimp"><a name="p319mcpsimp"></a><a name="p319mcpsimp"></a>Kunpeng 920</p>
 </td>
 </tr>
-<tr id="row320mcpsimp"><th class="firstcol" valign="top" width="30%" id="mcps1.1.3.2.1"><p id="p322mcpsimp"><a name="p322mcpsimp"></a><a name="p322mcpsimp"></a>Memory Size</p>
+<tr id="row320mcpsimp"><th class="firstcol" valign="top" width="30%" id="mcps1.1.3.2.1"><p id="p322mcpsimp"><a name="p322mcpsimp"></a><a name="p322mcpsimp"></a>Memory size</p>
 </th>
 <td class="cellrowborder" valign="top" width="70%" headers="mcps1.1.3.2.1 "><p id="p324mcpsimp"><a name="p324mcpsimp"></a><a name="p324mcpsimp"></a>32 GB or greater</p>
 </td>
@@ -51,7 +53,7 @@
 
 ### Virus Scan Result<a name="ZH-CN_TOPIC_0000002549053513"></a>
 
-The software packages, release documents, and product documents have been scanned by multiple antivirus software, and no virus is found.  
+The software package, release documents, and product documents have been scanned by antivirus software, and no viruses were found.  
 
 <a name="table357mcpsimp"></a>
 <table><tbody><tr id="row362mcpsimp"><th class="firstcol" valign="top" width="30%" id="mcps1.1.3.1.1"><p id="p12130195313518"><a name="p12130195313518"></a><a name="p12130195313518"></a><strong id="b14130553173510"><a name="b14130553173510"></a><a name="b14130553173510"></a>Engine Name</strong></p>
@@ -144,13 +146,13 @@ The software packages, release documents, and product documents have been scanne
 
 ### Change Description<a name="ZH-CN_TOPIC_0000002550202869"></a>
 
-The OmniStream Flink Native feature of Kunpeng BoostKit for Big Data uses native code (C/C++) to implement open-source operators, accelerating the Flink engine execution and improving query performance.
+The OmniStream feature of Kunpeng BoostKit for Big Data uses native code (C/C++) to implement open-source operators, accelerating the Flink engine execution and improving query performance.
 
 **New Features<a name="section9559165534817"></a>**
 
-- The Calc operator supports UDF function registration. The Calc operator supports the JSON_VALUE, JSON_QUERY, COALESCE, PROCTIME_MATERIALIZE, CHAR_LENGTH, and TO_TIMESTAMP_LTZ built-in functions.
-- The Calc operator supports the INTEGER and TIMESTAMP_WITH_LOCAL_TIMEZONE(3) data types.
-- In SQL scenarios, the WindowAgg and WindowJoin operators are supported.
+- Added support for UDF function registration in the Calc operator. The Calc operator supports the `JSON_VALUE`, `JSON_QUERY`, `COALESCE`, `PROCTIME_MATERIALIZE`, `CHAR_LENGTH`, and `TO_TIMESTAMP_LTZ` built-in functions.
+- Added support for the `INTEGER` and `TIMESTAMP_WITH_LOCAL_TIMEZONE(3)` data types in the Calc operator.
+- Added support for the WindowAgg and WindowJoin operators in SQL scenarios.
 
 **Modified Features<a name="section299616132492"></a>**
 
@@ -172,12 +174,12 @@ None
 
 ### Change Description<a name="ZH-CN_TOPIC_0000002550202869"></a>
 
-The OmniStream Flink Native feature of Kunpeng BoostKit for Big Data uses native code (C/C++) to implement open-source operators, accelerating the Flink engine execution and improving query performance.
+The OmniStream feature of Kunpeng BoostKit for Big Data uses native code (C/C++) to implement open-source operators, accelerating the Flink engine execution and improving query performance.
 
 **New Features<a name="section9559165534817"></a>**
 
-- The dependency header files are available for the UDF Translator.
-- The OmniStateStore feature has been introduced for stateful scenarios, improving application performance by reducing RocksDB access frequency.
+- Added installation content for the header files of dependencies used by the UDF Translator.
+- Introduced the OmniStateStore feature for stateful scenarios, improving application performance by reducing RocksDB access frequency.
 
 **Modified Features<a name="section299616132492"></a>**
 
@@ -199,7 +201,7 @@ None
 
 ### Change Description<a name="ZH-CN_TOPIC_0000002548933521"></a>
 
-The OmniStream Flink Native feature of Kunpeng BoostKit for Big Data uses native code (C/C++) to implement open-source operators, accelerating the Flink engine execution and improving query performance.
+The OmniStream feature of Kunpeng BoostKit for Big Data uses native code (C/C++) to implement open-source operators, accelerating the Flink engine execution and improving query performance.
 
 **New Features<a name="section9559165534817"></a>**
 
@@ -226,21 +228,21 @@ None
 
 ### Change Description<a name="ZH-CN_TOPIC_0000002548933491"></a>
 
-The OmniStream Flink Native feature of Kunpeng BoostKit for Big Data uses native code (C/C++) to implement open-source operators, accelerating the Flink engine execution and improving query performance.
+The OmniStream feature of Kunpeng BoostKit for Big Data uses native code (C/C++) to implement open-source operators, accelerating the Flink engine execution and improving query performance.
 
 **New Features<a name="section9559165534817"></a>**
 
 SQL
 
-- Accelerated the Calc, GroupAgg, Join, Deduplicate, Rank, Window, and Kafka Source/Sink operators.
+- Implemented acceleration for the Calc, GroupAgg, Join, Deduplicate, Rank, Window, and Kafka Source/Sink operators.
 - Provided an efficient data organization mode, OmniVec.
-- Added support for memory and RocksDB status backends.
+- Added support for in-memory and RocksDB state backends.
 
 DataStream
 
-- Accelerated the Kafka Source, Kafka Sink, Map, FlatMap, Reduce, and filter operators.
-- Implemented the basic UDF framework and basic UDF translation library, and enabled the UDF automatic native framework to run DataStream Wordcount stateful and stateless cases.
-- Added support for the memory status backend.
+- Implemented acceleration for the Kafka Source, Kafka Sink, Map, FlatMap, Reduce, and Filter Operators.
+- Implemented the basic UDF framework and basic translation library, with support for the UDF automatic native framework, and successfully passed both stateful and stateless cases such as DataStream Wordcount.
+- Added support for the in-memory state backend.
 
 **Modified Features<a name="section299616132492"></a>**
 
@@ -262,7 +264,7 @@ None
 
 ### Related Documentation<a name="ZH-CN_TOPIC_0000002517333760"></a>
 
-## 1.3 Related Documentation
+## V1.3 Documentation
 
 ### Related Documentation
 
@@ -305,4 +307,8 @@ None
 
 ### Obtaining Documentation<a name="ZH-CN_TOPIC_0000002517493604"></a>
 
-Visit the [open-source repository](https://gitcode.com/openeuler/OmniStream) to view or download related documents.
+Visit the [open-source repository](https://gitcode.com/openeuler/OmniStream/blob/master/README_en.md) to view or download related documents.
+
+| Release | Date | Description |
+| --- | --- | --- |
+| 01 | 2026-09-30 | This is the first official release. |
