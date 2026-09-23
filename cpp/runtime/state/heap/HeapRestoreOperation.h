@@ -221,7 +221,7 @@ private:
     static std::vector<V>* deserializeVector(TypeSerializer* elemSer, DataInputDeserializer& input)
     {
         int size = input.readInt();
-        auto* vec = new std::vector<V>();
+        auto vec = std::make_unique<std::vector<V>>();
         vec->reserve(size);
         for (int i = 0; i < size; i++) {
             if constexpr (std::is_same_v<V, Object*>) {
@@ -238,7 +238,7 @@ private:
                 delete static_cast<V*>(raw);
             }
         }
-        return vec;
+        return vec.release();
     }
 
     /**
@@ -559,7 +559,7 @@ private:
             ERROR_RELEASE("Exception: Invalid emhash map size " << size << ", available bytes " << input.Available());
             throw std::runtime_error("Invalid emhash map size");
         }
-        auto* map = new emhash7::HashMap<UK, UV>();
+        auto map = std::make_unique<emhash7::HashMap<UK, UV>>();
         map->reserve(size);
         for (int i = 0; i < size; i++) {
             UK key;
@@ -604,6 +604,6 @@ private:
             }
             (*map)[key] = val;
         }
-        return map;
+        return map.release();
     }
 };

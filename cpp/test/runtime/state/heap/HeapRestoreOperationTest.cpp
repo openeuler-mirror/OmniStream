@@ -473,12 +473,12 @@ TEST(HeapRestoreOperationTest, DeserializeEmhashMapWithObjectPointerKey)
     };
     DataInputDeserializer input(data.data(), static_cast<int>(data.size()), 0);
 
-    auto* result = HeapRestoreOperation<int>::deserializeEmhashMap<Object*, Object*>(
-        LongSerializer::INSTANCE, LongSerializer::INSTANCE, input);
+    std::unique_ptr<emhash7::HashMap<Object*, Object*>> result(
+        HeapRestoreOperation<int>::deserializeEmhashMap<Object*, Object*>(
+            LongSerializer::INSTANCE, LongSerializer::INSTANCE, input));
 
     ASSERT_NE(result, nullptr);
     EXPECT_EQ(result->size(), 1u);
-    delete result;
 }
 
 TEST(HeapRestoreOperationTest, DeserializeEmhashMapWithObjectPointerValue)
@@ -491,8 +491,9 @@ TEST(HeapRestoreOperationTest, DeserializeEmhashMapWithObjectPointerValue)
     };
     DataInputDeserializer input(data.data(), static_cast<int>(data.size()), 0);
 
-    auto* result = HeapRestoreOperation<int>::deserializeEmhashMap<int64_t, Object*>(
-        LongSerializer::INSTANCE, LongSerializer::INSTANCE, input);
+    std::unique_ptr<emhash7::HashMap<int64_t, Object*>> result(
+        HeapRestoreOperation<int>::deserializeEmhashMap<int64_t, Object*>(
+            LongSerializer::INSTANCE, LongSerializer::INSTANCE, input));
 
     ASSERT_NE(result, nullptr);
     EXPECT_EQ(result->size(), 1u);
@@ -500,7 +501,6 @@ TEST(HeapRestoreOperationTest, DeserializeEmhashMapWithObjectPointerValue)
     for (auto it = result->begin(); it != result->end(); ++it) {
         if (it->second) it->second->putRefCount();
     }
-    delete result;
 }
 
 TEST(HeapRestoreOperationTest, DeserializeEmhashMapWithNonObjectPointerKey)
@@ -515,11 +515,11 @@ TEST(HeapRestoreOperationTest, DeserializeEmhashMapWithNonObjectPointerKey)
     };
     DataInputDeserializer input(data.data(), static_cast<int>(data.size()), 0);
 
-    auto* result = HeapRestoreOperation<int>::deserializeEmhashMap<long*, int64_t>(&keySer, &valSer, input);
+    std::unique_ptr<emhash7::HashMap<long*, int64_t>> result(
+        HeapRestoreOperation<int>::deserializeEmhashMap<long*, int64_t>(&keySer, &valSer, input));
 
     ASSERT_NE(result, nullptr);
     EXPECT_EQ(result->size(), 1u);
-    delete result;
 }
 
 TEST(HeapRestoreOperationTest, DeserializeEmhashMapWithNonObjectPointerValue)
@@ -534,7 +534,8 @@ TEST(HeapRestoreOperationTest, DeserializeEmhashMapWithNonObjectPointerValue)
     };
     DataInputDeserializer input(data.data(), static_cast<int>(data.size()), 0);
 
-    auto* result = HeapRestoreOperation<int>::deserializeEmhashMap<int64_t, long*>(&keySer, &valSer, input);
+    std::unique_ptr<emhash7::HashMap<int64_t, long*>> result(
+        HeapRestoreOperation<int>::deserializeEmhashMap<int64_t, long*>(&keySer, &valSer, input));
 
     ASSERT_NE(result, nullptr);
     EXPECT_EQ(result->size(), 1u);
@@ -543,7 +544,6 @@ TEST(HeapRestoreOperationTest, DeserializeEmhashMapWithNonObjectPointerValue)
     for (auto it = result->begin(); it != result->end(); ++it) {
         delete it->second;
     }
-    delete result;
 }
 
 TEST(HeapRestoreOperationTest, DeserializeEmhashMapWithNullNonObjectPointerValue)
@@ -567,10 +567,10 @@ TEST(HeapRestoreOperationTest, DeserializeEmhashMapWithNullNonObjectPointerValue
     };
     DataInputDeserializer input(data.data(), static_cast<int>(data.size()), 0);
 
-    auto* result = HeapRestoreOperation<int>::deserializeEmhashMap<int64_t, long*>(&keySer, &valSer, input);
+    std::unique_ptr<emhash7::HashMap<int64_t, long*>> result(
+        HeapRestoreOperation<int>::deserializeEmhashMap<int64_t, long*>(&keySer, &valSer, input));
 
     ASSERT_NE(result, nullptr);
     EXPECT_EQ(result->size(), 1u);
     EXPECT_EQ((*result)[1], nullptr);
-    delete result;
 }
