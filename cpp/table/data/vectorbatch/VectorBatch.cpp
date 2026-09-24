@@ -175,42 +175,28 @@ RowData* VectorBatch::extractRowData(int rowIndex)
 std::string VectorBatch::TransformTimeWithTimeZone(
     int vectorID, int rowID, const std::string& tzStr, int precision) const
 {
-    auto millis = reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(vectors[vectorID])->GetValue(rowID);
-    int64_t totalSeconds = millis / 1000;
+    auto millis = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(vectors[vectorID])->GetValue(rowID);
+    int64_t adjusted_seconds = (millis >= 0) ? (millis / 1000) : ((millis - 999) / 1000);
     int milliseconds = millis % 1000;
     if (milliseconds < 0) {
-        milliseconds += 1000; //保证毫秒非负数
-        totalSeconds -= 1;
+        const int addTime = 1000;
+        milliseconds += addTime; // 确保毫秒非负（如-1234ms → -2秒 + 766ms）
     }
-    int hours = totalSeconds / 3600; //取出小时数、分钟数和秒数
-    int minutes = (totalSeconds % 3600) / 60;
-    int seconds = totalSeconds % 60;
-
-    // 检测越界值（hours >= 24 会产生非法的 "24:00:00.000" 及以上输出）
-    while (hours >= 24) {
-        hours -= 24; //将hour限定在0-23之间
-    }
-
-    char buf[32];
-    std::snprintf(buf, sizeof(buf), "%02d:%02d:%02d", hours, minutes, seconds);
-
+    setenv("TZ", omniruntime::codegen::function::TimeZoneUtil::GetTZ(tzStr.c_str()), 1);
+    tzset();
+    struct tm timeinfo;
+    localtime_r(&adjusted_seconds, &timeinfo);
+    char buffer[80];
+    strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
     std::ostringstream oss;
-    oss << buf << ".";
-    
+    oss << buffer << ".";
+
     if (precision <= 3) {
-        // precision <= 3时，补齐到3位（毫秒精度）
-        oss << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
-            << milliseconds;
+        oss << std::setw(3) << std::setfill('0') << milliseconds; // 强制3位宽度，不足补零
     } else if (precision <= 9) {
-        // 3 < precision <= 9时，输出毫秒部分并补0到precision位数
-        oss << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
-            << milliseconds
-            << std::string(precision - 3, '0');
+        oss << std::setw(3) << std::setfill('0') << milliseconds << std::string(precision - 3, '0');
     } else {
-        // precision > 9时，截断到9位
-        oss << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
-            << milliseconds
-            << std::string(6, '0');  // 补0到9位
+        oss << std::setw(3) << std::setfill('0') << milliseconds << std::string(6, '0');
     }
 
     std::string result = oss.str();
@@ -234,24 +220,66 @@ std::string VectorBatch::TransformTime(int vectorID, int rowID, int precision) c
     char buffer[80];
     strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
 
-        std::ostringstream oss;
-        oss << buffer << ".";
+    std::ostringstream oss;
+    oss << buffer << ".";
 
-        if (precision <= 3) {
-            // precision <= 3时，补齐到3位（毫秒精度）
-            oss << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
-                << milliseconds;
-        } else if (precision <= 9) {
-            // 3 < precision <= 9时，输出毫秒部分并补0到precision位数
-            oss << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
-                << milliseconds
-                << std::string(precision - 3, '0');
-        } else {
-            // precision > 9时，截断到9位
-            oss << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
-                << milliseconds
-                << std::string(6, '0');  // 补0到9位
-        }
+    if (precision <= 3) {
+        // precision <= 3时，补齐到3位（毫秒精度）
+        oss << std::setw(3) << std::setfill('0') // 强制3位宽度，不足补零
+            << milliseconds;
+    } else if (precision <= 9) {
+        // 3 < precision <= 9时，输出毫秒部分并补0到precision位数
+        oss << std::setw(3) << std::setfill('0') // 强制3位宽度，不足补零
+            << milliseconds << std::string(precision - 3, '0');
+    } else {
+        // precision > 9时，截断到9位
+        oss << std::setw(3) << std::setfill('0')    // 强制3位宽度，不足补零
+            << milliseconds << std::string(6, '0'); // 补0到9位
+    }
+
+    std::string result = oss.str();
+    return result;
+}
+
+std::string VectorBatch::TransformOnlyTime(int vectorID, int rowID, int precision) const
+{
+    auto millis = reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(vectors[vectorID])->GetValue(rowID);
+    int64_t totalSeconds = millis / 1000;
+    int milliseconds = millis % 1000;
+    if (milliseconds < 0) {
+        milliseconds += 1000; //保证毫秒非负数
+        totalSeconds -= 1;
+    }
+    int hours = totalSeconds / 3600; //取出小时数、分钟数和秒数
+    int minutes = (totalSeconds % 3600) / 60;
+    int seconds = totalSeconds % 60;
+
+    // 检测越界值（hours >= 24 会产生非法的 "24:00:00.000" 及以上输出）
+    while (hours >= 24) {
+        hours -= 24; //将hour限定在0-23之间
+    }
+
+    char buf[32];
+    std::snprintf(buf, sizeof(buf), "%02d:%02d:%02d", hours, minutes, seconds);
+
+    std::ostringstream oss;
+    oss << buf << ".";
+
+    if (precision <= 3) {
+        // precision <= 3时，补齐到3位（毫秒精度）
+        oss << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
+            << milliseconds;
+    } else if (precision <= 9) {
+        // 3 < precision <= 9时，输出毫秒部分并补0到precision位数
+        oss << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
+            << milliseconds
+            << std::string(precision - 3, '0');
+    } else {
+        // precision > 9时，截断到9位
+        oss << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
+            << milliseconds
+            << std::string(6, '0');  // 补0到9位
+    }
 
     std::string result = oss.str();
     return result;
