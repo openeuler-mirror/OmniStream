@@ -55,8 +55,6 @@ public:
 
     virtual int* getInt(int pos) = 0;
 
-    virtual double* getDouble(int pos) { NOT_IMPL_EXCEPTION; };
-
     virtual BinaryStringData* getString(int pos);
 
     virtual RowKind getRowKind() = 0;
@@ -76,11 +74,6 @@ public:
     };
 
     virtual void setInt(int pos, int value)
-    {
-        NOT_IMPL_EXCEPTION;
-    };
-    
-    virtual void setDouble(int pos, double value)
     {
         NOT_IMPL_EXCEPTION;
     };

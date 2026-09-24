@@ -138,15 +138,12 @@ void StreamCalcBatch::open()
         // todo: ofConfig is empty now. Is it needed?
         auto ofConfig = new omniruntime::op::OverflowConfig();
         // This calls codegen and generates the functions
-        // preferVectorization=true: use OmniOperator's vectorized expression framework
-        bool preferVectorization = true;
         if (hasFilter) {
-            exprEvaluator = new omniruntime::codegen::ExpressionEvaluator
-                    (filterCondition, projExprs, inputTypes_, ofConfig, preferVectorization);
+            exprEvaluator =
+                new omniruntime::codegen::ExpressionEvaluator(filterCondition, projExprs, inputTypes_, ofConfig);
             exprEvaluator->FilterFuncGeneration();
         } else {
-            exprEvaluator = new omniruntime::codegen::ExpressionEvaluator
-                    (projExprs, inputTypes_, ofConfig, preferVectorization);
+            exprEvaluator = new omniruntime::codegen::ExpressionEvaluator(projExprs, inputTypes_, ofConfig);
             exprEvaluator->ProjectFuncGeneration();
         }
     }

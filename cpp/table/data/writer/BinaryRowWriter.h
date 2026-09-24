@@ -25,7 +25,6 @@ public:
     // virtual
     void writeLong(int pos, long value) override;
     void writeInt(int pos, int value) override;
-    void writeDouble(int pos, double value) override;
 
     void reset() override;
 

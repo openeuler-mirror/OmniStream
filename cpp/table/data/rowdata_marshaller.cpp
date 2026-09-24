@@ -22,15 +22,6 @@ void SerializeIntIntoRowData(vec::BaseVector* baseVector, int32_t rowIdx, Binary
     }
 }
 
-void SerializeDoubleIntoRowData(vec::BaseVector *baseVector, int32_t rowIdx, BinaryRowData *result, int32_t pos)
-{
-    if (baseVector->IsNull(rowIdx)) {
-        result->setNullAt(pos);
-    } else {
-        result->setDouble(pos, reinterpret_cast<vec::Vector<double>*>(baseVector)->GetValue(rowIdx));
-    }
-}
-
 void SerializeBooleanIntoRowData(vec::BaseVector* baseVector, int32_t rowIdx, BinaryRowData* result, int32_t pos)
 {
     if (baseVector->IsNull(rowIdx)) {
@@ -89,15 +80,6 @@ void DeserializeLongFromRowData(vec::BaseVector* baseVector, int32_t rowIdx, Bin
     }
 }
 
-void DeserializeDoubleFromRowData(vec::BaseVector *baseVector, int32_t rowIdx, BinaryRowData *input, int32_t pos)
-{
-    if (input->isNullAt(pos)) {
-        baseVector->SetNull(rowIdx);
-    } else {
-        reinterpret_cast<vec::Vector<double>*>(baseVector)->SetValue(rowIdx, *input->getDouble(pos));
-    }
-}
-
 void DeserializeVarcharFromRowData(vec::BaseVector* baseVector, int32_t rowIdx, BinaryRowData* input, int32_t pos)
 {
     if (input->isNullAt(pos)) {
@@ -122,7 +104,7 @@ std::vector<VBToRowSerializer> rowSerializerCenter = {
     nullptr,                        // OMNI_NONE,
     SerializeIntIntoRowData,        // OMNI_INT
     SerializeLongIntoRowData,       // OMNI_LONG
-    SerializeDoubleIntoRowData,     // OMNI_DOUBLE
+    nullptr,                        // OMNI_DOUBLE
     SerializeBooleanIntoRowData,    // OMNI_BOOLEAN
     nullptr,                        // OMNI_SHORT
     SerializeLongIntoRowData,       // OMNI_DECIMAL64,
@@ -143,7 +125,7 @@ std::vector<RowToVBDeSerializer> rowDeserializerCenter = {
     nullptr,                       // OMNI_NONE,
     DeserializeIntFromRowData,     // OMNI_INT
     DeserializeLongFromRowData,    // OMNI_LONG
-    DeserializeDoubleFromRowData,  // OMNI_DOUBLE
+    nullptr,                       // OMNI_DOUBLE
     nullptr,                       // OMNI_BOOLEAN
     nullptr,                       // OMNI_SHORT
     DeserializeLongFromRowData,    // OMNI_DECIMAL64,
