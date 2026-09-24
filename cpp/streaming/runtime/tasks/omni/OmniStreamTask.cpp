@@ -112,8 +112,7 @@ void OmniStreamTask::postConstruct()
 #ifdef WITH_OMNISTATESTORE
         stateBackend = new EmbeddedOckStateBackend(taskConfiguration_);
 #else
-        ERROR_RELEASE(
-            "EmbeddedOckStateBackend was requested, but OmniStream was built without WITH_OMNISTATESTORE");
+        ERROR_RELEASE("EmbeddedOckStateBackend was requested, but OmniStream was built without WITH_OMNISTATESTORE");
         THROW_RUNTIME_ERROR(
             "EmbeddedOckStateBackend was requested, but OmniStream was built without WITH_OMNISTATESTORE");
 #endif
@@ -279,28 +278,24 @@ void OmniStreamTask::restoreGates()
         INFO_RELEASE("restoreGates before recovery mailbox loop");
         mailboxProcessor_->runMailboxLoop();
         INFO_RELEASE("restoreGates after recovery mailbox loop");
-        bool allRecovered = false;
+        bool allRecovered;
         do {
             allRecovered = true;
-            for (const auto& inputGate : inputGateVec) {
-                auto recoveredFlags = inputGate->getStateConsumedFuture1();
-                for (bool done : recoveredFlags) {
-                    if (!done) {
-                        allRecovered = false;
-                        break;
-                    }
+            for (size_t gateIndex = 0; gateIndex < inputGateVec.size(); ++gateIndex) {
+                const auto recoveredFlags = inputGateVec[gateIndex]->getStateConsumedFuture1();
+                const bool gateRecovered =
+                    std::all_of(recoveredFlags.begin(), recoveredFlags.end(), [](bool recovered) { return recovered; });
+                if (!gateRecovered) {
+                    allRecovered = false;
+                    INFO_RELEASE("restoreGates: recovered channels are not fully consumed, gateIndex=" << gateIndex);
                 }
-
-                if (allRecovered) {
-                    INFO_RELEASE("restoreGates requestPartitions directly after recovery loop");
-                    inputGate->RequestPartitions();
-                }
-            }
-            if (!allRecovered) {
-                INFO_RELEASE("restoreGates: some recovered channels are not fully consumed yet");
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
         } while (!allRecovered);
+
+        for (size_t gateIndex = 0; gateIndex < inputGateVec.size(); ++gateIndex) {
+            INFO_RELEASE("restoreGates requestPartitions after all gates recovered, gateIndex=" << gateIndex);
+            inputGateVec[gateIndex]->RequestPartitions();
+        }
 
         INFO_RELEASE("restoreGates complete!");
     } catch (...) {
@@ -389,10 +384,9 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller* controller)
             if (--numberOfInnerRecover == 0) {
                 mailboxProcessor_->suspend();
             }
-            // Break so the remaining gates are polled before availability check;
-            // returning here makes the mailbox loop spin forever.
+            GetSubtaskCheckpointCoordinator()->SetisRecoveredFlag(true);
             break;
-        case DataInputStatus::END_OF_RECOVERY: return;
+        case DataInputStatus::END_OF_RECOVERY: GetSubtaskCheckpointCoordinator()->SetisRecoveredFlag(false); return;
         case DataInputStatus::END_OF_DATA: EndData(StopMode::DRAIN); return;
         case DataInputStatus::NOT_PROCESSED: return;
         case DataInputStatus::STOPPED: EndData(StopMode::NO_DRAIN); return;

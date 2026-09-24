@@ -50,6 +50,7 @@ void OmniLocalInputChannel::notifyOriginalDataAvailable(
 {
     if (bufferLength > IO_SIZE_512M) {
         INFO_RELEASE("Error: invalid buffer size:" << bufferLength);
+        originalNetworkBufferRecycler_->recycle(bufferAddress);
         return;
     }
     int type = bufferType;
@@ -113,6 +114,36 @@ std::optional<BufferAndAvailability> OmniLocalInputChannel::getNextBuffer()
     outsize += buffer->GetBuffer()->GetSize();
     lock.unlock();
     return std::optional<BufferAndAvailability>{*buffer};
+}
+
+int OmniLocalInputChannel::unsynchronizedGetNumberOfQueuedBuffers()
+{
+    std::lock_guard<std::recursive_mutex> lock(queueMutex);
+    return static_cast<int>(dataQueue.size());
+}
+
+int OmniLocalInputChannel::unsynchronizedGetSizeOfQueuedBuffers()
+{
+    std::lock_guard<std::recursive_mutex> lock(queueMutex);
+    std::queue<std::shared_ptr<BufferAndAvailability>> tmpQueue = dataQueue;
+    int num = tmpQueue.size();
+    int size = 0;
+    for (int i = 0; i < num; i++) {
+        datastream::ReadOnlySlicedNetworkBuffer* readOnlyBuffer =
+            static_cast<datastream::ReadOnlySlicedNetworkBuffer*>(tmpQueue.front()->GetBuffer());
+        if (readOnlyBuffer == nullptr) {
+            tmpQueue.pop();
+            continue;
+        }
+        size += readOnlyBuffer->GetSize();
+        tmpQueue.pop();
+    }
+    return size;
+}
+
+size_t OmniLocalInputChannel::getConsumedBufferSize() const
+{
+    return outsize;
 }
 
 void OmniLocalInputChannel::requestSubpartition(int subpartitionIndex)
@@ -180,7 +211,8 @@ void OmniLocalInputChannel::CheckpointStopped(long checkpointId)
 }
 void OmniLocalInputChannel::AddInputData(long checkpointId, const omnistream::InputChannelInfo& info)
 {
-    return channelStatePersister->AddInputData(inflightBuffers_, checkpointId, info);
+    channelStatePersister->AddInputData(inflightBuffers_, checkpointId, info);
+    inflightBuffers_.clear();
 }
 
 std::vector<Buffer*> OmniLocalInputChannel::GetInflightBuffersUnsafe(long checkpointId)
@@ -202,6 +234,7 @@ std::vector<Buffer*> OmniLocalInputChannel::GetInflightBuffersUnsafe(long checkp
         if (readOnlyBuffer->isBuffer()) {
             if (bufferLength > IO_SIZE_512M) {
                 INFO_RELEASE("Error: invalid buffer size:" << bufferLength);
+                tmpQueue.pop();
                 continue;
             }
             uint8_t* bufferAddress = new uint8_t[bufferLength];

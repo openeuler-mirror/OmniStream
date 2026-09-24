@@ -30,6 +30,7 @@ public:
         const json& description,
         std::shared_ptr<InflightDataRescalingDescriptor> inflightDataRescalingDescriptor,
         std::function<StreamPartitioner<IOReadableWritable>*(int)> getPartitionerFunction,
+        std::function<StreamPartitionerV2<StreamRecord>*(int)> getSqlPartitionerFunction,
         TaskInformationPOD* taskInfo)
     {
         // 1. Create Input
@@ -66,6 +67,7 @@ public:
                 channelInfoIndex1,
                 inflightDataRescalingDescriptor,
                 getPartitionerFunction,
+                getSqlPartitionerFunction,
                 taskInfo);
             input2 = OmniStreamTaskNetworkInputFactory::create(
                 1,
@@ -75,6 +77,7 @@ public:
                 channelInfoIndex2,
                 inflightDataRescalingDescriptor,
                 getPartitionerFunction,
+                getSqlPartitionerFunction,
                 taskInfo);
         } else if (taskType == 2) {
             auto inputTypes = description["inputTypes"];
@@ -101,6 +104,7 @@ public:
                 channelInfoIndex1,
                 inflightDataRescalingDescriptor,
                 getPartitionerFunction,
+                getSqlPartitionerFunction,
                 taskInfo);
             if (inputTypeInfo1 != nullptr) {
                 delete inputTypeInfo1;
@@ -114,6 +118,7 @@ public:
                 channelInfoIndex2,
                 inflightDataRescalingDescriptor,
                 getPartitionerFunction,
+                getSqlPartitionerFunction,
                 taskInfo);
             if (inputTypeInfo2 != nullptr) {
                 delete inputTypeInfo2;

@@ -16,6 +16,8 @@
 #include "io/network/api/serialization/EventSerializer.h"
 #include "core/include/omni_const.h"
 
+#include <memory>
+
 namespace omnistream {
 namespace {
 class BufferReferenceGuard {
@@ -89,9 +91,18 @@ void ResultSubpartitionRecoveredStateHandler::recover(
     const ResultSubpartitionInfoPOD& subpartitionInfo, int oldSubtaskIndex, const BufferWithContext& bufferWithContext)
 {
     BufferBuilder* bufferBuilder = bufferWithContext.context_;
+    auto builderGuard =
+        std::unique_ptr<BufferBuilder, void (*)(BufferBuilder*)>(bufferBuilder, [](BufferBuilder* builder) {
+            if (builder == nullptr) {
+                return;
+            }
+            builder->close();
+            delete builder;
+        });
     auto bufferConsumer = bufferBuilder->createBufferConsumerFromBeginning();
     bufferBuilder->finish();
     if (!bufferConsumer->isDataAvailable()) {
+        bufferConsumer->close();
         return;
     }
 
@@ -100,11 +111,24 @@ void ResultSubpartitionRecoveredStateHandler::recover(
         throw std::runtime_error("No mapped channels found in recover()");
     }
     auto buffer = bufferConsumer->buildForPeek();
+    auto peekBufferGuard = std::unique_ptr<Buffer, void (*)(Buffer*)>(buffer, [](Buffer* peekBuffer) {
+        if (peekBuffer == nullptr) {
+            return;
+        }
+        peekBuffer->RecycleBuffer();
+        delete peekBuffer;
+    });
+    if (buffer == nullptr) {
+        bufferConsumer->close();
+        throw std::runtime_error("Failed to build recovered buffer");
+    }
     int bufferSize = buffer->GetSize();
     if (bufferSize > IO_SIZE_512M) {
         INFO_RELEASE("Error: invalid buffer size:" << bufferSize);
+        bufferConsumer->close();
         return;
     }
+    bool currentConsumerTransferred = false;
     try {
         int cnt = 0;
         for (const auto& item : channels) {
@@ -113,25 +137,52 @@ void ResultSubpartitionRecoveredStateHandler::recover(
             INFO_RELEASE("send recover buffer :" << item->getSubpartitionInfo().toString());
             item->addRecovered(EventSerializer::ToBufferConsumer(channelSelector, false));
             if (cnt > 0) {
-                MemorySegment* memorySegment = reinterpret_cast<NetworkBuffer*>(buffer)->getMemorySegment();
-                uint8_t* newBufferAddress = new uint8_t[bufferSize];
-                MemorySegment* newMemorySegment = new MemorySegment(newBufferAddress, bufferSize);
-                newMemorySegment->put(0, reinterpret_cast<uint8_t*>(memorySegment->getData()), 0, bufferSize);
-                ::datastream::NetworkBuffer* newNetworkBuffer = new ::datastream::NetworkBuffer(
-                    newMemorySegment,
-                    bufferSize,
-                    0,
-                    std::make_shared<OriginalNetworkBufferRecycler>(),
-                    ObjectBufferDataType::DATA_BUFFER,
-                    true);
-                bufferConsumer = std::make_shared<datastream::MemoryBufferConsumer>(newNetworkBuffer, bufferSize);
+                auto segment = buffer->GetSegment();
+                int bufferLength = buffer->GetSize();
+                if (segment->isObjectSegment()) {
+                    ObjectSegment* newObjectSegment = new ObjectSegment(bufferLength);
+                    const ObjectSegment* objectSegment = dynamic_cast<const ObjectSegment*>(segment);
+                    newObjectSegment->put(0, objectSegment, buffer->GetOffset(), bufferLength);
+                    auto* copiedBuffer =
+                        new VectorBatchBuffer(newObjectSegment, std::make_shared<DeepCopiedObjectBufferRecycler>());
+                    copiedBuffer->SetSize(bufferLength);
+                    bufferConsumer = std::make_shared<ObjectBufferConsumer>(copiedBuffer, bufferLength);
+                } else {
+                    MemorySegment* memorySegment = reinterpret_cast<NetworkBuffer*>(buffer)->getMemorySegment();
+                    uint8_t* newBufferAddress = new uint8_t[bufferSize];
+                    if (newBufferAddress == nullptr) {
+                        INFO_RELEASE("Error: malloc failed.");
+                        throw std::invalid_argument("malloc failed");
+                    }
+                    MemorySegment* newMemorySegment = new MemorySegment(newBufferAddress, bufferSize);
+                    newMemorySegment->put(0, reinterpret_cast<uint8_t*>(memorySegment->getData()), 0, bufferSize);
+                    ::datastream::NetworkBuffer* newNetworkBuffer = new ::datastream::NetworkBuffer(
+                        newMemorySegment,
+                        bufferSize,
+                        0,
+                        std::make_shared<OriginalNetworkBufferRecycler>(),
+                        ObjectBufferDataType::DATA_BUFFER,
+                        true);
+                    bufferConsumer = std::make_shared<datastream::MemoryBufferConsumer>(newNetworkBuffer, bufferSize);
+                }
+                currentConsumerTransferred = false;
             }
             item->addRecovered(bufferConsumer);
+            currentConsumerTransferred = true;
             cnt++;
         }
-        buffer->RecycleBuffer();
     } catch (const std::exception& e) {
+        if (!currentConsumerTransferred && bufferConsumer != nullptr && !bufferConsumer->isClose()) {
+            bufferConsumer->close();
+        }
         INFO_RELEASE("ERROR: ResultSubpartitionRecoveredStateHandler::recover exception: " << e.what());
+        throw;
+    } catch (...) {
+        if (!currentConsumerTransferred && bufferConsumer != nullptr && !bufferConsumer->isClose()) {
+            bufferConsumer->close();
+        }
+        INFO_RELEASE("ERROR: ResultSubpartitionRecoveredStateHandler::recover unknown exception");
+        throw;
     }
 }
 
@@ -243,41 +294,39 @@ void InputChannelRecoveredStateHandler::recover(
     Buffer* buffer = bufferWithContext.context_;
     BufferReferenceGuard originalReference(buffer);
 
+    if (buffer->GetSize() == 0) {
+        return;
+    }
+
     try {
-        if (buffer == nullptr) {
-            throw std::invalid_argument("Recovered input buffer is null");
+        if (buffer->GetSize() > 0) {
+            auto channels = getMappedChannels(inputChannelInfo);
+            if (channels.empty()) {
+                throw std::runtime_error("No mapped channels found in InputChannelRecoveredStateHandler::recover");
+            }
+
+            for (size_t channelIndex = 0; channelIndex < channels.size(); channelIndex++) {
+                const auto& item = channels[channelIndex];
+                const bool lastChannel = channelIndex + 1 == channels.size();
+                BufferReferenceGuard channelReference(
+                    lastChannel ? originalReference.Release() : buffer->RetainBuffer());
+
+                INFO_RELEASE("send input recover:" << item->getChannelInfo().toString());
+                item->onRecoveredStateBuffer(
+                    EventSerializer::toBuffer(
+                        std::make_shared<SubtaskConnectionDescriptor>(
+                            oldSubtaskIndex, inputChannelInfo.getInputChannelIdx()),
+                        false));
+                item->onRecoveredStateBuffer2(channelReference.Get());
+                // RecoveredInputChannel now owns exactly one reference for this mapped channel.
+                channelReference.Release();
+            }
+
+            INFO_RELEASE(
+                "Recovered state for gate " << inputChannelInfo.getGateIdx() << ", channel "
+                                            << inputChannelInfo.getInputChannelIdx() << ", size " << buffer->GetSize()
+                                            << ", mappedChannels=" << channels.size());
         }
-
-        const int bufferSize = buffer->GetSize();
-        if (bufferSize <= 0) {
-            return;
-        }
-
-        auto channels = getMappedChannels(inputChannelInfo);
-        if (channels.empty()) {
-            throw std::runtime_error("No mapped channels found in InputChannelRecoveredStateHandler::recover");
-        }
-
-        for (size_t channelIndex = 0; channelIndex < channels.size(); channelIndex++) {
-            const auto& item = channels[channelIndex];
-            const bool lastChannel = channelIndex + 1 == channels.size();
-            BufferReferenceGuard channelReference(lastChannel ? originalReference.Release() : buffer->RetainBuffer());
-
-            INFO_RELEASE("send input recover:" << item->getChannelInfo().toString());
-            item->onRecoveredStateBuffer(
-                EventSerializer::toBuffer(
-                    std::make_shared<SubtaskConnectionDescriptor>(
-                        oldSubtaskIndex, inputChannelInfo.getInputChannelIdx()),
-                    false));
-            item->onRecoveredStateBuffer2(channelReference.Get());
-            // RecoveredInputChannel now owns exactly one reference for this mapped channel.
-            channelReference.Release();
-        }
-
-        INFO_RELEASE(
-            "Recovered state for gate " << inputChannelInfo.getGateIdx() << ", channel "
-                                        << inputChannelInfo.getInputChannelIdx() << ", size " << bufferSize
-                                        << ", mappedChannels=" << channels.size());
     } catch (const std::exception& e) {
         INFO_RELEASE("ERROR: InputChannelRecoveredStateHandler::recover exception: " << e.what());
         throw std::runtime_error("failed to InputChannelRecoveredStateHandler recover: " + std::string(e.what()));

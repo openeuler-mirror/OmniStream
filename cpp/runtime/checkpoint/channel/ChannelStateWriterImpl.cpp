@@ -9,6 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "ChannelStateWriterImpl.h"
+#include "CheckpointBufferUtils.h"
 
 namespace omnistream {
 ChannelStateWriterImpl::ChannelStateWriterImpl(
@@ -54,15 +55,35 @@ void ChannelStateWriterImpl::Start(long checkpointId, const CheckpointOptions& o
 void ChannelStateWriterImpl::AddInputData(
     long checkpointId, const InputChannelInfo& info, int startSeqNum, std::vector<Buffer*> data)
 {
-    validateCheckpointId(checkpointId);
-    enqueue(ChannelStateWriteRequest::writeInput(jobVertexID_, subtaskIndex_, checkpointId, info, data), false);
+    try {
+        validateCheckpointId(checkpointId);
+        enqueue(ChannelStateWriteRequest::writeInput(jobVertexID_, subtaskIndex_, checkpointId, info, data), false);
+    } catch (...) {
+        for (auto* buffer : data) {
+            if (buffer != nullptr) {
+                ReleaseCheckpointBuffer(buffer);
+            }
+        }
+        throw;
+    }
 }
 
 void ChannelStateWriterImpl::AddOutputData(
     long checkpointId, const ResultSubpartitionInfoPOD& info, int startSeqNum, std::vector<Buffer*>& data)
 {
-    validateCheckpointId(checkpointId);
-    enqueue(ChannelStateWriteRequest::writeOutput(jobVertexID_, subtaskIndex_, checkpointId, info, data), false);
+    std::vector<Buffer*> ownedData;
+    ownedData.swap(data);
+    try {
+        validateCheckpointId(checkpointId);
+        enqueue(ChannelStateWriteRequest::writeOutput(jobVertexID_, subtaskIndex_, checkpointId, info, ownedData), false);
+    } catch (...) {
+        for (auto* buffer : ownedData) {
+            if (buffer != nullptr) {
+                ReleaseCheckpointBuffer(buffer);
+            }
+        }
+        throw;
+    }
 }
 
 void ChannelStateWriterImpl::AddOutputDataFuture(

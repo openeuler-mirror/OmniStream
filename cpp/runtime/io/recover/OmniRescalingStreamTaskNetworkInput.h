@@ -47,6 +47,7 @@ public:
         std::vector<long>& channelInfos,
         std::shared_ptr<InflightDataRescalingDescriptor> inflightDataRescalingDescriptor,
         std::function<StreamPartitioner<IOReadableWritable>*(int)> getPartitionerFunction,
+        std::function<StreamPartitionerV2<StreamRecord>*(int)> getSqlPartitionerFunction,
         TaskInformationPOD* taskInfo)
         : OmniAbstractStreamTaskNetworkInput(
               inputIndex,
@@ -55,7 +56,13 @@ public:
               inputSerializer,
               channelInfos,
               getRecordDeserializers(
-                  inputGate, inputSerializer, *inflightDataRescalingDescriptor, getPartitionerFunction, taskInfo),
+                  inputGate,
+                  inputSerializer,
+                  taskType,
+                  *inflightDataRescalingDescriptor,
+                  getPartitionerFunction,
+                  getSqlPartitionerFunction,
+                  taskInfo),
               taskInfo->getExecutionCheckpointConfig().getCheckpointInterval())
     {
         INFO_RELEASE("create OmniRescalingStreamTaskNetworkInput");
@@ -162,11 +169,63 @@ public:
         }
     };
 
+    class SqlRecordFilterFactory {
+    public:
+        SqlRecordFilterFactory(
+            int subtaskIndex,
+            int numberOfChannels,
+            std::function<StreamPartitionerV2<StreamRecord>*(int)> gatePartitioners)
+            : subtaskIndex_(subtaskIndex),
+              numberOfChannels_(numberOfChannels),
+              gatePartitioners_(std::move(gatePartitioners))
+        {
+        }
+
+        std::function<StreamRecord*(StreamRecord&)> apply(const InputChannelInfo& channelInfo)
+        {
+            auto it = partitionerCache_.find(channelInfo.getGateIdx());
+            if (it == partitionerCache_.end()) {
+                auto* partitioner = gatePartitioners_(channelInfo.getGateIdx());
+                partitioner->setup(numberOfChannels_);
+                it = partitionerCache_.emplace(channelInfo.getGateIdx(), partitioner).first;
+            }
+            auto* partitioner = it->second;
+            int subtaskIndex = subtaskIndex_;
+            return [partitioner, subtaskIndex](StreamRecord& record) -> StreamRecord* {
+                auto* batch = static_cast<VectorBatch*>(record.getValue());
+                std::vector<int32_t> selectedRows;
+                selectedRows.reserve(batch->GetRowCount());
+                for (int32_t row = 0; row < batch->GetRowCount(); ++row) {
+                    if (partitioner->selectRowChannel(batch, row) == subtaskIndex) {
+                        selectedRows.push_back(row);
+                    }
+                }
+                if (selectedRows.empty()) {
+                    return nullptr;
+                }
+
+                auto* filteredBatch = VectorBatchUtil::buildNewVectorBatchByRowIds(batch, selectedRows);
+                auto* filteredRecord = record.hasTimestamp() ? new StreamRecord(filteredBatch, record.getTimestamp())
+                                                             : new StreamRecord(filteredBatch);
+                filteredRecord->setTag(record.getTag());
+                return filteredRecord;
+            };
+        }
+
+    private:
+        int subtaskIndex_;
+        int numberOfChannels_;
+        std::function<StreamPartitionerV2<StreamRecord>*(int)> gatePartitioners_;
+        std::unordered_map<int, StreamPartitionerV2<StreamRecord>*> partitionerCache_;
+    };
+
     static std::unique_ptr<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>> getRecordDeserializers(
         std::shared_ptr<CheckpointedInputGate> checkpointedInputGate,
         TypeSerializer* inputSerializer,
+        int taskType,
         const InflightDataRescalingDescriptor& rescalingDescriptor,
         std::function<StreamPartitioner<IOReadableWritable>*(int)> gatePartitioners,
+        std::function<StreamPartitionerV2<StreamRecord>*(int)> sqlGatePartitioners,
         TaskInformationPOD* taskInfo)
     {
         auto recordFilterFactory = std::make_shared<RecordFilterFactory>(
@@ -177,8 +236,17 @@ public:
             taskInfo->getMaxNumberOfSubtasks());
 
         auto function = std::function<std::function<bool(StreamRecord&)>(const InputChannelInfo&)>(
-            [recordFilterFactory](const InputChannelInfo& channelInfo) {
-                return recordFilterFactory->apply(channelInfo);
+            [recordFilterFactory, taskType](const InputChannelInfo& channelInfo) {
+                return taskType == 2 ? recordFilterFactory->apply(channelInfo) : RecordFilter::all();
+            });
+        auto sqlRecordFilterFactory = std::make_shared<SqlRecordFilterFactory>(
+            taskInfo->getIndexOfSubtask(), taskInfo->getNumberOfSubtasks(), std::move(sqlGatePartitioners));
+        auto sqlFunction = std::function<std::function<StreamRecord*(StreamRecord&)>(const InputChannelInfo&)>(
+            [sqlRecordFilterFactory, taskType](const InputChannelInfo& channelInfo) {
+                if (taskType == 1) {
+                    return sqlRecordFilterFactory->apply(channelInfo);
+                }
+                return std::function<StreamRecord*(StreamRecord&)>([](StreamRecord& record) { return &record; });
             });
         auto deserializers = std::make_unique<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>>();
         deserializers->reserve(checkpointedInputGate->GetChannelInfos().size());
@@ -188,7 +256,7 @@ public:
             deserializers->emplace(
                 channelId,
                 DemultiplexingRecordDeserializer::create(
-                    channelInfo, rescalingDescriptor, DeserializerFactory::apply, function));
+                    channelInfo, rescalingDescriptor, DeserializerFactory::apply, function, sqlFunction));
         }
         return deserializers;
     }
