@@ -23,6 +23,7 @@
 #include "core/memory/DataOutputSerializer.h"
 #include "core/typeutils/LongSerializer.h"
 #include "core/typeutils/MapSerializer.h"
+#include "core/typeutils/XxH128_hashSerializer.h"
 #include "runtime/checkpoint/AppendOnlyTopNSavepointAdaptor.h"
 #include "runtime/checkpoint/CheckpointOptions.h"
 #include "runtime/checkpoint/DeduplicateSavepointAdaptor.h"
@@ -91,6 +92,26 @@ std::vector<int8_t> serializeComboIds(const std::vector<omnistream::ComboId>& co
     for (size_t i = 0; i < comboIds.size(); ++i) {
         if (i != 0) {
             output.writeByte(',');
+        }
+        omnistream::ComboIdUtil::writeComboId(output, comboIds[i]);
+    }
+    return copyOutput(output);
+}
+
+std::vector<int8_t> serializeJoinAggregate(const std::vector<omnistream::ComboId>& comboIds, bool outerJoinState)
+{
+    DataOutputSerializer output;
+    OutputBufferStatus status{};
+    output.setBackendBuffer(&status);
+    output.writeInt(static_cast<int32_t>(comboIds.size()));
+    for (size_t i = 0; i < comboIds.size(); ++i) {
+        const int64_t rowValue = 42 + omnistream::VectorBatchUtil::getRowId(comboIds[i]);
+        XXH128_hash_t rowHash = XXH3_128bits(&rowValue, sizeof(rowValue));
+        XxH128_hashSerializer::INSTANCE->serialize(&rowHash, output);
+        output.writeBoolean(false);
+        output.writeInt(static_cast<int32_t>(i + 2));
+        if (outerJoinState) {
+            output.writeInt(static_cast<int32_t>(i + 4));
         }
         omnistream::ComboIdUtil::writeComboId(output, comboIds[i]);
     }
@@ -224,9 +245,12 @@ public:
     std::unique_ptr<RowData> getRow(omnistream::VectorBatchId batchId, int32_t rowId) override
     {
         requestedRows.emplace_back(batchId, rowId);
+        if (missingRow) {
+            return nullptr;
+        }
         std::unique_ptr<BinaryRowData> row(BinaryRowData::createBinaryRowDataWithMem(arity_));
         for (int i = 0; i < arity_; ++i) {
-            row->setLong(i, value_ + i);
+            row->setLong(i, value_ + i + (varyByRowId ? rowId : 0));
         }
         return row;
     }
@@ -238,6 +262,8 @@ public:
 
     std::vector<std::pair<omnistream::VectorBatchId, int32_t>> requestedRows;
     int closeCalls = 0;
+    bool missingRow = false;
+    bool varyByRowId = false;
 
 private:
     int arity_;
@@ -460,6 +486,140 @@ TEST_F(SavepointAdaptorExecuteSaveTest, StreamingJoinSaveExecutesConvertKVRowDat
         std::make_pair(
             omnistream::VectorBatchUtil::getVectorBatchId(comboId), omnistream::VectorBatchUtil::getRowId(comboId)));
     EXPECT_EQ(accessor->closeCalls, 1);
+}
+
+TEST_F(SavepointAdaptorExecuteSaveTest, StreamingJoinSaveExpandsAggregatedRowsForBothJoinLayouts)
+{
+    for (const bool outerJoinState : {false, true}) {
+        omnistream::StreamingJoinSavepointAdaptor adaptor(
+            outerJoinState ? FlinkSavepointAdaptorType::StreamingLeftOuterJoinNoUniqueKeyAdaptor
+                           : FlinkSavepointAdaptorType::StreamingJoinNoUniqueKeyAdaptor);
+        adaptor.prepareForSave({{"leftInputTypes", {"BIGINT"}}, {"rightInputTypes", {"BIGINT"}}});
+        const auto first = omnistream::VectorBatchUtil::getComboId(0, 13, 2);
+        const auto second = omnistream::VectorBatchUtil::getComboId(0, 13, 3);
+        auto iterator = std::make_shared<SingleEntryIterator>(
+            std::vector<int8_t>{0x01}, serializeJoinAggregate({first, second}, outerJoinState), 0);
+        auto accessor = std::make_shared<RecordingVectorBatchAccessor>();
+        accessor->varyByRowId = true;
+        TestSnapshotResources resources;
+        resources.metaInfos = {
+            makeKeyValueMeta(omnistream::StreamingJoinSavepointUtil::LEFT_STATE_NAME, "MAP", LongSerializer::INSTANCE)};
+        resources.iterator = iterator;
+        resources.accessor = accessor;
+
+        EXPECT_GT(saveAndGetPosition(adaptor, resources), 0U);
+        EXPECT_TRUE(iterator->closed);
+        ASSERT_EQ(accessor->requestedRows.size(), 2U);
+        EXPECT_EQ(
+            accessor->requestedRows[0],
+            std::make_pair(
+                omnistream::VectorBatchUtil::getVectorBatchId(first), omnistream::VectorBatchUtil::getRowId(first)));
+        EXPECT_EQ(
+            accessor->requestedRows[1],
+            std::make_pair(
+                omnistream::VectorBatchUtil::getVectorBatchId(second), omnistream::VectorBatchUtil::getRowId(second)));
+        EXPECT_EQ(resources.requestedLogicalStateName, omnistream::StreamingJoinSavepointUtil::LEFT_STATE_NAME);
+        EXPECT_EQ(accessor->closeCalls, 1);
+    }
+}
+
+TEST_F(SavepointAdaptorExecuteSaveTest, StreamingJoinSaveRejectsMissingVectorBatchRow)
+{
+    omnistream::StreamingJoinSavepointAdaptor adaptor(FlinkSavepointAdaptorType::StreamingJoinNoUniqueKeyAdaptor);
+    adaptor.prepareForSave({{"leftInputTypes", {"BIGINT"}}, {"rightInputTypes", {"BIGINT"}}});
+    const auto comboId = omnistream::VectorBatchUtil::getComboId(0, 13, 2);
+    omnistream::StreamingJoinSavepointUtil::ParsedJoinValue joinValue;
+    joinValue.count = 3;
+    XXH128_hash_t rowHash{};
+    const std::vector<int8_t> prefix{0x01};
+    auto key =
+        omnistream::StreamingJoinSavepointUtil::serializeOmniMapKey(ByteView(prefix.data(), prefix.size()), rowHash);
+    auto value = omnistream::StreamingJoinSavepointUtil::serializeOmniJoinValue(joinValue, comboId);
+    auto iterator = std::make_shared<SingleEntryIterator>(std::move(key), std::move(value), 0);
+    auto accessor = std::make_shared<RecordingVectorBatchAccessor>();
+    accessor->missingRow = true;
+    TestSnapshotResources resources;
+    resources.metaInfos = {
+        makeKeyValueMeta(omnistream::StreamingJoinSavepointUtil::LEFT_STATE_NAME, "MAP", LongSerializer::INSTANCE)};
+    resources.iterator = iterator;
+    resources.accessor = accessor;
+
+    EXPECT_THROW(saveAndGetPosition(adaptor, resources), std::runtime_error);
+    EXPECT_TRUE(iterator->closed);
+    ASSERT_EQ(accessor->requestedRows.size(), 1U);
+    EXPECT_EQ(accessor->closeCalls, 1);
+}
+
+TEST_F(SavepointAdaptorExecuteSaveTest, StreamingJoinSaveRejectsMalformedExpandedKey)
+{
+    omnistream::StreamingJoinSavepointAdaptor adaptor(FlinkSavepointAdaptorType::StreamingJoinNoUniqueKeyAdaptor);
+    adaptor.prepareForSave({{"leftInputTypes", {"BIGINT"}}, {"rightInputTypes", {"BIGINT"}}});
+    omnistream::StreamingJoinSavepointUtil::ParsedJoinValue joinValue;
+    joinValue.count = 3;
+    auto value = omnistream::StreamingJoinSavepointUtil::serializeOmniJoinValue(joinValue, 1);
+    auto iterator = std::make_shared<SingleEntryIterator>(
+        std::vector<int8_t>(omnistream::StreamingJoinSavepointUtil::XXH128_SERIALIZED_BYTES, 0), std::move(value), 0);
+    TestSnapshotResources resources;
+    resources.metaInfos = {
+        makeKeyValueMeta(omnistream::StreamingJoinSavepointUtil::LEFT_STATE_NAME, "MAP", LongSerializer::INSTANCE)};
+    resources.iterator = iterator;
+    resources.accessor = std::make_shared<RecordingVectorBatchAccessor>();
+
+    EXPECT_THROW(saveAndGetPosition(adaptor, resources), std::runtime_error);
+    EXPECT_TRUE(iterator->closed);
+
+    auto malformedAggregate =
+        std::make_shared<SingleEntryIterator>(std::vector<int8_t>{0x01}, std::vector<int8_t>{0, 0, 0, 2}, 0);
+    resources.iterator = malformedAggregate;
+    EXPECT_THROW(saveAndGetPosition(adaptor, resources), std::runtime_error);
+    EXPECT_TRUE(malformedAggregate->closed);
+}
+
+TEST_F(SavepointAdaptorExecuteSaveTest, StreamingJoinSaveRejectsUnknownOrUnserializableMainState)
+{
+    omnistream::StreamingJoinSavepointAdaptor adaptor(FlinkSavepointAdaptorType::StreamingJoinNoUniqueKeyAdaptor);
+    adaptor.prepareForSave({{"leftInputTypes", {"BIGINT"}}, {"rightInputTypes", {"BIGINT"}}});
+    TestSnapshotResources resources;
+    resources.metaInfos = {makeKeyValueMeta("unexpected", "MAP", LongSerializer::INSTANCE)};
+    EXPECT_THROW(saveAndGetPosition(adaptor, resources), std::runtime_error);
+
+    resources.metaInfos = {makeKeyValueMeta(omnistream::StreamingJoinSavepointUtil::LEFT_STATE_NAME, "MAP", nullptr)};
+    EXPECT_THROW(saveAndGetPosition(adaptor, resources), std::runtime_error);
+}
+
+TEST_F(SavepointAdaptorExecuteSaveTest, StreamingJoinSaveSkipsVectorBatchMetadataAndMapsSourceStateId)
+{
+    omnistream::StreamingJoinSavepointAdaptor adaptor(FlinkSavepointAdaptorType::StreamingJoinNoUniqueKeyAdaptor);
+    adaptor.prepareForSave({{"leftInputTypes", {"BIGINT"}}, {"rightInputTypes", {"BIGINT"}}});
+    const auto comboId = omnistream::VectorBatchUtil::getComboId(0, 13, 2);
+    omnistream::StreamingJoinSavepointUtil::ParsedJoinValue joinValue;
+    joinValue.count = 3;
+    XXH128_hash_t rowHash{};
+    const std::vector<int8_t> prefix{0x01};
+    auto key =
+        omnistream::StreamingJoinSavepointUtil::serializeOmniMapKey(ByteView(prefix.data(), prefix.size()), rowHash);
+    auto value = omnistream::StreamingJoinSavepointUtil::serializeOmniJoinValue(joinValue, comboId);
+    auto iterator = std::make_shared<SingleEntryIterator>(std::move(key), std::move(value), 2);
+    TestSnapshotResources resources;
+    resources.metaInfos = {
+        nullptr,
+        makeKeyValueMeta(
+            std::string(omnistream::StreamingJoinSavepointUtil::LEFT_STATE_NAME) + "vb",
+            "VALUE",
+            LongSerializer::INSTANCE),
+        makeKeyValueMeta(omnistream::StreamingJoinSavepointUtil::LEFT_STATE_NAME, "MAP", LongSerializer::INSTANCE)};
+    resources.iterator = iterator;
+    resources.accessor = std::make_shared<RecordingVectorBatchAccessor>();
+    EXPECT_CALL(*bridge_, WriteSavepointMetadata(_, _, _))
+        .WillOnce([](jobject, const std::vector<std::shared_ptr<StateMetaInfoSnapshot>>& target, std::string) {
+            ASSERT_EQ(target.size(), 1U);
+            EXPECT_EQ(target[0]->getName(), omnistream::StreamingJoinSavepointUtil::LEFT_STATE_NAME);
+        });
+
+    EXPECT_GT(saveAndGetPosition(adaptor, resources), 0U);
+    EXPECT_TRUE(iterator->closed);
+    ASSERT_EQ(resources.accessor->requestedRows.size(), 1U);
+    EXPECT_EQ(resources.requestedLogicalStateName, omnistream::StreamingJoinSavepointUtil::LEFT_STATE_NAME);
 }
 
 TEST_F(SavepointAdaptorExecuteSaveTest, WindowJoinSaveExecutesConvertKVRowData)
