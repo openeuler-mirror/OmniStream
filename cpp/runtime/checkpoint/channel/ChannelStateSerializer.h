@@ -16,6 +16,7 @@
 #include <vector>
 #include <cstdint>
 #include <iostream>
+#include <limits>
 #include <libboundscheck/include/securec.h>
 #include "core/memory/MemorySegment.h"
 #include "include/basictypes/java_io_InputStream.h"
@@ -84,18 +85,24 @@ public:
 
         auto segment = buffers->GetSegment();
         if (segment->isObjectSegment()) {
-            auto objectSegment = static_cast<ObjectSegment*>(segment);
-            auto serializedData = serializeObjectSegment(objectSegment, size, buffers->GetOffset(), buffers->GetSize());
             oldOffset = offset.fetch_add(sizeof(lenBytes));
             int64_t newOffset = oldOffset;
             memcpy_s(
                 dataStream + newOffset, memSize - newOffset, reinterpret_cast<const char*>(lenBytes), sizeof(lenBytes));
             newOffset = offset.fetch_add(size);
-            memcpy_s(
-                dataStream + newOffset,
-                memSize - newOffset,
-                reinterpret_cast<const char*>(serializedData.data()),
-                size);
+            auto rawBytes = GetRawBytes(buffers);
+            if (rawBytes.first != nullptr) {
+                memcpy_s(dataStream + newOffset, memSize - newOffset, rawBytes.first, rawBytes.second);
+            } else {
+                auto objectSegment = static_cast<ObjectSegment*>(segment);
+                auto serializedData =
+                    serializeObjectSegment(objectSegment, size, buffers->GetOffset(), buffers->GetSize());
+                memcpy_s(
+                    dataStream + newOffset,
+                    memSize - newOffset,
+                    reinterpret_cast<const char*>(serializedData.data()),
+                    size);
+            }
         } else {
             auto memorySegment = dynamic_cast<MemorySegment*>(segment);
             if (memorySegment == nullptr) {
@@ -148,10 +155,19 @@ public:
         size_t payloadCapacity = serialized.size() - sizeof(lenBytes);
         auto segment = buffers->GetSegment();
         if (segment->isObjectSegment()) {
-            auto objectSegment = static_cast<ObjectSegment*>(segment);
-            auto serializedData = serializeObjectSegment(objectSegment, size, buffers->GetOffset(), buffers->GetSize());
-            ret = memcpy_s(
-                payload, payloadCapacity, reinterpret_cast<const char*>(serializedData.data()), serializedData.size());
+            auto rawBytes = GetRawBytes(buffers);
+            if (rawBytes.first != nullptr) {
+                ret = memcpy_s(payload, payloadCapacity, rawBytes.first, rawBytes.second);
+            } else {
+                auto objectSegment = static_cast<ObjectSegment*>(segment);
+                auto serializedData =
+                    serializeObjectSegment(objectSegment, size, buffers->GetOffset(), buffers->GetSize());
+                ret = memcpy_s(
+                    payload,
+                    payloadCapacity,
+                    reinterpret_cast<const char*>(serializedData.data()),
+                    serializedData.size());
+            }
         } else {
             auto memorySegment = dynamic_cast<MemorySegment*>(segment);
             if (memorySegment == nullptr) {
@@ -317,6 +333,13 @@ public:
     {
         auto segment = buffers->GetSegment();
         if (segment->isObjectSegment()) {
+            auto rawBytes = GetRawBytes(buffers);
+            if (rawBytes.first != nullptr) {
+                if (rawBytes.second > static_cast<size_t>(std::numeric_limits<int32_t>::max())) {
+                    throw std::overflow_error("Raw network buffer is too large for channel-state serialization");
+                }
+                return static_cast<int32_t>(rawBytes.second);
+            }
             auto objectSegment = static_cast<ObjectSegment*>(segment);
             size_t elementNum = buffers->GetSize();
             int offset = buffers->GetOffset();
@@ -345,6 +368,20 @@ public:
     std::vector<char> ExtractAndMerge(const std::vector<char>& bytes, const std::vector<long>& offsets) override;
     std::atomic<int64_t> offset{0};
     size_t memSize = 128 * 1024 * 1024;
+
+private:
+    static std::pair<uint8_t*, size_t> GetRawBytes(Buffer* buffer)
+    {
+        auto* objectBuffer = dynamic_cast<ObjectBuffer*>(buffer);
+        if (objectBuffer == nullptr) {
+            return {nullptr, 0};
+        }
+        auto rawBytes = objectBuffer->GetBytes();
+        if (rawBytes.first == nullptr || rawBytes.second == 0) {
+            return {nullptr, 0};
+        }
+        return rawBytes;
+    }
 };
 
 class ChannelStateByteBuffer {

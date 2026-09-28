@@ -20,7 +20,6 @@
 #include "streaming/runtime/streamrecord/StreamRecord.h"
 #include "streaming/api/watermark/Watermark.h"
 #include "streaming/runtime/streamrecord/StreamElement.h"
-#include "runtime/buffer/ObjectBufferRecycler.h"
 #include "runtime/buffer/OriginalNetworkBufferRecycler.h"
 
 namespace omnistream {
@@ -57,11 +56,14 @@ public:
     void SetRemoteDataFetcherBridge(std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge);
     void resumeConsumption() override;
     void TimeOutResumeConsumption() override;
+    void releaseAllResources() override;
     void CheckpointStarted(
         const CheckpointBarrier& barrier, std::shared_ptr<ChannelStateWriter> channelStateWriter) override;
     void CheckpointStopped(long checkpointId) override;
     std::vector<Buffer*> GetInflightBuffersUnsafe(long checkpointId);
     std::vector<Buffer*> GetInflightVectorBatchBuffersUnsafe(long checkpointId);
+    int unsynchronizedGetNumberOfQueuedBuffers() override;
+    int unsynchronizedGetSizeOfQueuedBuffers() override;
 
     void ResetLastBarrier()
     {
@@ -73,13 +75,7 @@ public:
         isNeedPersistence_ = flag;
     }
 
-    bool IsNeedPersistence()
-    {
-        if (startSize_ != 0) {
-            return outsize < startSize_;
-        }
-        return true;
-    }
+    bool IsNeedPersistence() override;
 
     void AddInputData(long checkpointId, const omnistream::InputChannelInfo& info);
 

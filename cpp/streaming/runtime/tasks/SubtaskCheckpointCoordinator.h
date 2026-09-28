@@ -41,6 +41,7 @@ public:
         omnistream::OperatorChainV2* operatorChain,
         bool isTaskFinished,
         std::shared_ptr<omnistream::Supplier<bool>> isRunning) {};
+    virtual void SetisRecoveredFlag(bool flag) {};
 };
 } // namespace omnistream
 #endif // OMNISTREAM_SUBTASKCHECKPOINTCOORDINATOR_H

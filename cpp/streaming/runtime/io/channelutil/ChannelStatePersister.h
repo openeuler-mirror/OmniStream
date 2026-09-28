@@ -11,6 +11,7 @@
 
 #ifndef CHANNELSTATEPERSISTER_H
 #define CHANNELSTATEPERSISTER_H
+#include <exception>
 #include <memory>
 
 #include "partition/consumer/InputChannelInfo.h"
@@ -24,6 +25,44 @@ class ChannelStatePersister {
         COMPLETED,
         BARRIER_PENDING,
         BARRIER_RECEIVED
+    };
+
+    class RetainedBufferGuard {
+    public:
+        explicit RetainedBufferGuard(Buffer* buffer) : buffer_(buffer)
+        {
+        }
+
+        RetainedBufferGuard(const RetainedBufferGuard&) = delete;
+        RetainedBufferGuard& operator=(const RetainedBufferGuard&) = delete;
+
+        ~RetainedBufferGuard()
+        {
+            if (buffer_ == nullptr) {
+                return;
+            }
+            try {
+                buffer_->RecycleBuffer();
+            } catch (const std::exception& e) {
+                INFO_RELEASE("ERROR: Failed to recycle an untransferred channel-state buffer: " << e.what());
+            } catch (...) {
+                INFO_RELEASE(
+                    "ERROR: Failed to recycle an untransferred channel-state buffer due to an unknown exception");
+            }
+        }
+
+        Buffer* Get() const
+        {
+            return buffer_;
+        }
+
+        void Release()
+        {
+            buffer_ = nullptr;
+        }
+
+    private:
+        Buffer* buffer_;
     };
 
 public:
@@ -69,17 +108,29 @@ public:
     void MaybePersist(Buffer* buffer)
     {
         std::lock_guard<std::mutex> persistLock(mutex_);
-        if (checkpointStatus_ == CheckpointStatus::BARRIER_PENDING && buffer->isBuffer()) {
-            std::vector<Buffer*> buffers;
-            Buffer* inflightbuffer = buffer->RetainBuffer();
-            if (inflightbuffer != nullptr) {
-                buffers.push_back(inflightbuffer);
-                channelStateWriter_->AddInputData(
-                    lastSeenBarrier_, channelInfo_, ChannelStateWriter::sequenceNumberUnknown, buffers);
-            } else {
-                LOG_DEBUG(" buffers is null  ");
-                buffer->RecycleBuffer();
+        if (checkpointStatus_ != CheckpointStatus::BARRIER_PENDING || buffer == nullptr || !buffer->isBuffer()) {
+            return;
+        }
+
+        try {
+            RetainedBufferGuard retainedBuffer(buffer->RetainBuffer());
+            if (retainedBuffer.Get() == nullptr) {
+                INFO_RELEASE("ERROR: Failed to retain an input buffer for channel-state persistence");
+                return;
             }
+
+            std::vector<Buffer*> buffers;
+            buffers.push_back(retainedBuffer.Get());
+            channelStateWriter_->AddInputData(
+                lastSeenBarrier_, channelInfo_, ChannelStateWriter::sequenceNumberUnknown, buffers);
+            // A successful call transfers this retained reference to ChannelStateWriter.
+            retainedBuffer.Release();
+        } catch (const std::exception& e) {
+            INFO_RELEASE("ERROR: Failed to persist an input buffer as channel state: " << e.what());
+            throw;
+        } catch (...) {
+            INFO_RELEASE("ERROR: Failed to persist an input buffer as channel state due to an unknown exception");
+            throw;
         }
     }
 
