@@ -38,7 +38,8 @@ public:
     }
     int nextInt()
     {
-        return dist_int(engine);
+        // Java SplittableRandom.nextInt() covers every signed 32-bit value, so rnd % 26 can be negative.
+        return std::uniform_int_distribution<int>(INT_MIN, INT_MAX)(engine);
     }
     int nextInt(int bound)
     {
@@ -123,20 +124,19 @@ void StringsGenerator::fillWithRandomLower(SplittableRandom& random, char* buffe
 {
     int rnd = 0;
     int n = 0; // number of random characters left in rnd
-    while (length > 0) {
+    for (int i = 0; i < length; ++i) {
         if (n == 0) {
             rnd = random.nextInt();
             n = 6; // log_26(2^31)
         }
         if constexpr (useSpecial) {
             int index = rnd % 26;
-            buffer[length - 1] = (index == 13 ? special : static_cast<char>('a' + index));
+            buffer[i] = (index == 13 ? special : static_cast<char>('a' + index));
         } else {
-            buffer[length - 1] = 'a' + (rnd % 26);
+            buffer[i] = static_cast<char>('a' + rnd % 26);
         }
         rnd /= 26;
         n--;
-        length--;
     }
 }
 
