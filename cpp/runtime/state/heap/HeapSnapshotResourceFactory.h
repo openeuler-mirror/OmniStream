@@ -16,6 +16,7 @@
 #include <vector>
 #include <unordered_map>
 #include <emhash7.hpp>
+#include <xxhash.h>
 #include "common.h"
 #include "core/typeutils/TypeSerializer.h"
 #include "runtime/state/InternalKeyContext.h"
@@ -218,7 +219,7 @@ private:
                         preparedData.stateIterators.push_back(
                             std::make_unique<HeapSingleStateIterator<K, VoidNamespace, int>>(
                                 table, kvStateId, preparedData.keyGroupPrefixBytes));
-                    } else if (dataId == BackendDataType::BIGINT_BK) {
+                    } else if (dataId == BackendDataType::BIGINT_BK || dataId == BackendDataType::EXTERNAL_BIGINT_BK) {
                         auto* table =
                             reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, int64_t>*>(stateTablePtr);
                         preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
@@ -275,7 +276,10 @@ private:
                         preparedData.stateIterators.push_back(
                             std::make_unique<HeapSingleStateIterator<K, VoidNamespace, S>>(
                                 table, kvStateId, preparedData.keyGroupPrefixBytes));
-                    } else if (keyId == BackendDataType::BIGINT_BK && valueId == BackendDataType::BIGINT_BK) {
+                    } else if (
+                        keyId == BackendDataType::BIGINT_BK && valueId == BackendDataType::BIGINT_BK ||
+                        keyId == BackendDataType::EXTERNAL_BIGINT_BK &&
+                            valueId == BackendDataType::EXTERNAL_BIGINT_BK) {
                         using S = emhash7::HashMap<int64_t, int64_t>*;
                         auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S>*>(stateTablePtr);
                         preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
@@ -313,6 +317,22 @@ private:
                     } else if (
                         keyId == BackendDataType::SHARED_ROW_BK && valueId == BackendDataType::TUPLE_INT32_INT32) {
                         using S = emhash7::HashMap<std::shared_ptr<RowData>, std::tuple<int32_t, int32_t>>*;
+                        auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S>*>(stateTablePtr);
+                        preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
+                        preparedData.stateIterators.push_back(
+                            std::make_unique<HeapSingleStateIterator<K, VoidNamespace, S>>(
+                                table, kvStateId, preparedData.keyGroupPrefixBytes));
+                    } else if (
+                        keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT64) {
+                        using S = emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int64_t>>*;
+                        auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S>*>(stateTablePtr);
+                        preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
+                        preparedData.stateIterators.push_back(
+                            std::make_unique<HeapSingleStateIterator<K, VoidNamespace, S>>(
+                                table, kvStateId, preparedData.keyGroupPrefixBytes));
+                    } else if (
+                        keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT32_INT64) {
+                        using S = emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int32_t, int64_t>>*;
                         auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, S>*>(stateTablePtr);
                         preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
                         preparedData.stateIterators.push_back(

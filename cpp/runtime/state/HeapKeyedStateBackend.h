@@ -47,6 +47,10 @@
 #include "runtime/state/VoidNamespaceSerializer.h"
 #include "table/typeutils/VectorBatchSerializer.h"
 #include "core/typeutils/LongSerializer.h"
+#include "core/typeutils/MapSerializer.h"
+#include "core/typeutils/ListSerializer.h"
+#include "core/api/common/state/RestoreStateDescriptor.h"
+#include <xxhash.h>
 
 using namespace omniruntime::type;
 /*
@@ -116,6 +120,25 @@ public:
                         VoidNamespace,
                         emhash7::HashMap<std::shared_ptr<RowData>, std::tuple<int32_t, int32_t>>*>*>(stateTablePtr);
                     delete stateTable;
+                } else if (keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT64) {
+                    auto* stateTable = reinterpret_cast<CopyOnWriteStateTable<
+                        K,
+                        VoidNamespace,
+                        emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int64_t>>*>*>(stateTablePtr);
+                    delete stateTable;
+                } else if (
+                    keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT32_INT64) {
+                    auto* stateTable = reinterpret_cast<CopyOnWriteStateTable<
+                        K,
+                        VoidNamespace,
+                        emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int32_t, int64_t>>*>*>(stateTablePtr);
+                    delete stateTable;
+                } else if (
+                    keyId == BackendDataType::EXTERNAL_BIGINT_BK && valueId == BackendDataType::EXTERNAL_BIGINT_BK) {
+                    auto* stateTable =
+                        reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<int64_t, int64_t>*>*>(
+                            stateTablePtr);
+                    delete stateTable;
                 } else if (
                     (keyId == BackendDataType::OBJECT_BK || keyId == BackendDataType::POJO_BK) &&
                     (valueId == BackendDataType::OBJECT_BK || valueId == BackendDataType::POJO_BK)) {
@@ -175,6 +198,11 @@ public:
                 } else if (dataId == BackendDataType::SET_LONG) {
                     auto stateTable =
                         reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<long>*>*>(stateTablePtr);
+                    delete stateTable;
+                } else if (dataId == BackendDataType::EXTERNAL_BIGINT_BK) {
+                    // EXTERNAL_BIGINT 与 BIGINT 共用 int64_t 表布局
+                    auto stateTable =
+                        reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, int64_t>*>(stateTablePtr);
                     delete stateTable;
                 } else {
                     NOT_IMPL_EXCEPTION;
@@ -253,6 +281,49 @@ public:
             return &(it->second);
         }
         return nullptr;
+    }
+
+    /**
+     * Creates a RestoreStateDescriptor from a StateMetaInfoSnapshot.
+     * For MAP states, extracts key/value BackendDataType from MapSerializer.
+     * For LIST states, extracts element BackendDataType from ListSerializer.
+     * For VALUE states, uses the value serializer's BackendDataType.
+     */
+    static StateDescriptor* createRestoreDescriptor(
+        const StateMetaInfoSnapshot& metaInfo,
+        StateDescriptor::Type stateType,
+        TypeSerializer* nsSerializer,
+        TypeSerializer* valSerializer)
+    {
+        if (stateType == StateDescriptor::Type::MAP) {
+            auto* mapSer = dynamic_cast<MapSerializer*>(valSerializer);
+            if (mapSer) {
+                return new RestoreStateDescriptor(
+                    metaInfo.getName(),
+                    stateType,
+                    valSerializer,
+                    BackendDataType::INVALID_BK,
+                    mapSer->getKeySerializer()->getBackendId(),
+                    mapSer->getValueSerializer()->getBackendId());
+            }
+            // Fallback: OBJECT×OBJECT if MapSerializer cast fails
+            return new RestoreStateDescriptor(
+                metaInfo.getName(),
+                stateType,
+                valSerializer,
+                BackendDataType::INVALID_BK,
+                BackendDataType::OBJECT_BK,
+                BackendDataType::OBJECT_BK);
+        } else if (stateType == StateDescriptor::Type::LIST) {
+            auto* listSer = dynamic_cast<ListSerializer*>(valSerializer);
+            BackendDataType elemId =
+                listSer ? listSer->getElementSerializer()->getBackendId() : valSerializer->getBackendId();
+            return new RestoreStateDescriptor(metaInfo.getName(), stateType, valSerializer, elemId);
+        } else {
+            // VALUE
+            return new RestoreStateDescriptor(
+                metaInfo.getName(), stateType, valSerializer, valSerializer->getBackendId());
+        }
     }
 
     template <typename T, typename Comparator>
@@ -405,6 +476,18 @@ uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(
             return (uintptr_t)
                 createOrUpdateInternalMapState<VoidNamespace, std::shared_ptr<RowData>, std::tuple<int32_t, int32_t>>(
                     namespaceSerializer, stateDesc);
+        } else if (keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT64) {
+            return (uintptr_t)
+                createOrUpdateInternalMapState<VoidNamespace, XXH128_hash_t, std::tuple<int32_t, int64_t>>(
+                    namespaceSerializer, stateDesc);
+        } else if (keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT32_INT64) {
+            return (uintptr_t)
+                createOrUpdateInternalMapState<VoidNamespace, XXH128_hash_t, std::tuple<int32_t, int32_t, int64_t>>(
+                    namespaceSerializer, stateDesc);
+        } else if (keyId == BackendDataType::EXTERNAL_BIGINT_BK && valueId == BackendDataType::EXTERNAL_BIGINT_BK) {
+            // window aggregation 场景，EXTERNAL_BIGINT 与 BIGINT 共用 int64_t 表布局
+            return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, int64_t, int64_t>(
+                namespaceSerializer, stateDesc);
         } else if (keyId == BackendDataType::TIME_WINDOW_BK && valueId == BackendDataType::TIME_WINDOW_BK) {
             return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, TimeWindow, TimeWindow>(
                 namespaceSerializer, stateDesc);
@@ -448,6 +531,9 @@ uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(
         } else if (dataId == BackendDataType::SET_LONG) {
             return (uintptr_t)createOrUpdateInternalValueState<VoidNamespace, std::vector<long>*>(
                 namespaceSerializer, stateDesc);
+        } else if (dataId == BackendDataType::EXTERNAL_BIGINT_BK) {
+            // window aggregation 场景，EXTERNAL_BIGINT 与 BIGINT 共用 int64_t 表布局
+            return (uintptr_t)createOrUpdateInternalValueState<VoidNamespace, int64_t>(namespaceSerializer, stateDesc);
         } else {
             NOT_IMPL_EXCEPTION;
         }

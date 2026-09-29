@@ -35,7 +35,8 @@ enum class BackendDataType {
     POJO_BK,
     SET_LONG,
     BYTE_ARRAY_BK,
-    VECTOR_BATCH_BK
+    VECTOR_BATCH_BK,
+    EXTERNAL_BIGINT_BK // external bigint serializer (window aggregation scenario), compatible with BIGINT_BK layout
 };
 
 inline std::ostream& operator<<(std::ostream& os, const BackendDataType& type)
@@ -61,6 +62,7 @@ inline std::ostream& operator<<(std::ostream& os, const BackendDataType& type)
         case BackendDataType::SET_LONG: return os << "SET_LONG";
         case BackendDataType::BYTE_ARRAY_BK: return os << "BYTE_ARRAY_BK";
         case BackendDataType::VECTOR_BATCH_BK: return os << "VECTOR_BATCH_BK";
+        case BackendDataType::EXTERNAL_BIGINT_BK: return os << "EXTERNAL_BIGINT_BK";
         default: return os << "UNKNOWN_BK";
     }
 }

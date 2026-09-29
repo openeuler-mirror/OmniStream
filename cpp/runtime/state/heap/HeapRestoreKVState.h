@@ -28,6 +28,7 @@
 #include "runtime/state/restore/RestoreKVState.h"
 #include "table/data/RowData.h"
 #include "runtime/state/restore/RestoreBackendDelegate.h"
+#include "table/runtime/operators/window/TimeWindow.h"
 
 namespace omnistream {
 
@@ -64,33 +65,88 @@ protected:
     void writeLongEntry(const std::vector<int8_t>& keyBytes, int64_t value) override;
     void writeBytesEntry(const std::vector<int8_t>& keyBytes, ByteView value) override;
 
-    std::tuple<void*, void*> deserializeKey(const std::vector<int8_t>& keyBytes);
-    std::tuple<void*, void*> deserializeKey(DataInputDeserializer& keyInput);
-
     void writeValueEntry(const std::vector<int8_t>& keyBytes, ByteView value);
 
     void writeMapEntry(const std::vector<int8_t>& keyBytes, ByteView value);
     void writeListEntry(const std::vector<int8_t>& keyBytes, ByteView value);
     void ensureMainTableReady();
 
-    struct DeserializedKeyGuard {
-        void* rawKey;
-        void* rawNs;
-        DeserializedKeyGuard(void* k, void* n) : rawKey(k), rawNs(n)
+    // RAII guard：按 namespace 后端类型释放反序列化的 key/namespace 对象。
+    // 兼容恢复时 namespace 可能是 VoidNamespace/int64_t/TimeWindow 等多种布局。
+    class DeserializedKeyGuard {
+    public:
+        DeserializedKeyGuard(void* k, void* n, BackendDataType nsType) : rawKey(k), rawNs(n), namespaceType(nsType)
         {
         }
         ~DeserializedKeyGuard()
         {
-            if constexpr (std::is_same_v<K, Object*>) {
-                // Release the ref-count acquired by GetBuffer(); the table holds its own reference after put().
-                (*static_cast<Object**>(rawKey))->putRefCount();
-            }
-            delete static_cast<K*>(rawKey);
-            delete static_cast<VoidNamespace*>(rawNs);
+            release();
         }
+        DeserializedKeyGuard(DeserializedKeyGuard&& other) noexcept
+            : rawKey(other.rawKey), rawNs(other.rawNs), namespaceType(other.namespaceType)
+        {
+            other.rawKey = nullptr;
+            other.rawNs = nullptr;
+        }
+
+        DeserializedKeyGuard& operator=(DeserializedKeyGuard&& other) noexcept
+        {
+            if (this != &other) {
+                release();
+                rawKey = other.rawKey;
+                rawNs = other.rawNs;
+                namespaceType = other.namespaceType;
+                other.rawKey = nullptr;
+                other.rawNs = nullptr;
+            }
+            return *this;
+        }
+
+        void* getRawKey() const
+        {
+            return rawKey;
+        }
+
+        void* getRawNamespace() const
+        {
+            return rawNs;
+        }
+
         DeserializedKeyGuard(const DeserializedKeyGuard&) = delete;
         DeserializedKeyGuard& operator=(const DeserializedKeyGuard&) = delete;
+
+    private:
+        void release()
+        {
+            if (rawKey) {
+                if constexpr (std::is_same_v<K, Object*>) {
+                    // Release the ref-count acquired by GetBuffer(); the table holds its own reference after put().
+                    (*static_cast<Object**>(rawKey))->putRefCount();
+                }
+                delete static_cast<K*>(rawKey);
+            }
+
+            if (rawNs) {
+                switch (namespaceType) {
+                    case BackendDataType::VOID_NAMESPACE_BK: delete static_cast<VoidNamespace*>(rawNs); break;
+                    case BackendDataType::BIGINT_BK: delete static_cast<int64_t*>(rawNs); break;
+                    case BackendDataType::TIME_WINDOW_BK: delete static_cast<TimeWindow*>(rawNs); break;
+                    default:
+                        ERROR_RELEASE("Unknown namespace type: " << namespaceType << ", it will cause a memory leak.");
+                }
+            }
+
+            rawKey = nullptr;
+            rawNs = nullptr;
+        }
+
+        void* rawKey;
+        void* rawNs;
+        BackendDataType namespaceType;
     };
+
+    DeserializedKeyGuard deserializeKey(const std::vector<int8_t>& keyBytes);
+    DeserializedKeyGuard deserializeKey(DataInputDeserializer& keyInput);
 
     HeapRestoreBackendDelegate<K>& delegate_;
     typename HeapRestoreBackendDelegate<K>::RestoreStateInfo& stateInfo_;
@@ -122,7 +178,8 @@ void HeapRestoreKVState<K>::writeBytesEntry(const std::vector<int8_t>& keyBytes,
 }
 
 template <typename K>
-std::tuple<void*, void*> HeapRestoreKVState<K>::deserializeKey(const std::vector<int8_t>& keyBytes)
+typename HeapRestoreKVState<K>::DeserializedKeyGuard HeapRestoreKVState<K>::deserializeKey(
+    const std::vector<int8_t>& keyBytes)
 {
     DataInputDeserializer keyInput(
         reinterpret_cast<const uint8_t*>(keyBytes.data()),
@@ -133,7 +190,8 @@ std::tuple<void*, void*> HeapRestoreKVState<K>::deserializeKey(const std::vector
 }
 
 template <typename K>
-std::tuple<void*, void*> HeapRestoreKVState<K>::deserializeKey(DataInputDeserializer& keyInput)
+typename HeapRestoreKVState<K>::DeserializedKeyGuard HeapRestoreKVState<K>::deserializeKey(
+    DataInputDeserializer& keyInput)
 {
     void* rawKey = nullptr;
     if constexpr (std::is_same_v<K, Object*>) {
@@ -159,21 +217,26 @@ std::tuple<void*, void*> HeapRestoreKVState<K>::deserializeKey(DataInputDeserial
     }
 
     void* rawNs = stateInfo_.namespaceSerializer->deserialize(keyInput);
-    return {rawKey, rawNs};
+    return {rawKey, rawNs, stateInfo_.namespaceSerializer->getBackendId()};
 }
 
 template <typename K>
 void HeapRestoreKVState<K>::writeValueEntry(const std::vector<int8_t>& keyBytes, ByteView value)
 {
     ensureMainTableReady();
-    auto [rawKey, rawNs] = deserializeKey(keyBytes);
-    DeserializedKeyGuard keyGuard(rawKey, rawNs);
+    if (stateInfo_.valueSerializer == nullptr) {
+        throw std::runtime_error(
+            "HeapRestoreKVState: missing value serializer for state '" + stateInfo_.stateName + "'");
+    }
+    auto keyGuard = deserializeKey(keyBytes);
+    auto rawKey = keyGuard.getRawKey();
+    auto rawNs = keyGuard.getRawNamespace();
 
-    BackendDataType valueBackendType =
-        stateInfo_.valueSerializer ? stateInfo_.valueSerializer->getBackendId() : BackendDataType::BIGINT_BK;
+    BackendDataType valueBackendType = stateInfo_.valueSerializer->getBackendId();
 
     switch (valueBackendType) {
-        case BackendDataType::BIGINT_BK: {
+        case BackendDataType::BIGINT_BK:
+        case BackendDataType::EXTERNAL_BIGINT_BK: {
             auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, int64_t>*>(stateInfo_.mainTablePtr);
             DataInputDeserializer valInput(value.data(), static_cast<int>(value.size()));
             std::unique_ptr<int64_t> rawVal(static_cast<int64_t*>(stateInfo_.valueSerializer->deserialize(valInput)));
@@ -188,11 +251,32 @@ void HeapRestoreKVState<K>::writeValueEntry(const std::vector<int8_t>& keyBytes,
             break;
         }
         case BackendDataType::ROW_BK: {
-            auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, RowData*>*>(stateInfo_.mainTablePtr);
             DataInputDeserializer valInput(value.data(), static_cast<int>(value.size()));
             void* rawVal = stateInfo_.valueSerializer->deserialize(valInput);
             std::unique_ptr<RowData> copied(static_cast<RowData*>(rawVal)->copy());
-            table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), copied.release());
+            // Flink CP 兼容恢复：VALUE 状态的 namespace 可能是 TimeWindow（窗口聚合）、
+            // int64_t（interval join）或 VoidNamespace（默认），需按实际表布局分发。
+            const auto namespaceBackendType = stateInfo_.namespaceSerializer->getBackendId();
+            if (namespaceBackendType == BackendDataType::TIME_WINDOW_BK) {
+                auto* table = reinterpret_cast<CopyOnWriteStateTable<K, TimeWindow, RowData*>*>(stateInfo_.mainTablePtr);
+                table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<TimeWindow*>(rawNs), copied.release());
+            } else if (namespaceBackendType == BackendDataType::BIGINT_BK) {
+                auto* table = reinterpret_cast<CopyOnWriteStateTable<K, int64_t, RowData*>*>(stateInfo_.mainTablePtr);
+                table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<int64_t*>(rawNs), copied.release());
+            } else if (namespaceBackendType == BackendDataType::VOID_NAMESPACE_BK) {
+                auto* table =
+                    reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, RowData*>*>(stateInfo_.mainTablePtr);
+                table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), copied.release());
+            } else {
+                ERROR_RELEASE(
+                    "HeapRestoreKVState: unsupported namespace backend type "
+                    << static_cast<int>(namespaceBackendType) << " for ROW VALUE state '" << stateInfo_.stateName
+                    << "'");
+                throw std::runtime_error(
+                    "HeapRestoreKVState: unsupported namespace backend type " +
+                    std::to_string(static_cast<int>(namespaceBackendType)) + " for ROW VALUE state '" +
+                    stateInfo_.stateName + "'");
+            }
             break;
         }
         case BackendDataType::OBJECT_BK:
@@ -236,8 +320,9 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
         reinterpret_cast<const uint8_t*>(keyBytes.data()),
         static_cast<int>(keyBytes.size()),
         delegate_.getKeyGroupPrefixBytes());
-    auto [rawKey, rawNs] = deserializeKey(keyInput);
-    DeserializedKeyGuard keyGuard(rawKey, rawNs);
+    auto keyGuard = deserializeKey(keyInput);
+    auto rawKey = keyGuard.getRawKey();
+    auto rawNs = keyGuard.getRawNamespace();
 
     auto* mapKeySer = stateInfo_.mapKeySerializer;
     auto* mapValSer = stateInfo_.mapValueSerializer;
@@ -249,21 +334,69 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
 
     // Serializer ids describe the checkpoint bytes, while the descriptor ids
     // describe the concrete in-memory table selected by the runtime schema
-    // provider. Dispatch must follow the table layout; serializers are only
-    // used below to decode the persisted bytes.
+    // provider (e.g. StreamingJoin maps a ROW checkpoint key onto a
+    // SHARED_ROW table). Dispatch must follow the table layout; serializers
+    // are only used below to decode the persisted bytes.
     BackendDataType mapKeyId = stateInfo_.mainStateDesc->getKeyDataId();
     BackendDataType mapValId = stateInfo_.mainStateDesc->getValueDataId();
 
+    // SP 统一格式（与 RocksDB per-entry 布局一致）：
+    //   key   = [keyGroupPrefix][sourceKey][namespace][mapKey]
+    //   value = [null_bool]([mapValue] if !null)
     DataInputDeserializer valInput(value.data(), static_cast<int>(value.size()));
-    if (valInput.readBoolean()) {
-        INFO_RELEASE(
-            "Error: HeapRestoreKVState::writeMapEntry  null MAP value is not supported for '" << stateInfo_.stateName
-                                                                                              << "'");
-        throw std::runtime_error(
-            "HeapRestoreKVState: null MAP value is not supported for '" + stateInfo_.stateName + "'");
-    }
+    const bool isMapValNull = valInput.readBoolean();
 
-    if (mapKeyId == BackendDataType::SHARED_ROW_BK && mapValId == BackendDataType::TUPLE_INT32_INT32) {
+    if (mapKeyId == BackendDataType::XXHASH128_BK && mapValId == BackendDataType::TUPLE_INT32_INT64) {
+        using UK = XXH128_hash_t;
+        using UV = std::tuple<int32_t, int64_t>;
+        auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<UK, UV>*>*>(
+            stateInfo_.mainTablePtr);
+
+        std::unique_ptr<UK> ukPtr(static_cast<UK*>(mapKeySer->deserialize(keyInput)));
+        UK uk = *ukPtr;
+        if (isMapValNull) {
+            ERROR_RELEASE(
+                "HeapRestoreKVState: unexpected null MAP value for non-pointer type '" << stateInfo_.stateName << "'");
+            throw std::runtime_error(
+                "HeapRestoreKVState: unexpected null MAP value for non-pointer type '" + stateInfo_.stateName + "'");
+        }
+        std::unique_ptr<UV> uvPtr(static_cast<UV*>(mapValSer->deserialize(valInput)));
+        UV uv = *uvPtr;
+
+        auto* kvMap = table->get(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs));
+        if (kvMap == nullptr) {
+            kvMap = new emhash7::HashMap<UK, UV>();
+            (*kvMap)[uk] = uv;
+            table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), kvMap);
+        } else {
+            (*kvMap)[uk] = uv;
+        }
+    } else if (mapKeyId == BackendDataType::XXHASH128_BK && mapValId == BackendDataType::TUPLE_INT32_INT32_INT64) {
+        using UK = XXH128_hash_t;
+        using UV = std::tuple<int32_t, int32_t, int64_t>;
+        auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<UK, UV>*>*>(
+            stateInfo_.mainTablePtr);
+
+        std::unique_ptr<UK> ukPtr(static_cast<UK*>(mapKeySer->deserialize(keyInput)));
+        UK uk = *ukPtr;
+        if (isMapValNull) {
+            ERROR_RELEASE(
+                "HeapRestoreKVState: unexpected null MAP value for non-pointer type '" << stateInfo_.stateName << "'");
+            throw std::runtime_error(
+                "HeapRestoreKVState: unexpected null MAP value for non-pointer type '" + stateInfo_.stateName + "'");
+        }
+        std::unique_ptr<UV> uvPtr(static_cast<UV*>(mapValSer->deserialize(valInput)));
+        UV uv = *uvPtr;
+
+        auto* kvMap = table->get(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs));
+        if (kvMap == nullptr) {
+            kvMap = new emhash7::HashMap<UK, UV>();
+            (*kvMap)[uk] = uv;
+            table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), kvMap);
+        } else {
+            (*kvMap)[uk] = uv;
+        }
+    } else if (mapKeyId == BackendDataType::SHARED_ROW_BK && mapValId == BackendDataType::TUPLE_INT32_INT32) {
         using UK = std::shared_ptr<RowData>;
         using UV = std::tuple<int32_t, int32_t>;
         auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<UK, UV>*>*>(
@@ -276,6 +409,12 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
         // RowDataSerializer owns the returned BinaryRowData reuse buffer even
         // when MapSerializer marks its child serializer as non-reusable.
         UK uk(static_cast<RowData*>(rawUk->copy()));
+        if (isMapValNull) {
+            ERROR_RELEASE(
+                "HeapRestoreKVState: unexpected null MAP value for non-pointer type '" << stateInfo_.stateName << "'");
+            throw std::runtime_error(
+                "HeapRestoreKVState: unexpected null MAP value for non-pointer type '" + stateInfo_.stateName + "'");
+        }
         std::unique_ptr<UV> uvPtr(static_cast<UV*>(mapValSer->deserialize(valInput)));
         auto* kvMap = table->get(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs));
         if (kvMap == nullptr) {
@@ -291,6 +430,12 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
 
         std::unique_ptr<UK> ukPtr(static_cast<UK*>(mapKeySer->deserialize(keyInput)));
         UK uk = *ukPtr;
+        if (isMapValNull) {
+            ERROR_RELEASE(
+                "HeapRestoreKVState: unexpected null MAP value for non-pointer type '" << stateInfo_.stateName << "'");
+            throw std::runtime_error(
+                "HeapRestoreKVState: unexpected null MAP value for non-pointer type '" + stateInfo_.stateName + "'");
+        }
         std::unique_ptr<UV> uvPtr(static_cast<UV*>(mapValSer->deserialize(valInput)));
         UV uv = *uvPtr;
 
@@ -302,7 +447,9 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
         } else {
             (*kvMap)[uk] = uv;
         }
-    } else if (mapKeyId == BackendDataType::BIGINT_BK && mapValId == BackendDataType::BIGINT_BK) {
+    } else if (
+        (mapKeyId == BackendDataType::BIGINT_BK && mapValId == BackendDataType::BIGINT_BK) ||
+        (mapKeyId == BackendDataType::EXTERNAL_BIGINT_BK && mapValId == BackendDataType::EXTERNAL_BIGINT_BK)) {
         using UK = int64_t;
         using UV = int64_t;
         auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<UK, UV>*>*>(
@@ -310,6 +457,12 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
 
         std::unique_ptr<UK> ukPtr(static_cast<UK*>(mapKeySer->deserialize(keyInput)));
         UK uk = *ukPtr;
+        if (isMapValNull) {
+            ERROR_RELEASE(
+                "HeapRestoreKVState: unexpected null MAP value for non-pointer type '" << stateInfo_.stateName << "'");
+            throw std::runtime_error(
+                "HeapRestoreKVState: unexpected null MAP value for non-pointer type '" + stateInfo_.stateName + "'");
+        }
         std::unique_ptr<UV> uvPtr(static_cast<UV*>(mapValSer->deserialize(valInput)));
         UV uv = *uvPtr;
 
@@ -330,6 +483,12 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
         auto* rawUk = static_cast<std::string*>(mapKeySer->deserialize(keyInput));
         UK uk = *rawUk;
         delete rawUk;
+        if (isMapValNull) {
+            ERROR_RELEASE(
+                "HeapRestoreKVState: unexpected null MAP value for non-pointer type '" << stateInfo_.stateName << "'");
+            throw std::runtime_error(
+                "HeapRestoreKVState: unexpected null MAP value for non-pointer type '" + stateInfo_.stateName + "'");
+        }
         std::unique_ptr<UV> uvPtr(static_cast<UV*>(mapValSer->deserialize(valInput)));
         UV uv = *uvPtr;
 
@@ -354,22 +513,35 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
         UK uk = keyObj->clone();
         keyObj->putRefCount();
 
-        Object* valObj = mapValSer->GetBuffer();
-        mapValSer->deserialize(valObj, valInput);
-        UV uv = valObj->clone();
-        valObj->putRefCount();
-
+        // 指针类型的 map value 支持 null（写侧 SP 统一格式 [null_bool][mapValue]）
         auto* kvMap = table->get(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs));
-        if (kvMap == nullptr) {
-            kvMap = new emhash7::HashMap<UK, UV>();
-            (*kvMap)[uk] = uv;
-            table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), kvMap);
-            uk->putRefCount();
-            uv->putRefCount();
+        if (isMapValNull) {
+            if (kvMap == nullptr) {
+                kvMap = new emhash7::HashMap<UK, UV>();
+                (*kvMap)[uk] = nullptr;
+                table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), kvMap);
+                uk->putRefCount();
+            } else {
+                (*kvMap)[uk] = nullptr;
+                uk->putRefCount();
+            }
         } else {
-            (*kvMap)[uk] = uv;
-            uk->putRefCount();
-            uv->putRefCount();
+            Object* valObj = mapValSer->GetBuffer();
+            mapValSer->deserialize(valObj, valInput);
+            UV uv = valObj->clone();
+            valObj->putRefCount();
+
+            if (kvMap == nullptr) {
+                kvMap = new emhash7::HashMap<UK, UV>();
+                (*kvMap)[uk] = uv;
+                table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), kvMap);
+                uk->putRefCount();
+                uv->putRefCount();
+            } else {
+                (*kvMap)[uk] = uv;
+                uk->putRefCount();
+                uv->putRefCount();
+            }
         }
     } else if (mapKeyId == BackendDataType::ROW_BK && mapValId == BackendDataType::INT_BK) {
         using UK = RowData*;
@@ -379,6 +551,12 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
 
         void* rawUk = mapKeySer->deserialize(keyInput);
         UK uk = static_cast<RowData*>(rawUk)->copy();
+        if (isMapValNull) {
+            ERROR_RELEASE(
+                "HeapRestoreKVState: unexpected null MAP value for non-pointer type '" << stateInfo_.stateName << "'");
+            throw std::runtime_error(
+                "HeapRestoreKVState: unexpected null MAP value for non-pointer type '" + stateInfo_.stateName + "'");
+        }
         std::unique_ptr<UV> uvPtr(static_cast<UV*>(mapValSer->deserialize(valInput)));
         UV uv = *uvPtr;
 
@@ -403,6 +581,12 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
         // Keep the serializer-owned buffer alive; only the copied row belongs
         // to the restored shared_ptr key.
         UK uk(static_cast<RowData*>(rawUk->copy()));
+        if (isMapValNull) {
+            ERROR_RELEASE(
+                "HeapRestoreKVState: unexpected null MAP value for non-pointer type '" << stateInfo_.stateName << "'");
+            throw std::runtime_error(
+                "HeapRestoreKVState: unexpected null MAP value for non-pointer type '" + stateInfo_.stateName + "'");
+        }
         std::unique_ptr<UV> uvPtr(static_cast<UV*>(mapValSer->deserialize(valInput)));
         UV uv = *uvPtr;
         auto* kvMap = table->get(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs));
@@ -421,16 +605,27 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
 
         void* rawUk = mapKeySer->deserialize(keyInput);
         UK uk = static_cast<RowData*>(rawUk)->copy();
-        void* rawUv = mapValSer->deserialize(valInput);
-        UV uv = static_cast<RowData*>(rawUv)->copy();
 
         auto* kvMap = table->get(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs));
-        if (kvMap == nullptr) {
-            kvMap = new emhash7::HashMap<UK, UV>();
-            (*kvMap)[uk] = uv;
-            table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), kvMap);
+        if (isMapValNull) {
+            if (kvMap == nullptr) {
+                kvMap = new emhash7::HashMap<UK, UV>();
+                (*kvMap)[uk] = nullptr;
+                table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), kvMap);
+            } else {
+                (*kvMap)[uk] = nullptr;
+            }
         } else {
-            (*kvMap)[uk] = uv;
+            void* rawUv = mapValSer->deserialize(valInput);
+            UV uv = static_cast<RowData*>(rawUv)->copy();
+
+            if (kvMap == nullptr) {
+                kvMap = new emhash7::HashMap<UK, UV>();
+                (*kvMap)[uk] = uv;
+                table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), kvMap);
+            } else {
+                (*kvMap)[uk] = uv;
+            }
         }
     } else if (mapKeyId == BackendDataType::TIME_WINDOW_BK && mapValId == BackendDataType::TIME_WINDOW_BK) {
         using UK = TimeWindow;
@@ -440,6 +635,12 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
 
         std::unique_ptr<UK> ukPtr(static_cast<UK*>(mapKeySer->deserialize(keyInput)));
         UK uk = *ukPtr;
+        if (isMapValNull) {
+            ERROR_RELEASE(
+                "HeapRestoreKVState: unexpected null MAP value for non-pointer type '" << stateInfo_.stateName << "'");
+            throw std::runtime_error(
+                "HeapRestoreKVState: unexpected null MAP value for non-pointer type '" + stateInfo_.stateName + "'");
+        }
         std::unique_ptr<UV> uvPtr(static_cast<UV*>(mapValSer->deserialize(valInput)));
         UV uv = *uvPtr;
 
@@ -459,21 +660,32 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
 
         void* rawUk = mapKeySer->deserialize(keyInput);
         UK uk = static_cast<RowData*>(rawUk)->copy();
-        int listSize = valInput.readInt();
-        auto* vec = new std::vector<RowData*>();
-        vec->reserve(listSize);
-        for (int i = 0; i < listSize; i++) {
-            void* rawElem = mapValSer->deserialize(valInput);
-            vec->push_back(static_cast<RowData*>(rawElem)->copy());
-        }
 
         auto* kvMap = table->get(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs));
-        if (kvMap == nullptr) {
-            kvMap = new emhash7::HashMap<UK, UV>();
-            (*kvMap)[uk] = vec;
-            table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), kvMap);
+        if (isMapValNull) {
+            if (kvMap == nullptr) {
+                kvMap = new emhash7::HashMap<UK, UV>();
+                (*kvMap)[uk] = nullptr;
+                table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), kvMap);
+            } else {
+                (*kvMap)[uk] = nullptr;
+            }
         } else {
-            (*kvMap)[uk] = vec;
+            int listSize = valInput.readInt();
+            auto* vec = new std::vector<RowData*>();
+            vec->reserve(listSize);
+            for (int i = 0; i < listSize; i++) {
+                void* rawElem = mapValSer->deserialize(valInput);
+                vec->push_back(static_cast<RowData*>(rawElem)->copy());
+            }
+
+            if (kvMap == nullptr) {
+                kvMap = new emhash7::HashMap<UK, UV>();
+                (*kvMap)[uk] = vec;
+                table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), kvMap);
+            } else {
+                (*kvMap)[uk] = vec;
+            }
         }
     } else {
         INFO_RELEASE(
@@ -493,29 +705,34 @@ template <typename K>
 void HeapRestoreKVState<K>::writeListEntry(const std::vector<int8_t>& keyBytes, ByteView value)
 {
     ensureMainTableReady();
-    auto [rawKey, rawNs] = deserializeKey(keyBytes);
-    DeserializedKeyGuard keyGuard(rawKey, rawNs);
+    auto keyGuard = deserializeKey(keyBytes);
+    auto rawKey = keyGuard.getRawKey();
+    auto rawNs = keyGuard.getRawNamespace();
 
     auto* listSer = dynamic_cast<ListSerializer*>(stateInfo_.valueSerializer);
-    TypeSerializer* elemSer = listSer ? listSer->getElementSerializer() : nullptr;
+    // If valueSerializer is ListSerializer, extract the element serializer;
+    // otherwise, use it directly as the element serializer (e.g. WindowJoin stores LongSerializer).
+    TypeSerializer* elemSer = listSer ? listSer->getElementSerializer() : stateInfo_.valueSerializer;
     if (elemSer == nullptr) {
         INFO_RELEASE(
-            "HeapRestoreKVState: Error: LIST state serializer is not ListSerializer for '" << stateInfo_.stateName
-                                                                                           << "'");
+            "HeapRestoreKVState: Error: LIST state has null element serializer for '" << stateInfo_.stateName << "'");
         throw std::runtime_error(
-            "HeapRestoreKVState: LIST state serializer is not ListSerializer for '" + stateInfo_.stateName + "'");
+            "HeapRestoreKVState: LIST state has null element serializer for '" + stateInfo_.stateName + "'");
     }
 
     BackendDataType elemId = elemSer->getBackendId();
     DataInputDeserializer valInput(value.data(), static_cast<int>(value.size()));
 
-    if (elemId == BackendDataType::BIGINT_BK) {
-        int size = valInput.readInt();
+    if (elemId == BackendDataType::BIGINT_BK || elemId == BackendDataType::EXTERNAL_BIGINT_BK) {
+        // ListDelimitedSerializer format (SP 统一格式，与 RocksDB 一致):
+        // [int64_1][','][int64_2][',']...[int64_N] — no size prefix, ',' delimited
         std::unique_ptr<std::vector<int64_t>> vec(new std::vector<int64_t>());
-        vec->reserve(size);
-        for (int i = 0; i < size; i++) {
+        while (valInput.Available() > 0) {
             std::unique_ptr<int64_t> elemPtr(static_cast<int64_t*>(elemSer->deserialize(valInput)));
             vec->push_back(*elemPtr);
+            if (valInput.Available() > 0) {
+                valInput.readByte(); // consume ',' delimiter
+            }
         }
 
         auto* table =
