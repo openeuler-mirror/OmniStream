@@ -62,6 +62,8 @@ public:
     void CheckpointStopped(long checkpointId) override;
     std::vector<Buffer*> GetInflightBuffersUnsafe(long checkpointId);
     std::vector<Buffer*> GetInflightVectorBatchBuffersUnsafe(long checkpointId);
+    int unsynchronizedGetNumberOfQueuedBuffers() override;
+    int unsynchronizedGetSizeOfQueuedBuffers() override;
 
     void ResetLastBarrier()
     {
@@ -73,13 +75,7 @@ public:
         isNeedPersistence_ = flag;
     }
 
-    bool IsNeedPersistence()
-    {
-        if (startSize_ != 0) {
-            return outsize < startSize_;
-        }
-        return true;
-    }
+    bool IsNeedPersistence() override;
 
     void AddInputData(long checkpointId, const omnistream::InputChannelInfo& info);
 

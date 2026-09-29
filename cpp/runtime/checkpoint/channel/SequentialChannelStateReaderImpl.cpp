@@ -20,6 +20,55 @@
 #include <memory>
 #include <sstream>
 #include <functional>
+#include <atomic>
+#include <cstdint>
+#include <thread>
+#include <unistd.h>
+
+std::string ExtractChkPath(const std::string& fullPath);
+
+namespace {
+std::atomic<uint64_t> restoreFileSequence{0};
+
+std::string CreateUniqueRestorePath(const std::string& filePath, const char* stateType)
+{
+    const std::string checkpointPath = ExtractChkPath(filePath);
+    if (checkpointPath.empty()) {
+        throw std::runtime_error("Failed to extract checkpoint path from stream state handle: " + filePath);
+    }
+
+    std::ostringstream suffix;
+    suffix << ".omnistream-restore-" << stateType << "-pid" << getpid() << "-thread" << std::this_thread::get_id()
+           << "-seq" << restoreFileSequence.fetch_add(1, std::memory_order_relaxed);
+    return "/tmp/" + checkpointPath + suffix.str();
+}
+
+class RestoreFileCleanupGuard {
+public:
+    RestoreFileCleanupGuard(std::ifstream& stream, std::string path) : stream_(stream), path_(std::move(path))
+    {
+    }
+
+    ~RestoreFileCleanupGuard()
+    {
+        try {
+            if (stream_.is_open()) {
+                stream_.close();
+            }
+            const bool removed = std::filesystem::remove(path_);
+            INFO_RELEASE("Channel state restore local file cleanup, path=" << path_ << ", removed=" << removed);
+        } catch (const std::exception& e) {
+            ERROR_RELEASE("Channel state restore local file cleanup failed, path=" << path_ << ", error=" << e.what());
+        } catch (...) {
+            ERROR_RELEASE("Channel state restore local file cleanup failed, path=" << path_ << ", unknown error");
+        }
+    }
+
+private:
+    std::ifstream& stream_;
+    std::string path_;
+};
+} // namespace
 
 void SequentialChannelStateReaderImpl::readInputData(const std::vector<std::shared_ptr<InputGate>>& inputGates)
 {
@@ -103,36 +152,34 @@ void SequentialChannelStateReaderImpl::readSequentiallyByInputChannel(
         LOG("readSequentiallyByInputChannel end");
     } else if (std::dynamic_pointer_cast<RelativeFileStateHandle>(streamStateHandle)) {
         auto filePath = streamStateHandle->GetStreamStateHandleID().getKeyString();
-        auto tmpPath = "/tmp/" + ExtractChkPath(filePath);
-        if (omniTaskBridge_->CallDownloadFileToLocal(*streamStateHandle, tmpPath)) {
-            LOG("downLoad file success: " << tmpPath);
+        auto tmpPath = CreateUniqueRestorePath(filePath, "input");
+        INFO_RELEASE(
+            "Channel state restore download start, type=input, source="
+            << filePath << ", target=" << tmpPath << ", expectedSize=" << streamStateHandle->GetStateSize());
+        if (!omniTaskBridge_->CallDownloadFileToLocal(*streamStateHandle, tmpPath)) {
+            ERROR_RELEASE(
+                "Channel state restore download failed, type=input, source=" << filePath << ", target=" << tmpPath);
+            std::error_code cleanupError;
+            const bool removed = std::filesystem::remove(tmpPath, cleanupError);
+            INFO_RELEASE(
+                "Channel state restore cleanup after download failure, type=input, target="
+                << tmpPath << ", removed=" << removed << ", error=" << cleanupError.message());
+            throw std::runtime_error("Failed to download input channel state file to " + tmpPath);
         }
+        INFO_RELEASE(
+            "Channel state restore download success, type=input, source=" << filePath << ", target=" << tmpPath);
         std::ifstream is(tmpPath, std::ios::binary);
         if (!is.is_open()) {
-            ERROR_RELEASE("ERROR: Failed to open stream state handle input stream. file path: " << filePath);
+            ERROR_RELEASE(
+                "Failed to open downloaded input channel state file, source=" << filePath << ", target=" << tmpPath);
+            const bool removed = std::filesystem::remove(tmpPath);
+            INFO_RELEASE(
+                "Channel state restore cleanup after open failure, type=input, target=" << tmpPath
+                                                                                        << ", removed=" << removed);
             throw std::ios_base::failure("Failed to open stream state handle input stream.");
         }
-        class FileCleanupGuard {
-        public:
-            FileCleanupGuard(std::ifstream& stream, const std::string& path) : stream_(stream), path_(path)
-            {
-            }
-            ~FileCleanupGuard()
-            {
-                try {
-                    if (stream_.is_open()) {
-                        stream_.close();
-                    }
-                    std::filesystem::remove(path_);
-                } catch (...) {
-                    LOG("ERROR: close file failed.");
-                }
-            }
-
-        private:
-            std::ifstream& stream_;
-            const std::string& path_;
-        } fileCleanupGuard(is, tmpPath);
+        INFO_RELEASE("Channel state restore local file opened, type=input, target=" << tmpPath);
+        RestoreFileCleanupGuard fileCleanupGuard(is, tmpPath);
 
         serializer->ReadHeader(is);
 
@@ -182,15 +229,35 @@ void SequentialChannelStateReaderImpl::readSequentiallyByResultSubpartition(
     } else if (std::dynamic_pointer_cast<RelativeFileStateHandle>(streamStateHandle)) {
         auto filePath = streamStateHandle->GetStreamStateHandleID().getKeyString();
         LOG("readSequentiallyByResultSubpartition file path: " << filePath);
-        auto tmpPath = "/tmp/" + ExtractChkPath(filePath);
-        if (omniTaskBridge_->CallDownloadFileToLocal(*streamStateHandle, tmpPath)) {
-            LOG("downLoad file success: " << tmpPath);
+        auto tmpPath = CreateUniqueRestorePath(filePath, "output");
+        INFO_RELEASE(
+            "Channel state restore download start, type=output, source="
+            << filePath << ", target=" << tmpPath << ", expectedSize=" << streamStateHandle->GetStateSize());
+        if (!omniTaskBridge_->CallDownloadFileToLocal(*streamStateHandle, tmpPath)) {
+            ERROR_RELEASE(
+                "Channel state restore download failed, type=output, source=" << filePath << ", target=" << tmpPath);
+            std::error_code cleanupError;
+            const bool removed = std::filesystem::remove(tmpPath, cleanupError);
+            INFO_RELEASE(
+                "Channel state restore cleanup after download failure, type=output, target="
+                << tmpPath << ", removed=" << removed << ", error=" << cleanupError.message());
+            throw std::runtime_error("Failed to download result subpartition state file to " + tmpPath);
         }
+        INFO_RELEASE(
+            "Channel state restore download success, type=output, source=" << filePath << ", target=" << tmpPath);
         std::ifstream is(tmpPath, std::ios::binary);
         if (!is.is_open()) {
-            LOG("ERROR: Failed to open stream state handle input stream. file path: " << filePath);
+            ERROR_RELEASE(
+                "Failed to open downloaded result subpartition state file, source=" << filePath
+                                                                                    << ", target=" << tmpPath);
+            const bool removed = std::filesystem::remove(tmpPath);
+            INFO_RELEASE(
+                "Channel state restore cleanup after open failure, type=output, target=" << tmpPath
+                                                                                         << ", removed=" << removed);
             throw std::ios_base::failure("Failed to open stream state handle input stream.");
         }
+        INFO_RELEASE("Channel state restore local file opened, type=output, target=" << tmpPath);
+        RestoreFileCleanupGuard fileCleanupGuard(is, tmpPath);
 
         serializer->ReadHeader(is);
 
@@ -201,14 +268,6 @@ void SequentialChannelStateReaderImpl::readSequentiallyByResultSubpartition(
                 stateHandle,
                 offsetAndChannelInfo.channelInfo,
                 offsetAndChannelInfo.oldSubtaskIndex);
-        }
-        try {
-            if (is.is_open()) {
-                is.close();
-                std::filesystem::remove(tmpPath);
-            }
-        } catch (...) {
-            LOG("ERROR: close file failed.");
         }
         LOG("readSequentiallyByResultSubpartition end");
     } else {

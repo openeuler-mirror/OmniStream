@@ -119,8 +119,8 @@ void ChannelStateCheckpointWriter::WriteInput(
 void ChannelStateCheckpointWriter::WriteOutput(
     const JobVertexID& jvid, int subtaskIndex, const ResultSubpartitionInfoPOD& info, Buffer* buffer)
 {
+    BufferRecycleGuard recycleGuard(buffer);
     if (IsDone()) {
-        ReleaseCheckpointBuffer(buffer);
         return;
     }
 
@@ -131,7 +131,6 @@ void ChannelStateCheckpointWriter::WriteOutput(
         buffer,
         !pending->IsAllOutputsReceived(),
         "ChannelState#WriteOutput");
-    ReleaseCheckpointBuffer(buffer);
 }
 
 void ChannelStateCheckpointWriter::CompleteInput(const JobVertexID& jvid, int subtaskIndex)

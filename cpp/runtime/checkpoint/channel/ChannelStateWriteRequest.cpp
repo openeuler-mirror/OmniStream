@@ -110,10 +110,10 @@ std::shared_ptr<ChannelStateWriteRequest> ChannelStateWriteRequest::writeInput(
                     try {
                         ReleaseCheckpointBuffer(bufferToRecycle);
                     } catch (const std::exception& e) {
-                        INFO_RELEASE("ERROR: Failed to recycle a pending channel-state input buffer: " << e.what());
+                        ERROR_RELEASE("Failed to recycle a pending channel-state input buffer: " << e.what());
                     } catch (...) {
-                        INFO_RELEASE(
-                            "ERROR: Failed to recycle a pending channel-state input buffer due to an unknown "
+                        ERROR_RELEASE(
+                            "Failed to recycle a pending channel-state input buffer due to an unknown "
                             "exception");
                     }
                 }
@@ -128,22 +128,37 @@ std::shared_ptr<ChannelStateWriteRequest> ChannelStateWriteRequest::writeOutput(
     ResultSubpartitionInfoPOD info,
     std::vector<Buffer*> buffers)
 {
+    auto pendingBuffers = std::make_shared<std::vector<Buffer*>>(std::move(buffers));
     return std::make_shared<CheckpointInProgressRequest>(
         "writeOutput",
         jobVertexID,
         subtaskIndex,
         checkpointId,
-        [jobVertexID, subtaskIndex, info, buffers](std::shared_ptr<ChannelStateCheckpointWriter>& writer) {
-            for (Buffer* buffer : buffers) {
-                if (buffer) {
-                    writer->WriteOutput(jobVertexID, subtaskIndex, info, buffer);
+        [jobVertexID, subtaskIndex, info, pendingBuffers](std::shared_ptr<ChannelStateCheckpointWriter>& writer) {
+            for (Buffer*& buffer : *pendingBuffers) {
+                if (buffer != nullptr) {
+                    Buffer* bufferToWrite = buffer;
+                    // From this point ChannelStateCheckpointWriter owns this reference and recycles it even if the
+                    // serialization or stream write throws.
+                    buffer = nullptr;
+                    writer->WriteOutput(jobVertexID, subtaskIndex, info, bufferToWrite);
                 }
             }
         },
-        [buffers](const std::exception_ptr&) {
-            for (auto* buffer : buffers) {
-                if (buffer) {
-                    ReleaseCheckpointBuffer(buffer);
+        [pendingBuffers](const std::exception_ptr&) {
+            for (Buffer*& buffer : *pendingBuffers) {
+                if (buffer != nullptr) {
+                    Buffer* bufferToRecycle = buffer;
+                    buffer = nullptr;
+                    try {
+                        ReleaseCheckpointBuffer(bufferToRecycle);
+                    } catch (const std::exception& e) {
+                        ERROR_RELEASE("Failed to recycle a pending channel-state output buffer: " << e.what());
+                    } catch (...) {
+                        ERROR_RELEASE(
+                            "Failed to recycle a pending channel-state output buffer due to an unknown "
+                            "exception");
+                    }
                 }
             }
         });

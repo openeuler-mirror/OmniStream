@@ -169,6 +169,34 @@ std::optional<BufferAndAvailability> RemoteInputChannel::getNextBuffer()
     return BufferAndAvailability{buffer, dataType, backlogSize, expectSequenceNumber++};
 }
 
+int RemoteInputChannel::unsynchronizedGetNumberOfQueuedBuffers()
+{
+    std::lock_guard<std::recursive_mutex> lock(queueMutex);
+    return static_cast<int>(dataQueue.size());
+}
+
+int RemoteInputChannel::unsynchronizedGetSizeOfQueuedBuffers()
+{
+    std::lock_guard<std::recursive_mutex> lock(queueMutex);
+    std::queue<Buffer*> tmpQueue = dataQueue;
+    int num = tmpQueue.size();
+    int size = 0;
+    for (int i = 0; i < num; i++) {
+        Buffer* buffer = tmpQueue.front();
+        size += buffer->GetSize();
+        tmpQueue.pop();
+    }
+    return size;
+}
+
+bool RemoteInputChannel::IsNeedPersistence()
+{
+    // outsize is the cumulative amount delivered from this channel. Once the
+    // data present when the barrier arrived has been consumed, the next
+    // checkpoint must not persist buffers after that barrier.
+    return startSize_ == 0 || outsize < startSize_;
+}
+
 std::shared_ptr<ObjectSegment> RemoteInputChannel::DoDataDeserializationResult(uint8_t*& buffer)
 {
     LOG("----DoDataDeserializationResult start 1:: " << buffer);
@@ -215,6 +243,7 @@ void RemoteInputChannel::notifyRemoteDataAvailableForNetworkBuffer(
 {
     if (bufferLength > IO_SIZE_512M) {
         INFO_RELEASE("Error: invalid buffer size:" << bufferLength);
+        originalNetworkBufferRecycler->recycle(bufferAddress);
         return;
     }
     int type = bufferType;
