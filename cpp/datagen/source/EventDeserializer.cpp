@@ -10,6 +10,7 @@
  */
 
 #include "EventDeserializer.h"
+#include "table/data/util/VectorBatchUtil.h"
 
 StreamRecord* BatchEventDeserializer::deserialize(std::unique_ptr<Event> event)
 {
@@ -41,6 +42,23 @@ StreamRecord* BatchEventDeserializer::deserialize(std::unique_ptr<Event> event)
         return reUseRecord;
     }
     return nullptr;
+}
+
+StreamRecord* BatchEventDeserializer::finish()
+{
+    if (collectedCnt == 0 || vb == nullptr) {
+        return nullptr;
+    }
+    // The open batch was allocated with batchSize rows. Downstream reads GetRowCount(), so copy only written rows.
+    omnistream::VectorBatch* tail = omnistream::VectorBatchUtil::sliceVectorBatch(vb, 0, collectedCnt);
+    delete vb;
+    vb = nullptr;
+    collectedCnt = 0;
+    if (tail == nullptr) {
+        return nullptr;
+    }
+    reUseRecord->setValue(tail);
+    return reUseRecord;
 }
 
 void BatchEventDeserializer::createNewEventBatch()
