@@ -83,7 +83,9 @@ protected:
             release();
         }
         DeserializedKeyGuard(DeserializedKeyGuard&& other) noexcept
-            : rawKey(other.rawKey), rawNs(other.rawNs), namespaceType(other.namespaceType)
+            : rawKey(other.rawKey),
+              rawNs(other.rawNs),
+              namespaceType(other.namespaceType)
         {
             other.rawKey = nullptr;
             other.rawNs = nullptr;
@@ -258,7 +260,8 @@ void HeapRestoreKVState<K>::writeValueEntry(const std::vector<int8_t>& keyBytes,
             // int64_t（interval join）或 VoidNamespace（默认），需按实际表布局分发。
             const auto namespaceBackendType = stateInfo_.namespaceSerializer->getBackendId();
             if (namespaceBackendType == BackendDataType::TIME_WINDOW_BK) {
-                auto* table = reinterpret_cast<CopyOnWriteStateTable<K, TimeWindow, RowData*>*>(stateInfo_.mainTablePtr);
+                auto* table =
+                    reinterpret_cast<CopyOnWriteStateTable<K, TimeWindow, RowData*>*>(stateInfo_.mainTablePtr);
                 table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<TimeWindow*>(rawNs), copied.release());
             } else if (namespaceBackendType == BackendDataType::BIGINT_BK) {
                 auto* table = reinterpret_cast<CopyOnWriteStateTable<K, int64_t, RowData*>*>(stateInfo_.mainTablePtr);
@@ -266,7 +269,8 @@ void HeapRestoreKVState<K>::writeValueEntry(const std::vector<int8_t>& keyBytes,
             } else if (namespaceBackendType == BackendDataType::VOID_NAMESPACE_BK) {
                 auto* table =
                     reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, RowData*>*>(stateInfo_.mainTablePtr);
-                table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), copied.release());
+                table->put(
+                    *static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), copied.release());
             } else {
                 ERROR_RELEASE(
                     "HeapRestoreKVState: unsupported namespace backend type "

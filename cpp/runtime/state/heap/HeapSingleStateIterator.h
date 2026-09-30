@@ -558,7 +558,8 @@ private:
         }
         auto* mapSer = dynamic_cast<MapSerializer*>(stateSerializer);
         if (mapSer == nullptr) {
-            INFO_RELEASE("Error:HeapSingleStateIterator: MAP state serializer is not MapSerializer at entry=" << entryIndex);
+            INFO_RELEASE(
+                "Error:HeapSingleStateIterator: MAP state serializer is not MapSerializer at entry=" << entryIndex);
             throw std::runtime_error("HeapSingleStateIterator: MAP state serializer is not MapSerializer");
         }
         TypeSerializer* mapKeySer = mapSer->getKeySerializer();

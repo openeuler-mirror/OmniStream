@@ -326,8 +326,8 @@ TEST_F(HeapRestoreStateWriterTest, KvStateWriteValueEntryBigintBackend)
     EXPECT_NE(delegate_->getStateInfos()[0].mainTablePtr, 0);
 
     // Verify restored value: key=42, value=100L
-    auto* restoredTable =
-        reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, int64_t>*>(delegate_->getStateInfos()[0].mainTablePtr);
+    auto* restoredTable = reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, int64_t>*>(
+        delegate_->getStateInfos()[0].mainTablePtr);
     ASSERT_NE(restoredTable, nullptr);
     EXPECT_EQ(restoredTable->get(42, 0, VoidNamespace()), 100L);
 }
@@ -617,14 +617,14 @@ TEST_F(HeapRestoreStateWriterTest, SharedRowMapSnapshotSerializePerEntryAndResto
         {"joinType", "InnerJoin"}, {"leftInputSpec", "NoUniqueKey"}, {"rightInputSpec", "NoUniqueKey"}};
     auto provider = OperatorRuntimeStateSchemaProviderFactory::create(operatorDescription);
     ASSERT_NE(provider, nullptr);
-    HeapRestoreBackendDelegate<int> runtimeDelegate(backend_.get(), keySerializer_, keyGroupPrefixBytes, provider.get());
+    HeapRestoreBackendDelegate<int> runtimeDelegate(
+        backend_.get(), keySerializer_, keyGroupPrefixBytes, provider.get());
 
     auto metaInfoSnap = makeKvMetaInfoWithSerializer("left-records", mapSer, "MAP");
     auto kv = runtimeDelegate.createKVState(0, metaInfoSnap);
     kv->setKeyGroupId(keyGroupId);
     for (const auto& [keyBytes, valBytes] : actual) {
-        EXPECT_NO_THROW(kv->writeEntry<ByteView>(
-            keyBytes, ByteView(valBytes.data(), valBytes.size())));
+        EXPECT_NO_THROW(kv->writeEntry<ByteView>(keyBytes, ByteView(valBytes.data(), valBytes.size())));
     }
 
     const auto& stateInfo = runtimeDelegate.getStateInfos()[0];
@@ -806,8 +806,8 @@ TEST_F(HeapRestoreStateWriterTest, KvStateWriteBytesEntryRoutesToValueEntry)
     EXPECT_EQ(delegate_->getStateInfos()[0].mainEntryCount, 1);
 
     // Verify restored value: key=10, value=777L
-    auto* restoredTable =
-        reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, int64_t>*>(delegate_->getStateInfos()[0].mainTablePtr);
+    auto* restoredTable = reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, int64_t>*>(
+        delegate_->getStateInfos()[0].mainTablePtr);
     ASSERT_NE(restoredTable, nullptr);
     EXPECT_EQ(restoredTable->get(10, 0, VoidNamespace()), 777L);
 }

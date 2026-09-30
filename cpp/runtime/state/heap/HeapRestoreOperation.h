@@ -580,7 +580,8 @@ private:
             } else if (mapKeyId == BackendDataType::XXHASH128_BK && mapValId == BackendDataType::TUPLE_INT32_INT64) {
                 addMapEntryToStateTable<XXH128_hash_t, std::tuple<int32_t, int64_t>>(
                     backend, info, keyGroupId, rawKey, rawNs, mapKeySer, mapValSer, keyInput, valInput);
-            } else if (mapKeyId == BackendDataType::XXHASH128_BK && mapValId == BackendDataType::TUPLE_INT32_INT32_INT64) {
+            } else if (
+                mapKeyId == BackendDataType::XXHASH128_BK && mapValId == BackendDataType::TUPLE_INT32_INT32_INT64) {
                 addMapEntryToStateTable<XXH128_hash_t, std::tuple<int32_t, int32_t, int64_t>>(
                     backend, info, keyGroupId, rawKey, rawNs, mapKeySer, mapValSer, keyInput, valInput);
             } else if (mapKeyId == BackendDataType::TIME_WINDOW_BK && mapValId == BackendDataType::TIME_WINDOW_BK) {
@@ -601,5 +602,4 @@ private:
             delete static_cast<VoidNamespace*>(rawNs);
         }
     }
-
-    };
+};
