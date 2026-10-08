@@ -167,15 +167,15 @@ Nexmark：一个用于评估连续数据流上查询性能的基准套件，为�
 
 ## 学习文档<a name="ZH-CN_TOPIC_0000002549641549"></a>
 
-|名称|简介|
-|--|--|
-|[快速入门](./docs/zh/quick_start.md)|提供快速使能并验证OmniStream加速能力的快速入门指导。|
-|[版本说明书](./docs/zh/release_notes.md)|提供OmniStream每个发布版本的基础信息和特性更新信息。|
-|[安装指南](./docs/zh/installation_guide.md)|提供安装OmniStream的详细指导。|
-|[编译指南](./docs/zh/compile_guide.md)| 提供编译OmniStream的详细指导。|
-|[使用指南](./docs/zh/user_guide.md)|提供使用OmniStream的详细指导。|
-|[常见问题](./docs/zh/faq.md)|提供OmniStream安装、使用过程的常见问题和解决方法。|
-|视频课程：[OmniRuntime特性大揭秘](https://www.hikunpeng.com/document/video-detail/2849)|提供操作视频，帮助开发者在鲲鹏服务器上了解、使能OmniRuntime特性。|
+| 名称                                                                            | 简介                                     |
+|-------------------------------------------------------------------------------|----------------------------------------|
+| [快速入门](./docs/zh/quick_start.md)                                              | 提供快速使能并验证OmniStream加速能力的快速入门指导。        |
+| [版本说明书](./docs/zh/release_notes.md)                                           | 提供OmniStream每个发布版本的基础信息和特性更新信息。        |
+| [安装指南](./docs/zh/installation_guide.md)                                       | 提供安装OmniStream的详细指导。                   |
+| [编译指南](./docs/zh/compile_guide.md)                                            | 提供编译OmniStream的详细指导。                   |
+| [用户指南](./docs/zh/user_guide.md)                                               | 提供使用OmniStream的详细指导。                   |
+| [常见问题](./docs/zh/faq.md)                                                      | 提供OmniStream安装、使用过程的常见问题和解决方法。         |
+| 视频课程：[OmniRuntime特性大揭秘](https://www.hikunpeng.com/document/video-detail/2849) | 提供操作视频，帮助开发者在鲲鹏服务器上了解、使能OmniRuntime特性。 |
 
 ## 安全声明<a name="ZH-CN_TOPIC_0000002551517383"></a>
 
