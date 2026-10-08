@@ -200,7 +200,6 @@ public:
                         reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<long>*>*>(stateTablePtr);
                     delete stateTable;
                 } else if (dataId == BackendDataType::EXTERNAL_BIGINT_BK) {
-                    // EXTERNAL_BIGINT 与 BIGINT 共用 int64_t 表布局
                     auto stateTable =
                         reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, int64_t>*>(stateTablePtr);
                     delete stateTable;
@@ -532,7 +531,6 @@ uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(
             return (uintptr_t)createOrUpdateInternalValueState<VoidNamespace, std::vector<long>*>(
                 namespaceSerializer, stateDesc);
         } else if (dataId == BackendDataType::EXTERNAL_BIGINT_BK) {
-            // window aggregation 场景，EXTERNAL_BIGINT 与 BIGINT 共用 int64_t 表布局
             return (uintptr_t)createOrUpdateInternalValueState<VoidNamespace, int64_t>(namespaceSerializer, stateDesc);
         } else {
             NOT_IMPL_EXCEPTION;

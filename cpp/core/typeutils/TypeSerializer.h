@@ -36,7 +36,7 @@ enum class BackendDataType {
     SET_LONG,
     BYTE_ARRAY_BK,
     VECTOR_BATCH_BK,
-    EXTERNAL_BIGINT_BK // external bigint serializer (window aggregation scenario), compatible with BIGINT_BK layout
+    EXTERNAL_BIGINT_BK
 };
 
 inline std::ostream& operator<<(std::ostream& os, const BackendDataType& type)
