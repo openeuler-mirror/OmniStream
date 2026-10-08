@@ -120,25 +120,6 @@ public:
                         VoidNamespace,
                         emhash7::HashMap<std::shared_ptr<RowData>, std::tuple<int32_t, int32_t>>*>*>(stateTablePtr);
                     delete stateTable;
-                } else if (keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT64) {
-                    auto* stateTable = reinterpret_cast<CopyOnWriteStateTable<
-                        K,
-                        VoidNamespace,
-                        emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int64_t>>*>*>(stateTablePtr);
-                    delete stateTable;
-                } else if (
-                    keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT32_INT64) {
-                    auto* stateTable = reinterpret_cast<CopyOnWriteStateTable<
-                        K,
-                        VoidNamespace,
-                        emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int32_t, int64_t>>*>*>(stateTablePtr);
-                    delete stateTable;
-                } else if (
-                    keyId == BackendDataType::EXTERNAL_BIGINT_BK && valueId == BackendDataType::EXTERNAL_BIGINT_BK) {
-                    auto* stateTable =
-                        reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<int64_t, int64_t>*>*>(
-                            stateTablePtr);
-                    delete stateTable;
                 } else if (
                     (keyId == BackendDataType::OBJECT_BK || keyId == BackendDataType::POJO_BK) &&
                     (valueId == BackendDataType::OBJECT_BK || valueId == BackendDataType::POJO_BK)) {
@@ -481,18 +462,6 @@ uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(
             return (uintptr_t)
                 createOrUpdateInternalMapState<VoidNamespace, std::shared_ptr<RowData>, std::tuple<int32_t, int32_t>>(
                     namespaceSerializer, stateDesc);
-        } else if (keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT64) {
-            return (uintptr_t)
-                createOrUpdateInternalMapState<VoidNamespace, XXH128_hash_t, std::tuple<int32_t, int64_t>>(
-                    namespaceSerializer, stateDesc);
-        } else if (keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT32_INT64) {
-            return (uintptr_t)
-                createOrUpdateInternalMapState<VoidNamespace, XXH128_hash_t, std::tuple<int32_t, int32_t, int64_t>>(
-                    namespaceSerializer, stateDesc);
-        } else if (keyId == BackendDataType::EXTERNAL_BIGINT_BK && valueId == BackendDataType::EXTERNAL_BIGINT_BK) {
-            // window aggregation 场景，EXTERNAL_BIGINT 与 BIGINT 共用 int64_t 表布局
-            return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, int64_t, int64_t>(
-                namespaceSerializer, stateDesc);
         } else if (keyId == BackendDataType::TIME_WINDOW_BK && valueId == BackendDataType::TIME_WINDOW_BK) {
             return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, TimeWindow, TimeWindow>(
                 namespaceSerializer, stateDesc);

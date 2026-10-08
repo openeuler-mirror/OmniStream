@@ -350,32 +350,7 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
     DataInputDeserializer valInput(value.data(), static_cast<int>(value.size()));
     const bool isMapValNull = valInput.readBoolean();
 
-    if (mapKeyId == BackendDataType::XXHASH128_BK && mapValId == BackendDataType::TUPLE_INT32_INT32_INT64) {
-        using UK = XXH128_hash_t;
-        using UV = std::tuple<int32_t, int32_t, int64_t>;
-        auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<UK, UV>*>*>(
-            stateInfo_.mainTablePtr);
-
-        std::unique_ptr<UK> ukPtr(static_cast<UK*>(mapKeySer->deserialize(keyInput)));
-        UK uk = *ukPtr;
-        if (isMapValNull) {
-            ERROR_RELEASE(
-                "HeapRestoreKVState: unexpected null MAP value for non-pointer type '" << stateInfo_.stateName << "'");
-            throw std::runtime_error(
-                "HeapRestoreKVState: unexpected null MAP value for non-pointer type '" + stateInfo_.stateName + "'");
-        }
-        std::unique_ptr<UV> uvPtr(static_cast<UV*>(mapValSer->deserialize(valInput)));
-        UV uv = *uvPtr;
-
-        auto* kvMap = table->get(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs));
-        if (kvMap == nullptr) {
-            kvMap = new emhash7::HashMap<UK, UV>();
-            (*kvMap)[uk] = uv;
-            table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), kvMap);
-        } else {
-            (*kvMap)[uk] = uv;
-        }
-    } else if (mapKeyId == BackendDataType::SHARED_ROW_BK && mapValId == BackendDataType::TUPLE_INT32_INT32) {
+    if (mapKeyId == BackendDataType::SHARED_ROW_BK && mapValId == BackendDataType::TUPLE_INT32_INT32) {
         using UK = std::shared_ptr<RowData>;
         using UV = std::tuple<int32_t, int32_t>;
         auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<UK, UV>*>*>(
@@ -499,10 +474,8 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
                 kvMap = new emhash7::HashMap<UK, UV>();
                 (*kvMap)[uk] = nullptr;
                 table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), kvMap);
-                uk->putRefCount();
             } else {
                 (*kvMap)[uk] = nullptr;
-                uk->putRefCount();
             }
         } else {
             Object* valObj = mapValSer->GetBuffer();
@@ -514,12 +487,8 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
                 kvMap = new emhash7::HashMap<UK, UV>();
                 (*kvMap)[uk] = uv;
                 table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), kvMap);
-                uk->putRefCount();
-                uv->putRefCount();
             } else {
                 (*kvMap)[uk] = uv;
-                uk->putRefCount();
-                uv->putRefCount();
             }
         }
     } else if (mapKeyId == BackendDataType::ROW_BK && mapValId == BackendDataType::INT_BK) {
