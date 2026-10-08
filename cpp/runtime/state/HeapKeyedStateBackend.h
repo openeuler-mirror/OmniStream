@@ -171,6 +171,12 @@ public:
                         CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<TimeWindow, TimeWindow>*>*>(
                         stateTablePtr);
                     delete stateTable;
+                } else if (
+                    keyId == BackendDataType::EXTERNAL_BIGINT_BK && valueId == BackendDataType::EXTERNAL_BIGINT_BK) {
+                    auto stateTable =
+                        reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<int64_t, int64_t>*>*>(
+                            stateTablePtr);
+                    delete stateTable;
                 } else {
                     NOT_IMPL_EXCEPTION;
                 }
@@ -501,6 +507,9 @@ uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(
                 namespaceSerializer, stateDesc);
         } else if (keyId == BackendDataType::OBJECT_BK && valueId == BackendDataType::OBJECT_BK) {
             return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, Object*, Object*>(
+                namespaceSerializer, stateDesc);
+        } else if (keyId == BackendDataType::EXTERNAL_BIGINT_BK && valueId == BackendDataType::EXTERNAL_BIGINT_BK) {
+            return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, int64_t, int64_t>(
                 namespaceSerializer, stateDesc);
         } else {
             NOT_IMPL_EXCEPTION;

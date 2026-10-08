@@ -1,15 +1,17 @@
 # Installation Guide<a name="ZH-CN_TOPIC_0000002517504838"></a>
 
+<!-- md-trans-meta sourceCommit=e6dfdcdd7675375851f38c9321560454680f1f99 translatedAt=2026-09-09T06:23:34.501Z pushedAt=2026-09-09T09:26:14.575Z -->
+
 ## Installation Overview<a name="ZH-CN_TOPIC_0000002548944711"></a>
 
 ### Network Planning<a name="ZH-CN_TOPIC_0000002549064701"></a>
 
 OmniStream adopts a single-node, containerized deployment model, running Flink within Docker containers.
 
-A total of three Docker containers are deployed, whose specifications are all 8c32g. One container runs the Job Manager and the other two run the Task Manager. For details about the network planning, see [**Figure 1** Network planning](#network-planning).
+A total of three Docker containers are deployed, whose flavors are all 8c32g. One container runs the Job Manager and the other two run the Task Manager. For details about the network planning, see [**Figure 1** Network planning](#network-planning).
 
-**Figure 1** Network planning<a name="zh-cn_topic_0000002263664085_fig2900236105214"></a><a id="network-planning"></a><br>
-![] (figures/network-planning.png "Network Planning")
+**Figure 1** Network planning<a name="zh-cn_topic_0000002263664085_fig2900236105214"></a><a id="networking-planning"></a><br>
+![networking-planning](figures/networking-diagram.png "Network Planning")
 
 ### Environment Requirements<a name="ZH-CN_TOPIC_0000002517344922"></a>
 
@@ -23,7 +25,7 @@ Before installing OmniStream, prepare the hardware and software environments to 
 
 |Item|Description|
 |--|--|
-|Processor|New Kunpeng 920 processor models|
+|Processor|Kunpeng 920 new model|
 |Memory|384 GB (12 x 32 GB)|
 |Memory frequency|2,666 MHz|
 |Network|Service network: 10GE<br>Management network: 1GE|
@@ -32,7 +34,7 @@ Before installing OmniStream, prepare the hardware and software environments to 
 
 **OS and Software Requirements<a name="zh-cn_topic_0000002228744546_section412511315357"></a>**
 
-[**Table 2** OS and software requirements](#os-and-software-requirements) lists the OS and software requirements.
+[**Table 2** OS and software requirements](#os-and-software-requirements) describes the OS and software requirements.
 
 **Table 2** OS and software requirements<a id="os-and-software-requirements"></a>
 
@@ -41,81 +43,77 @@ Before installing OmniStream, prepare the hardware and software environments to 
 |OS| [openEuler 22.03 LTS SP4](https://dl-cdn.openeuler.openatom.cn/openEuler-22.03-LTS-SP4/ISO/aarch64/openEuler-22.03-LTS-SP4-everything-debug-aarch64-dvd.iso)                                                                                                                                 | Not specified.                                                                                                                                                           |
 |JDK| [BiSheng JDK 17 (BiSheng JDK 17.0.18-b13 recommended)](https://mirrors.huaweicloud.com/kunpeng/archive/compiler/bisheng_jdk/bisheng-jdk-17.0.18-b13-linux-aarch64.tar.gz)                                                                                                                                                     | Deploy the JDK in all containers.                                                                                                                                                   |
 |Flink| [1.16.3](https://archive.apache.org/dist/flink/flink-1.16.3/flink-1.16.3-bin-scala_2.12.tgz)<br>[1.17.1](https://archive.apache.org/dist/flink/flink-1.17.1/flink-1.17.1-bin-scala_2.12.tgz)<br>[1.20.0](https://archive.apache.org/dist/flink/flink-1.20.0/flink-1.20.0-bin-scala_2.12.tgz) | See [Flink Deployment Guide (CentOS & openEuler)](https://www.hikunpeng.com/document/detail/en/kunpengbds/ecosystemEnable/Flink/kunpengflink_04_0001.html). Deploy Flink in all containers.|
-|Docker| [19.03.15](https://www.hikunpeng.com/document/detail/en/kunpengboostkithistory/251RC1/bds/kunpengbds_omniruntime_20_0911.html.)                                                                                                                                                      | Not specified.                                                                                                                                                           |
-|Nexmark| [v0.2.0](https://www.hikunpeng.com/document/detail/en/kunpengboostkithistory/251RC1/bds/kunpengbds_omniruntime_20_0914.html.)                                                                                                                                                        | Perform compilation by following the [official instructions](https://github.com/nexmark/nexmark). Deploy Nexmark in all containers.                                                                                                                               |
-|Python| [3.9.9](https://www.hikunpeng.com/document/detail/en/kunpengboostkithistory/251RC1/bds/kunpengbds_omniruntime_20_0915.html.)                                                                                                                                                         | Deploy Python on the container or physical machine from which the job is submitted.                                                                                                                                        |
-|yaml-cpp| [0.6.3](https://www.hikunpeng.com/document/detail/en/kunpengboostkithistory/251RC1/bds/kunpengbds_omniruntime_20_0916.html.)                                                                                                                                                         | Deploy it on the container or physical machine from which the job is submitted.                                                                                                                                              |
+|Docker| [19.03.15](https://www.hikunpeng.com/document/detail/zh/kunpengboostkithistory/251RC1/bds/kunpengbds_omniruntime_20_0911.html.)                                                                                                                                                      | Not specified.                                                                                                                                                            |
+|Nexmark| [v0.2.0](https://www.hikunpeng.com/document/detail/zh/kunpengboostkithistory/251RC1/bds/kunpengbds_omniruntime_20_0914.html.html)                                                                                                                                                        | Compile it following the [official instructions](https://github.com/nexmark/nexmark). Deploy Nexmark in all containers.                                                                                                                                |
+|Python| [3.9.9](https://www.hikunpeng.com/document/detail/zh/kunpengboostkithistory/251RC1/bds/kunpengbds_omniruntime_20_0915.html.html)                                                                                                                                                         | Deploy Python in the container or physical machine from which jobs are submitted.                                                                                                                                          |
+|yaml-cpp| [0.6.3](https://www.hikunpeng.com/document/detail/zh/kunpengboostkithistory/251RC1/bds/kunpengbds_omniruntime_20_0916.html.html)                                                                                                                                                         | Install it in the container or physical machine from which jobs are submitted.                                                                                                                                               |
 |GCC| [10.3.1](https://repo.openeuler.openatom.cn/openEuler-22.03-LTS-SP4/update/aarch64/Packages/gcc-10.3.1-66.oe2203sp4.aarch64.rpm)                                                                                                                                                             | Not specified.                                                                                                                                                           |
 |Maven| [3.8.7](https://archive.apache.org/dist/maven/maven-3/3.8.7/binaries/apache-maven-3.8.7-bin.zip)                                                                                                                                                                                             | Used to generate the JAR package of UDF test cases.                                                                                                                                                 |
-|Jemalloc| [5.3.0](https://github.com/jemalloc/jemalloc/archive/refs/tags/5.3.0.tar.gz)                                                                                                                                                                                                                 | Used to provide the header files used for UDF translation.                                                                                                                                                 |
-|OmniOperator| [master](https://atomgit.com/openeuler/OmniOperator/tree/master)                                                                                                                                                                                                                             | Used to provide the header files used for UDF translation.                                                                                                                                                 |
-|Xxhash| [0.8.2](https://github.com/Cyan4973/xxHash/tree/v0.8.2)                                                                                                                                                                                                                                      | Used to provide the header files used for UDF translation.                                                                                                                                                 |
-|nlohmann json| [3.11.3](https://github.com/nlohmann/json/tree/v3.11.3)                                                                                                                                                                                                                                      | Used to provide the header files used for UDF translation.                                                                                                                                                 |
+|Jemalloc| [5.3.0](https://github.com/jemalloc/jemalloc/archive/refs/tags/5.3.0.tar.gz)                                                                                                                                                                                                                 | Used to provide the header files required by UDF translation.                                                                                                                                                 |
+|OmniOperator| [master](https://atomgit.com/openeuler/OmniOperator/tree/master)                                                                                                                                                                                                                             | Used to provide the header files required by UDF translation.                                                                                                                                                 |
+|Xxhash| [0.8.2](https://github.com/Cyan4973/xxHash/tree/v0.8.2)                                                                                                                                                                                                                                      | Used to provide the header files required by UDF translation.                                                                                                                                                 |
+|nlohmann json| [3.11.3](https://github.com/nlohmann/json/tree/v3.11.3)                                                                                                                                                                                                                                      | Used to provide the header files required by UDF translation.                                                                                                                                                 |
 
 **Obtaining Software Installation Packages<a name="zh-cn_topic_0000002228744546_section189181357102011"></a>**
 
-[**Table 3**](#software-packages) lists the software packages required for installing OmniStream and how to obtain them.
+[**Table 3**](#software-packages) describes the software packages required for installing OmniStream and how to obtain them.
 
 **Table 3** Software packages<a id="software-packages"></a>
 
 |Name| Package Name                                       |Release Type|Description| How to Obtain                                                                                                                                                                                                                                                              |
 |--|-------------------------------------------|--|--|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|OmniStream package| BoostKit-omniruntime-omnistream-1.3.0.zip |Open source|OmniStream software installation package.| [Get Link](https://boostkit-bigdata-public.obs.cn-north-4.myhuaweicloud.com/artifact/OmniStream/master/26.1.RC1.B027/release/BoostKit-omniruntime-omnistream-1.3.0.zip)                                                                                                                           |
-|UDF translator| UNT-1.0-35.noarch.rpm                     |Open source|UDF translator RPM package. After the installation is complete, the UDF translator is added to the `/opt` directory.| [Get Link](https://eur.openeuler.openatom.cn/results/cutie-deng/UNT/openeuler-22.03_LTS_SP4-aarch64/00110412-UNT/UNT-1.0-35.noarch.rpm)                                                                                                                               |
-|AI4C| AI4C-1.0.4-8.aarch64.rpm                  |Open source|A framework that allows the compiler to integrate machine learning–driven optimization technologies. Install the RPM package.| [Get Link](https://gitee.com/kunpengcompute/boostkit-bigdata/releases/download/25.1.RC1-OmniStream-release/AI4C-1.0.4-8.aarch64.rpm)                                                                                                                                   |
-|KACC_JSON| BoostKit-kaccjson_1.1.0.zip               |Closed source|C++ implementation package used to replace GSON in UDF translation. This ZIP package contains the adaptation layer and KACC_JSON implementation, and also contains header files and a static library.<br>This file is extracted from the `Dependency_library_OmniStream.zip` package.| [Get Link](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip)                                                                                                                                   |
-|KSL| BoostKit-ksl_2.5.1.zip                    |Closed source|Regular expression acceleration library, which contains the ReplaceAll function for optimizing the basic string library and contains header files and a static library.| [Product page](https://www.hikunpeng.com/boostkit/library/system?subtab=Hyperscan&version=2.5.1) |
-|Dependency library| Dependency_library_Default                |Open source|Library file on which OmniStream depends.<br>This folder is extracted from the `Dependency_library_OmniStream.zip` package.| [Get Link](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip)|
+|OmniStream package| BoostKit-omniruntime-omnistream-{version}.zip |Open source|OmniStream software installation package. Obtain the latest package from the `Releases` page in the open-source repository. Replace {version} with the actual release version.| [Link](https://gitcode.com/openeuler/OmniStream/releases) |
+|UDF Translator| UNT-1.0-35.noarch.rpm                     |Open source|UDF Translator RPM package. After the installation is complete, the UDF Translator is added to the `/opt` directory.| [Link](https://eur.openeuler.openatom.cn/results/cutie-deng/UNT/openeuler-22.03_LTS_SP4-aarch64/00110412-UNT/UNT-1.0-35.noarch.rpm)                                                                                                                               |
+|AI4C| AI4C-1.0.4-8.aarch64.rpm                  |Open source|A framework that integrates compiler optimization techniques driven by machine learning. Install the RPM package directly.| [Link](https://gitcode.com/boostkit/boostkit-bigdata/releases/download/25.1.RC1-OmniStream-release/AI4C-1.0.4-8.aarch64.rpm)                                                                                                                                   |
+|KACC_JSON| BoostKit-kaccjson_1.1.0.zip               |Closed source|C++ implementation package used to replace GSON in UDF translation. This ZIP package contains the adaptation layer and KACC_JSON implementation, and also contains header files and static libraries.<br>This file is extracted from the `Dependency_library_OmniStream.zip` package.| [Link](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip)                                                                                                                                   |
+|KSL| BoostKit-ksl_2.5.1.zip                    |Closed source|Regular expression acceleration library, which contains the `ReplaceAll` function for optimizing the basic string library, and includes header files and static libraries.|[Link](https://www.hikunpeng.com/boostkit/library/system?subtab=Hyperscan&version=2.5.1)                                                                                                                                                                           |
+|Dependency library| Dependency_library_Default                |Open source|Library file on which OmniStream depends.<br>This folder is extracted from the `Dependency_library_OmniStream.zip` package.| [Link](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip)|
 
-**Software Package Integrity Check<a name="zh-cn_topic_0000002228744546_section156811729327"></a>**
+**Software Package Integrity Check<a name="section16501429204018"></a>**
 
-After downloading a software package from the Kunpeng community, verify the software package to ensure that it is consistent with the original one on the website.
+After downloading a software installation package from the Kunpeng community, verify it to ensure that it is consistent with the original one on the website.
+> ![](./public_sys-resources/icon-note.gif) **NOTE:**
+> This section uses `BoostKit-omniruntime-omnistream-1.3.0.zip` as an example.
 
-> ![](./public_sys-resources/icon-note.gif) **NOTE：**
-> This chapter uses BoostKit-omniruntime-omnistream-1.3.0.zip as an example.
+### Prerequisites
 
-### 前提条件
+Before verifying the package integrity, prepare the following files:
 
-Before verifying the integrity of the release package, prepare the following files:
+- ZIP archive: `BoostKit-omniruntime-omnistream-1.3.0.zip`.
 
-- ZIP compressed file: BoostKit-omniruntime-omnistream-1.3.0.zip.
+- Verification file: SHA256 checksum corresponding to the code repository archive. Copy and save the generated SHA256 checksum.
 
-- Verification file: Copy and save the SHA256 hash value corresponding to the Blue Zone code repository archive for
-  integrity verification.
+### Operation Guide
 
-### Procedures
+Verify the file integrity as follows:
 
-To verify the file integrity, perform the following operations：
-
-1. Calculate the SHA256 checksum of the file. The Linux command is as follows：
+1. Calculate the SHA256 checksum of the file. On Linux, run the following command:
 
     ```sh
     sha256sum BoostKit-omniruntime-omnistream-1.3.0.zip
     ```
 
-   The Windows command is as follows:
+   On Windows, run the following command:
 
     ```sh
     certutil -hashfile BoostKit-omniruntime-omnistream-1.3.0.zip SHA256
     ```
 
-   After the command is executed, the checksum value is output.
+   After the command is executed, the checksum is output.
 
-2. Compare the checksum value calculated in step 1 with the SHA256 value copied from the Blue Zone code repository to
-   check if they match.
+2. Compare the checksum calculated in step 1 with the SHA256 checksum copied from the code repository.
 
-   If the checksum value matches, it indicates that the ZIP archive file is intact. If the checksum value does not
-   match, it can be confirmed that the file integrity has been compromised, and the file needs to be re-downloaded.
+   If the checksums match, the ZIP package is intact. If they do not match, the file integrity has been compromised and the file must be obtained again.
 
 ## Feature Installation<a name="ZH-CN_TOPIC_0000002549064703"></a>
 
-### Installing the Basic Environment<a name="ZH-CN_TOPIC_0000002549064713"></a>
+### Installing the Underlying Environment<a name="ZH-CN_TOPIC_0000002549064713"></a>
 
 #### Installing Docker<a name="ZH-CN_TOPIC_0000002549064717"></a>
 
-Install Docker and deploy multiple containers to set up the Flink environment. If the server cannot connect to the Internet, configure a local yum repository according to your environment to ensure a smooth installation.
+Install Docker and deploy multiple containers to set up the Flink environment. If the server cannot connect to the Internet, configure a local yum repository based on your environment to ensure a smooth installation.
 
-1. Install Docker and import the base image. For details, see the [Docker Installation Guide (CentOS & openEuler)](https://www.hikunpeng.com/document/detail/en/kunpengcpfs/ecosystemEnable/Docker/kunpengdocker_03_0001.html).
+1. Install Docker and import the base image. For details, see [Docker Installation Guide (CentOS & openEuler)](https://www.hikunpeng.com/document/detail/en/kunpengcpfs/ecosystemEnable/Docker/kunpengdocker_03_0001.html).
 
     ```bash
     cd /opt
@@ -139,7 +137,7 @@ Install Docker and deploy multiple containers to set up the Flink environment. I
 
 3. Create and start three Docker containers.
 
-    The container flavor is 8C32G, and the containers are named **flink\_jm\_8c32g**, **flink\_tm1\_8c32g**, and **flink\_tm2\_8c32g**. After all containers are started, the command execution process automatically exits.
+    The container flavor is 8C32G, and the containers are named `flink\_jm\_8c32g`, `flink\_tm1\_8c32g`, and `flink\_tm2\_8c32g`. After all containers are started, the command execution process automatically exits.
 
     ```bash
     docker run -it -d --name flink_jm_8c32g --cpus=8 --memory=32g --network flink-network openeuler-22.03-lts-sp4 /bin/bash 
@@ -147,7 +145,7 @@ Install Docker and deploy multiple containers to set up the Flink environment. I
     docker run -it -d --name flink_tm2_8c32g --cpus=8 --memory=32g --network flink-network openeuler-22.03-lts-sp4 /bin/bash 
     ```
 
-4. Query the container ID.
+4. Query the container IDs.
 
     ```bash
     docker ps
@@ -157,7 +155,7 @@ Install Docker and deploy multiple containers to set up the Flink environment. I
 
     ![](figures/en-us_image_0000002549064727.png)
 
-5. Log in to all containers, enable the SSH service in the containers, and configure password-free login.
+5. Log in to each container, enable the SSH service in the containers, and configure password-free login.
     1. Log in to each container and perform [5.b](#zh-cn_topic_0000002228584730_li791415596401) to [5.g](#li1581214912220).
 
         ```bash
@@ -191,7 +189,7 @@ Install Docker and deploy multiple containers to set up the Flink environment. I
         passwd
         ```
 
-    6. Generate an RSA key again. When a message is displayed, press `Enter`.
+    6. Generate an RSA key pair again. When a message is displayed, press `Enter`.
 
         ```bash
         ssh-keygen -t rsa
@@ -295,7 +293,7 @@ Deploy and configure Flink on physical machines to run in multiple Docker contai
         vi /usr/local/flink/conf/flink-conf.yaml
         ```
 
-    8. Press `i` to enter the insert mode, replace the configuration with the following, and change the value of `jobmanager.rpc.address` to the ID of the `flink\_jm\_8c32g` container ID. It is recommended that the total number of slots be greater than the degree of parallelism. For example:
+    8. Press `i` to enter the insert mode, replace the configuration with the following, and change the value of `jobmanager.rpc.address` to the `flink\_jm\_8c32g` container ID. It is recommended that the total number of slots be greater than the degree of parallelism. For example:
 
         ```bash
         taskmanager.memory.process.size: 8G
@@ -343,7 +341,7 @@ Install and configure Nexmark to verify and test Flink.
         vi /opt/nexmark/conf/nexmark.yaml
         ```
 
-    2. Press `i` to enter the insert mode and modify the file as follows: Change the value of `nexmark.metric.reporter.host` to the ID of the `flink\_jm\_8c32g` container.
+    2. Press `i` to enter the insert mode and modify the file as follows. Change the value of `nexmark.metric.reporter.host` to the `flink\_jm\_8c32g` container ID.
 
         ```bash
         ################################################################################
@@ -471,14 +469,14 @@ Install other software packages on which the feature depends.
 
 ### Installing OmniStream<a name="ZH-CN_TOPIC_0000002549064711"></a>
 
-In independent deployment mode, you can install the precompiled OmniStream binary package and integrate it into Flink as a plugin.
+If Flink is deployed in standalone mode, you can install the precompiled OmniStream binary package and integrate it into Flink as a plugin.
 
 1. Create the `/usr/local/OmniStream` directory on the physical machine to store OmniStream binary files.
 
-    Extract the `BoostKit-omniruntime-omnistream-1.3.0.zip` installation package obtained from [**Table 3** Software packages](#software-packages) to the `/usr/local/OmniStream` directory.
+    Extract the `BoostKit-omniruntime-omnistream-{version}.zip` installation package obtained from [**Table 3** Software packages](#software-packages) to the `/usr/local/OmniStream` directory. Replace {version} with the actual downloaded version.
 
     ```bash
-    unzip BoostKit-omniruntime-omnistream-1.3.0.zip
+    unzip BoostKit-omniruntime-omnistream-*.zip
     mkdir -p /usr/local/OmniStream
     cp -r openEuler22.03_JDK17/OmniStream_Default/* /usr/local/OmniStream/
     chmod -R 550 /usr/local/OmniStream/*
@@ -491,7 +489,7 @@ In independent deployment mode, you can install the precompiled OmniStream binar
     ls
     ```
 
-    After the binary package is extracted, the JAR package, SO files, basic library, and `include` directory are obtained.
+    After the binary package is extracted, the JAR package, SO files, base libraries, and `include` directory are obtained.
 
     ```bash
     flink-tnel-0.1-SNAPSHOT.jar
@@ -578,7 +576,7 @@ In independent deployment mode, you can install the precompiled OmniStream binar
     >mkdir /opt/udf-trans-opt
     >```
 
-3. Copy the basic library directory installed in [Installing OmniStream](#installing-omnistream) to `/opt/udf-trans-opt`.
+3. Copy the base library directory installed in [Installing OmniStream](#installing-omnistream) to `/opt/udf-trans-opt`.
 
     ```bash
     docker cp /usr/local/OmniStream/libbasictypes flink_jm_8c32g:/opt/udf-trans-opt
@@ -595,7 +593,7 @@ In independent deployment mode, you can install the precompiled OmniStream binar
     unzip BoostKit-kaccjson_1.1.0.zip
     ```
 
-2. Copy the KACC\_JSON header files and static libraries to the `/opt/udf-trans-opt/libbasictypes` directory of the UDF translator in the `flink\_jm\_8c32g` container.
+2. Copy the KACC\_JSON header files and static libraries to the `/opt/udf-trans-opt/libbasictypes` directory of the UDF Translator in the `flink\_jm\_8c32g` container.
 
     ```bash
     docker exec flink_jm_8c32g mkdir -p /opt/udf-trans-opt/libbasictypes/include 
@@ -721,11 +719,11 @@ cd /opt
 rpm -ivh --nodeps AI4C-1.0.4-8.aarch64.rpm
 ```
 
-### Container-based Deployment<a name="ZH-CN_TOPIC_0000002549064715"></a>
+### Deploying into Containers<a name="ZH-CN_TOPIC_0000002549064715"></a>
 
-After installing and configuring basic software on the physical machine, deploy [Installing the Basic Environment](#installing-the-basic-environment) to [Installing OmniStream](#installing-omnistream) in containers to use the feature.
+After installing and configuring basic software on the physical machine, perform the steps from [Installing the Underlying Environment](#installing-the-underlying-environment) through [Installing OmniStream](#installing-omnistream) in containers to use the feature.
 
-1. Copy the directories of Nexmark, JDK, Flink, third-party dependencies, and OmniStream to all containers.
+1. Copy the directories of Nexmark, JDK, Flink, third-party dependencies, and OmniStream to each container.
 
     ```bash
     docker cp /opt/nexmark flink_jm_8c32g:/usr/local/
@@ -788,3 +786,7 @@ After installing and configuring basic software on the physical machine, deploy 
         ```bash
         exit
         ```
+
+| Release | Date | Description |
+| --- | --- | --- |
+| 01 | 2026-09-30 | This is the first official release. |

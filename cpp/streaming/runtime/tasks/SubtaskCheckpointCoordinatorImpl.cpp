@@ -380,6 +380,10 @@ void SubtaskCheckpointCoordinatorImpl::checkpointState(
         new CheckpointBarrier(metadata->GetCheckpointId(), metadata->GetTimestamp(), options);
 
     bool isPriorityEvent = options->IsUnalignedCheckpoint();
+    if (isRecovered_) {
+        INFO_RELEASE("source " << taskName);
+        isPriorityEvent = false;
+    }
     operatorChain->broadcastEvent(std::shared_ptr<omnistream::AbstractEvent>(checkpointBarrier), isPriorityEvent);
 
     if (options->NeedsChannelState()) {

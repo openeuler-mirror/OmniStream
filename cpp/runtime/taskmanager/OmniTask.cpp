@@ -410,6 +410,7 @@ void OmniTask::notifyRemoteDataAvailable(
     long bufferAddress,
     int bufferLength,
     int readIndex,
+    int memorySegmentOffset,
     int sequenceNumber,
     bool isBuffer,
     int bufferType)
@@ -419,6 +420,14 @@ void OmniTask::notifyRemoteDataAvailable(
     auto channel = inputGate->getChannel(channelIndex);
     if (auto remoteChannel = std::dynamic_pointer_cast<RemoteInputChannel>(channel)) {
         if (taskType == 1 && isBuffer) {
+            if (readIndex != 0 || memorySegmentOffset != 0) {
+                ERROR_RELEASE(
+                    "Reject SQL remote data buffer with non-zero payload offset, readerIndex="
+                    << readIndex << ", memorySegmentOffset=" << memorySegmentOffset
+                    << ", bufferAddress=" << bufferAddress << ", bufferLength=" << bufferLength);
+                originalNetworkBufferRecycler_->recycle(bufferAddress);
+                return;
+            }
             remoteChannel->notifyRemoteDataAvailableForVectorBatch(
                 bufferAddress, bufferLength, sequenceNumber, originalNetworkBufferRecycler_);
         } else {

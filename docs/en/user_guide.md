@@ -1,23 +1,53 @@
 # User Guide<a name="ZH-CN_TOPIC_0000002549640817"></a>
 
+<!-- md-trans-meta sourceCommit=e6dfdcdd7675375851f38c9321560454680f1f99 translatedAt=2026-09-15T10:24:47.965Z pushedAt=2026-09-18T02:14:53.709Z -->
+
 ## Prerequisites
 
 Required software has been installed. For details about how to install the software, see [Installation Guide](./installation_guide.md).
 
 ## Using the Feature<a name="ZH-CN_TOPIC_0000002549520803"></a>
 
-### Supported Operators and Expressions<a name="ZH-CN_TOPIC_0000002549640813"></a>
+### SQL Operator and Expression Support<a name="ZH-CN_TOPIC_0000002549640813"></a>
 
 This section describes the scope, restrictions, and usage rules of SQL operators and expressions (including data types) supported by the OmniStream Flink Native feature in Flink versions 1.16.3, 1.17.1, and 1.20.0.
 
 [**Table 2** Supported operators](#supported-operators) and [**Table 3** Supported expressions](#supported-expressions) list the operators, expressions, and functions supported by OmniStream. [**Table 1** Meanings of the symbols](#meanings-of-the-symbols) lists the symbols indicating whether the operators and expressions are supported.
 
->![](public_sys-resources/icon-notice.gif) **NOTICE**
+>![](public_sys-resources/icon-notice.gif) **NOTICE:**
 >
->- [**Table 2** Supported operators](#supported-operators) and [**Table 3** supported-expressions](#supported-expressions) list only the data types supported or involved by OmniStream. Other data types are not supported by OmniStream.
->- If you use operators and expressions that are not supported by OmniStream, the execution plan will be rolled back to native execution, which deteriorates the performance.
->- When you use the SQL Client interactive user interface to execute SQL statements, you are advised to export the execution result to the data table whose connector is **blackhole**. For details, see the execution mode of Nexmark Q0.
->- Due to memory restrictions, only the Calc and LookupJoin operators are supported by default. To support other operators, set export `export FLINK\_PERFORMANCE` to `false` to enable environment variables.
+>- [**Table 2** Supported operators](#supported-operators) and [**Table 3** Supported expressions](#supported-expressions) list only the data types supported or involved by OmniStream. Other data types are not supported by OmniStream.
+>- If you use operators and expressions that are not supported by OmniStream, the execution plan will fall back to native execution, which deteriorates performance.
+>- When you use the sql-client interactive user interface to execute SQL statements, you are advised to output the SQL results to a data table with the `blackhole` connector. For details, see the Nexmark Q0 execution model.
+>- Due to memory limitations, only the Calc and LookupJoin operators are supported by default. To enable other supported operators, set the environment variable `FLINK_PERFORMANCE=false`, for example by running `export FLINK_PERFORMANCE=false`.
+
+### Job Switch Support
+
+In the SQL scenario, OmniStream supports switching between OmniStream jobs and native Flink jobs through Flink standard-format savepoints. The following types of operators support job switching:
+
+**Table 4** Types of operators that support job switching<a id="types-of-operators-that-support-job-switching"></a>
+
+|Operator Type|Description|
+|--|--|
+|Join|Supports switching between Join operators.|
+|Deduplicate|Supports switching between Deduplicate operators.|
+|Rank|Supports switching between Rank operators.|
+
+- Save Flink standard-format savepoints: When executing the `savepoint` or `stop` command, add the `--type compatible` parameter.
+
+  ```shell
+  ./flink savepoint/stop --type compatible
+  ```
+
+  `--type compatible` indicates saving a Flink standard-format savepoint for job switching.
+
+- Restore a Flink standard-format savepoint: Add the following parameter for the SQL job.
+
+  ```sql
+  SET 'omni.recovery.savepoint.format' = 'compatible';
+  ```
+
+  `omni.recovery.savepoint.format` is used to specify the format of the savepoint to be restored. When the value is `compatible`, it indicates restoring a Flink standard-format savepoint.
 
 **Table 1** Meanings of the symbols<a id="meanings-of-the-symbols"></a>
 
@@ -57,29 +87,29 @@ This section describes the scope, restrictions, and usage rules of SQL operators
 
 |Expression|Function Type|BIGINT|VARCHAR|NULL|TIMESTAMP(3)|
 |--|--|--|--|--|--|
-|*|Scalar Functions|S|NS|S|S|
-|+|Scalar Functions|S|NS|S|S|
-|-|Scalar Functions|S|NS|S|S|
-|/|Scalar Functions|S|NS|S|S|
-|LOWER|Scalar Functions|NA|S|NA|NA|
-|SPLIT_INDEX|Scalar Functions|S|S|NA|NA|
-|DATE_FORMAT|Scalar Functions|NA|NA|NA|S|
-|COUNT_CHAR|Scalar Functions|NA|S|NA|NA|
-|HOUR|Scalar Functions|S|NA|NS|S|
-|REGEX_EXTRACT|Scalar Functions|NA|S|NS|NA|
-| JSON_VALUE | Scalar Functions | NA | S | S | NA |
-| JSON_QUERY | Scalar Functions | NA | S | S | NA |
-| COALESCE | Scalar Functions | S | S | S | S |
-| PROCTIME_MATERIALIZE | Scalar Functions | NA | NA | NA | S |
-| CHAR_LENGTH | Scalar Functions | NA | S | NA | NA |
-| TO_TIMESTAMP_LTZ | Scalar Functions | S | NA | S | NA |
+|*|Scalar function|S|NS|S|S|
+|+|Scalar function|S|NS|S|S|
+|-|Scalar function|S|NS|S|S|
+|/|Scalar function|S|NS|S|S|
+|LOWER|Scalar function|NA|S|NA|NA|
+|SPLIT_INDEX|Scalar function|S|S|NA|NA|
+|DATE_FORMAT|Scalar function|NA|NA|NA|S|
+|COUNT_CHAR|Scalar function|NA|S|NA|NA|
+|HOUR|Scalar function|S|NA|NS|S|
+|REGEX_EXTRACT|Scalar function|NA|S|NS|NA|
+| JSON_VALUE | Scalar function | NA | S | S | NA |
+| JSON_QUERY | Scalar function | NA | S | S | NA |
+| COALESCE | Scalar function | S | S | S | S |
+| PROCTIME_MATERIALIZE | Scalar function | NA | NA | NA | S |
+| CHAR_LENGTH | Scalar function | NA | S | NA | NA |
+| TO_TIMESTAMP_LTZ | Scalar function | S | NA | S | NA |
 
 ### Supported DataStream Operators and UDFs<a name="ZH-CN_TOPIC_0000002517961054"></a>
 
 This section describes the scope of support, restrictions, and performance impact of the OmniStream Flink Native feature on DataStream operators and user-defined functions (UDFs) in Flink 1.16.3.
 
 >![](public_sys-resources/icon-notice.gif) **NOTICE**
->If you use DataStream operators and UDFs that are not supported by OmniStream, the execution plan will be rolled back to native execution, which deteriorates the performance.
+>If you use DataStream operators and UDFs that are not supported by OmniStream, the execution plan falls back to native execution, which deteriorates the performance.
 
 - The DataStream operators supported by OmniStream include Kafka Source, Kafka Sink, Map, Reduce, FlatMap, and Filter.
 - The UDF trustlist is provided from multiple dimensions, including data transfer objects, function types, UDF dependency classes and interfaces, Java type translation, and Java statement translation. For details, see [Trustlisted UDFs](#section92601228172312).
@@ -88,27 +118,27 @@ This section describes the scope of support, restrictions, and performance impac
 
 The supported data transfer objects include Long, String, and Tuple2<String, Long\>.
 
-[**Table  1** Supported expressions](#supported-expressions-1) lists the supported dependency classes and interfaces. For details about other constraints, see [UDF Translator User Guide](https://gitcode.com/openeuler/docs/blob/stable-24.03_LTS_SP2/docs/en/server/development/unt/unt_guide.md). The supported expressions may vary depending on the environment configuration. If you have any questions, please submit an issue to report problem.
+[**Table 1** Supported expressions](#supported-expressions-1) lists the supported dependency classes and interfaces. For details about other constraints, see the [UDF Translator User Guide](https://gitcode.com/openeuler/docs/blob/stable-24.03_LTS_SP2/docs/en/server/development/unt/unt_guide.md). The supported expressions may vary depending on the environment configuration. If there are differences, you can submit an issue to report the problem.
 
 **Table 1** Supported expressions<a id="supported-expressions-1"></a>
 
 |Java Class|Java Class Interface|
 |--|--|
 |Arrays|static \<T> List\<T> asList(Array);|
-|HashMap (The hashCode and equals methods must be implemented for all accessed elements.)|Object get(Object key);<br> Object put(Object key, Object value);<br> void putAll(HashMap m);<br> boolean containsKey(Object key);<br> int size();<br> boolean remove (Object key) (Different from Java interfaces, variables cannot be used to carry return values.);<br> Set<Map.Entry<Object,Object>> entrySet();<br> Set\<Object> keySet();<br> HashMap clone();|
+|HashMap (The `hashCode` and `equals` methods must be implemented for all accessed elements.)|Object get(Object key);<br> Object put(Object key, Object value);<br> void putAll(HashMap m);<br> boolean containsKey(Object key);<br> int size();<br> boolean remove(Object key) (Different from Java interfaces, variables cannot be used to carry return values.);<br> Set<Map.Entry<Object,Object>> entrySet();<br> Set\<Object> keySet();<br> HashMap clone();|
 |Iterator|boolean hasNext();<br> Object next();|
 |ArrayList|Object get(int index);<br> void clear();<br> void add(Object e);<br> Iterator iterator();<br> boolean contains(Object o);<br> int size();<br> boolean isEmpty()|
 |LinkedList|Object getFirst();<br> Object getLast();<br> void addLast(Object e);<br> void addFirst(Object e);<br>|
-|Map.Entry (The hash and equals methods must be implemented for elements in mapentry.)|Object getKey();<br> Object getValue();<br> void setValue(Object value); (Different from Java interfaces, variables cannot be used to carry return values.)|
-|HashSet (The hash and equals methods must be implemented for accessed elements.)|boolean addAll(ArrayList list);<br> boolean add(Object e);<br> boolean remove(Object o);<br> boolean contains(Object o);<br> int size();<br> void clear();<br> Iterator iterator();<br>|
+|Map.Entry (The `hash` and `equals` methods must be implemented for elements in mapentry.)|Object getKey();<br> Object getValue();<br> void setValue(Object value); (Different from Java interfaces, variables cannot be used to carry return values.)|
+|HashSet (The `hash` and `equals` methods must be implemented for accessed elements.)|boolean addAll(ArrayList list);<br> boolean add(Object e);<br> boolean remove(Object o);<br> boolean contains(Object o);<br> int size();<br> void clear();<br> Iterator iterator();<br>|
 |StringBuilder|StringBuilder append(String str);<br> String toString();<br>|
-|Array (Only one-dimensional arrays of the object type are supported. Basic arrays and multi-dimensional arrays are not supported.)|Size;<br> Get elements;<br> Put elements (in sequence);|
+|Array (Only one-dimensional arrays of object types are supported. Primitive type arrays and multi-dimensional arrays are not supported.)|Size;<br> Get elements;<br> Put elements (in sequence);|
 |Integer|String toString();<br> bool equals(Integer *obj);<br> overrideint intValue();<br> static Integer valueOf(String s);<br> static Integer valueOf(int i);|
 |Boolean|static Boolean valueOf;<br> (boolean b)boolean booleanValue()|
 |Long|int hashCode();<br> boolean equals(Long obj);<br> String toString();<br> Long clone();<br> long longValue();<br> static Long valueOf(String s);<br> static Long valueOf(long l);<br>|
 |Object|int hashCode();<br> bool equals(Object *obj);<br> String toString();<br> Object clone();<br>|
-|String|int hashCode();<br> boolean equals(String anObject);<br> String toString();<br> Object clone();<br> String replace(String target, String replacement);<br>  String[] split(String regex); (Character strings can be split. Regular expressions are not supported.)<br> String replaceAll(String regex, String replacement);<br> int lastIndexOf(String str);<br> int length();<br> String substring(int beginIndex);<br> String substring(int beginIndex, int endIndex);<br> boolean contains(String s);<br> boolean endsWith(String suffix);<br> boolean startsWith(String prefix);<br>|
-|Gson|String toJson(HashMap<String,String> map);<br> Map fromJson(String json, Type typeOf); (Only the String to Map type conversion is supported.)|
+|String|int hashCode();<br> boolean equals(String anObject);<br> String toString();<br> Object clone();<br> String replace(String target, String replacement);<br> String[] split(String regex); (Only string splitting is supported. Regular expressions are not supported.)<br> String replaceAll(String regex, String replacement);<br> int lastIndexOf(String str);<br> int length();<br> String substring(int beginIndex);<br> String substring(int beginIndex, int endIndex);<br> boolean contains(String s);<br> boolean endsWith(String suffix);<br> boolean startsWith(String prefix);<br>|
+|Gson|String toJson(HashMap<String,String> map);<br> Map fromJson(String json, Type typeOf); (Only conversion from String to Map is supported.)|
 |JsonObject|JsonObject getAsJsonObject(String memberName); (Only String constants are supported.)|
 |JsonParser|static JsonObject parseString(String json);|
 |JsonPrimitive|boolean getAsBoolean();|
@@ -117,7 +147,7 @@ The supported data transfer objects include Long, String, and Tuple2<String, Lon
 
 ### (SQL Scenario) Enabling OmniStream<a name="ZH-CN_TOPIC_0000002549640821"></a>
 
-This section describes how to start a Flink cluster and enable OmniStream in SQL scenarios.
+This section describes how to start a Flink cluster and enable OmniStream in the SQL scenario.
 
 1. Access the `flink\_jm\_8c32g` container and start the Flink cluster.
 
@@ -203,9 +233,42 @@ This section describes how to start a Flink cluster and enable OmniStream in SQL
 
     ![](figures/en-us_image_0000002517961058.png)
 
+**Creating and Restoring Checkpoints or Savepoints**
+
+In the SQL scenario, follow the steps below to create and restore checkpoints or savepoints in standard format.
+
+1. Create checkpoints. Use sql-client to configure the checkpoint creation interval, storage directory, and retention policy after job cancellation, and then submit the SQL job. Flink automatically creates checkpoints at the configured time interval.
+
+    ```sql
+    SET 'execution.checkpointing.interval' = '60000';
+    SET 'execution.checkpointing.mode' = 'EXACTLY_ONCE';
+    SET 'execution.checkpointing.storage' = 'filesystem';
+    SET 'state.checkpoints.dir' = 'file:///path/to/checkpoints';
+    SET 'state.savepoints.dir' = 'file:///home/data/savepoint';
+    ```
+
+    `execution.checkpointing.mode` is used to configure the checkpoint consistency mode, and the value `EXACTLY_ONCE` indicates exactly-once semantics. `execution.checkpointing.storage` is used to configure the checkpoint storage implementation, and the value `filesystem` indicates that checkpoints are persisted to the file system. `state.savepoints.dir` is used to configure the default savepoint storage directory. Replace `file:///path/to/checkpoints` with the actual checkpoint storage path. You can view the storage path of completed checkpoints on the job details page of the Flink WebUI.
+
+2. Create savepoints. Query the job ID in the `bin` directory of Flink, and create a savepoint for the running job.
+
+    ```bash
+    ./flink list
+    ./flink savepoint --type <native|canonical> <jobId> file:///path/to/savepoints
+    ```
+
+    `--type` is used to specify the savepoint format, and its value can be `native` or `canonical`. `native` indicates saving savepoints in OmniStream native format, and `canonical` indicates saving savepoints in Flink standard format. Only the Join, Deduplicate, and Rank operators support job switching through savepoints in Flink standard format. Replace `<jobId>` and `file:///path/to/savepoints` with the actual job ID and savepoint storage directory, respectively. After the command is executed successfully, record the returned savepoint path.
+
+3. Restore checkpoints or savepoints. Before resubmitting the SQL job, configure the path for the checkpoints or savepoints to be restored as `execution.savepoint.path` in sql-client. Then re-execute the table creation statements and the job submission statements.
+
+    ```sql
+    SET 'execution.savepoint.path' = 'file:///path/to/checkpoint-or-savepoint';
+    ```
+
+    Replace `file:///path/to/checkpoint-or-savepoint` with the path to the completed checkpoints in step 1 or the savepoint path returned in step 2.
+
 ### (DataStream Scenario) Enabling OmniStream<a name="ZH-CN_TOPIC_0000002518120974"></a>
 
-This section describes how to start a Flink cluster and enable OmniStream in DataStream scenarios.
+This section describes how to start a Flink cluster and enable OmniStream in the DataStream scenario.
 
 1. If DataStream tasks are running in a multi-Task-Manager environment, add `omni.batch: true` to the `flink-conf.yaml` file to improve shuffle efficiency and achieve better performance.
     1. Access the `flink_jm_8c32g` container and add `omni.batch: true` to the `flink-conf.yaml` file.
@@ -341,7 +404,7 @@ This section describes how to start a Flink cluster and enable OmniStream in Dat
         BROKER="IP_address:9092"  # IP address of the Kafka broker server
         MESSAGE_COUNT=10             # Number of sent messages
         
-        # Check whether **Kafka console-producer.sh** exists.
+        # Check whether kafka-console-producer.sh exists.
         if [ ! -f "$KAFKA_HOME/bin/kafka-console-producer.sh" ]; then
             echo "Error: kafka-console-producer.sh was not found. Check the KAFKA_HOME path."
             exit 1
@@ -349,11 +412,11 @@ This section describes how to start a Flink cluster and enable OmniStream in Dat
         
         # Generate a random character string and send it to Kafka.
         for ((i=1; i<=$MESSAGE_COUNT; i++)); do
-            # Generate four random letters (case-sensitive) + Space + 1.
+            # Generate four random letters (mixed case) + Space + 1.
             RAND_STR=$(cat /dev/urandom | tr -dc 'a-d' | fold -w 4 | head -n 1)
             MESSAGE="${RAND_STR} 1"  # Format: 4 letters + Space + 1
         
-        # Invoke the Kafka producer to send messages.
+        # Invoke the Kafka producer to send the message.
             echo "$MESSAGE" | "$KAFKA_HOME/bin/kafka-console-producer.sh" \
                 --bootstrap-server "$BROKER" \
                 --topic "$TOPIC_NAME"
@@ -624,7 +687,7 @@ This section describes how to start a Flink cluster and enable OmniStream in Dat
     ```
 
 12. View the sink topic data.
-  
+
     Consume Kafka data and check whether the job is running properly.
 
     ```bash
@@ -643,6 +706,42 @@ This section describes how to start a Flink cluster and enable OmniStream in Dat
     If no error information is displayed, OmniStream is enabled successfully.
 
     ![](figures/en-us_image_0000002518120980.png)
+
+**Creating and Restoring Checkpoints or Savepoints**
+
+In the DataStream scenario, follow the steps below to create and restore checkpoints or savepoints in standard format.
+
+1. Create checkpoints. Add the following configuration to the `/usr/local/flink/conf/flink-conf.yaml` file in the containers where the Job Manager and all Task Managers reside.
+
+    ```yaml
+    execution.checkpointing.interval: 10s
+    execution.checkpointing.mode: EXACTLY_ONCE
+    execution.checkpointing.storage: filesystem
+    state.checkpoints.dir: file:///path/to/checkpoints
+    state.savepoints.dir: file:///home/data/savepoint
+    execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
+    ```
+
+    `execution.checkpointing.interval` is used to configure the checkpoint creation interval. `execution.checkpointing.mode` is used to configure the checkpoint consistency mode, and the value `EXACTLY_ONCE` indicates exactly-once semantics. `execution.checkpointing.storage` is used to configure the checkpoint storage implementation, and the value `filesystem` indicates that checkpoints are persisted to the file system. `state.checkpoints.dir` is used to configure the checkpoint storage directory. `state.savepoints.dir` is used to configure the default savepoint storage directory, and `execution.checkpointing.externalized-checkpoint-retention` is used to configure whether to retain externalized checkpoints after the job is canceled. Replace `file:///path/to/checkpoints` with the actual checkpoint storage path.
+
+    After modifying the configuration, restart the Flink cluster and resubmit the job. Flink automatically creates checkpoints at the configured interval. You can view the storage path of completed checkpoints on the job details page of the Flink WebUI.
+
+2. Create savepoints. In the Flink `bin` directory of the flink\_jm\_8c32g container, query the job ID and create savepoints for the running job.
+
+    ```bash
+    ./flink list
+    ./flink savepoint --type <native|canonical> <jobId>
+    ```
+
+    `--type` is used to specify the savepoint format, which can be `native` or `canonical`. `native` indicates saving savepoints in the OmniStream native format, and `canonical` indicates saving savepoints in Flink standard format. Replace `<jobId>` with the actual job ID. Savepoints are saved to the directory specified by `state.savepoints.dir`. After the command is executed successfully, record the returned savepoint path.
+
+3. Restore checkpoints or savepoints. Use the `-s` parameter to specify the path for the checkpoints or savepoints to be restored, and resubmit the job.
+
+    ```bash
+    bin/flink run -s file:///path/to/checkpoint-or-savepoint -c com.huawei.boostkit.FlinkWordCount ziliao-1.0-SNAPSHOT-jar-with-dependencies.jar
+    ```
+
+    Replace `file:///path/to/checkpoint-or-savepoint` with the path to the completed checkpoints in step 1 or the savepoint path returned in step 2.
 
 ## Maintaining the Feature<a name="ZH-CN_TOPIC_0000002517961044"></a>
 
@@ -672,3 +771,7 @@ The following steps assume that the installation directories are `/opt/Dependenc
 3. Modify the `flink-conf.yaml` file in the `$FLINK_HOME/conf` directory to restore the default Flink configuration.
 
     Restore step 4 in [Installation Guide–Installing OmniStream](installation_guide.md) to its original state.
+
+| Release | Date | Description |
+| --- | --- | --- |
+| 01 | 2026-09-30 | This is the first official release. |

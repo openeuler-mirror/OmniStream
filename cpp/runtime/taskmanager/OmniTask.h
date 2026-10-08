@@ -84,6 +84,7 @@ public:
         long bufferAddress,
         int bufferLength,
         int readIndex,
+        int memorySegmentOffset,
         int sequenceNumber,
         bool isBuffer,
         int bufferType);

@@ -160,7 +160,10 @@ public:
 
     std::pair<uint8_t*, size_t> GetBytes() override
     {
-        NOT_IMPL_EXCEPTION;
+        if (objectSegment == nullptr) {
+            return {nullptr, 0};
+        }
+        return {objectSegment->getData(), objectSegment->getDataLength()};
     };
 
     [[nodiscard]] int EventType() const override
