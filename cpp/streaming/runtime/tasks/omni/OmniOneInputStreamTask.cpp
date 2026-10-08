@@ -37,6 +37,8 @@ OmniStreamTaskInput* OmniOneInputStreamTask::CreateTaskInput(std::shared_ptr<Che
     const std::vector<StreamEdgePOD>& edges = pod.getInStreamEdges();
     auto getPartitionerFunction = std::function<StreamPartitioner<IOReadableWritable>*(int)>(
         [this, edges](int i) { return this->createPartitionerFromDesc(edges[i], true); });
+    auto getSqlPartitionerFunction = std::function<StreamPartitionerV2<StreamRecord>*(int)>(
+        [this, edges](int i) { return this->createPartitionerFromDesc(edges[i].getPartitioner()); });
     // initialize TypeInformation and channelInfos
     if (taskType == 1) {
         // todo: fix it later
@@ -72,6 +74,7 @@ OmniStreamTaskInput* OmniOneInputStreamTask::CreateTaskInput(std::shared_ptr<Che
             channelInfoIndex,
             inputRescalingDescriptor,
             getPartitionerFunction,
+            getSqlPartitionerFunction,
             &taskConfiguration_);
     } else if (taskType == 2) {
         auto operatorPod = this->taskConfiguration_.getStreamConfigPOD().getOperatorDescription();
@@ -113,6 +116,7 @@ OmniStreamTaskInput* OmniOneInputStreamTask::CreateTaskInput(std::shared_ptr<Che
             channel_array,
             inputRescalingDescriptor,
             getPartitionerFunction,
+            getSqlPartitionerFunction,
             &taskConfiguration_);
     } else {
         THROW_LOGIC_EXCEPTION("Unknown taskType " + taskType);

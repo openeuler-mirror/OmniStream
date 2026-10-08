@@ -31,15 +31,18 @@ void OmniTwoInputStreamTask::init()
     }
     auto getPartitionerFunction = std::function<StreamPartitioner<IOReadableWritable>*(int)>(
         [&inEdges, this](const int i) { return this->createPartitionerFromDesc(inEdges[i], true); });
+    auto getSqlPartitionerFunction = std::function<StreamPartitionerV2<StreamRecord>*(int)>(
+        [&inEdges, this](const int i) { return this->createPartitionerFromDesc(inEdges[i].getPartitioner()); });
     auto description = nlohmann::json::parse(pod.getOperatorDescription().getDescription());
-    createInputProcessor(inputList1, inputList2, description, getPartitionerFunction);
+    createInputProcessor(inputList1, inputList2, description, getPartitionerFunction, getSqlPartitionerFunction);
 }
 
 void OmniTwoInputStreamTask::createInputProcessor(
     std::vector<std::shared_ptr<IndexedInputGate>> inputGates1,
     std::vector<std::shared_ptr<IndexedInputGate>> inputGates2,
     const json& description,
-    std::function<StreamPartitioner<IOReadableWritable>*(int)> getPartitionerFunction)
+    std::function<StreamPartitioner<IOReadableWritable>*(int)> getPartitionerFunction,
+    std::function<StreamPartitionerV2<StreamRecord>*(int)> getSqlPartitionerFunction)
 {
     std::vector<std::shared_ptr<OmniStreamTaskSourceInput>> emptySourceInputs;
     auto taskConfiguration = env_->taskConfiguration();
@@ -71,6 +74,7 @@ void OmniTwoInputStreamTask::createInputProcessor(
         description,
         inputRescalingDescriptor,
         getPartitionerFunction,
+        getSqlPartitionerFunction,
         &taskConfiguration);
 }
 

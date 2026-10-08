@@ -87,7 +87,8 @@ bool LocalInputChannel::IsNeedPersistence()
 
 void LocalInputChannel::AddInputData(long checkpointId, const omnistream::InputChannelInfo& info)
 {
-    return channelStatePersister->AddInputData(inflightBuffers_, checkpointId, info);
+    channelStatePersister->AddInputData(inflightBuffers_, checkpointId, info);
+    inflightBuffers_.clear();
 }
 void LocalInputChannel::SetChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter)
 {
@@ -241,6 +242,9 @@ std::optional<BufferAndAvailability> LocalInputChannel::getNextBuffer()
     int bufferLength = buffer->GetSize();
     if (bufferLength > IO_SIZE_512M) {
         INFO_RELEASE("Error: invalid buffer size:" << bufferLength);
+        buffer->RecycleBuffer();
+        delete buffer;
+        delete next;
         return std::nullopt;
     }
     insize += bufferLength;
@@ -297,6 +301,9 @@ std::optional<BufferAndAvailability> LocalInputChannel::getNextBuffer()
     int buffersInBacklog = next->getBuffersInBacklog();
     int sequenceNumber = next->getSequenceNumber();
     delete next;
+    // The buffer is now handed to the gate/operator. Track consumed bytes so
+    // channel selection can dynamically compensate for consumption skew.
+    outsize += static_cast<size_t>(bufferLength);
     return BufferAndAvailability{buffer, bufferDataType, buffersInBacklog, sequenceNumber};
 }
 
@@ -437,6 +444,11 @@ int LocalInputChannel::unsynchronizedGetNumberOfQueuedBuffers()
         return subpartitionView->unsynchronizedGetNumberOfQueuedBuffers();
     }
     return 0;
+}
+
+size_t LocalInputChannel::getConsumedBufferSize() const
+{
+    return outsize;
 }
 
 std::string LocalInputChannel::toString()

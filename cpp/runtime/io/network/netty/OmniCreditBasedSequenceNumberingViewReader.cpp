@@ -311,6 +311,8 @@ void OmniCreditBasedSequenceNumberingViewReader::SerializeVectorBatchBuffer(Vect
     int vectorBatchSize = vectorBatchBuffer->GetSize();
     auto offset = vectorBatchBuffer->GetOffset();
     auto bufferInfo = RequestNettyBuffer(bufferSize);
+    std::shared_ptr<DeepCopiedObjectBufferRecycler> objectBufferRecycler =
+        std::dynamic_pointer_cast<DeepCopiedObjectBufferRecycler>(vectorBatchBuffer->GetRecycler());
     for (int i = offset; i < vectorBatchSize + offset; i++) {
         StreamElement* streamElement = objectSegment->getObject(i);
         if (dynamic_cast<StreamRecord*>(streamElement)) {
@@ -325,8 +327,10 @@ void OmniCreditBasedSequenceNumberingViewReader::SerializeVectorBatchBuffer(Vect
             if (!bufferInfo) {
                 bufferInfo = RequestNettyBuffer(bufferSize);
             }
-            delete element;
-            delete streamRecord;
+            if (objectBufferRecycler == nullptr) {
+                delete element;
+                delete streamRecord;
+            }
         } else if (dynamic_cast<Watermark*>(streamElement)) {
             Watermark* watermark = static_cast<Watermark*>(streamElement);
             // Handle Watermark
@@ -335,7 +339,9 @@ void OmniCreditBasedSequenceNumberingViewReader::SerializeVectorBatchBuffer(Vect
                 // it means buffer is not enough
                 bufferInfo = RequestNettyBuffer(bufferSize);
             }
-            delete watermark;
+            if (objectBufferRecycler == nullptr) {
+                delete watermark;
+            }
         } else {
             THROW_RUNTIME_ERROR("Unsupported stream element type");
         }

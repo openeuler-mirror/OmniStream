@@ -20,11 +20,11 @@ extern "C" {
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_io_network_partition_RemoteDataFetcher
  * Method:    notifyRemoteDataAvailable
- * Signature: (JIIJIIIZI)V
+ * Signature: (JIIJIIIIZI)V
  */
 JNIEXPORT void JNICALL
 Java_com_huawei_omniruntime_flink_runtime_io_network_partition_RemoteDataFetcher_notifyRemoteDataAvailable(
-    JNIEnv*, jobject, jlong, jint, jint, jlong, jint, jint, jint, jboolean, jint);
+    JNIEnv*, jobject, jlong, jint, jint, jlong, jint, jint, jint, jint, jboolean, jint);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_io_network_partition_RemoteDataFetcher
