@@ -4,16 +4,19 @@
 #ifndef NETTY_BUFFER_INFO_H
 #define NETTY_BUFFER_INFO_H
 #include <cstdint>
+#include <memory>
 #include "core/include/common.h"
-
+#include "NettyMemorySegment.h"
 namespace omnistream {
 class NettyBufferInfo {
 public:
     static int elementNumBytes;
-    NettyBufferInfo(uint8_t* addr, int32_t sz);
+    NettyBufferInfo(std::shared_ptr<NettyMemorySegment> nettyMemorySegment);
+    NettyBufferInfo(uint8_t* buffer, int capacity);
     ~NettyBufferInfo();
-    uint8_t*& GetAddress();
+    uint8_t*& GetPosition();
     uint8_t* GetOriginalAddress();
+    uint8_t* GetDataAddress();
     int GetSize();
     bool operator==(const NettyBufferInfo& other) const;
     int GetWrittenBytes() const;
@@ -27,9 +30,11 @@ public:
 private:
     volatile int writtenBytes_ = 0;
     uint8_t* originalAddress_;
+    uint8_t* dataAddress_;
     volatile int size_;
-    uint8_t* address_;
+    uint8_t* position;
     volatile int elementNum = 0;
+    std::shared_ptr<NettyMemorySegment> nettyMemorySegment_;
 };
 } // namespace omnistream
 #endif // NETTY_BUFFER_INFO_H

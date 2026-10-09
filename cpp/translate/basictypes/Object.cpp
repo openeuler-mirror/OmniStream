@@ -48,29 +48,35 @@ Object::Object(const Object& obj)
 
 Object::Object(Object&& obj)
 {
-    this->refCount = obj.refCount;
+    this->refCount = obj.refCount.load(std::memory_order_relaxed);
     this->isClone = obj.isClone;
 }
 
 Object& Object::operator=(const Object& obj)
 {
-    this->refCount = obj.refCount;
+    this->refCount = obj.refCount.load(std::memory_order_relaxed);
     this->isClone = obj.isClone;
     return *this;
 }
 
 Object& Object::operator=(Object&& obj)
 {
-    this->refCount = obj.refCount;
+    this->refCount = obj.refCount.load(std::memory_order_relaxed);
     this->isClone = obj.isClone;
     return *this;
 }
 
 void Object::putRefCount()
 {
-    if (__builtin_expect(--refCount != 0, true)) {
+    // fetch_sub returns the value before the decrement, so "was not 1" means references remain.
+    // acq_rel pairs the release of this thread's writes with the acquire performed by whichever
+    // thread drops the count to zero, so the destructor sees a fully published object and cannot
+    // be reordered before the decrement.
+    if (__builtin_expect(refCount.fetch_sub(1, std::memory_order_acq_rel) != 1, true)) {
         return;
     }
+    // Requires the object to have been heap allocated. Stack- or static-allocated Objects must
+    // never reach putRefCount.
     delete this;
 }
 

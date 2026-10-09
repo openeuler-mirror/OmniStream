@@ -18,7 +18,8 @@
 
 namespace omnistream {
 OmniTaskExecutor::OmniTaskExecutor(std::shared_ptr<TaskManagerServices> taskManagerServices)
-    : taskManagerServices_(taskManagerServices)
+    : taskManagerServices_(taskManagerServices),
+      taskManagerMetricGroup_(std::make_shared<TaskManagerMetricGroup>())
 {
     // constructor
 }
@@ -59,5 +60,14 @@ OmniTask* OmniTaskExecutor::submitTaskWithCK(
     auto shuffleEnv = this->taskManagerServices_->getShuffleEnvironment();
     return new OmniTask(
         jobInfo, taskInfo, tdd, shuffleEnv, omni_task_bridge, TaskOperatorEventGatewayBridge, remoteDataFetcherBridge);
+}
+
+std::shared_ptr<TaskManagerMetricGroup> OmniTaskExecutor::GetTaskManagerMetricGroup() const
+{
+    return taskManagerMetricGroup_;
+}
+std::shared_ptr<TaskManagerServices> OmniTaskExecutor::GetTaskManagerService() const
+{
+    return taskManagerServices_;
 }
 } // namespace omnistream

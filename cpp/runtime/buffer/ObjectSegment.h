@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -24,20 +25,23 @@
 #include <vector/vector.h>
 
 #include "table/data/vectorbatch/VectorBatch.h"
+#include "basictypes/SizeAwareObject.h"
 #include "core/memory/Segment.h"
 
 namespace omnistream {
 class ObjectSegmentChannelStateSerde;
 
-class ObjectSegment : public Segment {
+class ObjectSegment : public Segment, public SizeAwareObject {
 public:
     explicit ObjectSegment(size_t size) : Segment(SegmentType::OBJECT_SEGMENT), size(size)
     {
         objects_ = new StreamElement*[size]();
+        countCreated();
     }
 
-    ~ObjectSegment()
+    ~ObjectSegment() override
     {
+        countDestroyed();
         delete[] objects_;
     }
 
@@ -46,6 +50,8 @@ public:
         LOG("objects address" << objects_[offset]);
         LOG("objects size()" << size);
         objects_[offset] = record;
+        countStored();
+        sizeInBytes_ += calculateStoredObjectSizeInBytes(record);
         return 1; // written size
     }
 
@@ -62,6 +68,8 @@ public:
         try {
             for (; copied < length; copied++) {
                 objects_[index + copied] = CloneObject(src->objects_[offset + copied]);
+                countStored();
+                sizeInBytes_ += calculateStoredObjectSizeInBytes(objects_[index + copied]);
             }
             ownsObjects_ = true;
         } catch (...) {
@@ -90,10 +98,19 @@ public:
         return objects_[offset];
     }
 
-    size_t getSize()
+    [[nodiscard]] size_t getSize() const
     {
         return size;
     }
+
+    [[nodiscard]] int64_t getObjectSizeInBytes() const override;
+    void reset();
+    int64_t getCapacity();
+    void setCapacity(int64_t capacity);
+
+    static int64_t calculateStoredObjectSizeInBytes(const StreamElement* record);
+    static void countDrained();
+    static void reportCounters(const char* where);
 
     void setData(uint8_t* bufferAddress, size_t bufferLength = 0)
     {
@@ -115,6 +132,8 @@ private:
     friend class ObjectSegmentChannelStateSerde;
 
     size_t size;
+    int64_t sizeInBytes_ = 0;
+    int64_t capacityInBytes_ = 0;
     bool ownsObjects_ = false;
 
     // These fields point to the immutable serialized payload owned by the Java network Buffer. The
@@ -129,6 +148,10 @@ private:
     //  it is actually a  StreamRecord * [size] , allocate mem in constructor, StreamRecord.value are VectorBatch *
     //  notice in order to get high performance, the data related object are using raw pointer
     StreamElement** objects_;
+
+    static void countCreated();
+    static void countDestroyed();
+    static void countStored();
 
     void ReleaseObjects(size_t offset, size_t length) noexcept
     {

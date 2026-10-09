@@ -14,7 +14,7 @@
 #include <mutex>
 #include <queue>
 #include <string>
-#include "NettyBufferPool.h"
+#include "LocalNettyBufferPool.h"
 #include "common.h"
 #include "streaming/runtime/streamrecord/StreamRecord.h"
 #include "streaming/api/watermark/Watermark.h"
@@ -44,7 +44,10 @@ struct LongEqual {
 class OmniCreditBasedSequenceNumberingViewReader : public BufferAvailabilityListener {
 public:
     OmniCreditBasedSequenceNumberingViewReader(
-        ResultPartitionIDPOD partitionId, int subPartitionIndex, long outputBufferStatus);
+        ResultPartitionIDPOD partitionId,
+        int subPartitionIndex,
+        long outputBufferStatus,
+        std::shared_ptr<LocalNettyBufferPool> localNettyBufferPool = nullptr);
     ~OmniCreditBasedSequenceNumberingViewReader() override;
     void notifyDataAvailable() override;
     void requestSubpartitionView(
@@ -55,7 +58,7 @@ public:
     void getNextBufferInternal();
     int getNextBuffer();
     void RecycleNettyBuffer(long address);
-    std::shared_ptr<NettyBufferInfo> RequestNettyBuffer(int expectedBufferSize);
+    std::shared_ptr<NettyMemorySegment> RequestNettyBuffer(int size);
     bool SerializeVectorBatch(VectorBatch* vectorBatch, std::shared_ptr<NettyBufferInfo>& bufferInfo);
     void DoSerializeVectorBatch(VectorBatch* vectorBatch, int vectorSize, std::shared_ptr<NettyBufferInfo>& bufferInfo);
     void AddNettyBufferInfoToQueue(std::shared_ptr<NettyBufferInfo>& bufferInfo);
@@ -66,6 +69,9 @@ public:
     void RecycleNetworkBuffer(int64_t address);
 
     void ResumeConsumption();
+    std::shared_ptr<NettyBufferInfo> CreateNettyBufferInfo();
+    void DestroyNettyBufferPool();
+    void releaseAllResources();
 
 private:
     std::atomic<bool> stopped_{false};
@@ -73,15 +79,14 @@ private:
     std::queue<std::shared_ptr<SerializedBatchInfo>> serializedBatchQueue;
     OutputBufferStatus* outputBufferStatus;
     std::recursive_mutex queueMutex;
+    // std::recursive_mutex nettyMemorySegmentMutex;
     int nextDataAvailable = 0;
-    std::unique_ptr<NettyBufferPool> nettyBufferPool;
-    int bufferPoolSize = 100;
-    // 32k
-    int bufferSize = 32 * 1024;
+
     std::recursive_mutex fetchingDataMutex;
-    int requestNextBufferWaitingTime = 10;
-    int noBufferPrintCount = 200;
-    std::unordered_map<int64_t, NetworkBuffer*> networkBufferPendingRecycling;
+    std::shared_ptr<LocalNettyBufferPool> localNettyBufferPool_;
+    int bufferSize = 0;
+    std::unordered_map<long, NetworkBuffer*> networkBufferPendingRecycling;
     std::recursive_mutex recycleNetworkBufferMutex;
+    std::shared_ptr<NettyMemorySegment> currentInUseNettyMemorySegment;
 };
 } // namespace omnistream

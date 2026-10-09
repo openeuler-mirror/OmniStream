@@ -17,6 +17,7 @@
 #include <future>
 #include <memory>
 #include <vector>
+#include <atomic>
 #include "AbstractKeyedStateBackend.h"
 #include "InternalKeyContext.h"
 #include "core/typeutils/TypeSerializer.h"
@@ -35,6 +36,7 @@
 #include "runtime/state/SnapshotExecutionType.h"
 #include "runtime/state/RocksDBFullSnapshotResources.h"
 #include "RegisteredKeyValueStateBackendMetaInfo.h"
+#include "runtime/metrics/groups/OperatorStateMetricGroup.h"
 #include "table/data/RowData.h"
 #include "table/runtime/operators/window/TimeWindow.h"
 #include "RocksDBConfigurableOptions.h"
@@ -81,6 +83,9 @@ public:
 
     ~RocksdbKeyedStateBackend() override
     {
+        if (auto* group = this->getOperatorStateMetricGroup()) {
+            group->ClearDataSizeSuppliers();
+        }
         RocksdbKeyedStateBackend<K>::dispose();
     };
 
@@ -288,11 +293,10 @@ public:
             }
             registeredKvStates.clear();
 
-            for (const auto& pair : createdKvState) {
-                auto* state = reinterpret_cast<State*>(pair.second);
+            for (State* state : createdStateObjects_) {
                 delete state;
-                state = nullptr;
             }
+            createdStateObjects_.clear();
             createdKvState.clear();
 
             db->Close();
@@ -343,6 +347,28 @@ public:
         THROW_LOGIC_EXCEPTION("RocksdbKeyedStateBackend failed to create priority queue.");
     }
 
+    // register the per-category RocksDB memory-estimate suppliers. Each reads a running
+    // atomic (sum of per-state memory accumulated in the create methods); the total is their sum. The
+    // VectorBatch suppliers are left null (RocksDB does not buffer VectorBatches in the State base ->
+    // those gauges read 0). The dtor clears them before teardown (the lambdas capture this).
+    void SetOperatorStateMetricGroup(omnistream::OperatorStateMetricGroup* group) override
+    {
+        this->operatorStateMetricGroup_ = group;
+        if (group != nullptr) {
+            group->SetDataSizeSuppliers(
+                {[this]() { return rocksdbValueStateMem_.load(std::memory_order_relaxed); },
+                 [this]() { return rocksdbMapStateMem_.load(std::memory_order_relaxed); },
+                 [this]() { return rocksdbListStateMem_.load(std::memory_order_relaxed); },
+                 nullptr,
+                 nullptr,
+                 [this]() {
+                     return rocksdbValueStateMem_.load(std::memory_order_relaxed) +
+                            rocksdbMapStateMem_.load(std::memory_order_relaxed) +
+                            rocksdbListStateMem_.load(std::memory_order_relaxed);
+                 }});
+        }
+    }
+
 private:
     int startGroup_;
     int endGroup_;
@@ -362,6 +388,13 @@ private:
     std::shared_ptr<TaskStateManagerBridge> bridge_;
     std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge_;
 
+    // running per-category RocksDB memory estimate (bytes). Written once per new state
+    // on the task thread (in the create methods, += the state's getStateMemoryBytes()); read on the
+    // metric-reporter thread via the suppliers above. Reporter-safe (atomic, no map traversal).
+    std::atomic<int64_t> rocksdbValueStateMem_{0};
+    std::atomic<int64_t> rocksdbMapStateMem_{0};
+    std::atomic<int64_t> rocksdbListStateMem_{0};
+
     template <typename N, typename S>
     RocksdbStateTable<K, N, S>* tryRegisterStateTable(TypeSerializer* namespaceSerializer, StateDescriptor* stateDesc);
 
@@ -372,6 +405,7 @@ private:
     emhash7::HashMap<std::string, std::tuple<uintptr_t, StateDescriptor*, BackendDataType>> registeredKvStates;
     // pointer to intervalKvState
     emhash7::HashMap<std::string, uintptr_t> createdKvState;
+    std::vector<State*> createdStateObjects_;
     // [FALCON] pointer to intervalKvState that enable falcon cache
     emhash7::HashMap<std::string, uintptr_t> falconKvState;
     // [FALCON] namespace and value type info of each falconKvState
@@ -584,19 +618,29 @@ RocksdbListState<K, N, V>* RocksdbKeyedStateBackend<K>::createOrUpdateInternalLi
 {
     RocksdbStateTable<K, N, V>* stateTable = tryRegisterStateTable<N, V>(namespaceSerializer, stateDesc);
     auto it = createdKvState.find(stateDesc->getName());
+    bool isNewState = (it == createdKvState.end());
     RocksdbListState<K, N, V>* createdState;
-    if (it == createdKvState.end()) {
+    if (isNewState) {
         createdState = RocksdbListState<K, N, V>::create(stateDesc, stateTable, this->getKeySerializer());
+        if (auto* g = this->getOperatorStateMetricGroup()) {
+            g->IncListStateCount();
+        }
     } else {
         createdState = RocksdbListState<K, N, V>::update(
             stateDesc, stateTable, reinterpret_cast<RocksdbListState<K, N, V>*>(it->second));
     }
     createdKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
+    if (isNewState) {
+        createdStateObjects_.push_back(static_cast<State*>(createdState));
+    }
     createdState->createTable(db, stateDesc->getName(), kvStateInformation_);
+    // accumulate this LIST state's memory estimate once (createTable just set it).
+    if (isNewState) {
+        rocksdbListStateMem_.fetch_add(stateTable->getStateMemoryBytes(), std::memory_order_relaxed);
+    }
     return createdState;
 }
 
-// 改这里！！！！！！！（讲道理这里往下都要改）
 template <typename K>
 template <typename N, typename S>
 RocksdbStateTable<K, N, S>* RocksdbKeyedStateBackend<K>::tryRegisterStateTable(
@@ -663,14 +707,21 @@ RocksdbValueState<K, N, V>* RocksdbKeyedStateBackend<K>::createOrUpdateInternalV
     // For Value state, S is the same as V
     RocksdbStateTable<K, N, V>* stateTable = tryRegisterStateTable<N, V>(namespaceSerializer, stateDesc);
     auto it = createdKvState.find(stateDesc->getName());
+    bool isNewState = (it == createdKvState.end());
     RocksdbValueState<K, N, V>* createdState;
-    if (it == createdKvState.end()) {
+    if (isNewState) {
         createdState = RocksdbValueState<K, N, V>::create(stateDesc, stateTable, this->getKeySerializer());
+        if (auto* g = this->getOperatorStateMetricGroup()) {
+            g->IncValueStateCount();
+        }
     } else {
         createdState = RocksdbValueState<K, N, V>::update(
             stateDesc, stateTable, reinterpret_cast<RocksdbValueState<K, N, V>*>(it->second));
     }
     createdKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
+    if (isNewState) {
+        createdStateObjects_.push_back(static_cast<State*>(createdState));
+    }
     createdState->createTable(db, stateDesc->getName(), kvStateInformation_);
 
     // [FALCON] -------------------------------------------------------------------------------------------
@@ -711,6 +762,10 @@ RocksdbValueState<K, N, V>* RocksdbKeyedStateBackend<K>::createOrUpdateInternalV
     }
     // [FALCON] -------------------------------------------------------------------------------------------
 
+    // accumulate this VALUE state's memory estimate once (createTable just set it).
+    if (isNewState) {
+        rocksdbValueStateMem_.fetch_add(stateTable->getStateMemoryBytes(), std::memory_order_relaxed);
+    }
     return createdState;
 }
 
@@ -722,16 +777,27 @@ RocksdbMapState<K, N, UK, UV>* RocksdbKeyedStateBackend<K>::createOrUpdateIntern
     RocksdbMapStateTable<K, N, UK, UV>* stateTable = tryRegisterMapStateTable<N, UK, UV>(
         namespaceSerializer, reinterpret_cast<MapStateDescriptor<UK, UV>*>(stateDesc));
     auto it = createdKvState.find(stateDesc->getName());
+    bool isNewState = (it == createdKvState.end());
     RocksdbMapState<K, N, UK, UV>* createdState;
-    if (it == createdKvState.end()) {
+    if (isNewState) {
         createdState = RocksdbMapState<K, N, UK, UV>::create(stateDesc, stateTable, this->getKeySerializer());
+        if (auto* g = this->getOperatorStateMetricGroup()) {
+            g->IncMapStateCount();
+        }
     } else {
         createdState = RocksdbMapState<K, N, UK, UV>::update(
             stateDesc, stateTable, reinterpret_cast<RocksdbMapState<K, N, UK, UV>*>(it->second));
     }
     createdKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
+    if (isNewState) {
+        createdStateObjects_.push_back(static_cast<State*>(createdState));
+    }
     createdState->createTable(db, stateDesc->getName(), kvStateInformation_);
     createdState->setMaxParallelism(maxParallelism_);
+    // accumulate this MAP state's memory estimate once (createTable just set it).
+    if (isNewState) {
+        rocksdbMapStateMem_.fetch_add(stateTable->getStateMemoryBytes(), std::memory_order_relaxed);
+    }
     return createdState;
 }
 

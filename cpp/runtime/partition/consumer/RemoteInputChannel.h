@@ -54,9 +54,9 @@ public:
         int bufferType);
 
     void SetRemoteDataFetcherBridge(std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge);
+    void releaseAllResources() override;
     void resumeConsumption() override;
     void TimeOutResumeConsumption() override;
-    void releaseAllResources() override;
     void CheckpointStarted(
         const CheckpointBarrier& barrier, std::shared_ptr<ChannelStateWriter> channelStateWriter) override;
     void CheckpointStopped(long checkpointId) override;

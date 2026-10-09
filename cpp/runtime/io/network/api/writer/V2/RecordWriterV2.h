@@ -31,7 +31,7 @@ public:
 
     void postConstruct();
 
-    virtual ~RecordWriterV2() = default;
+    virtual ~RecordWriterV2();
 
     std::shared_ptr<ResultPartitionWriter> getTargetPartition() const;
     int getNumberOfChannels() const;

@@ -44,6 +44,11 @@ public:
     bool operator==(const BigInteger& other) const;
     bool operator!=(const BigInteger& other) const;
 
+    int64_t sizeInBytes() const override
+    {
+        return static_cast<int64_t>(sizeof(BigInteger) + mag.size() * sizeof(int));
+    }
+
     std::vector<int> mag;
     int signum; // -1 for negative, 0 for zero, or 1 for positive.
 

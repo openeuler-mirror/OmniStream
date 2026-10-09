@@ -30,6 +30,10 @@ public:
 
     MapType* map_ = nullptr;
 
+    // Running sum of contained entries' (key->sizeInBytes() + value->sizeInBytes()),
+    // maintained incrementally on every controlled put/remove/clear (CORRECTION 10).
+    int64_t dataSize_ = 0;
+
     HashMap();
 
     HashMap(MapType* map);
@@ -83,6 +87,13 @@ public:
     typename MapType::Iterator end();
 
     Object* clone() override;
+
+    // O(1): dataSize_ is the running sum of entries' key+value sizeInBytes(),
+    // maintained incrementally on every controlled put/remove/clear (CORRECTION 10).
+    int64_t sizeInBytes() const override
+    {
+        return static_cast<int64_t>(sizeof(HashMap)) + dataSize_;
+    }
 
     class MapIterator : public java_util_Iterator {
     public:

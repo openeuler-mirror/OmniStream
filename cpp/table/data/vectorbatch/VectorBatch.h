@@ -82,6 +82,27 @@ public:
         rowKinds = nullptr;
     }
 
+    int32_t getSizeInBytes() const
+    {
+        return sizeInBytes_;
+    }
+
+    void Append(omniruntime::vec::BaseVector* vector)
+    {
+        omniruntime::vec::VectorBatch::Append(vector);
+        refreshSizeInBytes();
+    }
+
+    void ClearVectors()
+    {
+        omniruntime::vec::VectorBatch::ClearVectors();
+    }
+
+    void FreeAllVectors()
+    {
+        omniruntime::vec::VectorBatch::FreeAllVectors();
+    }
+
     RowData* extractRowData(int rowIndex);
 
     [[nodiscard]] std::vector<XXH128_hash_t> getXXH128s();
@@ -121,6 +142,7 @@ public:
         std::vector<std::string> inputFields) const;
 
     std::string TransformTime(int vectorID, int rowID, int precision = 3) const;
+    std::string TransformOnlyTime(int vectorID, int rowID, int precision = 3) const;
     std::string TransformTimeWithTimeZone(int vectorID, int rowID, const std::string& tzStr, int precision = 3) const;
     std::string transformDecimal128(
         int vectorID, int rowID, std::vector<std::pair<int32_t, int32_t>>& decimalInfo) const;
@@ -170,9 +192,11 @@ public:
     static std::string RemoveTrailingZeros(std::string num);
 
 private:
+    void refreshSizeInBytes();
     int64_t* timestamps;
     RowKind* rowKinds;
     int64_t maxTimestamp;
+    int32_t sizeInBytes_ = 0;
     bool normalizeAndValidatePath(std::string& filePath) const
     {
         // 1. 检查路径是否为空

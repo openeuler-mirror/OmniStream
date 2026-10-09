@@ -166,6 +166,7 @@ std::shared_ptr<AbstractEvent> EventSerializer::fromSerializedEvent(Buffer* buff
         LOG_DEBUG("find a cast error!");
         throw std::runtime_error("it is not netwokrk buffer, so it can not be converted to event.");
     }
+
     uint8_t* rawData = networkBuffer->getMemorySegment()->getData();
     ByteBuffer byteBuffer = ByteBuffer(rawData, networkBuffer->GetSize());
     int eventType = byteBuffer.getIntFromValue();
@@ -173,21 +174,18 @@ std::shared_ptr<AbstractEvent> EventSerializer::fromSerializedEvent(Buffer* buff
         if (recycleEvent) {
             buffer->RecycleBuffer();
         }
-        // delete buffer;
         return EndOfPartitionEvent::getInstance();
     } else if (eventType == END_OF_USER_RECORDS_EVENT) {
         auto stopMode = static_cast<StopMode>(byteBuffer.getByte());
         if (recycleEvent) {
             buffer->RecycleBuffer();
         }
-        // delete buffer;
         return std::make_shared<EndOfData>(stopMode);
     } else if (eventType == CHECKPOINT_BARRIER_EVENT) {
         std::shared_ptr<CheckpointBarrier> checkpointBarrier = DeserializeCheckpointBarrier(byteBuffer);
         if (recycleEvent) {
             buffer->RecycleBuffer();
         }
-        // delete buffer;
         return checkpointBarrier;
     } else if (eventType == ANNOUNCEMENT_EVENT) {
         int seq = byteBuffer.getIntFromValue();
@@ -225,7 +223,6 @@ std::shared_ptr<AbstractEvent> EventSerializer::fromSerializedEvent(Buffer* buff
         if (recycleEvent) {
             buffer->RecycleBuffer();
         }
-        // delete buffer;
         return InnerRecoverEvent::getInstance();
     } else {
         if (recycleEvent) {

@@ -12,6 +12,7 @@
 #ifndef OMNITASK_H
 #define OMNITASK_H
 #include <memory>
+#include <mutex>
 #include <executiongraph/JobInformationPOD.h>
 #include <executiongraph/TaskInformationPOD.h>
 #include <executiongraph/descriptor/TaskDeploymentDescriptorPOD.h>
@@ -19,9 +20,14 @@
 #include <state/bridge/TaskStateManagerBridge.h>
 #include <streaming/runtime/tasks/omni/OmniStreamTask.h>
 #include "runtime/executiongraph/descriptor/ResultPartitionIDPOD.h"
+#include "runtime/metrics/SizeGauge.h"
 #include "runtime/metrics/groups/TaskMetricGroup.h"
 #include "connector/kafka/bind_core_manager.h"
 #include <state/bridge/OmniTaskBridge.h>
+
+#include "io/network/netty/LocalNettyBufferPool.h"
+#include "metrics/groups/TaskLocalNettyBufferMetricGroup.h"
+#include "metrics/groups/VectorBatchBufferPoolMetricGroup.h"
 #include "state/bridge/TaskOperatorEventGatewayBridge.h"
 #include "runtime/buffer/OriginalNetworkBufferRecycler.h"
 #include "runtime/partition/consumer/OmniLocalChannelReader.h"
@@ -64,6 +70,9 @@ public:
      };
      */
 
+    // Logs entry and exit so the teardown can be confirmed to have actually run, not merely started.
+    ~OmniTask();
+
     [[nodiscard]] std::shared_ptr<RuntimeEnvironmentV2> getRuntimeEnv();
 
     // return ahd address of rawStreamTask
@@ -74,9 +83,15 @@ public:
 
     void cancel();
     ExecutionState getExecutionState();
-    static void setupPartitionsAndGates(
+    void setupPartitionsAndGates(
         std::vector<std::shared_ptr<ResultPartitionWriter>>& producedPartitions,
         std::vector<std::shared_ptr<SingleInputGate>>& inputGates);
+
+    /**
+     * Reports that this task's run loop has returned. May delete this task, so the caller must not
+     * touch it afterwards. Returns true when the task was deleted.
+     */
+    bool NotifyRunFinished();
 
     void notifyRemoteDataAvailable(
         int inputGateIndex,
@@ -133,6 +148,11 @@ public:
     int GetTaskType();
     long GetRecycleBufferAddress();
     std::shared_ptr<RemoteDataFetcherBridge> GetRemoteDataFetcherBridge();
+    void SetTaskLocalNettyBufferMetricGroup(
+        std::shared_ptr<TaskLocalNettyBufferMetricGroup> taskLocalNettyBufferMetricGroup);
+    void SetVectorBatchBufferPoolMetricGroup(
+        std::shared_ptr<VectorBatchBufferPoolMetricGroup> vectorBatchBufferPoolMetricGroup);
+    SizeGauge::SizeSupplier CreateLocalNettyBufferMetricSupplier(const std::string& metricName);
 
 private:
     std::atomic<bool> flag{false};
@@ -170,6 +190,12 @@ private:
     std::vector<std::unique_ptr<OmniCreditBasedSequenceNumberingViewReader>>
         omniCreditBasedSequenceNumberingViewReaders;
     std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge_ = nullptr;
+    std::vector<std::shared_ptr<LocalNettyBufferPool>> localNettyBufferPools;
+    // Guards localNettyBufferPools: push_back runs concurrently on multiple netty-server threads
+    // (one per partition request; 16 at parallelism 16), and the metric supplier iterates it.
+    std::mutex localNettyBufferPoolsMutex_;
+    std::shared_ptr<TaskLocalNettyBufferMetricGroup> taskLocalNettyBufferMetricGroup;
+    std::shared_ptr<VectorBatchBufferPoolMetricGroup> vectorBatchBufferPoolMetricGroup;
 };
 } // namespace omnistream
 #endif // OMNITASK_H

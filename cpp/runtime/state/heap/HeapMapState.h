@@ -85,6 +85,8 @@ public:
     {
         emhash7::HashMap<UK, UV>* userMap = stateTable->get(currentNamespace);
         if (userMap != nullptr) {
+            stateTable->liveNumElements_ -= static_cast<int64_t>(userMap->size());
+
             if constexpr (std::is_same_v<UK, Object*> && std::is_same_v<UV, Object*>) {
                 // Decrement refcounts for all Object* entries before the state table removes
                 // the owning HashMap pointer.
@@ -155,7 +157,11 @@ void HeapMapState<K, N, UK, UV>::updateOrCreate(
         stateTable->put(currentNamespace, userMap);
         LOG_PRINTF("created userMap at %p\n", userMap);
     }
+    // count a genuine insert via the container's pre/post size delta.
+    int64_t before = static_cast<int64_t>(userMap->size());
     userMap->updateOrCreate(key, defaultValue, transformFunc);
+    stateTable->liveNumElements_ += static_cast<int64_t>(userMap->size()) - before;
+    stateTable->refreshSampledWidthsIfNeeded(); // task-thread width sampling
 }
 
 template <typename K, typename N, typename UK, typename UV>
@@ -314,6 +320,7 @@ void HeapMapState<K, N, UK, UV>::clearVectorBatches(int64_t currentTimestamp)
          ++keyGroup) {
         auto nextSequenceNumber = this->getNextSequenceNumber(keyGroup);
         for (uint32_t sequenceNumber = 0; sequenceNumber < nextSequenceNumber; ++sequenceNumber) {
+            State::releaseVbStatistic(vectorBatchStateTable->get(sequenceNumber, keyGroup, nameSpace));
             vectorBatchStateTable->remove(sequenceNumber, keyGroup, nameSpace);
         }
     }
@@ -324,6 +331,7 @@ void HeapMapState<K, N, UK, UV>::clearVectorBatches(int32_t keyGroup, std::vecto
 {
     VoidNamespace nameSpace;
     for (auto sequenceNumber : sequenceNumbersToDelete) {
+        State::releaseVbStatistic(vectorBatchStateTable->get(sequenceNumber, keyGroup, nameSpace));
         vectorBatchStateTable->remove(sequenceNumber, keyGroup, nameSpace);
     }
 }
@@ -341,6 +349,7 @@ void HeapMapState<K, N, UK, UV>::addVectorBatch(int32_t keyGroup, omnistream::Ve
     auto sequenceNumber = vectorBatchStateTable->getNextSequenceNumber(keyGroup);
     vectorBatchStateTable->put(sequenceNumber, keyGroup, nameSpace, vectorBatch);
     vectorBatchStateTable->addNextSequenceNumber(keyGroup);
+    State::recordVbStatistic(vectorBatch);
 }
 
 template <typename K, typename N, typename UK, typename UV>
@@ -352,6 +361,7 @@ void HeapMapState<K, N, UK, UV>::addVectorBatches(
         auto nextSequenceNumber = vectorBatchStateTable->getNextSequenceNumber(keyGroup);
         vectorBatchStateTable->put(nextSequenceNumber, keyGroup, nameSpace, vectorBatch);
         vectorBatchStateTable->addNextSequenceNumber(keyGroup);
+        State::recordVbStatistic(vectorBatch);
     }
 }
 
@@ -409,7 +419,10 @@ void HeapMapState<K, N, UK, UV>::put(const UK& userKey, const UV& userValue)
         // Save this Map to stateTable
         stateTable->put(currentNamespace, userMap);
         LOG_PRINTF("userMap? %p put to stateTable %p\n", userMap, stateTable);
+        stateTable->liveNumElements_ += 1; // first element of a new container
     } else {
+        // a genuine insert grows size by 1; a replace leaves it unchanged.
+        int64_t before = static_cast<int64_t>(userMap->size());
         if constexpr (std::is_same_v<UK, Object*> && std::is_same_v<UV, Object*>) {
             // datastream: avoid userKey object memory freed.
             auto newKey = static_cast<Object*>(userKey);
@@ -430,7 +443,9 @@ void HeapMapState<K, N, UK, UV>::put(const UK& userKey, const UV& userValue)
             // sql
             (*userMap)[userKey] = userValue;
         }
+        stateTable->liveNumElements_ += static_cast<int64_t>(userMap->size()) - before;
     }
+    stateTable->refreshSampledWidthsIfNeeded(); // task-thread width sampling
 }
 
 template <typename K, typename N, typename UK, typename UV>
@@ -440,6 +455,7 @@ void HeapMapState<K, N, UK, UV>::remove(const UK& userKey)
     if (userMap == nullptr) {
         return;
     }
+    int64_t before = static_cast<int64_t>(userMap->size());
 
     if constexpr (std::is_same_v<UK, Object*> && std::is_same_v<UV, Object*>) {
         auto it = userMap->find(userKey);
@@ -457,6 +473,7 @@ void HeapMapState<K, N, UK, UV>::remove(const UK& userKey)
     } else {
         userMap->erase(userKey);
     }
+    stateTable->liveNumElements_ += static_cast<int64_t>(userMap->size()) - before;
 
     if (userMap->empty()) {
         clear();
@@ -527,3 +544,11 @@ HeapMapState<K, N, UK, UV>* HeapMapState<K, N, UK, UV>::update(
     existingState->vectorBatchStateTable = vectorBatchSideTable;
     return existingState;
 }
+
+// template<typename K, typename N, typename UK, typename UV>
+// void HeapMapState<K, N, UK, UV>::addVectorBatch(omnistream::VectorBatch *vectorBatch)
+// {
+//     // delegate to State::addVectorBatch so the running VectorBatch metric counters
+//     // (vbDataSize_/vbCount_) are maintained (this override otherwise duplicated the base push_back).
+//     State::addVectorBatch(vectorBatch);
+// }

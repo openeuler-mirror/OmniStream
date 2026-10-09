@@ -13,6 +13,7 @@
 #define NETWORKBUFFER_H
 
 #include <memory>
+#include <mutex>
 #include <stdexcept>
 #include <cstring>
 #include <cstdlib>
@@ -65,7 +66,6 @@ public:
         dataType = ObjectBufferDataType::EVENT_BUFFER;
     }
 
-    // delete in ReadOnlySlicedNetworkBuffer
     ~NetworkBuffer() override
     {
         if (segmentOwner) {

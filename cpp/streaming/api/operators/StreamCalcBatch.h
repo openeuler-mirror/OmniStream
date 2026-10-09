@@ -57,7 +57,11 @@ public:
     void initializeState(StreamTaskStateInitializerImpl* initializer, TypeSerializer* keySerializer) override
     {
         LOG("StreamCalc initializeState()");
-        // Do Nothing
+        // initializeState takes ownership of keySerializer: stateful operators hand it to
+        // AbstractKeyedStateBackend, whose destructor frees it. This operator is stateless and
+        // has no backend to hand it to, so it frees it here rather than dropping it. The chain
+        // allocates a fresh one per operator, so this is never shared. Null for non-SQL types.
+        delete keySerializer;
     }
 
     void ProcessWatermark(Watermark* watermark) override
@@ -106,11 +110,13 @@ private:
     nlohmann::json description_;
     bool isSimpleProjection_ = false;
     bool hasFilter = false;
-    TimestampedCollector* timestampedCollector_;
+    TimestampedCollector* timestampedCollector_ = nullptr;
     omniruntime::mem::AlignedBuffer<int32_t> selectedRowsBuffer;
     std::vector<omniruntime::expressions::Expr*> projExprs;
     omniruntime::expressions::Expr* filterCondition = nullptr;
-    omniruntime::codegen::ExpressionEvaluator* exprEvaluator;
+    // Only created when the operator is not a simple projection, and open() can throw before
+    // either is assigned -- so both must start null for the destructor to be safe.
+    omniruntime::codegen::ExpressionEvaluator* exprEvaluator = nullptr;
     std::unique_ptr<omniruntime::op::ExecutionContext> executionContext;
 };
 

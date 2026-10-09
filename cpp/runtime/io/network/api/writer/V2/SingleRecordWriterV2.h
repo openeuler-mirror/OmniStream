@@ -7,14 +7,22 @@
 
 #include "../include/common.h"
 #include "RecordWriterDelegateV2.h"
+
+#include <memory>
+
 namespace omnistream {
 class SingleRecordWriterV2 : public RecordWriterDelegateV2 {
 public:
+    // Takes ownership: the writer owns an OutputFlusher thread that is only stopped by
+    // ~OutputFlusher, so the writer must be destroyed with the delegate or the thread leaks.
     explicit SingleRecordWriterV2(RecordWriterV2* recordWriter);
 
     RecordWriterV2* getRecordWriter(int outputIndex) override;
 
-    ~SingleRecordWriterV2() override = default;
+    ~SingleRecordWriterV2() override
+    {
+        INFO_RELEASE("~SingleRecordWriterV2");
+    }
 
     void cancel() override;
     void close() override;
@@ -35,7 +43,7 @@ public:
     }
 
 private:
-    RecordWriterV2* recordWriter_;
+    std::unique_ptr<RecordWriterV2> recordWriter_;
 };
 } // namespace omnistream
 

@@ -28,6 +28,7 @@
 #include "BufferAvailabilityListener.h"
 #include "ResultSubpartitionView.h"
 #include "io/network/api/StopMode.h"
+#include "metrics/groups/TaskIOMetricGroup.h"
 
 namespace omnistream {
 
@@ -78,6 +79,9 @@ public:
         std::stringstream ss;
         ss << "ResultPartitionWriter";
         return ss.str();
+    }
+    virtual void SetMetricGroup(std::shared_ptr<AbstractMetricGroup> metricGroup)
+    {
     }
 };
 

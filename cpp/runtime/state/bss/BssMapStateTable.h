@@ -204,7 +204,8 @@ public:
         auto* buffer = bufferStorage.data();
         omnistream::SerializedBatchInfo serializedBatchInfo =
             omnistream::VectorBatchSerializationUtils::serializeVectorBatch(vectorBatch, batchSize, buffer);
-        ock::bss::BinaryData priVal(serializedBatchInfo.buffer, static_cast<uint32_t>(serializedBatchInfo.size));
+        ock::bss::BinaryData priVal(
+            serializedBatchInfo.dataAddress, static_cast<uint32_t>(serializedBatchInfo.dataSize));
 
         OutputBufferStatus outputBufferStatus1;
         keyOutputSerializer.setBackendBuffer(&outputBufferStatus1);

@@ -22,6 +22,7 @@
 #include "runtime/partition/ResultPartitionManager.h"
 #include "state/bridge/TaskOperatorEventGatewayBridge.h"
 #include "runtime/partition/consumer/RemoteDataFetcherBridge.h"
+#include "runtime/metrics/groups/TaskManagerMetricGroup.h"
 
 namespace omnistream {
 class OmniTaskExecutor {
@@ -44,8 +45,12 @@ public:
         std::shared_ptr<TaskOperatorEventGatewayBridge> TaskOperatorEventGatewayBridge,
         std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge);
 
+    std::shared_ptr<TaskManagerMetricGroup> GetTaskManagerMetricGroup() const;
+    std::shared_ptr<TaskManagerServices> GetTaskManagerService() const;
+
 private:
     std::shared_ptr<TaskManagerServices> taskManagerServices_;
+    std::shared_ptr<TaskManagerMetricGroup> taskManagerMetricGroup_;
 };
 } // namespace omnistream
 

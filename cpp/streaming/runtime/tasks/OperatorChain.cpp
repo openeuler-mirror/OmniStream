@@ -140,7 +140,10 @@ WatermarkGaugeExposingOutput* OperatorChainV2::createOperatorChain(
     auto operatorWrapper = new StreamOperatorWrapper(chainedOperator, false);
     allOperatorWrappers.emplace_back(operatorWrapper);
     auto laseDec = operatorConfig[1].getOperatorDescription();
-    return wrapOperatorIntoOutput(chainedOperator, laseDec);
+    // wrapOperatorIntoOutput hands back a raw new; the chain owns it for its own lifetime.
+    auto* chainedOutput = wrapOperatorIntoOutput(chainedOperator, laseDec);
+    ownedOutputs_.push_back(chainedOutput);
+    return chainedOutput;
 }
 
 WatermarkGaugeExposingOutput* OperatorChainV2::createDataStreamOperatorChain(
@@ -184,6 +187,8 @@ WatermarkGaugeExposingOutput* OperatorChainV2::createOutputCollector(
         auto chainedOpConfig = chainedConfigs[outputId];
         auto* pPod = new StreamConfigPOD[2]{chainedOpConfig, operatorConfig};
         auto output = createOperatorChain(streamTask, pPod, chainedConfigs, recordWriterOutputs, allOperatorWrappers);
+        // createOperatorChain only copies out of pPod, so the array is dead once it returns.
+        delete[] pPod;
         allOutputs.emplace_back(output);
     }
 
@@ -374,6 +379,13 @@ void OperatorChainV2::createChainOutputs(
         auto recordWriterOutput =
             createStreamOutput(recordWriterDelegate->getRecordWriter(i), *chainOutputType, nonChainedOutputs[index]);
         streamOutputs[i] = recordWriterOutput;
+        // getChainOutputType hands back a raw new that nobody owned. TypeInformation derives from
+        // Object, so release the reference rather than deleting: putRefCount frees it only if no
+        // one else took a reference. Only the serializer inside it is still needed --
+        // createStreamOutput passed that to the RecordWriterOutput, and neither ~TypeInformation
+        // nor ~InternalTypeInfo touches it.
+        chainOutputType->putRefCount();
+        chainOutputType = nullptr;
         const auto& nonChainedOutput = nonChainedOutputs[index];
         int key = static_cast<int>(std::hash<omnistream::NonChainedOutputPOD>{}(nonChainedOutput));
         recordWriterOutputs[key] = recordWriterOutput;
@@ -496,7 +508,7 @@ static TypeSerializer* tryCreateRowDataSerializerFromJson(const nlohmann::json& 
     ser = tryBuild("rightJoinKey", "rightInputTypes");
     if (ser) return ser;
 
-    INFO_RELEASE("OperatorChainV2: tryCreateRowDataSerializerFromJson — no matching keys found");
+    INFO_RELEASE("OperatorChainV2: tryCreateRowDataSerializerFromJson, no matching keys found");
     return nullptr;
 }
 
@@ -524,6 +536,9 @@ void OperatorChainV2::initializeStateAndOpenOperators(
         }
         index++;
         const OperatorPOD& operatorPod = streamConfigPOD->getOperatorDescription();
+        if (auto* named = dynamic_cast<NamedOperator*>(streamOperator)) {
+            named->SetOpName(operatorPod.getName());
+        }
         const nlohmann::json& description = nlohmann::json::parse(operatorPod.getDescription());
         int operatorType = operatorPod.getOperatorType();
         switch (operatorType) {

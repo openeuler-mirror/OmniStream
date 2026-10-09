@@ -11,6 +11,8 @@
 
 #ifndef VECTORBATCHBUFFER_H
 #define VECTORBATCHBUFFER_H
+#include <atomic>
+
 #include "ObjectBuffer.h"
 
 namespace omnistream {
@@ -24,6 +26,7 @@ public:
         event_type = -1;
         readerIndex_ = -1;
         isCompressed_ = false;
+        refCount_.store(1, std::memory_order_relaxed);
     }
 
     explicit VectorBatchBuffer(std::shared_ptr<ObjectSegment> segment, std::shared_ptr<BufferRecycler> recycler)
@@ -35,6 +38,7 @@ public:
         event_type = -1;
         readerIndex_ = -1;
         isCompressed_ = false;
+        refCount_.store(1, std::memory_order_relaxed);
     }
 
     explicit VectorBatchBuffer(int event_)
@@ -47,6 +51,7 @@ public:
         bufferType = 1;
         event_type = event_;
         currentSize = 1;
+        refCount_.store(1, std::memory_order_relaxed);
     }
 
     ~VectorBatchBuffer() override = default;
@@ -56,32 +61,26 @@ public:
         return bufferType == 0;
     }
 
-    void RecycleBuffer() override
+    void RecycleBuffer() override;
+
+    void RecycleBytes(int64_t bytes);
+
+    bool IsRecycled() const
     {
-        // data buffer has recyler, event buffer does not
-        if (recycler == nullptr) {
-            return;
-        }
-
-        int prev = refCount_.fetch_sub(1);
-        if (prev <= 0) {
-            THROW_LOGIC_EXCEPTION("VectorBatchBuffer::RecycleBuffer() prev <= 0");
-        }
-        if (prev != 1) {
-            return;
-        }
-
-        recycler->recycle(this->GetObjectSegment());
-        delete this;
+        return isRecycled_.load(std::memory_order_acquire);
     }
 
     Buffer* RetainBuffer() override
     {
-        int prev = refCount_.fetch_add(1);
-        if (prev <= 0) {
-            THROW_LOGIC_EXCEPTION("VectorBatchBuffer::RetainBuffer() prev <= 0");
+        LOG_TRACE("retain ");
+        int current = refCount_.load(std::memory_order_relaxed);
+        while (current > 0) {
+            if (refCount_.compare_exchange_weak(
+                    current, current + 1, std::memory_order_relaxed, std::memory_order_acquire)) {
+                return this;
+            }
         }
-        return this;
+        throw std::runtime_error("RetainBuffer on a released VectorBatchBuffer");
     }
 
     Buffer* ReadOnlySlice() override
@@ -145,7 +144,7 @@ public:
 
     int RefCount() const override
     {
-        return refCount_.load();
+        return refCount_.load(std::memory_order_relaxed);
     }
 
     std::string ToDebugString(bool includeHash) const override
@@ -176,9 +175,14 @@ public:
         return bufferType;
     }
 
+protected:
+    void recycleBuffer(bool selfDelete);
+
 private:
+    void recycleRemainingBytes();
+
     ObjectSegment* objectSegment;
-    std::shared_ptr<ObjectSegment> ownedSegment_; // 共享指针包装，保证ObjectSegment生命周期
+    std::shared_ptr<ObjectSegment> ownedSegment_;
     std::shared_ptr<BufferRecycler> recycler;
     // ObjectBufferDataType dataType;
     int bufferType; // 0 vectorbatch, 1. event  for now
@@ -188,9 +192,11 @@ private:
 
     int currentSize = 0;
     bool isCompressed_;
+    std::atomic<bool> isRecycled_{false};
     int readerIndex_;
 
-    std::atomic<int> refCount_ = 1;
+    std::atomic<int> refCount_{0};
+    std::atomic<int64_t> accountedBytes_{0};
 };
 
 } // namespace omnistream

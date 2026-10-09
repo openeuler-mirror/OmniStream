@@ -91,6 +91,7 @@ protected:
     };
 
     static const int UNKNOWN_CHANNEL = -1;
+    std::recursive_mutex memoryMutex;
     std::recursive_mutex availableSegmentsLock;
     std::deque<std::shared_ptr<BufferListener>> registeredListeners_;
     std::deque<Segment*> availableSegments;

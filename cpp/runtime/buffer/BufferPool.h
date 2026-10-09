@@ -14,6 +14,7 @@
 
 #include "BufferRecycler.h"
 #include "BufferProvider.h"
+#include "metrics/groups/AbstractMetricGroup.h"
 
 namespace omnistream {
 
@@ -30,11 +31,14 @@ public:
     virtual int getNumberOfAvailableSegments() = 0;
     virtual int bestEffortGetNumOfUsedBuffers() const = 0;
 
-    virtual Segment* requestSegment() = 0;
-    virtual Segment* requestSegment(int targetChannel) = 0;
+    virtual Segment* requestSegment() {};
+    virtual Segment* requestSegment(int targetChannel) {};
 
-    virtual Segment* requestSegmentBlocking() = 0;
-    virtual Segment* requestSegmentBlocking(int targetChannel) = 0;
+    virtual Segment* requestSegmentBlocking() {};
+    virtual Segment* requestSegmentBlocking(int targetChannel) {};
+    virtual void SetBufferPoolMetric(AbstractMetricGroup metricGroup)
+    {
+    }
 };
 } // namespace omnistream
 
