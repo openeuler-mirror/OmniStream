@@ -68,7 +68,7 @@ omnistream::SerializedBatchInfo omnistream::VectorBatchSerializationUtils::seria
             throw std::runtime_error("Encoding not supported");
         }
     }
-    return {original, original,batchSize};
+    return {original, original, batchSize};
 }
 
 void omnistream::VectorBatchSerializationUtils::serializeTimestampAndRowKinds(
@@ -145,8 +145,7 @@ int32_t omnistream::VectorBatchSerializationUtils::calculateVectorSerializableSi
     return totalSize;
 }
 
-int32_t omnistream::VectorBatchSerializationUtils::calculateVectorBatchPayloadSize(
-    omnistream::VectorBatch *vectorBatch)
+int32_t omnistream::VectorBatchSerializationUtils::calculateVectorBatchPayloadSize(omnistream::VectorBatch* vectorBatch)
 {
     int32_t vectorCount = vectorBatch->GetVectorCount();
     int32_t rowCnt = vectorBatch->GetRowCount();
@@ -155,14 +154,13 @@ int32_t omnistream::VectorBatchSerializationUtils::calculateVectorBatchPayloadSi
     int32_t totalSize = timestampsSize + rowKindsSize;
 
     for (int32_t i = 0; i < vectorCount; i++) {
-        BaseVector *columnVector = vectorBatch->Get(i);
+        BaseVector* columnVector = vectorBatch->Get(i);
         totalSize += calculateVectorSerializableSize(columnVector);
     }
     return totalSize;
 }
 
-
-int32_t omnistream::VectorBatchSerializationUtils::calculatePrimitiveDataSize(BaseVector *baseVector)
+int32_t omnistream::VectorBatchSerializationUtils::calculatePrimitiveDataSize(BaseVector* baseVector)
 {
     DataTypeId dataType = baseVector->GetTypeId();
     int32_t size = baseVector->GetSize();

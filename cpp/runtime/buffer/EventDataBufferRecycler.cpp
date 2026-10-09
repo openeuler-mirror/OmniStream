@@ -20,4 +20,4 @@ void EventDataBufferRecycler::recycle(Segment* segment)
         LOG_PART("EventDataBufferRecycler recycled " << memorySegment->getData());
     }
 }
-};
+}; // namespace omnistream

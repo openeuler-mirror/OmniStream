@@ -23,16 +23,17 @@ int GetInitialRegularBufferCount(int totalNumberOfBuffers)
 namespace omnistream {
 
 GlobalNettyBufferPool::GlobalNettyBufferPool(const NettyBufferConf& conf)
-    : conf_(conf), totalNumberOfBuffers_(conf.totalPoolSize)
+    : conf_(conf),
+      totalNumberOfBuffers_(conf.totalPoolSize)
 {
     const int initialRegularBufferCount = GetInitialRegularBufferCount(totalNumberOfBuffers_);
     for (int i = 0; i < initialRegularBufferCount; ++i) {
         availableBuffers_.push_back(allocateRegularBuffer());
     }
-    INFO_RELEASE("GlobalNettyBufferPool created: totalBuffers=" << totalNumberOfBuffers_
-        << ", initialAllocatedRegularBuffers=" << initialRegularBufferCount
-        << ", availableBuffers=" << availableBuffers_.size()
-        << ", bufferSize=" << conf_.bufferSize);
+    INFO_RELEASE(
+        "GlobalNettyBufferPool created: totalBuffers="
+        << totalNumberOfBuffers_ << ", initialAllocatedRegularBuffers=" << initialRegularBufferCount
+        << ", availableBuffers=" << availableBuffers_.size() << ", bufferSize=" << conf_.bufferSize);
 }
 
 GlobalNettyBufferPool::~GlobalNettyBufferPool()
@@ -108,15 +109,16 @@ std::shared_ptr<LocalNettyBufferPool> GlobalNettyBufferPool::createLocalPool(int
     std::lock_guard<std::recursive_mutex> lock(factoryLock_);
 
     int numOfRequiredBuffer = numOfSubPartition + 1;
-    int maxNumOfRequiredBuffer = numOfSubPartition * conf_.configuredBufferPerChannel + conf_.numOfFloatingBufferPerGate;
+    int maxNumOfRequiredBuffer =
+        numOfSubPartition * conf_.configuredBufferPerChannel + conf_.numOfFloatingBufferPerGate;
     if (isDestroyed_) {
         throw std::runtime_error("GlobalNettyBufferPool has already been destroyed.");
     }
 
     if (numTotalRequiredBuffers_ + numOfRequiredBuffer > totalNumberOfBuffers_) {
         throw std::runtime_error(
-            "Insufficient number of netty buffers: required " + std::to_string(numOfRequiredBuffer)
-            + ", but only " + std::to_string(totalNumberOfBuffers_ - numTotalRequiredBuffers_) + " available.");
+            "Insufficient number of netty buffers: required " + std::to_string(numOfRequiredBuffer) + ", but only " +
+            std::to_string(totalNumberOfBuffers_ - numTotalRequiredBuffers_) + " available.");
     }
 
     numTotalRequiredBuffers_ += numOfRequiredBuffer;
@@ -173,10 +175,10 @@ void GlobalNettyBufferPool::destroyLocalPool(std::shared_ptr<LocalNettyBufferPoo
             availableBufferCount = static_cast<int>(availableBuffers_.size());
             allocatedRegularBufferCount = allocatedRegularBufferCount_;
         }
-        INFO_RELEASE("GlobalNettyBufferPool all LocalNettyBufferPool destroyed"
-            << " createdLocalPoolCount=" << createdLocalPoolCount_
-            << " destroyedLocalBufferCount=" << destroyedLocalBufferCount_
-            << " totalNumberOfBuffers=" << totalNumberOfBuffers_
+        INFO_RELEASE(
+            "GlobalNettyBufferPool all LocalNettyBufferPool destroyed"
+            << " createdLocalPoolCount=" << createdLocalPoolCount_ << " destroyedLocalBufferCount="
+            << destroyedLocalBufferCount_ << " totalNumberOfBuffers=" << totalNumberOfBuffers_
             << " allocatedRegularBuffers=" << allocatedRegularBufferCount
             << " availableBuffers=" << availableBufferCount);
         destroyedLocalBufferCount_ = 0;
@@ -224,8 +226,8 @@ void GlobalNettyBufferPool::redistributeBuffers()
         }
 
         totalPartsUsed += std::min(numAvailable, excessMax);
-        int mySize = static_cast<int>(
-            static_cast<long>(toDistribute) * totalPartsUsed / totalCapacity - numDistributed);
+        int mySize =
+            static_cast<int>(static_cast<long>(toDistribute) * totalPartsUsed / totalCapacity - numDistributed);
         numDistributed += mySize;
 
         pool->setNumBuffers(pool->getNumberOfRequiredBuffers() + mySize);
@@ -259,14 +261,11 @@ int GlobalNettyBufferPool::getBufferSize() const
     return conf_.bufferSize;
 }
 
-GlobalNettyBufferMetricGroup::SizeSupplierFactory
-GlobalNettyBufferPool::CreateGlobalNettyBufferMetricSupplierFactory()
+GlobalNettyBufferMetricGroup::SizeSupplierFactory GlobalNettyBufferPool::CreateGlobalNettyBufferMetricSupplierFactory()
 {
     return [this](const std::string& metricName) -> SizeGauge::SizeSupplier {
         if (metricName == "totalNumberOfBuffers") {
-            return [this]() {
-                return getTotalBufferCount();
-            };
+            return [this]() { return getTotalBufferCount(); };
         }
         if (metricName == "allocatedRegularBufferCount") {
             return [this]() {
@@ -287,9 +286,7 @@ GlobalNettyBufferPool::CreateGlobalNettyBufferMetricSupplierFactory()
             };
         }
         if (metricName == "availableBuffers") {
-            return [this]() {
-                return getAvailableBufferCount();
-            };
+            return [this]() { return getAvailableBufferCount(); };
         }
 
         throw std::runtime_error("Unknown GlobalNettyBufferPool metric: " + metricName);

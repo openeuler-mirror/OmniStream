@@ -14,14 +14,17 @@ public:
     int configuredBufferPerChannel;
     int numOfFloatingBufferPerGate;
 
-    NettyBufferConf(int totalPoolSize = 1000,
-                    int bufferSize = 32 * 1024,
-                    int numRequiredBuffersPerPool = 2,
-                    int maxBuffersPerPool = 8)
+    NettyBufferConf(
+        int totalPoolSize = 1000,
+        int bufferSize = 32 * 1024,
+        int numRequiredBuffersPerPool = 2,
+        int maxBuffersPerPool = 8)
         : totalPoolSize(totalPoolSize),
           bufferSize(bufferSize),
           configuredBufferPerChannel(numRequiredBuffersPerPool),
-          numOfFloatingBufferPerGate(maxBuffersPerPool) {}
+          numOfFloatingBufferPerGate(maxBuffersPerPool)
+    {
+    }
 };
 
 } // namespace omnistream

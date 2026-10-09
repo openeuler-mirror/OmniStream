@@ -12,8 +12,9 @@ extern "C" {
  * Method:    addTaskExecutorGlobalNettyMetricGroup
  * Signature: (JJLjava/lang/String;[Ljava/lang/String;)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_groups_OmniTaskExecutorGlobalNettyMetricGroup_addTaskExecutorGlobalNettyMetricGroup
-  (JNIEnv *, jclass, jlong, jlong, jstring, jobjectArray);
+JNIEXPORT jlong JNICALL
+Java_com_huawei_omniruntime_flink_runtime_metrics_groups_OmniTaskExecutorGlobalNettyMetricGroup_addTaskExecutorGlobalNettyMetricGroup(
+    JNIEnv*, jclass, jlong, jlong, jstring, jobjectArray);
 
 #ifdef __cplusplus
 }

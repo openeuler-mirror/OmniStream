@@ -73,15 +73,12 @@ public:
     Buffer* RetainBuffer() override
     {
         LOG_TRACE("retain ");
-        int current  = refCount_.load(std::memory_order_relaxed);
-        while(current > 0){
-            if(refCount_.compare_exchange_weak(
-                current,
-                current+1,
-                std::memory_order_relaxed,
-                std::memory_order_acquire)){
+        int current = refCount_.load(std::memory_order_relaxed);
+        while (current > 0) {
+            if (refCount_.compare_exchange_weak(
+                    current, current + 1, std::memory_order_relaxed, std::memory_order_acquire)) {
                 return this;
-                }
+            }
         }
         throw std::runtime_error("RetainBuffer on a released VectorBatchBuffer");
     }
@@ -184,7 +181,7 @@ protected:
 private:
     void recycleRemainingBytes();
 
-    ObjectSegment *objectSegment;
+    ObjectSegment* objectSegment;
     std::shared_ptr<ObjectSegment> ownedSegment_;
     std::shared_ptr<BufferRecycler> recycler;
     // ObjectBufferDataType dataType;

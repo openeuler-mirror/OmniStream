@@ -24,7 +24,9 @@ public:
     // those channels outlive the task -- they are released only once drained. The destructor
     // therefore does not run at task teardown, so the reference has to be released explicitly or
     // the Java RemoteDataFetcher stays alive, and with it the input gate and the whole OmniTask.
-    virtual void ReleaseJavaRemoteDataFetcher() {}
+    virtual void ReleaseJavaRemoteDataFetcher()
+    {
+    }
 
     virtual void InitCppRemoteInputChannel(std::vector<std::shared_ptr<SingleInputGate>> inputGates);
 };

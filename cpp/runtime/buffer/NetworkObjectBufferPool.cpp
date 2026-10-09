@@ -22,9 +22,8 @@ namespace {
 
 int ToSizeGaugeValue(long value)
 {
-    return value > static_cast<long>(std::numeric_limits<int>::max())
-        ? std::numeric_limits<int>::max()
-        : static_cast<int>(value);
+    return value > static_cast<long>(std::numeric_limits<int>::max()) ? std::numeric_limits<int>::max()
+                                                                      : static_cast<int>(value);
 }
 
 } // namespace
@@ -32,17 +31,16 @@ int ToSizeGaugeValue(long value)
 namespace omnistream {
 
 NetworkObjectBufferPool::NetworkObjectBufferPool(
-    int numberOfSegmentsToAllocate,
-    int segmentSize,
-    std::chrono::milliseconds requestSegmentsTimeout)
+    int numberOfSegmentsToAllocate, int segmentSize, std::chrono::milliseconds requestSegmentsTimeout)
     : requestSegmentsTimeout(requestSegmentsTimeout),
       availabilityHelper(std::make_shared<AvailabilityHelper>())
 {
     if (requestSegmentsTimeout.count() <= 0) {
         throw std::invalid_argument("The timeout for requesting exclusive buffers should be positive.");
     }
-    LOG_INFO_IMP("numberOfSegmentsToAllocate: " << numberOfSegmentsToAllocate
-        << "  segmentSize  is  :" << segmentSize  << " requestSegmentsTimeout: " << requestSegmentsTimeout.count());
+    LOG_INFO_IMP(
+        "numberOfSegmentsToAllocate: " << numberOfSegmentsToAllocate << "  segmentSize  is  :" << segmentSize
+                                       << " requestSegmentsTimeout: " << requestSegmentsTimeout.count());
     objectSegmentSize = segmentSize;
 
     try {
@@ -63,8 +61,8 @@ NetworkObjectBufferPool::NetworkObjectBufferPool(
     availabilityHelper->resetAvailable();
 
     LOG("Allocated " << (((long)segmentSize * availableObjectSegments.size()) >> 20)
-                     << " MB for network buffer pool (number of memory segments:"
-                     << availableObjectSegments.size() << ", bytes per segment: " << segmentSize << ").\n");
+                     << " MB for network buffer pool (number of memory segments:" << availableObjectSegments.size()
+                     << ", bytes per segment: " << segmentSize << ").\n");
 }
 
 NetworkObjectBufferPool::~NetworkObjectBufferPool()
@@ -72,10 +70,9 @@ NetworkObjectBufferPool::~NetworkObjectBufferPool()
     availableObjectSegments.clear();
 }
 
-ObjectSegment * NetworkObjectBufferPool::requestPooledObjectSegment(uint64_t bytes)
+ObjectSegment* NetworkObjectBufferPool::requestPooledObjectSegment(uint64_t bytes)
 {
-    if (isDestroyed())
-    {
+    if (isDestroyed()) {
         throw std::runtime_error("Buffer pool is destroyed.");
     }
 
@@ -88,21 +85,19 @@ ObjectSegment * NetworkObjectBufferPool::requestPooledObjectSegment(uint64_t byt
     return segment;
 }
 
-ObjectSegment * NetworkObjectBufferPool::requestPooledObjectSegmentsBlocking(uint64_t bytes)
+ObjectSegment* NetworkObjectBufferPool::requestPooledObjectSegmentsBlocking(uint64_t bytes)
 {
     auto deadline = std::chrono::steady_clock::now() + requestSegmentsTimeout;
     auto segment = requestPooledObjectSegment(bytes);
     while (!segment) {
-
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         segment = requestPooledObjectSegment(bytes);
 
         if (std::chrono::steady_clock::now() >= deadline) {
             throw std::runtime_error(
-                "Timeout triggered when requesting exclusive buffers: " + getConfigDescription()
-                + ", or you may increase the timeout which is "
-                + std::to_string(requestSegmentsTimeout.count())
-                + "ms by setting the key 'NETWORK_EXCLUSIVE_BUFFERS_REQUEST_TIMEOUT_MILLISECONDS'.");
+                "Timeout triggered when requesting exclusive buffers: " + getConfigDescription() +
+                ", or you may increase the timeout which is " + std::to_string(requestSegmentsTimeout.count()) +
+                "ms by setting the key 'NETWORK_EXCLUSIVE_BUFFERS_REQUEST_TIMEOUT_MILLISECONDS'.");
         }
     }
     return segment;
@@ -136,13 +131,13 @@ ObjectSegment* NetworkObjectBufferPool::requestPureObjectSegment()
     return internalRequestObjectSegment();
 }
 
-ObjectSegment * NetworkObjectBufferPool::internalRequestObjectSegment()
+ObjectSegment* NetworkObjectBufferPool::internalRequestObjectSegment()
 {
     std::lock_guard<std::recursive_mutex> lock(availableObjSegMutex);
     LOG("availableObjectSegments size : " << std::to_string(availableObjectSegments.size()));
     LOG("availableObjectSegments.empty() : " << std::to_string(availableObjectSegments.empty()));
     if (availableObjectSegments.empty()) {
-        //create one
+        // create one
         return ObjectSegmentFactory::allocateUnpooledSegment(1);
     }
     auto segment = availableObjectSegments.front();
@@ -165,7 +160,6 @@ void NetworkObjectBufferPool::internalRecycleObjectSegments(const std::vector<Ob
         availableObjectSegments.push_back(segment);
     }
 }
-
 
 void NetworkObjectBufferPool::destroy()
 {
@@ -241,21 +235,17 @@ int NetworkObjectBufferPool::countBuffers()
     return buffers;
 }
 
-
-
 bool NetworkObjectBufferPool::requestMemory(uint64_t bytes)
 {
     std::lock_guard<std::recursive_mutex> lock(memoryMutex_);
     if (isDestroyed_) {
         return false;
     }
-    if (availableMemory==0)
-    {
+    if (availableMemory == 0) {
         availabilityHelper->resetUnavailable();
         return false;
     }
-    if (availableMemory < bytes)
-    {
+    if (availableMemory < bytes) {
         return false;
     }
     availableMemory -= bytes;
@@ -277,17 +267,14 @@ bool NetworkObjectBufferPool::requestMemoryBlocking(uint64_t bytes)
             usedMemory += bytes;
             return true;
         }
-        if (availableMemory == 0)
-        {
+        if (availableMemory == 0) {
             // what is the purpose of this
             availabilityHelper->resetUnavailable();
         }
         if (cv.wait_until(lock, deadline) == std::cv_status::timeout) {
             throw std::runtime_error(
-                "Timeout requesting memory (" + std::to_string(bytes) + " bytes): "
-                + getConfigDescription()
-                + ", or you may increase the timeout which is "
-                + std::to_string(requestSegmentsTimeout.count()) + "ms.");
+                "Timeout requesting memory (" + std::to_string(bytes) + " bytes): " + getConfigDescription() +
+                ", or you may increase the timeout which is " + std::to_string(requestSegmentsTimeout.count()) + "ms.");
         }
     }
 }
@@ -341,25 +328,20 @@ std::shared_ptr<BufferPool> NetworkObjectBufferPool::createBufferPool(int numReq
     return createBufferPool(numRequiredBuffers, maxUsedBuffers, 1, INT_MAX);
 }
 std::shared_ptr<BufferPool> NetworkObjectBufferPool::createBufferPool(
-    int numRequiredBuffers,
-    int maxUsedBuffers,
-    int numSubpartitions,
-    int maxBuffersPerChannel)
+    int numRequiredBuffers, int maxUsedBuffers, int numSubpartitions, int maxBuffersPerChannel)
 {
-    LOG_INFO_IMP("createBufferPool numRequiredBuffers : " << numRequiredBuffers
-        << " maxUsedBuffers: " << maxUsedBuffers << " numSubpartitions: " << numSubpartitions
-        << " maxBuffersPerChannel: " << maxBuffersPerChannel);
-    auto res = internalCreateObjectBufferPool(
-        numRequiredBuffers, maxUsedBuffers, numSubpartitions, maxBuffersPerChannel);
+    LOG_INFO_IMP(
+        "createBufferPool numRequiredBuffers : " << numRequiredBuffers << " maxUsedBuffers: " << maxUsedBuffers
+                                                 << " numSubpartitions: " << numSubpartitions
+                                                 << " maxBuffersPerChannel: " << maxBuffersPerChannel);
+    auto res =
+        internalCreateObjectBufferPool(numRequiredBuffers, maxUsedBuffers, numSubpartitions, maxBuffersPerChannel);
     LOG("createBufferPool end");
     return res;
 }
 
 std::shared_ptr<BufferPool> NetworkObjectBufferPool::internalCreateObjectBufferPool(
-    int numRequiredBuffers,
-    int maxUsedBuffers,
-    int numSubpartitions,
-    int maxBuffersPerChannel)
+    int numRequiredBuffers, int maxUsedBuffers, int numSubpartitions, int maxBuffersPerChannel)
 {
     LOG("try to get lock ....");
     std::lock_guard<std::recursive_mutex> lock(factoryLock);
@@ -367,18 +349,17 @@ std::shared_ptr<BufferPool> NetworkObjectBufferPool::internalCreateObjectBufferP
         throw std::runtime_error("Network buffer pool has already been destroyed.");
     }
     uint64_t requiredMemory = static_cast<uint64_t>(numRequiredBuffers) * objectSegmentSize;
-    LOG_PART("numTotalRequiredMemory=" << std::to_string(numTotalRequiredMemory)
-                                       << " totalMemory="
-                                       << std::to_string(totalMemory));
+    LOG_PART(
+        "numTotalRequiredMemory=" << std::to_string(numTotalRequiredMemory)
+                                  << " totalMemory=" << std::to_string(totalMemory));
 
     if (numTotalRequiredMemory + requiredMemory > totalMemory) {
-        throw std::runtime_error("Insufficient network buffer memory: required "
-            + std::to_string(requiredMemory) + " bytes, but only "
-            + std::to_string(totalMemory - numTotalRequiredMemory)
-            + " bytes available. " + getConfigDescription());
+        throw std::runtime_error(
+            "Insufficient network buffer memory: required " + std::to_string(requiredMemory) + " bytes, but only " +
+            std::to_string(totalMemory - numTotalRequiredMemory) + " bytes available. " + getConfigDescription());
     }
     numTotalRequiredMemory += requiredMemory;
-    //update availableMemory,usedMemory
+    // update availableMemory,usedMemory
     availableMemory -= requiredMemory;
     usedMemory += requiredMemory;
     LOG_PART("Before make shared new LocalObjectBufferPool");
@@ -422,13 +403,11 @@ void NetworkObjectBufferPool::tryRedistributeBuffers(uint64_t memoryToRequest)
     std::lock_guard<std::recursive_mutex> lock(factoryLock);
 
     LOG("numTotalRequiredMemory=" << std::to_string(numTotalRequiredMemory)
-                                  << " totalMemory="
-                                  << std::to_string(totalMemory));
+                                  << " totalMemory=" << std::to_string(totalMemory));
     if (numTotalRequiredMemory + memoryToRequest > totalMemory) {
         throw std::runtime_error(
-            "Insufficient network buffer memory: required " + std::to_string(memoryToRequest)
-            + " bytes, but only " + std::to_string(totalMemory - numTotalRequiredMemory)
-            + " bytes available. " + getConfigDescription());
+            "Insufficient network buffer memory: required " + std::to_string(memoryToRequest) + " bytes, but only " +
+            std::to_string(totalMemory - numTotalRequiredMemory) + " bytes available. " + getConfigDescription());
     }
     numTotalRequiredMemory += memoryToRequest;
 
@@ -481,11 +460,10 @@ void NetworkObjectBufferPool::redistributeBuffers()
 
 std::string NetworkObjectBufferPool::getConfigDescription()
 {
-    return "The total network buffer memory is currently set to " + std::to_string(totalMemory)
-        + " bytes (" + std::to_string(totalNumberOfObjectSegments) + " segments of "
-        + std::to_string(objectSegmentSize) + " bytes each). "
-        + "You can increase this by setting the configuration keys 'NETWORK_MEMORY_FRACTION', "
-        + "'NETWORK_MEMORY_MIN', and 'NETWORK_MEMORY_MAX'";
+    return "The total network buffer memory is currently set to " + std::to_string(totalMemory) + " bytes (" +
+           std::to_string(totalNumberOfObjectSegments) + " segments of " + std::to_string(objectSegmentSize) +
+           " bytes each). " + "You can increase this by setting the configuration keys 'NETWORK_MEMORY_FRACTION', " +
+           "'NETWORK_MEMORY_MIN', and 'NETWORK_MEMORY_MAX'";
 }
 
 std::string NetworkObjectBufferPool::toString() const
@@ -503,53 +481,35 @@ NetworkObjectBufferPool::CreateGlobalVectorBatchBufferMetricSupplierFactory()
 {
     return [this](const std::string& metricName) -> SizeGauge::SizeSupplier {
         if (metricName == "objectSegmentSize") {
-            return [this]() {
-                return getObjectSegmentSize();
-            };
+            return [this]() { return getObjectSegmentSize(); };
         }
         if (metricName == "totalNumberOfObjectSegments") {
-            return [this]() {
-                return getTotalNumberOfObjectSegments();
-            };
+            return [this]() { return getTotalNumberOfObjectSegments(); };
         }
         if (metricName == "totalMemory") {
-            return [this]() {
-                return ToSizeGaugeValue(getTotalMemory());
-            };
+            return [this]() { return ToSizeGaugeValue(getTotalMemory()); };
         }
         if (metricName == "availableObjectSegments") {
-            return [this]() {
-                return getNumberOfAvailableObjectSegments();
-            };
+            return [this]() { return getNumberOfAvailableObjectSegments(); };
         }
         if (metricName == "availableMemory") {
-            return [this]() {
-                return ToSizeGaugeValue(getAvailableMemory());
-            };
+            return [this]() { return ToSizeGaugeValue(getAvailableMemory()); };
         }
         if (metricName == "usedObjectSegments") {
-            return [this]() {
-                return getNumberOfUsedObjectSegments();
-            };
+            return [this]() { return getNumberOfUsedObjectSegments(); };
         }
         if (metricName == "usedMemory") {
-            return [this]() {
-                return ToSizeGaugeValue(getUsedMemory());
-            };
+            return [this]() { return ToSizeGaugeValue(getUsedMemory()); };
         }
         if (metricName == "registeredBufferPools") {
-            return [this]() {
-                return getNumberOfRegisteredBufferPools();
-            };
+            return [this]() { return getNumberOfRegisteredBufferPools(); };
         }
         if (metricName == "bufferCount") {
-            return [this]() {
-                return countBuffers();
-            };
+            return [this]() { return countBuffers(); };
         }
 
         throw std::runtime_error("Unknown NetworkObjectBufferPool metric: " + metricName);
     };
 }
 
-}  // namespace omnistream
+} // namespace omnistream

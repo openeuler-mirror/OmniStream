@@ -236,7 +236,7 @@ private:
 
     // Resolves the per-operator state metric group by the operator's own name (matches
     // OperatorPOD::getName()). The name is supplied by each operator via streamOperatorStateContext.
-    omnistream::OperatorStateMetricGroup *resolveOperatorStateMetricGroup(const std::string &operatorName)
+    omnistream::OperatorStateMetricGroup* resolveOperatorStateMetricGroup(const std::string& operatorName)
     {
         if (env == nullptr || operatorName.empty()) {
             return nullptr;
@@ -245,13 +245,11 @@ private:
         if (taskMetricGroup == nullptr) {
             return nullptr;
         }
-        return taskMetricGroup->GetTaskBackendStateMetricGroup()
-            ->GetOrCreateOperatorGroup(operatorName)
-            .get();
+        return taskMetricGroup->GetTaskBackendStateMetricGroup()->GetOrCreateOperatorGroup(operatorName).get();
     }
 
-    StateBackend *stateBackend;
-    omnistream::EnvironmentV2 *env;
+    StateBackend* stateBackend;
+    omnistream::EnvironmentV2* env;
 };
 
 inline std::vector<std::shared_ptr<KeyedStateHandle>> StreamTaskStateInitializerImpl::collectRawKeyedStateHandles(

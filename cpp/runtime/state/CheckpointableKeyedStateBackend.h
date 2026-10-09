@@ -20,7 +20,7 @@
 #include "KeyedStateHandle.h"
 #include <future>
 namespace omnistream {
-    class OperatorStateMetricGroup;
+class OperatorStateMetricGroup;
 }
 
 template <typename K>

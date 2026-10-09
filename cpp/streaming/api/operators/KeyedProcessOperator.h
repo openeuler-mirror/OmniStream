@@ -92,9 +92,7 @@ public:
         auto elementGuard = std::unique_ptr<StreamRecord>(element);
         LOG("KeyedProcessOperator processBatch running");
         this->userFunction->processBatch(
-            reinterpret_cast<omnistream::VectorBatch*>(element->getValue()),
-            *context,
-            *collector);
+            reinterpret_cast<omnistream::VectorBatch*>(element->getValue()), *context, *collector);
         LOG("KeyedProcessOperator processBatch end");
     }
 

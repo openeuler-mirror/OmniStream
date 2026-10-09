@@ -37,15 +37,16 @@
 #include "taskexecutor/OmniTaskExecutor.h"
 using namespace omnistream;
 
-
 // Updated common helper uses raw pointer for TaskMetricGroup
 template <typename T>
-static void registerMetric(AbstractMetricGroup* abstractMetricGroup, const std::string& scope, const std::string& metricNameStr,
-                           std::shared_ptr<T> metric)
+static void registerMetric(
+    AbstractMetricGroup* abstractMetricGroup,
+    const std::string& scope,
+    const std::string& metricNameStr,
+    std::shared_ptr<T> metric)
 {
     auto taskMetricGroup = dynamic_cast<TaskMetricGroup*>(abstractMetricGroup);
-    if (taskMetricGroup)
-    {
+    if (taskMetricGroup) {
         size_t pos = scope.find('_');
         std::string firstSubstring = (pos == std::string::npos) ? scope : scope.substr(0, pos);
         if (firstSubstring == "OmniTaskIOMetricGroup") {
@@ -57,16 +58,14 @@ static void registerMetric(AbstractMetricGroup* abstractMetricGroup, const std::
         } else {
             throw std::runtime_error("Unknown metric group: " + firstSubstring);
         }
-    }else
-    {
+    } else {
         abstractMetricGroup->AddMetric(metricNameStr, metric);
     }
-
 }
 
 JNIEXPORT jlong JNICALL
-Java_com_huawei_omniruntime_flink_runtime_metrics_utils_OmniMetricHelper_createNativeSimpleCounter
-(JNIEnv* jniEnv, jclass, jlong metricGroupRef, jstring scope, jstring metricName)
+Java_com_huawei_omniruntime_flink_runtime_metrics_utils_OmniMetricHelper_createNativeSimpleCounter(
+    JNIEnv* jniEnv, jclass, jlong metricGroupRef, jstring scope, jstring metricName)
 {
     auto abstractMetricGroup = reinterpret_cast<AbstractMetricGroup*>(metricGroupRef);
     // Convert scope parameter
@@ -89,8 +88,8 @@ Java_com_huawei_omniruntime_flink_runtime_metrics_utils_OmniMetricHelper_createN
     return reinterpret_cast<long>(counter.get());
 }
 
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_utils_OmniMetricHelper_createNativeTimeGauge
-(JNIEnv* jniEnv, jclass, jlong metricGroupRef, jstring scope, jstring metricName)
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_utils_OmniMetricHelper_createNativeTimeGauge(
+    JNIEnv* jniEnv, jclass, jlong metricGroupRef, jstring scope, jstring metricName)
 {
     auto abstractMetricGroup = reinterpret_cast<AbstractMetricGroup*>(metricGroupRef);
     // Convert scope parameter
@@ -113,8 +112,8 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_utils_
     return reinterpret_cast<long>(timerGauge.get());
 }
 
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_utils_OmniMetricHelper_createNativeSizeGauge
-(JNIEnv* jniEnv, jclass, jlong metricGroupRef, jstring scope, jstring metricName)
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_utils_OmniMetricHelper_createNativeSizeGauge(
+    JNIEnv* jniEnv, jclass, jlong metricGroupRef, jstring scope, jstring metricName)
 {
     auto abstractMetricGroup = reinterpret_cast<AbstractMetricGroup*>(metricGroupRef);
     // Convert scope parameter
@@ -139,8 +138,9 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_utils_
 
 // 64-bit counterpart of createNativeSizeGauge for byte-valued metrics (keyed-state
 // data sizes) that can exceed INT_MAX. Mirrors the SizeGauge path but creates a LongSizeGauge.
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_utils_OmniMetricHelper_createNativeLongSizeGauge
-(JNIEnv* jniEnv, jclass, jlong metricGroupRef, jstring scope, jstring metricName)
+JNIEXPORT jlong JNICALL
+Java_com_huawei_omniruntime_flink_runtime_metrics_utils_OmniMetricHelper_createNativeLongSizeGauge(
+    JNIEnv* jniEnv, jclass, jlong metricGroupRef, jstring scope, jstring metricName)
 {
     auto abstractMetricGroup = reinterpret_cast<AbstractMetricGroup*>(metricGroupRef);
     // Convert scope parameter
@@ -164,8 +164,8 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_utils_
 }
 
 JNIEXPORT jlong JNICALL
-Java_com_huawei_omniruntime_flink_runtime_metrics_utils_OmniMetricHelper_createNativeOmniDescriptiveStatisticsHistogram
-(JNIEnv* jniEnv, jclass, jlong metricGroupRef, jint windowSize, jstring scope, jstring metricName)
+Java_com_huawei_omniruntime_flink_runtime_metrics_utils_OmniMetricHelper_createNativeOmniDescriptiveStatisticsHistogram(
+    JNIEnv* jniEnv, jclass, jlong metricGroupRef, jint windowSize, jstring scope, jstring metricName)
 {
     auto abstractMetricGroup = reinterpret_cast<AbstractMetricGroup*>(metricGroupRef);
     // Convert scope parameter
@@ -208,8 +208,8 @@ JNIEXPORT jint JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniSiz
 }
 
 // 64-bit getter for LongSizeGauge-backed metrics.
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniLongSizeGauge_getNativeSize
-(JNIEnv*, jobject, jlong nativeLongSizeGauge)
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniLongSizeGauge_getNativeSize(
+    JNIEnv*, jobject, jlong nativeLongSizeGauge)
 {
     auto longSizeGauge = reinterpret_cast<LongSizeGauge*>(nativeLongSizeGauge);
     return longSizeGauge->GetValue();
@@ -305,9 +305,9 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniTi
     return timerGauge->GetMaxSingleMeasurement();
 }
 
-
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_groups_OmniTaskLocalNettyBufferMetricGroup_addLocalNettyBufferPoolMetricGroup
-  (JNIEnv* jniEnv, jclass, jlong parentGroupRef,jlong nativeTaskRef, jstring groupName, jobjectArray scopes)
+JNIEXPORT jlong JNICALL
+Java_com_huawei_omniruntime_flink_runtime_metrics_groups_OmniTaskLocalNettyBufferMetricGroup_addLocalNettyBufferPoolMetricGroup(
+    JNIEnv* jniEnv, jclass, jlong parentGroupRef, jlong nativeTaskRef, jstring groupName, jobjectArray scopes)
 {
     auto taskMetricGroup = reinterpret_cast<TaskMetricGroup*>(parentGroupRef);
     auto omniTask = reinterpret_cast<OmniTask*>(nativeTaskRef);
@@ -317,8 +317,8 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_groups
     }
     std::string groupNameStr(utf8String);
     jniEnv->ReleaseStringUTFChars(groupName, utf8String);
-    auto localNettyTaskMetricGroup = std::make_shared<TaskLocalNettyBufferMetricGroup>(
-        taskMetricGroup, [omniTask](const std::string& metricName) {
+    auto localNettyTaskMetricGroup =
+        std::make_shared<TaskLocalNettyBufferMetricGroup>(taskMetricGroup, [omniTask](const std::string& metricName) {
             return omniTask->CreateLocalNettyBufferMetricSupplier(metricName);
         });
     taskMetricGroup->addGroup(groupNameStr, localNettyTaskMetricGroup);
@@ -326,9 +326,9 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_groups
     return reinterpret_cast<long>(localNettyTaskMetricGroup.get());
 }
 
-
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_groups_VectorBatchBufferPoolMetricGroup_addVectorBatchBufferPoolMetricGroup
-(JNIEnv* jniEnv, jclass, jlong parentGroupRef,jlong nativeTaskRef, jstring groupName, jobjectArray scopes)
+JNIEXPORT jlong JNICALL
+Java_com_huawei_omniruntime_flink_runtime_metrics_groups_VectorBatchBufferPoolMetricGroup_addVectorBatchBufferPoolMetricGroup(
+    JNIEnv* jniEnv, jclass, jlong parentGroupRef, jlong nativeTaskRef, jstring groupName, jobjectArray scopes)
 {
     auto taskMetricGroup = reinterpret_cast<TaskMetricGroup*>(parentGroupRef);
     auto omniTask = reinterpret_cast<OmniTask*>(nativeTaskRef);
@@ -346,10 +346,9 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_groups
     return reinterpret_cast<long>(vectorBatchBufferPoolMetricGroup.get());
 }
 
-
-
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_groups_OmniTaskExecutorGlobalNettyMetricGroup_addTaskExecutorGlobalNettyMetricGroup
-(JNIEnv* jniEnv, jclass, jlong parentGroupRef,jlong nativeTaskExecutorRef, jstring groupName, jobjectArray scopes)
+JNIEXPORT jlong JNICALL
+Java_com_huawei_omniruntime_flink_runtime_metrics_groups_OmniTaskExecutorGlobalNettyMetricGroup_addTaskExecutorGlobalNettyMetricGroup(
+    JNIEnv* jniEnv, jclass, jlong parentGroupRef, jlong nativeTaskExecutorRef, jstring groupName, jobjectArray scopes)
 {
     auto taskManagerMetricGroup = reinterpret_cast<TaskManagerMetricGroup*>(parentGroupRef);
     auto omniTaskExecutor = reinterpret_cast<OmniTaskExecutor*>(nativeTaskExecutorRef);
@@ -362,14 +361,16 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_groups
     auto shuffleEnvironment = omniTaskExecutor->GetTaskManagerService()->getShuffleEnvironment();
     OmniShuffleEnvironment* omniShuffleEnvironment = static_cast<OmniShuffleEnvironment*>(shuffleEnvironment.get());
     auto globalNettyPool = omniShuffleEnvironment->getGlobalNettyBufferPool();
-    std::shared_ptr<GlobalNettyBufferMetricGroup> globalNettyBufferMetricGroup = std::make_shared<GlobalNettyBufferMetricGroup>(taskManagerMetricGroup,globalNettyPool->CreateGlobalNettyBufferMetricSupplierFactory());
+    std::shared_ptr<GlobalNettyBufferMetricGroup> globalNettyBufferMetricGroup =
+        std::make_shared<GlobalNettyBufferMetricGroup>(
+            taskManagerMetricGroup, globalNettyPool->CreateGlobalNettyBufferMetricSupplierFactory());
     taskManagerMetricGroup->addGroup(groupNameStr, globalNettyBufferMetricGroup);
     return reinterpret_cast<long>(globalNettyBufferMetricGroup.get());
 }
 
-
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_groups_OmniTaskExecutorGlobalVectorBatchMetricGroup_addTaskExecutorGlobalVectorBatchMetricGroup
-(JNIEnv* jniEnv, jclass, jlong parentGroupRef,jlong nativeTaskExecutorRef, jstring groupName, jobjectArray scopes)
+JNIEXPORT jlong JNICALL
+Java_com_huawei_omniruntime_flink_runtime_metrics_groups_OmniTaskExecutorGlobalVectorBatchMetricGroup_addTaskExecutorGlobalVectorBatchMetricGroup(
+    JNIEnv* jniEnv, jclass, jlong parentGroupRef, jlong nativeTaskExecutorRef, jstring groupName, jobjectArray scopes)
 {
     auto taskManagerMetricGroup = reinterpret_cast<TaskManagerMetricGroup*>(parentGroupRef);
     auto omniTaskExecutor = reinterpret_cast<OmniTaskExecutor*>(nativeTaskExecutorRef);
@@ -382,15 +383,16 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_groups
     auto shuffleEnvironment = omniTaskExecutor->GetTaskManagerService()->getShuffleEnvironment();
     OmniShuffleEnvironment* omniShuffleEnvironment = static_cast<OmniShuffleEnvironment*>(shuffleEnvironment.get());
     auto globalVectorBatchPool = omniShuffleEnvironment->getNetworkBufferPool();
-    std::shared_ptr<GlobalVectorBatchBufferMetricGroup> globalVectorBatchBufferMetricGroup = std::make_shared<GlobalVectorBatchBufferMetricGroup>(taskManagerMetricGroup,globalVectorBatchPool->CreateGlobalVectorBatchBufferMetricSupplierFactory());
+    std::shared_ptr<GlobalVectorBatchBufferMetricGroup> globalVectorBatchBufferMetricGroup =
+        std::make_shared<GlobalVectorBatchBufferMetricGroup>(
+            taskManagerMetricGroup, globalVectorBatchPool->CreateGlobalVectorBatchBufferMetricSupplierFactory());
     taskManagerMetricGroup->addGroup(groupNameStr, globalVectorBatchBufferMetricGroup);
     return reinterpret_cast<long>(globalVectorBatchBufferMetricGroup.get());
 }
 
-
-
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_groups_OmniOperatorStateMetricGroup_addOperatorStateMetricGroup
-  (JNIEnv* jniEnv, jclass, jlong parentGroupRef, jstring operatorName)
+JNIEXPORT jlong JNICALL
+Java_com_huawei_omniruntime_flink_runtime_metrics_groups_OmniOperatorStateMetricGroup_addOperatorStateMetricGroup(
+    JNIEnv* jniEnv, jclass, jlong parentGroupRef, jstring operatorName)
 {
     auto taskMetricGroup = reinterpret_cast<TaskMetricGroup*>(parentGroupRef);
     const char* utf8String = jniEnv->GetStringUTFChars(operatorName, nullptr);

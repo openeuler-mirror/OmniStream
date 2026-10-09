@@ -90,7 +90,8 @@ public:
     // Originally used to create an internal state, not necessary here
     uintptr_t createOrUpdateInternalState(TypeSerializer* namespaceSerializer, StateDescriptor* stateDesc) override;
 
-    ~HeapKeyedStateBackend() override {
+    ~HeapKeyedStateBackend() override
+    {
         if (auto* group = this->getOperatorStateMetricGroup()) {
             group->ClearDataSizeSuppliers();
         }
@@ -378,11 +379,16 @@ public:
                 auto keyId = desc->getKeyDataId();
                 auto valueId = desc->getValueDataId();
                 if (keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT64) {
-                    out.map += incrementalTableSize<emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int64_t>>*>(ptr);
-                } else if (keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT32_INT64) {
-                    out.map += incrementalTableSize<emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int32_t, int64_t>>*>(ptr);
-                } else if ((keyId == BackendDataType::OBJECT_BK || keyId == BackendDataType::POJO_BK) &&
-                           (valueId == BackendDataType::OBJECT_BK || valueId == BackendDataType::POJO_BK)) {
+                    out.map +=
+                        incrementalTableSize<emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int64_t>>*>(ptr);
+                } else if (
+                    keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT32_INT64) {
+                    out.map +=
+                        incrementalTableSize<emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int32_t, int64_t>>*>(
+                            ptr);
+                } else if (
+                    (keyId == BackendDataType::OBJECT_BK || keyId == BackendDataType::POJO_BK) &&
+                    (valueId == BackendDataType::OBJECT_BK || valueId == BackendDataType::POJO_BK)) {
                     out.map += incrementalTableSize<emhash7::HashMap<Object*, Object*>*>(ptr);
                 } else if (keyId == BackendDataType::VARCHAR_BK && valueId == BackendDataType::INT_BK) {
                     out.map += incrementalTableSize<emhash7::HashMap<std::string, int>*>(ptr);
@@ -390,8 +396,8 @@ public:
                     out.map += incrementalTableSize<emhash7::HashMap<int, int>*>(ptr);
                 } else if (keyId == BackendDataType::ROW_BK && valueId == BackendDataType::ROW_LIST_BK) {
                     out.map += incrementalTableSize<emhash7::HashMap<RowData*, std::vector<RowData*>*>*>(ptr);
-                }else if (keyId == BackendDataType::BIGINT_BK && valueId == BackendDataType::BIGINT_BK) {
-                    out.map += incrementalTableSize<emhash7::HashMap<long,long>*>(ptr);
+                } else if (keyId == BackendDataType::BIGINT_BK && valueId == BackendDataType::BIGINT_BK) {
+                    out.map += incrementalTableSize<emhash7::HashMap<long, long>*>(ptr);
                 }
             } else if (desc->getType() == StateDescriptor::Type::VALUE) {
                 auto dataId = desc->getBackendId();
@@ -399,7 +405,7 @@ public:
                     out.value += fixedValueTableSize<Object*>(ptr);
                 } else if (dataId == BackendDataType::INT_BK) {
                     out.value += fixedValueTableSize<int>(ptr);
-                }else if (dataId == BackendDataType::BIGINT_BK) {
+                } else if (dataId == BackendDataType::BIGINT_BK) {
                     out.value += fixedValueTableSize<long>(ptr);
                 } else if (dataId == BackendDataType::ROW_BK) {
                     out.value += fixedValueTableSize<RowData*>(ptr);
@@ -453,20 +459,20 @@ public:
     // supplier (reporter thread) invokes computeStateDataSizes()/computeVectorBatchSizes() through
     // these lambdas, which is reporter-thread safe (atomics + size() only). The dtor clears them
     // before teardown.
-    void SetOperatorStateMetricGroup(omnistream::OperatorStateMetricGroup *group) override
+    void SetOperatorStateMetricGroup(omnistream::OperatorStateMetricGroup* group) override
     {
         this->operatorStateMetricGroup_ = group;
         if (group != nullptr) {
-            group->SetDataSizeSuppliers({
-                [this]() { return computeStateDataSizes().value; },
-                [this]() { return computeStateDataSizes().map; },
-                [this]() { return computeStateDataSizes().list; },
-                [this]() { return computeVectorBatchSizes().bytes; },
-                [this]() { return computeVectorBatchSizes().count; },
-                [this]() {
-                    StateDataSizes d = computeStateDataSizes();
-                    return d.value + d.map + d.list + computeVectorBatchSizes().bytes;
-                }});
+            group->SetDataSizeSuppliers(
+                {[this]() { return computeStateDataSizes().value; },
+                 [this]() { return computeStateDataSizes().map; },
+                 [this]() { return computeStateDataSizes().list; },
+                 [this]() { return computeVectorBatchSizes().bytes; },
+                 [this]() { return computeVectorBatchSizes().count; },
+                 [this]() {
+                     StateDataSizes d = computeStateDataSizes();
+                     return d.value + d.map + d.list + computeVectorBatchSizes().bytes;
+                 }});
         }
     }
 
@@ -522,8 +528,8 @@ private:
         return st->incrementalDataSize();
     }
 
-    template<typename N, typename S>
-    StateTable<K, N, S> *tryRegisterStateTable(TypeSerializer *namespaceSerializer, StateDescriptor *stateDesc);
+    template <typename N, typename S>
+    StateTable<K, N, S>* tryRegisterStateTable(TypeSerializer* namespaceSerializer, StateDescriptor* stateDesc);
 
     StateTable<uint32_t, VoidNamespace, omnistream::VectorBatch*>* tryRegisterVectorBatchStateTable(
         StateDescriptor* stateDesc, KeyGroupRange* parentKeyGroupRange, int parentNumberOfKeyGroups);
@@ -559,7 +565,8 @@ private:
     // derived->base conversion, which applies the offset correctly. Guarded by
     // registeredKvStatesMutex_ (same as createdKvState).
     std::vector<State*> createdStateObjects_;
-    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>> registeredPQStates_;
+    std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<HeapPriorityQueueSnapshotRestoreWrapperBase>>>
+        registeredPQStates_;
     std::unordered_map<std::string, std::vector<PendingPriorityQueueEntry>> pendingRestoredPQEntries_;
     std::shared_ptr<HeapPriorityQueuesManager> priorityQueuesManager_;
     std::shared_ptr<omnistream::OmniTaskBridge> omniTaskBridge_;
@@ -758,9 +765,9 @@ HeapListState<K, N, V>* HeapKeyedStateBackend<K>::createOrUpdateInternalListStat
     bool isNewState = (it == createdKvState.end());
     HeapListState<K, N, V>* createdState;
     if (isNewState) {
-        createdState = HeapListState<K, N, V>::create(
-            stateDesc, stateTable, this->getKeySerializer(), vectorBatchStateTable);
-        if (auto *g = this->getOperatorStateMetricGroup()) {
+        createdState =
+            HeapListState<K, N, V>::create(stateDesc, stateTable, this->getKeySerializer(), vectorBatchStateTable);
+        if (auto* g = this->getOperatorStateMetricGroup()) {
             g->IncListStateCount();
         }
     } else {
@@ -773,7 +780,7 @@ HeapListState<K, N, V>* HeapKeyedStateBackend<K>::createOrUpdateInternalListStat
         std::lock_guard<std::mutex> lock(registeredKvStatesMutex_);
         createdKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
         if (isNewState) {
-            createdStateObjects_.push_back(createdState);  // implicit derived->State* (offset-correct)
+            createdStateObjects_.push_back(createdState); // implicit derived->State* (offset-correct)
         }
     }
     return createdState;
@@ -792,9 +799,9 @@ HeapValueState<K, N, V>* HeapKeyedStateBackend<K>::createOrUpdateInternalValueSt
     bool isNewState = (it == createdKvState.end());
     HeapValueState<K, N, V>* createdState;
     if (isNewState) {
-        createdState = HeapValueState<K, N, V>::create(
-            stateDesc, stateTable, this->getKeySerializer(), vectorBatchStateTable);
-        if (auto *g = this->getOperatorStateMetricGroup()) {
+        createdState =
+            HeapValueState<K, N, V>::create(stateDesc, stateTable, this->getKeySerializer(), vectorBatchStateTable);
+        if (auto* g = this->getOperatorStateMetricGroup()) {
             g->IncValueStateCount();
         }
     } else {
@@ -807,7 +814,7 @@ HeapValueState<K, N, V>* HeapKeyedStateBackend<K>::createOrUpdateInternalValueSt
         std::lock_guard<std::mutex> lock(registeredKvStatesMutex_);
         createdKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
         if (isNewState) {
-            createdStateObjects_.push_back(createdState);  // implicit derived->State* (offset-correct)
+            createdStateObjects_.push_back(createdState); // implicit derived->State* (offset-correct)
         }
     }
     return createdState;
@@ -826,9 +833,9 @@ HeapMapState<K, N, UK, UV>* HeapKeyedStateBackend<K>::createOrUpdateInternalMapS
     bool isNewState = (it == createdKvState.end());
     HeapMapState<K, N, UK, UV>* createdState;
     if (isNewState) {
-        createdState = HeapMapState<K, N, UK, UV>::create(
-            stateDesc, stateTable, this->getKeySerializer(), vectorBatchStateTable);
-        if (auto *g = this->getOperatorStateMetricGroup()) {
+        createdState =
+            HeapMapState<K, N, UK, UV>::create(stateDesc, stateTable, this->getKeySerializer(), vectorBatchStateTable);
+        if (auto* g = this->getOperatorStateMetricGroup()) {
             g->IncMapStateCount();
         }
     } else {
@@ -841,7 +848,7 @@ HeapMapState<K, N, UK, UV>* HeapKeyedStateBackend<K>::createOrUpdateInternalMapS
         std::lock_guard<std::mutex> lock(registeredKvStatesMutex_);
         createdKvState[stateDesc->getName()] = reinterpret_cast<uintptr_t>(createdState);
         if (isNewState) {
-            createdStateObjects_.push_back(createdState);  // implicit derived->State* (offset-correct)
+            createdStateObjects_.push_back(createdState); // implicit derived->State* (offset-correct)
         }
     }
     return createdState;

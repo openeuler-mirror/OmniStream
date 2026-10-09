@@ -351,21 +351,21 @@ public:
     // atomic (sum of per-state memory accumulated in the create methods); the total is their sum. The
     // VectorBatch suppliers are left null (RocksDB does not buffer VectorBatches in the State base ->
     // those gauges read 0). The dtor clears them before teardown (the lambdas capture this).
-    void SetOperatorStateMetricGroup(omnistream::OperatorStateMetricGroup *group) override
+    void SetOperatorStateMetricGroup(omnistream::OperatorStateMetricGroup* group) override
     {
         this->operatorStateMetricGroup_ = group;
         if (group != nullptr) {
-            group->SetDataSizeSuppliers({
-                [this]() { return rocksdbValueStateMem_.load(std::memory_order_relaxed); },
-                [this]() { return rocksdbMapStateMem_.load(std::memory_order_relaxed); },
-                [this]() { return rocksdbListStateMem_.load(std::memory_order_relaxed); },
-                nullptr,
-                nullptr,
-                [this]() {
-                    return rocksdbValueStateMem_.load(std::memory_order_relaxed)
-                         + rocksdbMapStateMem_.load(std::memory_order_relaxed)
-                         + rocksdbListStateMem_.load(std::memory_order_relaxed);
-                }});
+            group->SetDataSizeSuppliers(
+                {[this]() { return rocksdbValueStateMem_.load(std::memory_order_relaxed); },
+                 [this]() { return rocksdbMapStateMem_.load(std::memory_order_relaxed); },
+                 [this]() { return rocksdbListStateMem_.load(std::memory_order_relaxed); },
+                 nullptr,
+                 nullptr,
+                 [this]() {
+                     return rocksdbValueStateMem_.load(std::memory_order_relaxed) +
+                            rocksdbMapStateMem_.load(std::memory_order_relaxed) +
+                            rocksdbListStateMem_.load(std::memory_order_relaxed);
+                 }});
         }
     }
 
@@ -622,7 +622,7 @@ RocksdbListState<K, N, V>* RocksdbKeyedStateBackend<K>::createOrUpdateInternalLi
     RocksdbListState<K, N, V>* createdState;
     if (isNewState) {
         createdState = RocksdbListState<K, N, V>::create(stateDesc, stateTable, this->getKeySerializer());
-        if (auto *g = this->getOperatorStateMetricGroup()) {
+        if (auto* g = this->getOperatorStateMetricGroup()) {
             g->IncListStateCount();
         }
     } else {
@@ -708,10 +708,10 @@ RocksdbValueState<K, N, V>* RocksdbKeyedStateBackend<K>::createOrUpdateInternalV
     RocksdbStateTable<K, N, V>* stateTable = tryRegisterStateTable<N, V>(namespaceSerializer, stateDesc);
     auto it = createdKvState.find(stateDesc->getName());
     bool isNewState = (it == createdKvState.end());
-    RocksdbValueState<K, N, V> *createdState;
+    RocksdbValueState<K, N, V>* createdState;
     if (isNewState) {
         createdState = RocksdbValueState<K, N, V>::create(stateDesc, stateTable, this->getKeySerializer());
-        if (auto *g = this->getOperatorStateMetricGroup()) {
+        if (auto* g = this->getOperatorStateMetricGroup()) {
             g->IncValueStateCount();
         }
     } else {
@@ -778,10 +778,10 @@ RocksdbMapState<K, N, UK, UV>* RocksdbKeyedStateBackend<K>::createOrUpdateIntern
         namespaceSerializer, reinterpret_cast<MapStateDescriptor<UK, UV>*>(stateDesc));
     auto it = createdKvState.find(stateDesc->getName());
     bool isNewState = (it == createdKvState.end());
-    RocksdbMapState<K, N, UK, UV> *createdState;
+    RocksdbMapState<K, N, UK, UV>* createdState;
     if (isNewState) {
         createdState = RocksdbMapState<K, N, UK, UV>::create(stateDesc, stateTable, this->getKeySerializer());
-        if (auto *g = this->getOperatorStateMetricGroup()) {
+        if (auto* g = this->getOperatorStateMetricGroup()) {
             g->IncMapStateCount();
         }
     } else {

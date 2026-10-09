@@ -1,11 +1,10 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  */
 #include "TaskManagerMetricGroup.h"
 
 namespace omnistream {
-    TaskManagerMetricGroup::TaskManagerMetricGroup(AbstractMetricGroup* parent)
-        : AbstractMetricGroup(parent)
-    {
-    }
+TaskManagerMetricGroup::TaskManagerMetricGroup(AbstractMetricGroup* parent) : AbstractMetricGroup(parent)
+{
 }
+} // namespace omnistream

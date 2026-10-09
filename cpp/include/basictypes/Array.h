@@ -79,7 +79,10 @@ public:
     }
 
     Array(Array&& other) noexcept
-        : length(other.length), data_(other.data_), capacity_(other.capacity_), dataSize_(other.dataSize_)
+        : length(other.length),
+          data_(other.data_),
+          capacity_(other.capacity_),
+          dataSize_(other.dataSize_)
     {
         other.data_ = nullptr;
         other.length = other.capacity_ = 0;
@@ -252,7 +255,7 @@ public:
         if (length >= capacity_) {
             reserve(capacity_ == 0 ? 2 : capacity_ * EXPAND_SIZE);
         }
-        new(data_ + length) T(std::forward<Args>(args)...);
+        new (data_ + length) T(std::forward<Args>(args)...);
         dataSize_ += data_[length] ? data_[length]->sizeInBytes() : 0;
         return data_[length++];
     }

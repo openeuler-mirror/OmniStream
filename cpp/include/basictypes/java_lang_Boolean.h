@@ -28,7 +28,7 @@ public:
 
     Object* clone() override;
     bool value;
-    void setValue(const std::string &basicString) override;
+    void setValue(const std::string& basicString) override;
 
     int64_t sizeInBytes() const override
     {

@@ -10,8 +10,7 @@
 #include "VectorBatchBuffer.h"
 
 namespace omnistream {
-class ReadOnlySlicedVectorBatchBuffer : public VectorBatchBuffer
-{
+class ReadOnlySlicedVectorBatchBuffer : public VectorBatchBuffer {
 public:
     ReadOnlySlicedVectorBatchBuffer(VectorBatchBuffer* parent, int index, int length)
         : VectorBatchBuffer(parent->GetObjectSegment(), parent->GetRecycler()),

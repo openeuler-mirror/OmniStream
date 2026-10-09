@@ -24,25 +24,25 @@ public:
     long GetCount() const;
     bool IsMeasuring() const;
 
-    private:
-        static constexpr int DEFAULT_TIME_SPAN_IN_SECONDS = 60;
-        static constexpr int UPDATE_INTERVAL_SECONDS = 5;
+private:
+    static constexpr int DEFAULT_TIME_SPAN_IN_SECONDS = 60;
+    static constexpr int UPDATE_INTERVAL_SECONDS = 5;
 
-        void UpdateCurrentValue();
+    void UpdateCurrentValue();
 
-        Clock* clock;
-        int timeSpanInSeconds;
-        std::vector<long> values;
-        size_t idx;
-        bool fullWindow;
-        long currentValue;
-        long currentCount;
-        long currentMeasurementStartTS;
-        long currentUpdateTS;
-        long previousMaxSingleMeasurement;
-        long currentMaxSingleMeasurement;
-        long accumulatedCount;
-        mutable std::mutex mtx;
-    };
+    Clock* clock;
+    int timeSpanInSeconds;
+    std::vector<long> values;
+    size_t idx;
+    bool fullWindow;
+    long currentValue;
+    long currentCount;
+    long currentMeasurementStartTS;
+    long currentUpdateTS;
+    long previousMaxSingleMeasurement;
+    long currentMaxSingleMeasurement;
+    long accumulatedCount;
+    mutable std::mutex mtx;
+};
 } // namespace omnistream
 #endif // TIMER_GAUGE_H

@@ -12,8 +12,8 @@ extern "C" {
  * Method:    getNativeSize
  * Signature: (J)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniLongSizeGauge_getNativeSize
-  (JNIEnv *, jobject, jlong);
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_OmniLongSizeGauge_getNativeSize(
+    JNIEnv*, jobject, jlong);
 
 #ifdef __cplusplus
 }

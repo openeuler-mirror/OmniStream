@@ -84,8 +84,8 @@ private:
     std::unordered_map<ResultPartitionIDPOD, OmniTask*> partitionToOwningTask_;
     std::unordered_map<OmniTask*, int> unconsumedPartitionsPerTask_;
     // Tasks waiting on the other half of the deletion condition.
-    std::unordered_set<OmniTask*> tasksAwaitingRunFinish_;  // all partitions consumed, still running
-    std::unordered_set<OmniTask*> finishedTasks_;           // run loop returned, still being consumed
+    std::unordered_set<OmniTask*> tasksAwaitingRunFinish_; // all partitions consumed, still running
+    std::unordered_set<OmniTask*> finishedTasks_;          // run loop returned, still being consumed
     // Accounting so a leak shows up as a mismatch at shutdown rather than needing log arithmetic.
     long boundTaskCount_ = 0;
     long deletedTaskCount_ = 0;

@@ -31,9 +31,7 @@ class GlobalNettyBufferPool;
  */
 class LocalNettyBufferPool : public std::enable_shared_from_this<LocalNettyBufferPool> {
 public:
-    LocalNettyBufferPool(GlobalNettyBufferPool* globalPool,
-                         int numberOfRequiredBuffers,
-                         int maxNumberOfBuffers);
+    LocalNettyBufferPool(GlobalNettyBufferPool* globalPool, int numberOfRequiredBuffers, int maxNumberOfBuffers);
     ~LocalNettyBufferPool();
 
     // --- Main API ---
@@ -91,10 +89,10 @@ private:
     int recycleBigBufferCount_ = 0;
 
     // Big buffer memory management (managed entirely in local pool)
-    int64_t bigTotalMemorySize_;           // = maxNumberOfBuffers * bufferSize
-    int64_t availableBigMemorySize_;       // starts at bigTotalMemorySize_, decremented per request
-    int activeBigBufferCount_ = 0;         // number of currently alive big buffers
-    std::condition_variable_any bigCv_;    // for blocking when big memory exhausted
+    int64_t bigTotalMemorySize_;        // = maxNumberOfBuffers * bufferSize
+    int64_t availableBigMemorySize_;    // starts at bigTotalMemorySize_, decremented per request
+    int activeBigBufferCount_ = 0;      // number of currently alive big buffers
+    std::condition_variable_any bigCv_; // for blocking when big memory exhausted
     // Address → size mapping for big buffer recycle
     std::unordered_map<long, int64_t> bigBufferSizes_;
 

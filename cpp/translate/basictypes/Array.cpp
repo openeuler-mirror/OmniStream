@@ -24,11 +24,9 @@ void Array::set(int index, Object* obj)
         throw std::out_of_range("Index out of range[set]");
     }
     dataSize_ -= data_[index] ? data_[index]->sizeInBytes() : 0;
-    if (data_[index])
-        data_[index]->putRefCount();
+    if (data_[index]) data_[index]->putRefCount();
     data_[index] = obj;
-    if (obj)
-        ((Object *)obj)->getRefCount();
+    if (obj) ((Object*)obj)->getRefCount();
     dataSize_ += obj ? obj->sizeInBytes() : 0;
 }
 

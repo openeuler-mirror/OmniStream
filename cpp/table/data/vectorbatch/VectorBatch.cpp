@@ -225,20 +225,20 @@ std::string VectorBatch::TransformTime(int vectorID, int rowID, int precision) c
 
 std::string VectorBatch::TransformOnlyTime(int vectorID, int rowID, int precision) const
 {
-    auto millis = reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(vectors[vectorID])->GetValue(rowID);
+    auto millis = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(vectors[vectorID])->GetValue(rowID);
     int64_t totalSeconds = millis / 1000;
     int milliseconds = millis % 1000;
     if (milliseconds < 0) {
-        milliseconds += 1000; //保证毫秒非负数
+        milliseconds += 1000; // 保证毫秒非负数
         totalSeconds -= 1;
     }
-    int hours = totalSeconds / 3600; //取出小时数、分钟数和秒数
+    int hours = totalSeconds / 3600; // 取出小时数、分钟数和秒数
     int minutes = (totalSeconds % 3600) / 60;
     int seconds = totalSeconds % 60;
 
     // 检测越界值（hours >= 24 会产生非法的 "24:00:00.000" 及以上输出）
     while (hours >= 24) {
-        hours -= 24; //将hour限定在0-23之间
+        hours -= 24; // 将hour限定在0-23之间
     }
 
     char buf[32];
@@ -249,18 +249,16 @@ std::string VectorBatch::TransformOnlyTime(int vectorID, int rowID, int precisio
 
     if (precision <= 3) {
         // precision <= 3时，补齐到3位（毫秒精度）
-        oss << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
+        oss << std::setw(3) << std::setfill('0') // 强制3位宽度，不足补零
             << milliseconds;
     } else if (precision <= 9) {
         // 3 < precision <= 9时，输出毫秒部分并补0到precision位数
-        oss << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
-            << milliseconds
-            << std::string(precision - 3, '0');
+        oss << std::setw(3) << std::setfill('0') // 强制3位宽度，不足补零
+            << milliseconds << std::string(precision - 3, '0');
     } else {
         // precision > 9时，截断到9位
-        oss << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
-            << milliseconds
-            << std::string(6, '0');  // 补0到9位
+        oss << std::setw(3) << std::setfill('0')    // 强制3位宽度，不足补零
+            << milliseconds << std::string(6, '0'); // 补0到9位
     }
 
     std::string result = oss.str();
@@ -361,7 +359,7 @@ void VectorBatch::WriteToFileInternal(
             break;
         case omniruntime::type::DataTypeId::OMNI_BOOLEAN:
             file << std::boolalpha
-                << reinterpret_cast<omniruntime::vec::Vector<bool>*>(vectors[vectorID])->GetValue(rowID);
+                 << reinterpret_cast<omniruntime::vec::Vector<bool>*>(vectors[vectorID])->GetValue(rowID);
             break;
         case omniruntime::type::DataTypeId::OMNI_DECIMAL64: {
             auto valueStr = transformDecimal64(vectorID, rowID, decimalInfo);
@@ -436,7 +434,7 @@ void VectorBatch::convertToJson(
                 if (inputTypes[colIndex].substr(0, 9) == "TIMESTAMP") {
                     auto result = RemoveTrailingZeros(TransformTime(colIndex, rowIndex));
                     j[inputFields[colIndex]] = result;
-                } else if(inputTypes[colIndex].substr(0, 22) == "TIME_WITHOUT_TIME_ZONE") {
+                } else if (inputTypes[colIndex].substr(0, 22) == "TIME_WITHOUT_TIME_ZONE") {
                     auto result = TransformOnlyTime(colIndex, rowIndex);
                     j[inputFields[colIndex]] = result;
                 } else {

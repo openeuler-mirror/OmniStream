@@ -68,14 +68,14 @@ public:
     {
         if constexpr (StateSizeUtil::is_container_value<S>::value) {
             if (cachedElementWidth_.load(std::memory_order_relaxed) != 0) {
-                return;  // already sampled
+                return; // already sampled
             }
         } else {
             if (cachedValueWidth_.load(std::memory_order_relaxed) != 0) {
-                return;  // already sampled
+                return; // already sampled
             }
         }
-        for (auto *stateMap : keyGroupedStateMaps) {
+        for (auto* stateMap : keyGroupedStateMaps) {
             if (stateMap == nullptr || stateMap->size() == 0) {
                 continue;
             }
@@ -83,17 +83,14 @@ public:
             S sampleValue{};
             if (stateMap->sampleFirstEntry(sampleKey, sampleValue)) {
                 if constexpr (StateSizeUtil::is_container_value<S>::value) {
-                    cachedElementWidth_.store(StateSizeUtil::sampleElementWidth(sampleValue),
-                                              std::memory_order_relaxed);
-                    cachedContainerOverhead_.store(StateSizeUtil::containerOverhead(sampleValue),
-                                                   std::memory_order_relaxed);
-                    cachedKeyWidth_.store(StateSizeUtil::sizeInBytes(sampleKey),
-                                          std::memory_order_relaxed);
+                    cachedElementWidth_.store(
+                        StateSizeUtil::sampleElementWidth(sampleValue), std::memory_order_relaxed);
+                    cachedContainerOverhead_.store(
+                        StateSizeUtil::containerOverhead(sampleValue), std::memory_order_relaxed);
+                    cachedKeyWidth_.store(StateSizeUtil::sizeInBytes(sampleKey), std::memory_order_relaxed);
                 } else {
-                    cachedKeyWidth_.store(StateSizeUtil::sizeInBytes(sampleKey),
-                                          std::memory_order_relaxed);
-                    cachedValueWidth_.store(StateSizeUtil::sizeInBytes(sampleValue),
-                                            std::memory_order_relaxed);
+                    cachedKeyWidth_.store(StateSizeUtil::sizeInBytes(sampleKey), std::memory_order_relaxed);
+                    cachedValueWidth_.store(StateSizeUtil::sizeInBytes(sampleValue), std::memory_order_relaxed);
                 }
             }
             break;
@@ -213,10 +210,10 @@ public:
 
     StateMap<K, N, S>* getMapForKeyGroup(int keyGroupIndex);
 
-    //fixed-width VALUE state size, REPORTER-THREAD SAFE. numKeys comes from size()
-    // (sums each key-group map's _num_filled -- plain integer reads, benign race, never a _pairs
-    // deref); the per-key and per-value widths come from the task-sampled cache atomics. No
-    // CopyOnWriteStateMap entry is touched here, so this may run on the metric-reporter thread.
+    // fixed-width VALUE state size, REPORTER-THREAD SAFE. numKeys comes from size()
+    //  (sums each key-group map's _num_filled -- plain integer reads, benign race, never a _pairs
+    //  deref); the per-key and per-value widths come from the task-sampled cache atomics. No
+    //  CopyOnWriteStateMap entry is touched here, so this may run on the metric-reporter thread.
     int64_t fixedValueDataSize()
     {
         int64_t numKeys = static_cast<int64_t>(size());
@@ -241,7 +238,7 @@ public:
         return numElements * elementWidth + numKeys * (perContainerOverhead + keyWidth);
     }
 
-    TypeSerializer *getKeySerializer()
+    TypeSerializer* getKeySerializer()
     {
         return keySerializer;
     }

@@ -47,8 +47,9 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_utils_
  * Method:    createNativeLongSizeGauge
  * Signature: (JLjava/lang/String;Ljava/lang/String;)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_utils_OmniMetricHelper_createNativeLongSizeGauge
-  (JNIEnv *, jclass, jlong, jstring, jstring);
+JNIEXPORT jlong JNICALL
+Java_com_huawei_omniruntime_flink_runtime_metrics_utils_OmniMetricHelper_createNativeLongSizeGauge(
+    JNIEnv*, jclass, jlong, jstring, jstring);
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_metrics_utils_OmniMetricHelper

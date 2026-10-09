@@ -13,8 +13,7 @@ using namespace omnistream;
 
 namespace {
 
-void RecycleSingleReference(
-    LocalNettyBufferPool& pool, const std::shared_ptr<NettyMemorySegment>& buffer)
+void RecycleSingleReference(LocalNettyBufferPool& pool, const std::shared_ptr<NettyMemorySegment>& buffer)
 {
     buffer->IncreaseRefCount();
     buffer->EnableEligibleRecycling();
@@ -219,8 +218,7 @@ TEST(LocalNettyBufferPoolTest, LazyDestroy)
     RecycleSingleReference(*localPool, b2);
 
     // Destroy — should return all available buffers to global
-    int expectedGlobalAvailable =
-        globalPool.getAvailableBufferCount() + localPool->getNumberOfAvailableBuffers();
+    int expectedGlobalAvailable = globalPool.getAvailableBufferCount() + localPool->getNumberOfAvailableBuffers();
     localPool->lazyDestroy();
     EXPECT_TRUE(localPool->isDestroyed());
     EXPECT_EQ(globalPool.getAvailableBufferCount(), expectedGlobalAvailable);

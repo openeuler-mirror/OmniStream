@@ -74,8 +74,7 @@ void VectorBatchBuffer::RecycleBytes(int64_t bytes)
         return;
     }
 
-    auto localRecycler =
-        std::dynamic_pointer_cast<LocalObjectBufferPool::SubpartitionBufferRecycler>(recycler);
+    auto localRecycler = std::dynamic_pointer_cast<LocalObjectBufferPool::SubpartitionBufferRecycler>(recycler);
     if (localRecycler == nullptr) {
         return;
     }
@@ -86,8 +85,7 @@ void VectorBatchBuffer::RecycleBytes(int64_t bytes)
 
 void VectorBatchBuffer::recycleRemainingBytes()
 {
-    auto localRecycler =
-        std::dynamic_pointer_cast<LocalObjectBufferPool::SubpartitionBufferRecycler>(recycler);
+    auto localRecycler = std::dynamic_pointer_cast<LocalObjectBufferPool::SubpartitionBufferRecycler>(recycler);
     if (localRecycler == nullptr || objectSegment == nullptr) {
         return;
     }

@@ -137,9 +137,8 @@ void ResultPartitionManager::shutdown()
     finishedTasks_.clear();
     isShutdown = true;
     // One line that answers "were they all freed" without any log arithmetic.
-    std::cout << "OmniTask accounting at shutdown: " << deletedTaskCount_ << " deleted of "
-              << boundTaskCount_ << " bound"
-              << (deletedTaskCount_ == boundTaskCount_ ? "" : "  <-- LEAK") << std::endl;
+    std::cout << "OmniTask accounting at shutdown: " << deletedTaskCount_ << " deleted of " << boundTaskCount_
+              << " bound" << (deletedTaskCount_ == boundTaskCount_ ? "" : "  <-- LEAK") << std::endl;
     std::cout << "Successful shutdown." << std::endl;
 }
 

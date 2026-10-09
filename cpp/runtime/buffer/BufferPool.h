@@ -31,13 +31,15 @@ public:
     virtual int getNumberOfAvailableSegments() = 0;
     virtual int bestEffortGetNumOfUsedBuffers() const = 0;
 
-    virtual Segment *requestSegment() {};
-    virtual Segment *requestSegment(int targetChannel) {};
+    virtual Segment* requestSegment() {};
+    virtual Segment* requestSegment(int targetChannel) {};
 
-    virtual Segment *requestSegmentBlocking(){};
-    virtual Segment *requestSegmentBlocking(int targetChannel) {};
-    virtual void SetBufferPoolMetric(AbstractMetricGroup metricGroup){}
+    virtual Segment* requestSegmentBlocking() {};
+    virtual Segment* requestSegmentBlocking(int targetChannel) {};
+    virtual void SetBufferPoolMetric(AbstractMetricGroup metricGroup)
+    {
+    }
 };
-}
+} // namespace omnistream
 
 #endif // BUFFERPOOL_H

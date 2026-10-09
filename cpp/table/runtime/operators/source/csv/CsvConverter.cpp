@@ -84,7 +84,8 @@ BinaryRowData* CsvConverter::convert(const CsvRow& csvRow)
                     throw std::invalid_argument("not a valid boolean");
                 }
             } catch (const std::invalid_argument& e) {
-                LOG("CsvConverter: Invalid boolean value '" << value << "' for column " << i << ", setting it as null.");
+                LOG("CsvConverter: Invalid boolean value '" << value << "' for column " << i
+                                                            << ", setting it as null.");
                 rowData->setNullAt(i);
             }
         } else if (type == omniruntime::type::DataTypeId::OMNI_LONG) {
@@ -117,7 +118,8 @@ BinaryRowData* CsvConverter::convert(const CsvRow& csvRow)
             LOG("CsvConverter: Converting value '" << value << "' to timestamp for column " << i);
             try {
                 static int milliSec = 3;
-                rowData->setTimestamp(i, TimestampData::fromString(value), milliSec); //并没有读取毫秒精度以上的那部分小数点后的数据
+                rowData->setTimestamp(
+                    i, TimestampData::fromString(value), milliSec); // 并没有读取毫秒精度以上的那部分小数点后的数据
             } catch (...) {
                 rowData->setNullAt(i);
             }
@@ -208,7 +210,7 @@ omnistream::VectorBatch* CsvConverter::convert(std::vector<CsvRow>& csvRows, std
                 case (omniruntime::type::DataTypeId::OMNI_BOOLEAN): {
                     try {
                         LOG("CsvConverter: Converting value '" << nodeValue << "' to boolean for column " << colIndex
-                                                            << " in row " << rowIndex);
+                                                               << " in row " << rowIndex);
                         std::string lower = nodeValue;
                         std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
                         bool boolVal;
@@ -259,9 +261,10 @@ omnistream::VectorBatch* CsvConverter::convert(std::vector<CsvRow>& csvRows, std
                     }
                     break;
                 }
-                case omniruntime::type::DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE:{
+                case omniruntime::type::DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE: {
                     try {
-                        vectorBatch->SetValueAt(colIndex, rowIndex, TimestampData::fromTimeString(nodeValue).getMillisecond());
+                        vectorBatch->SetValueAt(
+                            colIndex, rowIndex, TimestampData::fromTimeString(nodeValue).getMillisecond());
                     } catch (...) {
                         vectorBatch->Get(colIndex)->SetNull(rowIndex);
                     }

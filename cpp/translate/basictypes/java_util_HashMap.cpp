@@ -97,7 +97,7 @@ HashMap::HashMap(emhash7::HashMap<Object*, Object*>* map, bool assign)
     if (assign) {
         map_ = map;
         // Adopted map: seed the running total by walking it once.
-        for (auto &pair: *map_) {
+        for (auto& pair : *map_) {
             dataSize_ += pair.first->sizeInBytes() + (pair.second ? pair.second->sizeInBytes() : 0);
         }
     } else {

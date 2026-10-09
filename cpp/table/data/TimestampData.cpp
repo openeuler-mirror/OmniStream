@@ -166,14 +166,13 @@ long TimestampData::stringToMillisOfDay(const std::string& str)
         // Obtain actual milliseconds
         size_t msDigits = res.ptr - msStart;
         if (msDigits == 1) {
-            milliseconds = msInt * 100;  // .1 → 1 * 100 = 100ms
+            milliseconds = msInt * 100; // .1 → 1 * 100 = 100ms
         } else if (msDigits == 2) {
-            milliseconds = msInt * 10;   // .12 → 12 * 10 = 120ms, .01 -> 1 * 10 = 10ms, .10 -> 10 * 10 = 100ms
+            milliseconds = msInt * 10; // .12 → 12 * 10 = 120ms, .01 -> 1 * 10 = 10ms, .10 -> 10 * 10 = 100ms
         } else if (msDigits == 3) {
-            milliseconds = msInt;        // .120 → 120 = 120ms, .012 -> 12 = 12ms, .001 -> 1 = 1ms
+            milliseconds = msInt; // .120 → 120 = 120ms, .012 -> 12 = 12ms, .001 -> 1 = 1ms
         }
     }
-
 
     return static_cast<long>(hour * 3600 + minute * 60 + second) * 1000 + milliseconds; // Convert to milliseconds
 }

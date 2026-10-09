@@ -311,11 +311,10 @@ void RemoteInputChannel::notifyRemoteDataAvailableForNetworkBuffer(
         }
     }
     if (!isBuffer) {
-        INFO_RELEASE("REMOTE_EVENT_ENQUEUE gate=" << getChannelInfo().getGateIdx()
-                                                  << " channel=" << getChannelIndex()
-                                                  << " sequence=" << sequenceNumber
-                                                  << " wasEmpty=" << wasEmpty
-                                                  << " queueSize=" << dataQueue.size());
+        INFO_RELEASE(
+            "REMOTE_EVENT_ENQUEUE gate=" << getChannelInfo().getGateIdx() << " channel=" << getChannelIndex()
+                                         << " sequence=" << sequenceNumber << " wasEmpty=" << wasEmpty
+                                         << " queueSize=" << dataQueue.size());
     }
     lock.unlock();
 

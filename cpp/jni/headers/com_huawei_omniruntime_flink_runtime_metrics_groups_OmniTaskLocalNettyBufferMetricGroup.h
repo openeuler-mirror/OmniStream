@@ -12,8 +12,9 @@ extern "C" {
  * Method:    addLocalNettyBufferPoolMetricGroup
  * Signature: (JJLjava/lang/String;[Ljava/lang/String;)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_groups_OmniTaskLocalNettyBufferMetricGroup_addLocalNettyBufferPoolMetricGroup
-  (JNIEnv *, jclass, jlong, jlong, jstring, jobjectArray);
+JNIEXPORT jlong JNICALL
+Java_com_huawei_omniruntime_flink_runtime_metrics_groups_OmniTaskLocalNettyBufferMetricGroup_addLocalNettyBufferPoolMetricGroup(
+    JNIEnv*, jclass, jlong, jlong, jstring, jobjectArray);
 
 #ifdef __cplusplus
 }

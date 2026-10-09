@@ -12,8 +12,9 @@ extern "C" {
  * Method:    addVectorBatchBufferPoolMetricGroup
  * Signature: (JJLjava/lang/String;[Ljava/lang/String;)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_groups_VectorBatchBufferPoolMetricGroup_addVectorBatchBufferPoolMetricGroup
-  (JNIEnv *, jclass, jlong, jlong, jstring, jobjectArray);
+JNIEXPORT jlong JNICALL
+Java_com_huawei_omniruntime_flink_runtime_metrics_groups_VectorBatchBufferPoolMetricGroup_addVectorBatchBufferPoolMetricGroup(
+    JNIEnv*, jclass, jlong, jlong, jstring, jobjectArray);
 
 #ifdef __cplusplus
 }

@@ -77,8 +77,8 @@ public:
                 break;
             }
             case omniruntime::type::DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE: {
-                vectorBatch->SetValueAt(colIndex, rowIndex,
-                                        TimestampData::stringToMillisOfDay(fieldIt->get<std::string>()));
+                vectorBatch->SetValueAt(
+                    colIndex, rowIndex, TimestampData::stringToMillisOfDay(fieldIt->get<std::string>()));
                 break;
             }
             case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:

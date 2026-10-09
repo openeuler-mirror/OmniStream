@@ -163,7 +163,7 @@ private:
     std::unique_ptr<omniruntime::expressions::Expr> nonEquiConditionExpr_;
     std::unique_ptr<SimpleFilterCodeGen> nonEquiFilterCodegen_;
 
-    JoinedRowFilterFunc generateJoinFilterFunction(const nlohmann::json &description)
+    JoinedRowFilterFunc generateJoinFilterFunction(const nlohmann::json& description)
     {
         JoinedRowFilterFunc filterFuncPtrs;
 
@@ -176,7 +176,7 @@ private:
             nonEquiFilterCodegen_ =
                 std::make_unique<SimpleFilterCodeGen>("nonEquiCondition", *nonEquiConditionExpr_, nullptr);
             int64_t filterAddress = nonEquiFilterCodegen_->GetFunction();
-            generatedFilter = *static_cast<FilterFuncPtr *>(reinterpret_cast<void *>(&filterAddress));
+            generatedFilter = *static_cast<FilterFuncPtr*>(reinterpret_cast<void*>(&filterAddress));
 
             colRefsForNonEquiCondition = getColRefs(filter);
 

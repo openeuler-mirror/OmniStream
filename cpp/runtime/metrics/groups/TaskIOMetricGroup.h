@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  */
 #pragma once
 
@@ -10,9 +10,8 @@
 #include "runtime/metrics/groups/AbstractMetricGroup.h"
 
 namespace omnistream {
-    class TaskIOMetricGroup : public AbstractMetricGroup {
-    public:
-        explicit TaskIOMetricGroup(AbstractMetricGroup* parent = nullptr);
-
-    };
-}
+class TaskIOMetricGroup : public AbstractMetricGroup {
+public:
+    explicit TaskIOMetricGroup(AbstractMetricGroup* parent = nullptr);
+};
+} // namespace omnistream

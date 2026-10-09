@@ -100,20 +100,22 @@ public:
                 INFO_RELEASE("[FALCON] enable hash memTable for valueState, prefix length is " << prefixLen << ".");
             }
         }
-        if (useHashMemTable != nullptr) { useHashMemTable->putRefCount(); }
+        if (useHashMemTable != nullptr) {
+            useHashMemTable->putRefCount();
+        }
 
         DefaultConfigurableOptionsFactory::createColumnOptions(familyOptions, blockBasedTableOptions);
 
         int64_t blockCacheBytes = 0;
-        auto blockCacheSize = reinterpret_cast<String*>(Configuration::TM_CONFIG
-                ->getValue(RocksDBConfigurableOptions::BLOCK_CACHE_SIZE));
+        auto blockCacheSize =
+            reinterpret_cast<String*>(Configuration::TM_CONFIG->getValue(RocksDBConfigurableOptions::BLOCK_CACHE_SIZE));
         if (blockCacheSize != nullptr) {
             blockCacheBytes = static_cast<int64_t>(MemorySize::parseBytes(blockCacheSize->getData()));
             blockCacheSize->putRefCount();
         }
-        stateMemoryBytes_ = static_cast<int64_t>(familyOptions.max_write_buffer_number)
-                               * static_cast<int64_t>(familyOptions.write_buffer_size)
-                           + blockCacheBytes;
+        stateMemoryBytes_ = static_cast<int64_t>(familyOptions.max_write_buffer_number) *
+                                static_cast<int64_t>(familyOptions.write_buffer_size) +
+                            blockCacheBytes;
 
         ROCKSDB_NAMESPACE::Status s;
         auto it1 = kvStateInformation->find(cfName);
@@ -458,8 +460,8 @@ public:
         auto* buffer = buf.data();
         omnistream::SerializedBatchInfo serializedBatchInfo =
             omnistream::VectorBatchSerializationUtils::serializeVectorBatch(vectorBatch, batchSize, buffer);
-        ROCKSDB_NAMESPACE::Slice vbValue(reinterpret_cast<const char *>(serializedBatchInfo.dataAddress),
-                                         serializedBatchInfo.dataSize);
+        ROCKSDB_NAMESPACE::Slice vbValue(
+            reinterpret_cast<const char*>(serializedBatchInfo.dataAddress), serializedBatchInfo.dataSize);
 
         auto status = rocksDb->Put(writeOptions, VBTable, key, vbValue);
         if (!status.ok()) {
@@ -596,8 +598,9 @@ public:
             int64_t sequenceNumberI64 = static_cast<int64_t>(sequenceNumber);
             longSerializer.serialize(&sequenceNumberI64, keyOutputSerializer);
 
-            ROCKSDB_NAMESPACE::Slice key(reinterpret_cast<const char *>(keyOutputSerializer.getData()),
-                                        (int32_t) (keyOutputSerializer.getPosition()));
+            ROCKSDB_NAMESPACE::Slice key(
+                reinterpret_cast<const char*>(keyOutputSerializer.getData()),
+                (int32_t)(keyOutputSerializer.getPosition()));
 
             batchToDelete.Delete(VBTable, key);
         }
@@ -606,7 +609,6 @@ public:
         if (!status.ok()) {
             INFO_RELEASE("ROCKSDB WARNING: Failed to batch delete vectors: " << status.ToString());
         }
-
     }
 
     // [FALCON] function which will be called in RocksdbValueState

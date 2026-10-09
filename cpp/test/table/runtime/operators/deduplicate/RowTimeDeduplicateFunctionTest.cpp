@@ -765,7 +765,7 @@ int64_t LiveHeapBytes()
 #endif
 }
 
-}  // namespace
+} // namespace
 
 // The function owns its KeySelector, so creating and destroying operator instances must not
 // accumulate memory. Before the selector became a unique_ptr, every destroyed instance leaked
@@ -801,17 +801,19 @@ TEST(RowTimeDeduplicateTest, DestructorReleasesKeySelector)
 
     int64_t growth = LiveHeapBytes() - before;
     EXPECT_LT(growth, allowedGrowthBytes)
-        << "heap grew " << growth << " bytes over " << measuredIterations
-        << " create/destroy cycles (" << (growth / measuredIterations) << " bytes per instance)";
+        << "heap grew " << growth << " bytes over " << measuredIterations << " create/destroy cycles ("
+        << (growth / measuredIterations) << " bytes per instance)";
 }
 
 // Owning the selector makes the function non-copyable. That is fine because
 // StreamOperatorFactory builds it with new and hands it to the operator by pointer.
 TEST(RowTimeDeduplicateTest, FunctionIsNonCopyable)
 {
-    static_assert(!std::is_copy_constructible<RowTimeDeduplicateFunction>::value,
+    static_assert(
+        !std::is_copy_constructible<RowTimeDeduplicateFunction>::value,
         "RowTimeDeduplicateFunction owns its KeySelector and must not be copied");
-    static_assert(!std::is_copy_assignable<RowTimeDeduplicateFunction>::value,
+    static_assert(
+        !std::is_copy_assignable<RowTimeDeduplicateFunction>::value,
         "RowTimeDeduplicateFunction owns its KeySelector and must not be copy-assigned");
     SUCCEED();
 }

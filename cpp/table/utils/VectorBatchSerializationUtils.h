@@ -28,12 +28,18 @@ namespace omnistream {
 
 struct SerializedBatchInfo {
     SerializedBatchInfo(uint8_t* bufferAddress, int32_t sizeValue, int type = 0)
-        : memorySegmentAddress(bufferAddress), dataAddress(bufferAddress), dataSize(sizeValue), bufferType(type)
+        : memorySegmentAddress(bufferAddress),
+          dataAddress(bufferAddress),
+          dataSize(sizeValue),
+          bufferType(type)
     {
     }
 
     SerializedBatchInfo(uint8_t* segmentAddress, uint8_t* payloadAddress, int32_t sizeValue, int type = 0)
-        : memorySegmentAddress(segmentAddress), dataAddress(payloadAddress), dataSize(sizeValue), bufferType(type)
+        : memorySegmentAddress(segmentAddress),
+          dataAddress(payloadAddress),
+          dataSize(sizeValue),
+          bufferType(type)
     {
     }
 
@@ -58,8 +64,8 @@ public:
 
     static void serializeTimestampAndRowKinds(VectorBatch* vectorBatch, uint8_t*& buffer, int32_t bufferSize);
 
-    static int32_t calculateVectorBatchSerializableSize(VectorBatch *vectorBatch);
-    static int32_t calculateVectorBatchPayloadSize(VectorBatch *vectorBatch);
+    static int32_t calculateVectorBatchSerializableSize(VectorBatch* vectorBatch);
+    static int32_t calculateVectorBatchPayloadSize(VectorBatch* vectorBatch);
 
     static int32_t calculateVectorSerializableSize(BaseVector* baseVector);
 

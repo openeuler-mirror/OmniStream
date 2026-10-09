@@ -13,9 +13,7 @@
 #include "metrics/groups/TaskMetricGroup.h"
 #include "streaming/api/operators/AbstractStreamOperator.h"
 
-ChainingOutput::ChainingOutput(Input* op)
-    : operator_(op),
-      announcedStatus(WatermarkStatus::activeStatus)
+ChainingOutput::ChainingOutput(Input* op) : operator_(op), announcedStatus(WatermarkStatus::activeStatus)
 {
 }
 

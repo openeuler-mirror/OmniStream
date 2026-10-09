@@ -110,8 +110,7 @@ TEST(LocalObjectBufferPoolTest, DISABLED_Recycle)
 TEST(LocalObjectBufferPoolTest, ClosingUnreadVectorBatchReturnsChargedBytes)
 {
     auto networkPool = std::make_shared<NetworkObjectBufferPool>(10, 1024);
-    auto bufferPool = std::dynamic_pointer_cast<LocalObjectBufferPool>(
-        networkPool->createBufferPool(1, 2, 1, 2));
+    auto bufferPool = std::dynamic_pointer_cast<LocalObjectBufferPool>(networkPool->createBufferPool(1, 2, 1, 2));
     ASSERT_NE(bufferPool, nullptr);
 
     constexpr uint64_t watermarkBytes = sizeof(int64_t);

@@ -74,15 +74,16 @@ public:
     virtual void cancel() = 0;
     virtual void close() = 0;
 
-        virtual std::string toString() const
-        {
-            std::stringstream ss;
-            ss << "ResultPartitionWriter";
-            return ss.str();
-        }
-        virtual void SetMetricGroup(std::shared_ptr<AbstractMetricGroup> metricGroup){}
-    };
-
+    virtual std::string toString() const
+    {
+        std::stringstream ss;
+        ss << "ResultPartitionWriter";
+        return ss.str();
+    }
+    virtual void SetMetricGroup(std::shared_ptr<AbstractMetricGroup> metricGroup)
+    {
+    }
+};
 
 } // namespace omnistream
 

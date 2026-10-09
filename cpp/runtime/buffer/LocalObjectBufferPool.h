@@ -28,14 +28,14 @@
 #include "LocalBufferPool.h"
 
 namespace omnistream {
-    class NetworkObjectBufferPool;
-    class LocalBufferPool;
-    class ObjectBufferBuilder;
+class NetworkObjectBufferPool;
+class LocalBufferPool;
+class ObjectBufferBuilder;
 
-    struct ObjectBufferMemoryReservation {
-        int64_t reservedBytes = 0;
-    };
-}
+struct ObjectBufferMemoryReservation {
+    int64_t reservedBytes = 0;
+};
+} // namespace omnistream
 
 namespace omnistream {
 
@@ -78,30 +78,30 @@ public:
     int getNumberOfAvailableSegments() override;
     int getNumBuffers() override;
     int bestEffortGetNumOfUsedBuffers() const override;
-    std::shared_ptr<CompletableFuture> GetAvailableFuture()  override;
+    std::shared_ptr<CompletableFuture> GetAvailableFuture() override;
     void setNumBuffers(int numBuffers) override;
 
     std::shared_ptr<Buffer> requestBuffer() override;
-    BufferBuilder *requestBufferBuilder() override;
-    BufferBuilder *requestBufferBuilder(int targetChannel, uint64_t bytes = 0) override;
-    BufferBuilder *requestBufferBuilderBlocking() override;
-    BufferBuilder *requestBufferBuilderBlocking(int targetChannel, uint64_t bytes = 0) override;
+    BufferBuilder* requestBufferBuilder() override;
+    BufferBuilder* requestBufferBuilder(int targetChannel, uint64_t bytes = 0) override;
+    BufferBuilder* requestBufferBuilderBlocking() override;
+    BufferBuilder* requestBufferBuilderBlocking(int targetChannel, uint64_t bytes = 0) override;
 
     std::shared_ptr<ObjectBuffer> requestObjectBuffer();
-    ObjectBufferBuilder *requestObjectBufferBuilder();
-    ObjectBufferBuilder *requestObjectBufferBuilder(int targetChannel, uint64_t bytes = 0);
-    ObjectBufferBuilder *requestObjectBufferBuilderBlocking();
-    ObjectBufferBuilder *requestObjectBufferBuilderBlocking(int targetChannel, uint64_t bytes = 0);
+    ObjectBufferBuilder* requestObjectBufferBuilder();
+    ObjectBufferBuilder* requestObjectBufferBuilder(int targetChannel, uint64_t bytes = 0);
+    ObjectBufferBuilder* requestObjectBufferBuilderBlocking();
+    ObjectBufferBuilder* requestObjectBufferBuilderBlocking(int targetChannel, uint64_t bytes = 0);
 
-    Segment *requestSegment(uint64_t bytes = 0) ;
-    Segment *requestSegment(int targetChannel, uint64_t bytes = 0);
-    Segment *requestSegmentBlocking(uint64_t bytes = 0) ;
-    Segment *requestSegmentBlocking(int targetChannel,uint64_t bytes = 0);
+    Segment* requestSegment(uint64_t bytes = 0);
+    Segment* requestSegment(int targetChannel, uint64_t bytes = 0);
+    Segment* requestSegmentBlocking(uint64_t bytes = 0);
+    Segment* requestSegmentBlocking(int targetChannel, uint64_t bytes = 0);
 
-    ObjectSegment *requestObjectSegment(uint64_t bytes = 0);
-    ObjectSegment *requestObjectSegment(int targetChannel, uint64_t bytes = 0);
-    ObjectSegment *requestObjectSegmentBlocking(uint64_t bytes = 0);
-    ObjectSegment *requestObjectSegmentBlocking(int targetChannel, uint64_t bytes = 0);
+    ObjectSegment* requestObjectSegment(uint64_t bytes = 0);
+    ObjectSegment* requestObjectSegment(int targetChannel, uint64_t bytes = 0);
+    ObjectSegment* requestObjectSegmentBlocking(uint64_t bytes = 0);
+    ObjectSegment* requestObjectSegmentBlocking(int targetChannel, uint64_t bytes = 0);
 
     std::shared_ptr<ObjectBuffer> toObjectBuffer(ObjectSegment* segment);
     ObjectBufferBuilder* toObjectBufferBuilder(ObjectSegment* segment, int targetChannel);
@@ -133,40 +133,39 @@ public:
     void mayNotifyAvailable(std::shared_ptr<CompletableFuture> toNotify);
     void notifyGlobalMemoryAvailable();
     void SetBufferPoolMetric(AbstractMetricGroup metricGroup) override;
-    void chargeMemoryBlocking(int targetChannel,uint64_t bytes );
-    bool chargeMemory(int targetChannel,uint64_t bytes);
+    void chargeMemoryBlocking(int targetChannel, uint64_t bytes);
+    bool chargeMemory(int targetChannel, uint64_t bytes);
     int64_t calculateByteNeedReturnToGlobal(int64_t returnBytes);
 
+protected:
+    bool checkAvailability();
 
-    protected:
-        bool checkAvailability();
-
-    private:
-        void recycle(Segment* segment, int channel);
-        uint64_t removeExcessObjectMemory();
-        void recycleBytes(int64_t bytes, int channel);
-        void lazyDestroyMemory();
-        void lazyDestroySegment();
-
+private:
+    void recycle(Segment* segment, int channel);
+    uint64_t removeExcessObjectMemory();
+    void recycleBytes(int64_t bytes, int channel);
+    void lazyDestroyMemory();
+    void lazyDestroySegment();
 
     bool hasExcessBuffers() override;
     bool isRequestedSizeReached() override;
     // void onSegmentRecycledToLocal(const std::shared_ptr<Segment>& segment) override;
 
-    public:
+public:
     // public so a sliced buffer can downcast its recycler and call recycleBytes(). The pool's own
     // private recycleBytes(bytes, channel) stays private -- this nested class can reach it.
     class SubpartitionBufferRecycler : public ObjectBufferRecycler {
     public:
-        SubpartitionBufferRecycler(int channel,  std::shared_ptr<LocalObjectBufferPool> bufferPool);
-        void recycle(Segment *segment) override;
+        SubpartitionBufferRecycler(int channel, std::shared_ptr<LocalObjectBufferPool> bufferPool);
+        void recycle(Segment* segment) override;
         void recycleBytes(int64_t bytes);
+
     protected:
         int channel_;
         std::shared_ptr<LocalObjectBufferPool> bufferPool_;
     };
 
-    private:
+private:
     std::shared_ptr<NetworkObjectBufferPool> networkObjBufferPool_;
     int maxNumberOfObjectSegments_;
     int objectSegmentSize;
@@ -176,7 +175,7 @@ public:
     uint64_t maxAllowedMemory;
     uint64_t usedMemory;
     uint64_t availableMemory;
-    uint64_t   maxMemoryPerChannel_;
+    uint64_t maxMemoryPerChannel_;
     std::shared_ptr<ObjectBufferRecycler> defaultBufferRecycler_;
     std::vector<bool> subpartitionBuffersBool_;
     int requestSegmentNumber = 0;
@@ -190,7 +189,6 @@ public:
     bool waitingForGlobalMemory_ = false;
     int localNumberOfObjectSegment = 0;
     std::recursive_mutex objectSegmentMutex;
-
 };
 
 } // namespace omnistream

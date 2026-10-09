@@ -23,9 +23,9 @@ namespace omnistream {
 namespace {
 std::atomic<long> g_segCreated{0};
 std::atomic<long> g_segDestroyed{0};
-std::atomic<long> g_stored{0};    // putObject calls
-std::atomic<long> g_drained{0};   // elements actually taken by a consumer
-}
+std::atomic<long> g_stored{0};  // putObject calls
+std::atomic<long> g_drained{0}; // elements actually taken by a consumer
+} // namespace
 
 void ObjectSegment::countDrained()
 {
@@ -51,10 +51,9 @@ void ObjectSegment::reportCounters(const char* where)
 {
     long stored = g_stored.load();
     long drained = g_drained.load();
-    INFO_RELEASE("OBJSEG_COUNTERS[" << where << "] created=" << g_segCreated.load()
-        << " destroyed=" << g_segDestroyed.load()
-        << " stored=" << stored << " drained=" << drained
-        << " undrained=" << (stored - drained));
+    INFO_RELEASE(
+        "OBJSEG_COUNTERS[" << where << "] created=" << g_segCreated.load() << " destroyed=" << g_segDestroyed.load()
+                           << " stored=" << stored << " drained=" << drained << " undrained=" << (stored - drained));
 }
 
 int64_t ObjectSegment::getObjectSizeInBytes() const
@@ -66,7 +65,7 @@ void ObjectSegment::reset()
 {
     sizeInBytes_ = 0;
     capacityInBytes_ = 0;
-    //reset elements in objects
+    // reset elements in objects
     std::fill(objects_, objects_ + size, nullptr);
 }
 
@@ -92,6 +91,5 @@ int64_t ObjectSegment::getCapacity()
 {
     return capacityInBytes_;
 }
-
 
 } // namespace omnistream

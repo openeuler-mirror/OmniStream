@@ -8,27 +8,26 @@
 
 namespace omnistream {
 
-LocalNettyBufferPool::LocalNettyBufferPool(GlobalNettyBufferPool* globalPool,
-                                           int numberOfRequiredBuffers,
-                                           int maxNumberOfBuffers)
+LocalNettyBufferPool::LocalNettyBufferPool(
+    GlobalNettyBufferPool* globalPool, int numberOfRequiredBuffers, int maxNumberOfBuffers)
     : globalPool_(globalPool),
       numberOfRequiredBuffers_(numberOfRequiredBuffers),
       currentPoolSize_(numberOfRequiredBuffers),
       maxNumberOfBuffers_(maxNumberOfBuffers),
-      bigTotalMemorySize_(static_cast<int64_t>(maxNumberOfBuffers) * globalPool->getBufferSize()*10),
+      bigTotalMemorySize_(static_cast<int64_t>(maxNumberOfBuffers) * globalPool->getBufferSize() * 10),
       availableBigMemorySize_(bigTotalMemorySize_)
 {
     if (numberOfRequiredBuffers <= 0) {
-        throw std::runtime_error("Required number of buffers must be > 0, got "
-            + std::to_string(numberOfRequiredBuffers));
+        throw std::runtime_error(
+            "Required number of buffers must be > 0, got " + std::to_string(numberOfRequiredBuffers));
     }
     if (maxNumberOfBuffers < numberOfRequiredBuffers) {
-        throw std::runtime_error("Max buffers (" + std::to_string(maxNumberOfBuffers)
-            + ") must be >= required (" + std::to_string(numberOfRequiredBuffers) + ")");
+        throw std::runtime_error(
+            "Max buffers (" + std::to_string(maxNumberOfBuffers) + ") must be >= required (" +
+            std::to_string(numberOfRequiredBuffers) + ")");
     }
-    LOG("LocalNettyBufferPool created: required=" << numberOfRequiredBuffers_
-        << ", max=" << maxNumberOfBuffers_
-        << ", bigTotalMemorySize=" << bigTotalMemorySize_);
+    LOG("LocalNettyBufferPool created: required=" << numberOfRequiredBuffers_ << ", max=" << maxNumberOfBuffers_
+                                                  << ", bigTotalMemorySize=" << bigTotalMemorySize_);
 }
 
 LocalNettyBufferPool::~LocalNettyBufferPool()
@@ -84,7 +83,8 @@ std::shared_ptr<NettyMemorySegment> LocalNettyBufferPool::requestBuffer()
             }
             // Global is temporarily empty but we haven't reached our size yet —
             // wait for a buffer to become available (from local recycle or global)
-            INFO_RELEASE("OmniCredit Client is in back pressure state from global Netty Buffer pool is empty............");
+            INFO_RELEASE(
+                "OmniCredit Client is in back pressure state from global Netty Buffer pool is empty............");
             cv_.wait_for(lock, std::chrono::milliseconds(2000));
             continue;
         }
@@ -102,7 +102,7 @@ std::shared_ptr<NettyMemorySegment> LocalNettyBufferPool::requestBufferBlocking(
             throw std::runtime_error("LocalNettyBufferPool destroyed while waiting for buffer.");
         }
         std::unique_lock<std::recursive_mutex> lock(mutex_);
-        //wait here means LocalBufferPool has RequestedSizeReached,so it needs to wait from its own availableBuffers_
+        // wait here means LocalBufferPool has RequestedSizeReached,so it needs to wait from its own availableBuffers_
         INFO_RELEASE("OmniCredit Client is in back pressure state from regular Netty Buffer request............");
         cv_.wait_for(lock, std::chrono::milliseconds(2000));
     }
@@ -145,8 +145,8 @@ std::shared_ptr<NettyMemorySegment> LocalNettyBufferPool::requestBigBuffer(int s
     requestBigBufferCount_++;
 
     LOG("LocalNettyBufferPool::requestBigBuffer allocSize=" << allocSize
-        << ", availableBigMemorySize=" << availableBigMemorySize_
-        << ", activeBigBufferCount=" << activeBigBufferCount_);
+                                                            << ", availableBigMemorySize=" << availableBigMemorySize_
+                                                            << ", activeBigBufferCount=" << activeBigBufferCount_);
 
     return buffer;
 }
@@ -164,8 +164,7 @@ void LocalNettyBufferPool::recycleBuffer(long bufferAddress)
         }
 
         auto buffer = it->second;
-        if (buffer->DecreaseRefCount() > 0 || !buffer->GetEligibleRecycling())
-        {
+        if (buffer->DecreaseRefCount() > 0 || !buffer->GetEligibleRecycling()) {
             return;
         }
         buffer->ResetBuffer();
@@ -326,14 +325,13 @@ void LocalNettyBufferPool::lazyDestroy()
             return;
         }
 
-        INFO_RELEASE("LocalNettyBufferPool lazyDestroy from " << this
-            << " requestRegularBufferCount=" << requestRegularBufferCount_
-            << " requestBigBufferCount=" << requestBigBufferCount_
-            << " recycleRegularBufferCount=" << recycleRegularBufferCount_
+        INFO_RELEASE(
+            "LocalNettyBufferPool lazyDestroy from "
+            << this << " requestRegularBufferCount=" << requestRegularBufferCount_ << " requestBigBufferCount="
+            << requestBigBufferCount_ << " recycleRegularBufferCount=" << recycleRegularBufferCount_
             << " recycleBigBufferCount=" << recycleBigBufferCount_
             << " numberOfRequestedBuffers=" << numberOfRequestedBuffers_
-            << " availableBuffers=" << availableBuffers_.size()
-            << " activeBigBufferCount=" << activeBigBufferCount_);
+            << " availableBuffers=" << availableBuffers_.size() << " activeBigBufferCount=" << activeBigBufferCount_);
 
         // Return all available normal buffers to global
         while (!availableBuffers_.empty()) {

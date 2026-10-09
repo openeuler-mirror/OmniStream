@@ -59,7 +59,7 @@ public:
         currentNamespace = nameSpace;
     };
     V value() override;
-    void update(const V &value, bool copyKey = false) override;
+    void update(const V& value, bool copyKey = false) override;
     void clear() override
     {
         // removed container's elements from the running counter and free it before removing the key.

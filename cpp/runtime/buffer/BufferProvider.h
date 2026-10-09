@@ -29,11 +29,11 @@ public:
 
     virtual BufferBuilder* requestBufferBuilder() = 0;
 
-    virtual BufferBuilder *requestBufferBuilder(int targetChannel,uint64_t bytes = 0) = 0;
+    virtual BufferBuilder* requestBufferBuilder(int targetChannel, uint64_t bytes = 0) = 0;
 
     virtual BufferBuilder* requestBufferBuilderBlocking() = 0;
 
-    virtual BufferBuilder *requestBufferBuilderBlocking(int targetChannel,uint64_t bytes = 0) = 0;
+    virtual BufferBuilder* requestBufferBuilderBlocking(int targetChannel, uint64_t bytes = 0) = 0;
 
     virtual bool addBufferListener(std::shared_ptr<BufferListener> listener) = 0;
 

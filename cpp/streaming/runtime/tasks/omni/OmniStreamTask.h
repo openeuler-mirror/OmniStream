@@ -66,8 +66,7 @@ public:
             delete inputProcessor_;
             inputProcessor_ = nullptr;
         }
-        INFO_RELEASE("~OmniStreamTask end " << this << " recordWriter_ use_count="
-                                            << recordWriter_.use_count());
+        INFO_RELEASE("~OmniStreamTask end " << this << " recordWriter_ use_count=" << recordWriter_.use_count());
     }
 
     // getter

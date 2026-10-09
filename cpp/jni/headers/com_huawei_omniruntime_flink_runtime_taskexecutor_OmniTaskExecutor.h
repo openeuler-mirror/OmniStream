@@ -39,8 +39,9 @@ Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor_submitTa
  * Method:    getNativeTaskManagerMetricGroupRef
  * Signature: (J)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor_getNativeTaskManagerMetricGroupRef
-  (JNIEnv *, jclass, jlong);
+JNIEXPORT jlong JNICALL
+Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor_getNativeTaskManagerMetricGroupRef(
+    JNIEnv*, jclass, jlong);
 
 #ifdef __cplusplus
 }

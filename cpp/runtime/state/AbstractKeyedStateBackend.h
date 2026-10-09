@@ -23,7 +23,7 @@
 #include "runtime/checkpoint/CheckpointListener.h"
 
 namespace omnistream {
-    class OperatorStateMetricGroup;
+class OperatorStateMetricGroup;
 }
 
 template <typename K>

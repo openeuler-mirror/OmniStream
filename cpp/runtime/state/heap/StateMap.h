@@ -52,22 +52,23 @@ public:
     virtual typename InternalKvState<K, N, S>::StateIncrementalVisitor* getStateIncrementalVisitor(
         int recommendedMaxNumberOfReturnedRecords) = 0;
 
-        // Approximate-size support (task-thread only; never races with put/remove).
-        //
-        //sumEntryCounts (the container element-count walk) was removed -- container
-        // states are now sized incrementally from StateTable::liveNumElements_, so no map walk remains.
-        // sampleEntryBytes (which derefed a live entry) was removed too -- the
-        // metric-reporter thread must never touch a CopyOnWriteStateMap entry. Width sampling now goes
-        // exclusively through sampleFirstEntry below, called on the task thread to fill cached widths.
-        // Copies the first live entry's key+value into the out params (shallow; pointers copied by
-        // value). Returns false when the map is empty. Used once per state to sample widths.
-        virtual bool sampleFirstEntry(K& outKey, S& outValue) = 0;
+    // Approximate-size support (task-thread only; never races with put/remove).
+    //
+    // sumEntryCounts (the container element-count walk) was removed -- container
+    // states are now sized incrementally from StateTable::liveNumElements_, so no map walk remains.
+    // sampleEntryBytes (which derefed a live entry) was removed too -- the
+    // metric-reporter thread must never touch a CopyOnWriteStateMap entry. Width sampling now goes
+    // exclusively through sampleFirstEntry below, called on the task thread to fill cached widths.
+    // Copies the first live entry's key+value into the out params (shallow; pointers copied by
+    // value). Returns false when the map is empty. Used once per state to sample widths.
+    virtual bool sampleFirstEntry(K& outKey, S& outValue) = 0;
 
-        virtual ~StateMap() = default;
+    virtual ~StateMap() = default;
 
-//        template<typename T>
-        // todo: implement this in CopyOnWriteStateMap
-//    void transform(const K& key, const N& nameSpace, const T& value, StateTransformationFunction<S, T> transformation) {};
-    };
+    //        template<typename T>
+    // todo: implement this in CopyOnWriteStateMap
+    //    void transform(const K& key, const N& nameSpace, const T& value, StateTransformationFunction<S, T>
+    //    transformation) {};
+};
 
 #endif // FLINK_TNEL_STATEMAP_H

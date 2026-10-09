@@ -192,12 +192,12 @@ public:
     static std::string RemoveTrailingZeros(std::string num);
 
 private:
-        void refreshSizeInBytes();
-        int64_t* timestamps;
-        RowKind* rowKinds;
-        int64_t maxTimestamp;
-        int32_t sizeInBytes_ = 0;
-    bool normalizeAndValidatePath(std::string &filePath) const
+    void refreshSizeInBytes();
+    int64_t* timestamps;
+    RowKind* rowKinds;
+    int64_t maxTimestamp;
+    int32_t sizeInBytes_ = 0;
+    bool normalizeAndValidatePath(std::string& filePath) const
     {
         // 1. 检查路径是否为空
         if (filePath.empty()) {

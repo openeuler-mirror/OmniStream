@@ -148,11 +148,11 @@ Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor_submitTa
     return reinterpret_cast<jlong>(nativeTask);
 }
 
-
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor_getNativeTaskManagerMetricGroupRef
-  (JNIEnv *, jclass, jlong nativeTaskExecutorAddress)
+JNIEXPORT jlong JNICALL
+Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor_getNativeTaskManagerMetricGroupRef(
+    JNIEnv*, jclass, jlong nativeTaskExecutorAddress)
 {
-    auto omniTaskExecutor = reinterpret_cast<omnistream::OmniTaskExecutor *> (nativeTaskExecutorAddress);
+    auto omniTaskExecutor = reinterpret_cast<omnistream::OmniTaskExecutor*>(nativeTaskExecutorAddress);
     auto taskManageMetricGroup = omniTaskExecutor->GetTaskManagerMetricGroup();
     return reinterpret_cast<long>(taskManageMetricGroup.get());
 }

@@ -111,15 +111,15 @@ public:
         // (see RocksdbStateTable::createTable). memory = maxWriteBufferNumber * writeBufferSize +
         // blockCacheSize.
         int64_t blockCacheBytes = 0;
-        auto blockCacheSize = reinterpret_cast<String*>(Configuration::TM_CONFIG
-                ->getValue(RocksDBConfigurableOptions::BLOCK_CACHE_SIZE));
+        auto blockCacheSize =
+            reinterpret_cast<String*>(Configuration::TM_CONFIG->getValue(RocksDBConfigurableOptions::BLOCK_CACHE_SIZE));
         if (blockCacheSize != nullptr) {
             blockCacheBytes = static_cast<int64_t>(MemorySize::parseBytes(blockCacheSize->getData()));
             blockCacheSize->putRefCount();
         }
-        stateMemoryBytes_ = static_cast<int64_t>(familyOptions.max_write_buffer_number)
-                                * static_cast<int64_t>(familyOptions.write_buffer_size)
-                            + blockCacheBytes;
+        stateMemoryBytes_ = static_cast<int64_t>(familyOptions.max_write_buffer_number) *
+                                static_cast<int64_t>(familyOptions.write_buffer_size) +
+                            blockCacheBytes;
 
         ROCKSDB_NAMESPACE::Status s;
         auto it1 = kvStateInformation->find(cfName);
@@ -155,7 +155,7 @@ public:
         return stateMemoryBytes_;
     }
 
-    UV get(const N &nameSpace, const UK &userKey)
+    UV get(const N& nameSpace, const UK& userKey)
     {
         // 和Rocksdb交互的时候要try catch
         LOG("RocksdbMapStateTable value get");
@@ -839,8 +839,8 @@ public:
         auto* buffer = buf.data();
         omnistream::SerializedBatchInfo serializedBatchInfo =
             omnistream::VectorBatchSerializationUtils::serializeVectorBatch(vectorBatch, batchSize, buffer);
-        ROCKSDB_NAMESPACE::Slice vbValue(reinterpret_cast<const char *>(serializedBatchInfo.dataAddress),
-                                         serializedBatchInfo.dataSize);
+        ROCKSDB_NAMESPACE::Slice vbValue(
+            reinterpret_cast<const char*>(serializedBatchInfo.dataAddress), serializedBatchInfo.dataSize);
 
         auto status = rocksDb->Put(writeOptions, VBTable, key, vbValue);
         if (!status.ok()) {

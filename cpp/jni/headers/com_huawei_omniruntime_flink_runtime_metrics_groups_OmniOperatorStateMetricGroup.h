@@ -12,8 +12,9 @@ extern "C" {
  * Method:    addOperatorStateMetricGroup
  * Signature: (JLjava/lang/String;)J
  */
-JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_metrics_groups_OmniOperatorStateMetricGroup_addOperatorStateMetricGroup
-  (JNIEnv *, jclass, jlong, jstring);
+JNIEXPORT jlong JNICALL
+Java_com_huawei_omniruntime_flink_runtime_metrics_groups_OmniOperatorStateMetricGroup_addOperatorStateMetricGroup(
+    JNIEnv*, jclass, jlong, jstring);
 
 #ifdef __cplusplus
 }
