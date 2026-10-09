@@ -16,6 +16,7 @@
 #include <vector>
 #include <unordered_map>
 #include <emhash7.hpp>
+#include <xxhash.h>
 #include "common.h"
 #include "core/typeutils/TypeSerializer.h"
 #include "runtime/state/InternalKeyContext.h"

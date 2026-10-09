@@ -25,9 +25,11 @@
 #include "runtime/checkpoint/FlinkSavepointAdaptorInfo.h"
 #include "runtime/checkpoint/OperatorSavepointAdaptorFactory.h"
 #include "runtime/state/heap/HeapCompatibleFullRestoreOperation.h"
+#include "runtime/state/heap/HeapRestoreOperation.h"
 #include "core/typeutils/TypeSerializer.h"
 #include "core/typeutils/MapSerializer.h"
 #include "core/typeutils/ListSerializer.h"
+#include "core/typeutils/XxH128_hashSerializer.h"
 #include "core/api/common/state/RestoreStateDescriptor.h"
 #include "core/memory/DataInputDeserializer.h"
 #include "core/utils/key_type_traits.h"
@@ -216,90 +218,105 @@ private:
         const std::vector<int8_t>& valueBytes);
 
     /**
-     * Deserializes an emhash7::HashMap from checkpoint bytes using the MapSerializer's
-     * sub-serializers. Format: [int size] [key + bool isNull + value per entry].
-     * Mirrors HeapSingleStateIterator::serializeEmhashMap().
-     *
-     * For Object* types, uses GetBuffer()+deserialize(Object*,...) since PojoSerializer's
-     * void* deserialize is NOT_IMPL.
+     * Adds a single map entry to an existing or new HashMap for per-entry MAP restore.
+     * Called once per map entry (each map entry is a separate state entry in the new format).
+     * The keyInput should be positioned after sourceKey+namespace, with mapKey bytes remaining.
+     * The valInput contains [null_bool][mapValue].
      */
     template <typename UK, typename UV>
-    static emhash7::HashMap<UK, UV>* deserializeEmhashMap(
-        TypeSerializer* keySer, TypeSerializer* valSer, DataInputDeserializer& input)
+    static void addMapEntryToStateTable(
+        HeapKeyedStateBackend<K>* backend,
+        const RestoreStateInfo& info,
+        int keyGroupId,
+        void* rawKey,
+        void* rawNs,
+        TypeSerializer* mapKeySer,
+        TypeSerializer* mapValSer,
+        DataInputDeserializer& keyInput,
+        DataInputDeserializer& valInput)
     {
-        int size = input.readInt();
-        if (size < 0 || size > input.Available()) {
-            INFO_RELEASE("Exception: Invalid emhash map size " << size << ", available bytes " << input.Available());
-            throw std::runtime_error("Invalid emhash map size");
+        auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<UK, UV>*>*>(
+            backend->getStateTablePtr(info.stateDesc->getName()));
+        if (table == nullptr) {
+            return;
         }
-        auto* map = new emhash7::HashMap<UK, UV>();
-        map->reserve(size);
-        for (int i = 0; i < size; i++) {
-            UK key;
-            if constexpr (std::is_same_v<UK, Object*>) {
-                // Object* path: PojoSerializer::deserialize(void*) is NOT_IMPL
-                Object* buf = keySer->GetBuffer();
-                keySer->deserialize(buf, input);
-                key = copyRestoredPointerForState<UK>(buf);
-                releaseRestoredObject(buf);
-            } else if constexpr (std::is_pointer_v<UK>) {
-                UK rawKey = static_cast<UK>(keySer->deserialize(input));
-                key = copyRestoredPointerForState<UK>(rawKey);
-            } else if constexpr (is_shared_ptr_v<UK>) {
-                using BaseType = unwrap_shared_ptr_t<UK>;
-                auto* keyBuffer = static_cast<BaseType*>(keySer->deserialize(input));
-                if (keyBuffer == nullptr) {
-                    THROW_RUNTIME_ERROR("Deserialized null shared row map key");
-                }
-                if constexpr (std::is_same_v<BaseType, RowData>) {
-                    key = std::shared_ptr<RowData>(static_cast<RowData*>(keyBuffer)->copy());
-                } else {
-                    NOT_IMPL_EXCEPTION;
-                }
-            } else {
-                void* rawK = keySer->deserialize(input);
-                key = *static_cast<UK*>(rawK);
-                delete static_cast<UK*>(rawK);
+
+        const bool isMapValNull = valInput.readBoolean();
+
+        // Deserialize map key from the remaining bytes in keyInput (after sourceKey + namespace)
+        UK uk;
+        if constexpr (std::is_same_v<UK, Object*>) {
+            Object* buf = mapKeySer->GetBuffer();
+            mapKeySer->deserialize(buf, keyInput);
+            uk = copyRestoredPointerForState<UK>(buf);
+            releaseRestoredObject(buf);
+        } else if constexpr (std::is_pointer_v<UK>) {
+            UK raw = static_cast<UK>(mapKeySer->deserialize(keyInput));
+            uk = copyRestoredPointerForState<UK>(raw);
+        } else if constexpr (is_shared_ptr_v<UK>) {
+            using KeyBaseType = unwrap_shared_ptr_t<UK>;
+            auto* keyBuffer = static_cast<KeyBaseType*>(mapKeySer->deserialize(keyInput));
+            if (keyBuffer == nullptr) {
+                THROW_RUNTIME_ERROR("Deserialized null shared row map key");
             }
-            bool isNull = input.readBoolean();
-            UV val;
-            if constexpr (std::is_pointer_v<UV>) {
-                if (isNull) {
-                    val = nullptr;
-                } else {
-                    if constexpr (std::is_same_v<UV, Object*>) {
-                        Object* buf = valSer->GetBuffer();
-                        valSer->deserialize(buf, input);
-                        val = copyRestoredPointerForState<UV>(buf);
-                        releaseRestoredObject(buf);
-                    } else {
-                        UV rawVal = static_cast<UV>(valSer->deserialize(input));
-                        val = copyRestoredPointerForState<UV>(rawVal);
-                    }
-                }
+            if constexpr (std::is_same_v<KeyBaseType, RowData>) {
+                uk = std::shared_ptr<RowData>(static_cast<RowData*>(keyBuffer)->copy());
             } else {
-                // For value types, null marker should be false
-                void* rawV = valSer->deserialize(input);
-                val = *static_cast<UV*>(rawV);
-                delete static_cast<UV*>(rawV);
+                NOT_IMPL_EXCEPTION;
             }
-            (*map)[key] = val;
+        } else {
+            void* raw = mapKeySer->deserialize(keyInput);
+            uk = *static_cast<UK*>(raw);
+            delete static_cast<UK*>(raw);
         }
-        return map;
+
+        // Deserialize map value
+        UV uv{};
+        if constexpr (std::is_pointer_v<UV>) {
+            if (isMapValNull) {
+                uv = nullptr;
+            } else {
+                if constexpr (std::is_same_v<UV, Object*>) {
+                    Object* buf = mapValSer->GetBuffer();
+                    mapValSer->deserialize(buf, valInput);
+                    uv = copyRestoredPointerForState<UV>(buf);
+                    releaseRestoredObject(buf);
+                } else {
+                    UV raw = static_cast<UV>(mapValSer->deserialize(valInput));
+                    uv = copyRestoredPointerForState<UV>(raw);
+                }
+            }
+        } else {
+            if (isMapValNull) {
+                ERROR_RELEASE("HeapKeyedStateBackendBuilder: unexpected null MAP value for non-pointer type");
+                throw std::runtime_error("unexpected null MAP value for non-pointer type");
+            }
+            void* raw = mapValSer->deserialize(valInput);
+            uv = *static_cast<UV*>(raw);
+            delete static_cast<UV*>(raw);
+        }
+
+        // Add to existing or new HashMap
+        auto* kvMap = table->get(*static_cast<K*>(rawKey), keyGroupId, *static_cast<VoidNamespace*>(rawNs));
+        if (kvMap == nullptr) {
+            kvMap = new emhash7::HashMap<UK, UV>();
+            (*kvMap)[uk] = uv;
+            table->put(*static_cast<K*>(rawKey), keyGroupId, *static_cast<VoidNamespace*>(rawNs), kvMap);
+        } else {
+            (*kvMap)[uk] = uv;
+        }
     }
 
     /**
-     * Deserializes a std::vector from checkpoint bytes using the ListSerializer's
-     * element serializer. Format: [int size] [elem_1] [elem_2] ...
+     * Deserializes a std::vector from checkpoint bytes using the ListDelimitedSerializer format.
+     * Format: [elem_1][','][elem_2][',']...[elem_N]  (no size prefix, comma-separated)
      * Mirrors HeapSingleStateIterator::serializeVector().
      */
     template <typename V>
     static std::vector<V>* deserializeVector(TypeSerializer* elemSer, DataInputDeserializer& input)
     {
-        int size = input.readInt();
         auto* vec = new std::vector<V>();
-        vec->reserve(size);
-        for (int i = 0; i < size; i++) {
+        while (input.Available() > 0) {
             if constexpr (std::is_same_v<V, Object*>) {
                 Object* buf = elemSer->GetBuffer();
                 elemSer->deserialize(buf, input);
@@ -312,6 +329,9 @@ private:
                 void* raw = elemSer->deserialize(input);
                 vec->push_back(*static_cast<V*>(raw));
                 delete static_cast<V*>(raw);
+            }
+            if (input.Available() > 0) {
+                input.readByte(); // consume ',' delimiter
             }
         }
         return vec;
@@ -392,6 +412,24 @@ HeapKeyedStateBackend<K>* HeapKeyedStateBackendBuilder<K>::build()
 
     // Restore from state handles if available
     if (!restoreStateHandles.empty() && omniTaskBridge) {
+        // 根据 handle 类型分发到不同的恢复路径
+        auto firstHandle = *restoreStateHandles.begin();
+        if (!std::dynamic_pointer_cast<KeyGroupsSavepointStateHandle>(firstHandle)) {
+            // CP 路径（Flink CP / heap 原生 CP）：使用 HeapRestoreOperation
+            std::vector<std::shared_ptr<KeyedStateHandle>> handleVec(
+                restoreStateHandles.begin(), restoreStateHandles.end());
+            auto keySerializerPtr = std::shared_ptr<TypeSerializer>(keySerializer, [](TypeSerializer*) {});
+
+            HeapRestoreOperation<K> restoreOp(
+                backend.get(), keyGroupRange, handleVec, keySerializerPtr, numberOfKeyGroups, omniTaskBridge);
+            restoreOp.restore();
+
+            auto* builtBackend = backend.release();
+            keyContext.release();
+            return builtBackend;
+        }
+
+        // SP 路径（本引擎 savepoint）：使用 FullSnapshotRestoreOperation
         int keyGroupPrefixBytes =
             CompositeKeySerializationUtils::computeRequiredBytesInKeyGroupPrefix(numberOfKeyGroups);
 
@@ -680,12 +718,14 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
     } else if (desc->getType() == StateDescriptor::Type::LIST) {
         auto dataId = desc->getBackendId();
 
-        // ListSerializer::deserialize(void*) is NOT_IMPL, use element serializer directly
+        // ListSerializer::deserialize(void*) is NOT_IMPL, use element serializer directly.
+        // If valueSerializer is ListSerializer, extract the element serializer;
+        // otherwise, use it directly as the element serializer (e.g. WindowJoin stores LongSerializer).
         auto* listSer = dynamic_cast<ListSerializer*>(info.valueSerializer);
-        TypeSerializer* elemSer = listSer ? listSer->getElementSerializer() : nullptr;
+        TypeSerializer* elemSer = listSer ? listSer->getElementSerializer() : info.valueSerializer;
 
         if (elemSer == nullptr) {
-            INFO_RELEASE("Error:HeapKeyedStateBackendBuilder: LIST state serializer is not ListSerializer, skipping");
+            INFO_RELEASE("Error:HeapKeyedStateBackendBuilder: LIST state has null element serializer, skipping");
             delete static_cast<K*>(rawKey);
             if (nsBackendId == BackendDataType::VOID_NAMESPACE_BK) {
                 delete static_cast<VoidNamespace*>(rawNs);
@@ -716,8 +756,9 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
         auto mapKeyId = desc->getKeyDataId();
         auto mapValId = desc->getValueDataId();
 
-        // For MAP state, bypass MapSerializer (whose void* deserialize is NOT_IMPL)
-        // and deserialize the emhash7::HashMap directly using sub-serializers.
+        // MAP state per-entry format: each map entry is a separate state entry.
+        // keyInput (after sourceKey+namespace) contains the serialized mapKey.
+        // valInput contains [null_bool][mapValue].
         auto* mapSer = dynamic_cast<MapSerializer*>(info.valueSerializer);
         if (!mapSer) {
             INFO_RELEASE("Error:HeapKeyedStateBackendBuilder: MAP state serializer is not MapSerializer, skipping");
@@ -729,70 +770,39 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
         auto* mapValSer = mapSer->getValueSerializer();
 
         if (mapKeyId == BackendDataType::INT_BK && mapValId == BackendDataType::INT_BK) {
-            auto* mapVal = deserializeEmhashMap<int, int>(mapKeySer, mapValSer, valInput);
-            auto* table =
-                reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<int, int>*>*>(stateTablePtr);
-            table->put(*static_cast<K*>(rawKey), keyGroupId, *static_cast<VoidNamespace*>(rawNs), mapVal);
+            addMapEntryToStateTable<int, int>(
+                backend, info, keyGroupId, rawKey, rawNs, mapKeySer, mapValSer, keyInput, valInput);
         } else if (
             (mapKeyId == BackendDataType::BIGINT_BK && mapValId == BackendDataType::BIGINT_BK) ||
             (mapKeyId == BackendDataType::EXTERNAL_BIGINT_BK && mapValId == BackendDataType::EXTERNAL_BIGINT_BK)) {
-            auto* mapVal = deserializeEmhashMap<int64_t, int64_t>(mapKeySer, mapValSer, valInput);
-            auto* table =
-                reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<int64_t, int64_t>*>*>(
-                    stateTablePtr);
-            table->put(*static_cast<K*>(rawKey), keyGroupId, *static_cast<VoidNamespace*>(rawNs), mapVal);
+            addMapEntryToStateTable<int64_t, int64_t>(
+                backend, info, keyGroupId, rawKey, rawNs, mapKeySer, mapValSer, keyInput, valInput);
         } else if (mapKeyId == BackendDataType::VARCHAR_BK && mapValId == BackendDataType::INT_BK) {
-            auto* mapVal = deserializeEmhashMap<std::string, int>(mapKeySer, mapValSer, valInput);
-            auto* table =
-                reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<std::string, int>*>*>(
-                    stateTablePtr);
-            table->put(*static_cast<K*>(rawKey), keyGroupId, *static_cast<VoidNamespace*>(rawNs), mapVal);
+            addMapEntryToStateTable<std::string, int>(
+                backend, info, keyGroupId, rawKey, rawNs, mapKeySer, mapValSer, keyInput, valInput);
         } else if (
             (mapKeyId == BackendDataType::OBJECT_BK || mapKeyId == BackendDataType::POJO_BK) &&
             (mapValId == BackendDataType::OBJECT_BK || mapValId == BackendDataType::POJO_BK)) {
-            auto* mapVal = deserializeEmhashMap<Object*, Object*>(mapKeySer, mapValSer, valInput);
-            auto* table =
-                reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<Object*, Object*>*>*>(
-                    stateTablePtr);
-            table->put(*static_cast<K*>(rawKey), keyGroupId, *static_cast<VoidNamespace*>(rawNs), mapVal);
+            addMapEntryToStateTable<Object*, Object*>(
+                backend, info, keyGroupId, rawKey, rawNs, mapKeySer, mapValSer, keyInput, valInput);
         } else if (mapKeyId == BackendDataType::ROW_BK && mapValId == BackendDataType::INT_BK) {
-            auto* mapVal = deserializeEmhashMap<RowData*, int32_t>(mapKeySer, mapValSer, valInput);
-            auto* table =
-                reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<RowData*, int32_t>*>*>(
-                    stateTablePtr);
-            table->put(*static_cast<K*>(rawKey), keyGroupId, *static_cast<VoidNamespace*>(rawNs), mapVal);
+            addMapEntryToStateTable<RowData*, int32_t>(
+                backend, info, keyGroupId, rawKey, rawNs, mapKeySer, mapValSer, keyInput, valInput);
         } else if (mapKeyId == BackendDataType::SHARED_ROW_BK && mapValId == BackendDataType::INT_BK) {
-            auto* mapVal = deserializeEmhashMap<std::shared_ptr<RowData>, int32_t>(mapKeySer, mapValSer, valInput);
-            auto* table = reinterpret_cast<
-                CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<std::shared_ptr<RowData>, int32_t>*>*>(
-                stateTablePtr);
-            table->put(*static_cast<K*>(rawKey), keyGroupId, *static_cast<VoidNamespace*>(rawNs), mapVal);
+            addMapEntryToStateTable<std::shared_ptr<RowData>, int32_t>(
+                backend, info, keyGroupId, rawKey, rawNs, mapKeySer, mapValSer, keyInput, valInput);
         } else if (mapKeyId == BackendDataType::ROW_BK && mapValId == BackendDataType::ROW_BK) {
-            auto* mapVal = deserializeEmhashMap<RowData*, RowData*>(mapKeySer, mapValSer, valInput);
-            auto* table =
-                reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<RowData*, RowData*>*>*>(
-                    stateTablePtr);
-            table->put(*static_cast<K*>(rawKey), keyGroupId, *static_cast<VoidNamespace*>(rawNs), mapVal);
+            addMapEntryToStateTable<RowData*, RowData*>(
+                backend, info, keyGroupId, rawKey, rawNs, mapKeySer, mapValSer, keyInput, valInput);
         } else if (mapKeyId == BackendDataType::SHARED_ROW_BK && mapValId == BackendDataType::TUPLE_INT32_INT32) {
-            auto* mapVal = deserializeEmhashMap<std::shared_ptr<RowData>, std::tuple<int32_t, int32_t>>(
-                mapKeySer, mapValSer, valInput);
-            auto* table = reinterpret_cast<CopyOnWriteStateTable<
-                K,
-                VoidNamespace,
-                emhash7::HashMap<std::shared_ptr<RowData>, std::tuple<int32_t, int32_t>>*>*>(stateTablePtr);
-            table->put(*static_cast<K*>(rawKey), keyGroupId, *static_cast<VoidNamespace*>(rawNs), mapVal);
+            addMapEntryToStateTable<std::shared_ptr<RowData>, std::tuple<int32_t, int32_t>>(
+                backend, info, keyGroupId, rawKey, rawNs, mapKeySer, mapValSer, keyInput, valInput);
         } else if (mapKeyId == BackendDataType::TIME_WINDOW_BK && mapValId == BackendDataType::TIME_WINDOW_BK) {
-            auto* mapVal = deserializeEmhashMap<TimeWindow, TimeWindow>(mapKeySer, mapValSer, valInput);
-            auto* table =
-                reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<TimeWindow, TimeWindow>*>*>(
-                    stateTablePtr);
-            table->put(*static_cast<K*>(rawKey), keyGroupId, *static_cast<VoidNamespace*>(rawNs), mapVal);
+            addMapEntryToStateTable<TimeWindow, TimeWindow>(
+                backend, info, keyGroupId, rawKey, rawNs, mapKeySer, mapValSer, keyInput, valInput);
         } else if (mapKeyId == BackendDataType::ROW_BK && mapValId == BackendDataType::ROW_LIST_BK) {
-            auto* mapVal = deserializeEmhashMap<RowData*, std::vector<RowData*>*>(mapKeySer, mapValSer, valInput);
-            auto* table = reinterpret_cast<
-                CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<RowData*, std::vector<RowData*>*>*>*>(
-                stateTablePtr);
-            table->put(*static_cast<K*>(rawKey), keyGroupId, *static_cast<VoidNamespace*>(rawNs), mapVal);
+            addMapEntryToStateTable<RowData*, std::vector<RowData*>*>(
+                backend, info, keyGroupId, rawKey, rawNs, mapKeySer, mapValSer, keyInput, valInput);
         } else {
             INFO_RELEASE(
                 "Error:HeapKeyedStateBackendBuilder: unsupported MAP restore type key=" << mapKeyId

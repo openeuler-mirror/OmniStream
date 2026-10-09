@@ -11,6 +11,8 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <map>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -24,11 +26,13 @@
 #include "core/typeutils/JoinTupleSerializer.h"
 #include "core/typeutils/VoidSerializer.h"
 #include "runtime/state/HeapKeyedStateBackend.h"
+#include "runtime/state/RegisteredKeyValueStateBackendMetaInfo.h"
 #include "runtime/state/VoidNamespaceSerializer.h"
 #include "runtime/state/InternalKeyContextImpl.h"
 #include "runtime/state/KeyGroupRange.h"
 #include "runtime/state/OperatorRuntimeStateSchemaProvider.h"
 #include "runtime/state/heap/HeapRestoreBackendDelegate.h"
+#include "runtime/state/heap/HeapSingleStateIterator.h"
 #include "runtime/state/heap/HeapRestoreKVState.h"
 #include "runtime/state/heap/HeapRestoreKVStateVB.h"
 #include "runtime/state/heap/HeapRestorePQState.h"
@@ -320,6 +324,12 @@ TEST_F(HeapRestoreStateWriterTest, KvStateWriteValueEntryBigintBackend)
     ASSERT_GE(delegate_->getStateInfos().size(), 1u);
     EXPECT_EQ(delegate_->getStateInfos()[0].mainEntryCount, 1);
     EXPECT_NE(delegate_->getStateInfos()[0].mainTablePtr, 0);
+
+    // Verify restored value: key=42, value=100L
+    auto* restoredTable = reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, int64_t>*>(
+        delegate_->getStateInfos()[0].mainTablePtr);
+    ASSERT_NE(restoredTable, nullptr);
+    EXPECT_EQ(restoredTable->get(42, 0, VoidNamespace()), 100L);
 }
 
 // ============================================================================
@@ -341,6 +351,12 @@ TEST_F(HeapRestoreStateWriterTest, KvStateWriteValueEntryIntBackend)
 
     ASSERT_GE(delegate_->getStateInfos().size(), 1u);
     EXPECT_EQ(delegate_->getStateInfos()[0].mainEntryCount, 1);
+
+    // Verify restored value: key=7, value=999
+    auto* restoredTable =
+        reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, int>*>(delegate_->getStateInfos()[0].mainTablePtr);
+    ASSERT_NE(restoredTable, nullptr);
+    EXPECT_EQ(restoredTable->get(7, 0, VoidNamespace()), 999);
 }
 
 // ============================================================================
@@ -370,10 +386,10 @@ TEST_F(HeapRestoreStateWriterTest, KvStateWriteBytesEntryRoutesToListEntry)
 
     auto keyBytes = makeKeyBytes(2, 0, 2);
 
-    // 构造 LIST value bytes: readInt(size=2) + elem1(8bytes) + elem2(8bytes)
+    // 构造 LIST value bytes: elem1(8bytes) + ',' + elem2(8bytes)（ListDelimitedSerializer 逗号分隔，无 size 前缀）
     DataOutputSerializer valOut(32);
-    valOut.writeInt(2); // size = 2 elements
     valOut.writeLong(100L);
+    valOut.writeByte(static_cast<uint8_t>(','));
     valOut.writeLong(200L);
     std::vector<int8_t> listValueBytes(valOut.length());
     std::memcpy(listValueBytes.data(), valOut.getData(), valOut.length());
@@ -383,6 +399,16 @@ TEST_F(HeapRestoreStateWriterTest, KvStateWriteBytesEntryRoutesToListEntry)
 
     ASSERT_GE(delegate_->getStateInfos().size(), 1u);
     EXPECT_EQ(delegate_->getStateInfos()[0].mainEntryCount, 1);
+
+    // Verify restored list data: element values must be {100L, 200L}
+    auto* restoredTable = reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, std::vector<int64_t>*>*>(
+        delegate_->getStateInfos()[0].mainTablePtr);
+    ASSERT_NE(restoredTable, nullptr);
+    auto* restoredList = restoredTable->get(2, 0, VoidNamespace());
+    ASSERT_NE(restoredList, nullptr);
+    ASSERT_EQ(restoredList->size(), 2u);
+    EXPECT_EQ((*restoredList)[0], 100L);
+    EXPECT_EQ((*restoredList)[1], 200L);
 }
 
 // ============================================================================
@@ -506,6 +532,200 @@ TEST_F(HeapRestoreStateWriterTest, KvStateWriteMapEntryUsesRuntimeSchemaForShare
 }
 
 // ============================================================================
+// SHARED_ROW MAP 状态：写侧 per-entry 快照序列化 + 恢复回环测试
+// 验证 HeapSingleStateIterator::serializeMapEntriesPerEntry 对
+// shared_ptr<RowData> map key 的处理（序列化 pointee row，而非 shared_ptr 对象字节）：
+//   key   = [keyGroupPrefix][sourceKey][namespace][mapKey(row bytes)]
+//   value = [null_bool(false)][mapValue]
+// 并将序列化结果回灌恢复侧，验证端到端数据一致。
+// ============================================================================
+
+TEST_F(HeapRestoreStateWriterTest, SharedRowMapSnapshotSerializePerEntryAndRestoreRoundTrip)
+{
+    const int keyGroupId = 5;
+    const int sourceKey = 3;
+    const int keyGroupPrefixBytes = 2;
+    using SharedRowMap = emhash7::HashMap<std::shared_ptr<RowData>, int32_t>;
+
+    omnistream::RowType rowType(true, std::vector<std::string>{"BIGINT"});
+    auto* mapSer = new MapSerializer(new RowDataSerializer(&rowType), new IntSerializer());
+    serializersToClean_.emplace_back(mapSer);
+
+    // 构造期望的序列化字节（mapKey 用 RowDataSerializer 序列化 pointee row）
+    const std::vector<std::pair<int64_t, int32_t>> mapEntries{{100L, 1000}, {200L, 2000}};
+    std::vector<std::pair<std::vector<int8_t>, std::vector<int8_t>>> expected;
+    for (const auto& [rowValue, mapValue] : mapEntries) {
+        std::shared_ptr<RowData> row(BinaryRowData::createBinaryRowDataWithMem(1));
+        static_cast<BinaryRowData*>(row.get())->setLong(0, rowValue);
+
+        DataOutputSerializer mapKeyOut(32);
+        mapSer->getKeySerializer()->serialize(row.get(), mapKeyOut);
+        std::vector<int8_t> mapKeySuffix(mapKeyOut.length());
+        std::memcpy(mapKeySuffix.data(), mapKeyOut.getData(), mapKeyOut.length());
+        auto keyBytes = makeKeyBytesWithMapKey(sourceKey, keyGroupId, keyGroupPrefixBytes, mapKeySuffix);
+
+        DataOutputSerializer valOut(8);
+        valOut.writeBoolean(false); // null_bool
+        valOut.writeInt(static_cast<uint32_t>(mapValue));
+        std::vector<int8_t> valBytes(valOut.length());
+        std::memcpy(valBytes.data(), valOut.getData(), valOut.length());
+
+        expected.emplace_back(std::move(keyBytes), std::move(valBytes));
+    }
+
+    // Phase 1: 构造含 shared_ptr<RowData> key 的 MAP 状态表
+    auto* tableMetaInfo = new RegisteredKeyValueStateBackendMetaInfo(
+        StateDescriptor::Type::MAP, "left-records", new VoidNamespaceSerializer(), mapSer);
+    CopyOnWriteStateTable<int, VoidNamespace, SharedRowMap*> sourceTable(
+        context_.get(), tableMetaInfo, IntSerializer::INSTANCE);
+    {
+        auto* kvMap = new SharedRowMap();
+        for (const auto& [rowValue, mapValue] : mapEntries) {
+            std::shared_ptr<RowData> row(BinaryRowData::createBinaryRowDataWithMem(1));
+            static_cast<BinaryRowData*>(row.get())->setLong(0, rowValue);
+            (*kvMap)[row] = mapValue;
+        }
+        sourceTable.put(sourceKey, keyGroupId, VoidNamespace(), kvMap);
+    }
+
+    // Phase 2: 写侧快照序列化，逐字节比对
+    std::vector<std::pair<std::vector<int8_t>, std::vector<int8_t>>> actual;
+    {
+        HeapSingleStateIterator<int, VoidNamespace, SharedRowMap*> iterator(&sourceTable, 0, keyGroupPrefixBytes);
+        // per-entry 布局：每个 map entry 输出一条状态 entry
+        ASSERT_EQ(iterator.getEntryCount(), mapEntries.size());
+        for (; iterator.isValid(); iterator.next()) {
+            ASSERT_EQ(iterator.keyGroup(), keyGroupId);
+            auto keyView = iterator.key();
+            auto valView = iterator.value();
+            actual.emplace_back(
+                std::vector<int8_t>(keyView.data(), keyView.data() + keyView.size()),
+                std::vector<int8_t>(valView.data(), valView.data() + valView.size()));
+        }
+    }
+    auto entryLess = [](const auto& lhs, const auto& rhs) { return lhs.first < rhs.first; };
+    std::sort(expected.begin(), expected.end(), entryLess);
+    std::sort(actual.begin(), actual.end(), entryLess);
+    ASSERT_EQ(actual.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        EXPECT_EQ(actual[i].first, expected[i].first);
+        EXPECT_EQ(actual[i].second, expected[i].second);
+    }
+
+    // Phase 3: 序列化字节回灌恢复侧（StreamingJoin schema: ROW_BK -> SHARED_ROW_BK），验证回环
+    nlohmann::json operatorDescription{
+        {"joinType", "InnerJoin"}, {"leftInputSpec", "NoUniqueKey"}, {"rightInputSpec", "NoUniqueKey"}};
+    auto provider = OperatorRuntimeStateSchemaProviderFactory::create(operatorDescription);
+    ASSERT_NE(provider, nullptr);
+    HeapRestoreBackendDelegate<int> runtimeDelegate(
+        backend_.get(), keySerializer_, keyGroupPrefixBytes, provider.get());
+
+    auto metaInfoSnap = makeKvMetaInfoWithSerializer("left-records", mapSer, "MAP");
+    auto kv = runtimeDelegate.createKVState(0, metaInfoSnap);
+    kv->setKeyGroupId(keyGroupId);
+    for (const auto& [keyBytes, valBytes] : actual) {
+        EXPECT_NO_THROW(kv->writeEntry<ByteView>(keyBytes, ByteView(valBytes.data(), valBytes.size())));
+    }
+
+    const auto& stateInfo = runtimeDelegate.getStateInfos()[0];
+    EXPECT_EQ(stateInfo.mainEntryCount, static_cast<int>(mapEntries.size()));
+    auto* restoredTable =
+        reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, SharedRowMap*>*>(stateInfo.mainTablePtr);
+    ASSERT_NE(restoredTable, nullptr);
+    auto* restoredMap = restoredTable->get(sourceKey, keyGroupId, VoidNamespace());
+    ASSERT_NE(restoredMap, nullptr);
+    ASSERT_EQ(restoredMap->size(), mapEntries.size());
+    std::map<int64_t, int32_t> restored;
+    for (const auto& entry : *restoredMap) {
+        ASSERT_NE(entry.first, nullptr);
+        restored[*(static_cast<BinaryRowData*>(entry.first.get())->getLong(0))] = entry.second;
+    }
+    for (const auto& [rowValue, mapValue] : mapEntries) {
+        auto it = restored.find(rowValue);
+        ASSERT_NE(it, restored.end());
+        EXPECT_EQ(it->second, mapValue);
+    }
+}
+
+// ============================================================================
+// BIGINT LIST 状态：写侧快照序列化 + 恢复回环测试
+// 验证 HeapSingleStateIterator::serializeValue 对 LIST 状态的处理：
+// 序列化逗号分隔格式（ListDelimitedSerializer，无 size 前缀）：
+//   value = [elem1_bytes][','][elem2_bytes][',']...
+// 并将序列化结果回灌恢复侧，验证端到端数据一致。
+// ============================================================================
+
+TEST_F(HeapRestoreStateWriterTest, BigintListSnapshotSerializeAndRestoreRoundTrip)
+{
+    const int keyGroupId = 5;
+    const int sourceKey = 3;
+    const int keyGroupPrefixBytes = 2;
+    using BigintList = std::vector<int64_t>;
+
+    auto* listSer = new ListSerializer(new LongSerializer());
+    serializersToClean_.emplace_back(listSer);
+
+    const std::vector<int64_t> testValues = {100L, 200L, 300L};
+
+    // Phase 1: 构造 LIST 状态表
+    auto* tableMetaInfo = new RegisteredKeyValueStateBackendMetaInfo(
+        StateDescriptor::Type::LIST, "test-list", new VoidNamespaceSerializer(), listSer);
+    CopyOnWriteStateTable<int, VoidNamespace, BigintList*> sourceTable(
+        context_.get(), tableMetaInfo, IntSerializer::INSTANCE);
+    {
+        auto* list = new BigintList(testValues);
+        sourceTable.put(sourceKey, keyGroupId, VoidNamespace(), list);
+    }
+
+    // Phase 2: 写侧快照序列化，逐字节比对
+    // key 格式：[keyGroupPrefix(2)][sourceKey(IntSerializer=4)][VoidNamespace(1)]
+    auto expectedKey = makeKeyBytes(sourceKey, keyGroupId, keyGroupPrefixBytes);
+
+    // value 格式：[LongSerializer(100L)][','][LongSerializer(200L)][','][LongSerializer(300L)]
+    DataOutputSerializer expectedValOut(32);
+    LongSerializer* longSer = LongSerializer::INSTANCE;
+    for (size_t i = 0; i < testValues.size(); i++) {
+        if (i > 0) {
+            expectedValOut.writeByte(static_cast<uint8_t>(','));
+        }
+        int64_t val = testValues[i];
+        longSer->serialize(&val, expectedValOut);
+    }
+    std::vector<int8_t> expectedValue(expectedValOut.length());
+    std::memcpy(expectedValue.data(), expectedValOut.getData(), expectedValOut.length());
+
+    // 执行序列化
+    HeapSingleStateIterator<int, VoidNamespace, BigintList*> iterator(&sourceTable, 0, keyGroupPrefixBytes);
+    ASSERT_EQ(iterator.getEntryCount(), 1u);
+    ASSERT_TRUE(iterator.isValid());
+    EXPECT_EQ(iterator.keyGroup(), keyGroupId);
+    auto keyView = iterator.key();
+    auto valView = iterator.value();
+    std::vector<int8_t> actualKey(keyView.data(), keyView.data() + keyView.size());
+    std::vector<int8_t> actualValue(valView.data(), valView.data() + valView.size());
+    EXPECT_EQ(actualKey, expectedKey);
+    EXPECT_EQ(actualValue, expectedValue);
+
+    // Phase 3: 序列化字节回灌恢复侧，验证回环数据一致
+    auto metaInfoSnap = makeKvMetaInfoWithSerializer("test-list", listSer, "LIST");
+    auto kv = delegate_->createKVState(0, metaInfoSnap);
+    kv->setKeyGroupId(keyGroupId);
+    EXPECT_NO_THROW(kv->writeEntry<ByteView>(actualKey, ByteView(actualValue.data(), actualValue.size())));
+
+    const auto& stateInfo = delegate_->getStateInfos()[0];
+    EXPECT_EQ(stateInfo.mainEntryCount, 1);
+    auto* restoredTable =
+        reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, BigintList*>*>(stateInfo.mainTablePtr);
+    ASSERT_NE(restoredTable, nullptr);
+    auto* restoredList = restoredTable->get(sourceKey, keyGroupId, VoidNamespace());
+    ASSERT_NE(restoredList, nullptr);
+    ASSERT_EQ(restoredList->size(), testValues.size());
+    for (size_t i = 0; i < testValues.size(); i++) {
+        EXPECT_EQ((*restoredList)[i], testValues[i]);
+    }
+}
+
+// ============================================================================
 // HeapRestoreKVState 多次写入测试
 // ============================================================================
 
@@ -584,6 +804,12 @@ TEST_F(HeapRestoreStateWriterTest, KvStateWriteBytesEntryRoutesToValueEntry)
 
     ASSERT_GE(delegate_->getStateInfos().size(), 1u);
     EXPECT_EQ(delegate_->getStateInfos()[0].mainEntryCount, 1);
+
+    // Verify restored value: key=10, value=777L
+    auto* restoredTable = reinterpret_cast<CopyOnWriteStateTable<int, VoidNamespace, int64_t>*>(
+        delegate_->getStateInfos()[0].mainTablePtr);
+    ASSERT_NE(restoredTable, nullptr);
+    EXPECT_EQ(restoredTable->get(10, 0, VoidNamespace()), 777L);
 }
 
 // ============================================================================
