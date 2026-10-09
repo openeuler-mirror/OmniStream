@@ -45,6 +45,13 @@ public:
 
     Tuple2* next = nullptr;
 
+    int64_t sizeInBytes() const override
+    {
+        return static_cast<int64_t>(sizeof(Tuple2)) +
+               (f0 ? f0->sizeInBytes() : 0) +
+               (f1 ? f1->sizeInBytes() : 0);
+    }
+
 public:
     Object* f0 = nullptr;
     Object* f1 = nullptr;

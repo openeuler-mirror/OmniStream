@@ -64,12 +64,21 @@ public:
         }
 
         switch (type) {
+            case omniruntime::type::DataTypeId::OMNI_BOOLEAN: {
+                vectorBatch->SetValueAt(colIndex, rowIndex, fieldIt->get<bool>());
+                break;
+            }
             case omniruntime::type::DataTypeId::OMNI_INT: {
                 vectorBatch->SetValueAt(colIndex, rowIndex, fieldIt->get<int32_t>());
                 break;
             }
             case omniruntime::type::DataTypeId::OMNI_LONG: {
                 vectorBatch->SetValueAt(colIndex, rowIndex, fieldIt->get<int64_t>());
+                break;
+            }
+            case omniruntime::type::DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE: {
+                vectorBatch->SetValueAt(colIndex, rowIndex,
+                                        TimestampData::stringToMillisOfDay(fieldIt->get<std::string>()));
                 break;
             }
             case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:

@@ -6,6 +6,9 @@
 
 RemoteDataFetcherBridgeImpl::~RemoteDataFetcherBridgeImpl()
 {
+    // This destructor is what releases the JNI global ref on the Java RemoteDataFetcher. While it
+    // does not run, that object pins its remote input channels, their SingleInputGate, and through
+    // the gate's partitionProducerStateProvider the whole Java OmniTask and its TaskMetricGroup.
     CleanJavaRemoteDataFetcher();
 }
 
@@ -57,6 +60,11 @@ void RemoteDataFetcherBridgeImpl::InvokeJavaRemoteDataFetcherResumeConsumption(i
     if (attached) {
         g_OmniStreamJVM->DetachCurrentThread();
     }
+}
+
+void RemoteDataFetcherBridgeImpl::ReleaseJavaRemoteDataFetcher()
+{
+    CleanJavaRemoteDataFetcher();
 }
 
 void RemoteDataFetcherBridgeImpl::CleanJavaRemoteDataFetcher()

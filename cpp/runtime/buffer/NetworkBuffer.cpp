@@ -59,27 +59,23 @@ NetworkBuffer::NetworkBuffer(
     SetDataType(dataType_);
 }
 
-NetworkBuffer::NetworkBuffer(
-    MemorySegment* memorySegment,
-    int bufferLength,
-    int readIndex,
-    std::shared_ptr<BufferRecycler> recycler,
-    bool segmentOwner)
-{
-    if (memorySegment == nullptr) {
-        throw std::runtime_error("segment is null");
+    NetworkBuffer::NetworkBuffer(MemorySegment *memorySegment, int bufferLength, int readIndex,
+                                 std::shared_ptr<BufferRecycler> recycler, bool segmentOwner)
+    {
+        if (memorySegment == nullptr) {
+            throw std::runtime_error("segment is null");
+        }
+        this->memorySegment = memorySegment;
+        if (recycler == nullptr) {
+            throw std::runtime_error("recycler is null");
+        }
+        this->event_type = -1;
+        this->recycler = recycler;
+        this->currentSize = bufferLength;
+        this->readerIndex_ = readIndex;
+        refCount_ = 1;
+        this->segmentOwner = segmentOwner;
     }
-    this->memorySegment = memorySegment;
-    if (recycler == nullptr) {
-        throw std::runtime_error("recycler is null");
-    }
-    this->event_type = -1;
-    this->recycler = recycler;
-    this->currentSize = bufferLength;
-    this->readerIndex_ = readIndex;
-    this->segmentOwner = segmentOwner;
-}
-
 MemorySegment* NetworkBuffer::getMemorySegment()
 {
     return memorySegment;

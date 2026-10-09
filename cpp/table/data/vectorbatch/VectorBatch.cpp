@@ -11,9 +11,11 @@
 
 #include "VectorBatch.h"
 #include <fstream>
+
+#include "OmniOperatorJIT/core/src/codegen/time_util.h"
 #include "data/binary/BinaryRowData.h"
 #include "table/data/rowdata_marshaller.h"
-#include "OmniOperatorJIT/core/src/codegen/time_util.h"
+#include "table/utils/VectorBatchSerializationUtils.h"
 
 namespace {
 std::string FormatDecimal(std::string valueStr, int32_t scale)
@@ -65,19 +67,35 @@ VectorBatch::VectorBatch(
     : omniruntime::vec::VectorBatch(baseVecBatch->GetRowCount())
 {
     auto baseVectors = baseVecBatch->GetVectors();
-    this->vectors.insert(this->vectors.end(), baseVectors, baseVectors + baseVecBatch->GetVectorCount());
+    const int32_t baseCount = baseVecBatch->GetVectorCount();
+    if (baseVectors == nullptr && baseCount > 0) {
+        THROW_LOGIC_EXCEPTION("VectorBatch: null vector array with count " + std::to_string(baseCount));
+    }
+    for (int32_t i = 0; i < baseCount; ++i) {
+        if (baseVectors[i] == nullptr) {
+            THROW_LOGIC_EXCEPTION(
+                "VectorBatch: null vector at index " + std::to_string(i) + " of " + std::to_string(baseCount));
+        }
+    }
+    this->vectors.insert(this->vectors.end(), baseVectors, baseVectors + baseCount);
     // The vectors are now owned by this batch. Clear the source so the unique_ptr
     // can be destroyed without deleting the transferred vectors.
     baseVecBatch->ClearVectors();
     this->rowKinds = rowkinds;
     this->timestamps = timestamps;
     this->maxTimestamp = INT64_MIN;
+    refreshSizeInBytes();
 }
-// todo: 这个函数看是否可以删掉
+
+void VectorBatch::refreshSizeInBytes()
+{
+    sizeInBytes_ = VectorBatchSerializationUtils::calculateVectorBatchPayloadSize(this);
+}
+
 int64_t VectorBatch::setMaxTimestamp(int colIdx)
 {
-    omniruntime::vec::Vector<int64_t>* col = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(this->Get(colIdx));
-    for (int i = 0; i < this->GetRowCount(); i++) {
+    auto* col = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(this->Get(colIdx));
+    for (int i = 0; i < this->GetRowCount(); ++i) {
         maxTimestamp = std::max(maxTimestamp, col->GetValue(i));
     }
     return maxTimestamp;
@@ -87,19 +105,18 @@ void VectorBatch::RearrangeColumns(std::vector<int32_t>& inputIndices)
 {
     LOG("=====>");
     std::vector<bool> toKeep(this->vectors.size(), false);
-    // Move column to its new position
     std::vector<omniruntime::vec::BaseVector*> newVectors(inputIndices.size());
-    for (size_t i = 0; i < inputIndices.size(); i++) {
+    for (size_t i = 0; i < inputIndices.size(); ++i) {
         newVectors[i] = this->vectors[inputIndices[i]];
         toKeep[inputIndices[i]] = true;
     }
-    // remove vectors(cols) that are no longer needed
-    for (size_t i = 0; i < toKeep.size(); i++) {
+    for (size_t i = 0; i < toKeep.size(); ++i) {
         if (!toKeep[i]) {
             delete vectors[i];
         }
     }
     this->vectors = newVectors;
+    refreshSizeInBytes();
 }
 
 // The caller takes ownership of the returned pointer
@@ -206,6 +223,50 @@ std::string VectorBatch::TransformTime(int vectorID, int rowID, int precision) c
     return result;
 }
 
+std::string VectorBatch::TransformOnlyTime(int vectorID, int rowID, int precision) const
+{
+    auto millis = reinterpret_cast<omniruntime::vec::Vector<int64_t> *>(vectors[vectorID])->GetValue(rowID);
+    int64_t totalSeconds = millis / 1000;
+    int milliseconds = millis % 1000;
+    if (milliseconds < 0) {
+        milliseconds += 1000; //保证毫秒非负数
+        totalSeconds -= 1;
+    }
+    int hours = totalSeconds / 3600; //取出小时数、分钟数和秒数
+    int minutes = (totalSeconds % 3600) / 60;
+    int seconds = totalSeconds % 60;
+
+    // 检测越界值（hours >= 24 会产生非法的 "24:00:00.000" 及以上输出）
+    while (hours >= 24) {
+        hours -= 24; //将hour限定在0-23之间
+    }
+
+    char buf[32];
+    std::snprintf(buf, sizeof(buf), "%02d:%02d:%02d", hours, minutes, seconds);
+
+    std::ostringstream oss;
+    oss << buf << ".";
+
+    if (precision <= 3) {
+        // precision <= 3时，补齐到3位（毫秒精度）
+        oss << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
+            << milliseconds;
+    } else if (precision <= 9) {
+        // 3 < precision <= 9时，输出毫秒部分并补0到precision位数
+        oss << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
+            << milliseconds
+            << std::string(precision - 3, '0');
+    } else {
+        // precision > 9时，截断到9位
+        oss << std::setw(3) << std::setfill('0')  // 强制3位宽度，不足补零
+            << milliseconds
+            << std::string(6, '0');  // 补0到9位
+    }
+
+    std::string result = oss.str();
+    return result;
+}
+
 std::string VectorBatch::transformDecimal128(
     int vectorID, int rowID, std::vector<std::pair<int32_t, int32_t>>& decimalInfo) const
 {
@@ -253,6 +314,7 @@ void VectorBatch::WriteToFileInternal(
 {
     int dataId = vectors[vectorID]->GetTypeId();
     switch (dataId) {
+        case omniruntime::type::DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE:
         case omniruntime::type::DataTypeId::OMNI_TIMESTAMP:
         case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
         case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
@@ -273,6 +335,18 @@ void VectorBatch::WriteToFileInternal(
                 }
                 auto result = TransformTime(vectorID, rowID, precision);
                 file << result;
+            } else if (inputTypes[vectorID].substr(0, 22) == "TIME_WITHOUT_TIME_ZONE") {
+                int precision = 3;
+                size_t parenPos = inputTypes[vectorID].find('(');
+                if (parenPos != std::string::npos) {
+                    size_t endParen = inputTypes[vectorID].find(')', parenPos);
+                    if (endParen != std::string::npos) {
+                        std::string precisionStr = inputTypes[vectorID].substr(parenPos + 1, endParen - parenPos - 1);
+                        precision = std::stoi(precisionStr);
+                    }
+                }
+                auto result = TransformOnlyTime(vectorID, rowID, precision);
+                file << result;
             } else {
                 file << reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(vectors[vectorID])->GetValue(rowID);
             }
@@ -286,7 +360,8 @@ void VectorBatch::WriteToFileInternal(
             file << reinterpret_cast<omniruntime::vec::Vector<int32_t>*>(vectors[vectorID])->GetValue(rowID);
             break;
         case omniruntime::type::DataTypeId::OMNI_BOOLEAN:
-            file << reinterpret_cast<omniruntime::vec::Vector<bool>*>(vectors[vectorID])->GetValue(rowID);
+            file << std::boolalpha
+                << reinterpret_cast<omniruntime::vec::Vector<bool>*>(vectors[vectorID])->GetValue(rowID);
             break;
         case omniruntime::type::DataTypeId::OMNI_DECIMAL64: {
             auto valueStr = transformDecimal64(vectorID, rowID, decimalInfo);
@@ -353,12 +428,16 @@ void VectorBatch::convertToJson(
         }
         int dataId = vectors[colIndex]->GetTypeId();
         switch (dataId) {
+            case omniruntime::type::DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE:
             case omniruntime::type::DataTypeId::OMNI_TIMESTAMP:
             case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
             case omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
             case omniruntime::type::DataTypeId::OMNI_LONG: {
                 if (inputTypes[colIndex].substr(0, 9) == "TIMESTAMP") {
                     auto result = RemoveTrailingZeros(TransformTime(colIndex, rowIndex));
+                    j[inputFields[colIndex]] = result;
+                } else if(inputTypes[colIndex].substr(0, 22) == "TIME_WITHOUT_TIME_ZONE") {
+                    auto result = TransformOnlyTime(colIndex, rowIndex);
                     j[inputFields[colIndex]] = result;
                 } else {
                     auto result =
@@ -494,11 +573,17 @@ omnistream::VectorBatch* VectorBatch::CreateVectorBatch(int rowCount, const std:
     auto* vectorBatch = new omnistream::VectorBatch(rowCount);
     for (size_t i = 0; i < dataTypes.size(); i++) {
         switch (dataTypes[i]) {
+            case (omniruntime::type::DataTypeId::OMNI_BOOLEAN): {
+                auto vec = new omniruntime::vec::Vector<bool>(rowCount);
+                vectorBatch->Append(vec);
+                break;
+            }
             case (omniruntime::type::DataTypeId::OMNI_INT): {
                 auto vec = new omniruntime::vec::Vector<int32_t>(rowCount);
                 vectorBatch->Append(vec);
                 break;
             }
+            case (omniruntime::type::DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE):
             case (omniruntime::type::DataTypeId::OMNI_LONG):
             case (omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE):
             case (omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE):

@@ -44,7 +44,15 @@ public:
         }
     }
 
-    ~KeyedProcessOperator() override {};
+    ~KeyedProcessOperator() override
+    {
+        // open() allocates both; nothing else owns them, and the task destroys this operator
+        // at the end of each job.
+        delete collector;
+        collector = nullptr;
+        delete context;
+        context = nullptr;
+    };
 
     void open() override
     {
@@ -86,7 +94,7 @@ public:
         this->userFunction->processBatch(
             reinterpret_cast<omnistream::VectorBatch*>(element->getValue()),
             *context,
-            *collector); // GroupAgg
+            *collector);
         LOG("KeyedProcessOperator processBatch end");
     }
 
@@ -144,8 +152,9 @@ public:
     }
 
 private:
-    TimestampedCollector* collector;
-    ContextImpl<K, IN, OUT>* context;
+    // Null until open() runs -- open() can throw partway, and the destructor frees these.
+    TimestampedCollector* collector = nullptr;
+    ContextImpl<K, IN, OUT>* context = nullptr;
     std::vector<int32_t> keyedIndex;
     BinaryRowData* reUseKeyRow;
 };

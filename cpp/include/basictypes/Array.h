@@ -50,6 +50,7 @@ public:
         for (int i = 0; i < length; ++i) {
             data_[i] = value;
         }
+        dataSize_ = static_cast<int64_t>(length) * (value ? value->sizeInBytes() : 0);
     }
 
     Array(std::initializer_list<T> init) : Array(init.size())
@@ -57,6 +58,7 @@ public:
         int i = 0;
         for (const auto& item : init) {
             data_[i++] = item;
+            dataSize_ += item ? item->sizeInBytes() : 0;
         }
     }
 
@@ -73,12 +75,15 @@ public:
         for (int i = 0; i < length; ++i) {
             data_[i] = other.data_[i];
         }
+        dataSize_ = other.dataSize_;
     }
 
-    Array(Array&& other) noexcept : length(other.length), data_(other.data_), capacity_(other.capacity_)
+    Array(Array&& other) noexcept
+        : length(other.length), data_(other.data_), capacity_(other.capacity_), dataSize_(other.dataSize_)
     {
         other.data_ = nullptr;
         other.length = other.capacity_ = 0;
+        other.dataSize_ = 0;
     }
 
     Array& operator=(const Array& other)
@@ -97,8 +102,10 @@ public:
             data_ = other.data_;
             length = other.length;
             capacity_ = other.capacity_;
+            dataSize_ = other.dataSize_;
             other.data_ = nullptr;
             other.length = other.capacity_ = 0;
+            other.dataSize_ = 0;
         }
         return *this;
     }
@@ -210,6 +217,10 @@ public:
 
     void resize(int new_size)
     {
+        // On shrink, drop the bytes of the truncated tail [new_size, length).
+        for (int i = new_size; i < length; ++i) {
+            dataSize_ -= (data_ != nullptr && data_[i]) ? data_[i]->sizeInBytes() : 0;
+        }
         if (new_size > capacity_) {
             reserve(new_size);
         }
@@ -222,6 +233,7 @@ public:
             reserve(capacity_ == 0 ? 2 : capacity_ * EXPAND_SIZE);
         }
         data_[length++] = value;
+        dataSize_ += value ? value->sizeInBytes() : 0;
     }
 
     void push_back(T&& value)
@@ -229,6 +241,8 @@ public:
         if (length >= capacity_) {
             reserve(capacity_ == 0 ? 2 : capacity_ * EXPAND_SIZE);
         }
+        // T is Object*, so a move is a pointer copy; reading after the move is safe.
+        dataSize_ += value ? value->sizeInBytes() : 0;
         data_[length++] = std::move(value);
     }
 
@@ -238,13 +252,17 @@ public:
         if (length >= capacity_) {
             reserve(capacity_ == 0 ? 2 : capacity_ * EXPAND_SIZE);
         }
-        new (data_ + length) T(std::forward<Args>(args)...);
+        new(data_ + length) T(std::forward<Args>(args)...);
+        dataSize_ += data_[length] ? data_[length]->sizeInBytes() : 0;
         return data_[length++];
     }
 
     void pop_back()
     {
-        if (length > 0) --length;
+        if (length > 0) {
+            --length;
+            dataSize_ -= data_[length] ? data_[length]->sizeInBytes() : 0;
+        }
     }
 
     void swap(Array& other) noexcept
@@ -253,6 +271,7 @@ public:
         swap(data_, other.data_);
         swap(length, other.length);
         swap(capacity_, other.capacity_);
+        swap(dataSize_, other.dataSize_);
     }
 
     bool operator==(const Array& other) const
@@ -281,6 +300,13 @@ public:
 
     void putRefCount() override;
 
+    // O(1): dataSize_ is the running sum of contained elements' sizeInBytes(),
+    // maintained incrementally on every controlled add/remove/replace.
+    int64_t sizeInBytes() const override
+    {
+        return static_cast<int64_t>(sizeof(Array)) + dataSize_;
+    }
+
     int length;
     Array* next = nullptr;
 
@@ -288,6 +314,7 @@ private:
     static const int EXPAND_SIZE = 2;
     T* data_;
     int capacity_;
+    int64_t dataSize_ = 0;
 };
 
 #endif // FLINK_TNEL_ARRAY_H

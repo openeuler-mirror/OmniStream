@@ -17,6 +17,7 @@
 #include <shuffle/ShuffleEnvironment.h>
 #include <taskmanager/OmniShuffleEnvironmentConfiguration.h>
 #include "partition/consumer/InputGateID.h"
+#include "netty/GlobalNettyBufferPool.h"
 
 namespace omnistream {
 class OmniShuffleEnvironment : public ShuffleEnvironment {
@@ -27,22 +28,22 @@ public:
     }
 
     // Full argument constructor
-    OmniShuffleEnvironment(
-        const ResourceIDPOD& taskExecutorResourceId,
-        const std::shared_ptr<OmniShuffleEnvironmentConfiguration>& config,
-        const std::shared_ptr<NetworkObjectBufferPool>& networkBufferPool,
-        const std::shared_ptr<ResultPartitionManager>& resultPartitionManager,
-        const std::shared_ptr<ResultPartitionFactory>& resultPartitionFactory,
-        const std::shared_ptr<SingleInputGateFactory>& singleInputGateFactory)
+    OmniShuffleEnvironment(const ResourceIDPOD &taskExecutorResourceId,
+                           const std::shared_ptr<OmniShuffleEnvironmentConfiguration> &config,
+                           const std::shared_ptr<NetworkObjectBufferPool> &networkBufferPool,
+                           const std::shared_ptr<ResultPartitionManager> &resultPartitionManager,
+                           const std::shared_ptr<ResultPartitionFactory> &resultPartitionFactory,
+                           const std::shared_ptr<SingleInputGateFactory> &singleInputGateFactory,
+                           const std::shared_ptr<GlobalNettyBufferPool> &globalNettyBufferPool = nullptr)
         : taskExecutorResourceId(taskExecutorResourceId),
           config(config),
           networkBufferPool(networkBufferPool),
           resultPartitionManager(resultPartitionManager),
           resultPartitionFactory(resultPartitionFactory),
           singleInputGateFactory(singleInputGateFactory),
-          isClosed_(false)
-    {
-        inputGatesById = std::make_shared<std::map<std::shared_ptr<InputGateID>, std::shared_ptr<SingleInputGate>>>();
+          globalNettyBufferPool_(globalNettyBufferPool),
+          isClosed_(false) {
+        inputGatesById = std::make_shared<std::map<std::shared_ptr<InputGateID>, std::shared_ptr<SingleInputGate> > >();
     }
 
     ~OmniShuffleEnvironment() override = default;
@@ -88,34 +89,14 @@ public:
     };
 
     // Getters
-    const ResourceIDPOD& getTaskExecutorResourceId() const
-    {
-        return taskExecutorResourceId;
-    }
-    std::shared_ptr<OmniShuffleEnvironmentConfiguration> getConfig() const
-    {
-        return config;
-    }
-    std::shared_ptr<NetworkObjectBufferPool> getNetworkBufferPool() const
-    {
-        return networkBufferPool;
-    }
-    std::shared_ptr<ResultPartitionManager> getResultPartitionManager() const
-    {
-        return resultPartitionManager;
-    }
-    std::shared_ptr<ResultPartitionFactory> getResultPartitionFactory() const
-    {
-        return resultPartitionFactory;
-    }
-    std::shared_ptr<SingleInputGateFactory> getSingleInputGateFactory() const
-    {
-        return singleInputGateFactory;
-    }
-    bool isClosed() const
-    {
-        return isClosed_;
-    }
+    const ResourceIDPOD& getTaskExecutorResourceId() const { return taskExecutorResourceId; }
+    std::shared_ptr<OmniShuffleEnvironmentConfiguration> getConfig() const { return config; }
+    std::shared_ptr<NetworkObjectBufferPool> getNetworkBufferPool() const { return networkBufferPool; }
+    std::shared_ptr<ResultPartitionManager> getResultPartitionManager() const { return resultPartitionManager; }
+    std::shared_ptr<ResultPartitionFactory> getResultPartitionFactory() const { return resultPartitionFactory; }
+    std::shared_ptr<SingleInputGateFactory> getSingleInputGateFactory() const { return singleInputGateFactory; }
+    std::shared_ptr<GlobalNettyBufferPool> getGlobalNettyBufferPool() const { return globalNettyBufferPool_; }
+    bool isClosed() const { return isClosed_; }
 
     // Setters
     void setTaskExecutorResourceId(const ResourceIDPOD& taskExecutorResourceId)
@@ -169,6 +150,7 @@ private:
     std::shared_ptr<ResultPartitionManager> resultPartitionManager;
     std::shared_ptr<ResultPartitionFactory> resultPartitionFactory;
     std::shared_ptr<SingleInputGateFactory> singleInputGateFactory;
+    std::shared_ptr<GlobalNettyBufferPool> globalNettyBufferPool_;
     std::shared_ptr<std::map<std::shared_ptr<InputGateID>, std::shared_ptr<SingleInputGate>>> inputGatesById;
     bool isClosed_;
 

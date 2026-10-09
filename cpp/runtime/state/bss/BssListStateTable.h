@@ -208,7 +208,7 @@ public:
         auto* buffer = bufferStorage.data();
         omnistream::SerializedBatchInfo serializedBatchInfo =
             omnistream::VectorBatchSerializationUtils::serializeVectorBatch(vectorBatch, batchSize, buffer);
-        ock::bss::BinaryData priBatchVal(serializedBatchInfo.buffer, serializedBatchInfo.size);
+        ock::bss::BinaryData priBatchVal(serializedBatchInfo.dataAddress, serializedBatchInfo.dataSize);
         auto res = dbTable->Put(keyHashCode, priKey, priBatchVal);
         if (res != ock::bss::BSS_OK) {
             LOG("Warning: addVectorBatch failed");

@@ -29,6 +29,8 @@ FieldGetter* RowData::createFieldGetter(LogicalType* fieldType, int fieldPos)
             return new FieldGetter(fieldPos, reinterpret_cast<getFieldByPosFn>(&RowData::getInt));
         case DataTypeId::OMNI_LONG:
             return new FieldGetter(fieldPos, reinterpret_cast<getFieldByPosFn>(&RowData::getLong));
+        case DataTypeId::OMNI_BOOLEAN:
+            return new FieldGetter(fieldPos, reinterpret_cast<getFieldByPosFn>(&RowData::getBool));
         case DataTypeId::OMNI_VARCHAR:
             return new FieldGetter(fieldPos, reinterpret_cast<getFieldByPosFn>(&RowData::getStringView));
         case DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE: return new FieldGetter(fieldPos, false);

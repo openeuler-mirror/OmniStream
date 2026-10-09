@@ -24,7 +24,6 @@
 #include "runtime/executiongraph/descriptor/TaskDeploymentDescriptorPOD.h"
 #include "state/bridge/TaskOperatorEventGatewayBridge.h"
 #include "runtime/partition/consumer/RemoteDataFetcherBridge.h"
-
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor
  * Method:    createNativeTaskExecutor
@@ -147,4 +146,13 @@ Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor_submitTa
     auto nativeTask = omniTaskExecutor->submitTask(
         jobInfo, taskInfo, tddinfo, stateBridge, TaskBridge, TaskOperatorEventGatewayBridge, remoteDataFetcherBridge);
     return reinterpret_cast<jlong>(nativeTask);
+}
+
+
+JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskexecutor_OmniTaskExecutor_getNativeTaskManagerMetricGroupRef
+  (JNIEnv *, jclass, jlong nativeTaskExecutorAddress)
+{
+    auto omniTaskExecutor = reinterpret_cast<omnistream::OmniTaskExecutor *> (nativeTaskExecutorAddress);
+    auto taskManageMetricGroup = omniTaskExecutor->GetTaskManagerMetricGroup();
+    return reinterpret_cast<long>(taskManageMetricGroup.get());
 }
