@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
 
 add_library(tnel SHARED)
+set_target_properties(tnel PROPERTIES
+        OUTPUT_NAME "boostkit-omnistream"
+        VERSION "${OMNI_STREAM_VERSION}"
+        SOVERSION "${OMNI_STREAM_VERSION}")
 
 # Include JNI header directories
 target_include_directories(tnel PUBLIC ${JNI_INCLUDE_DIRS}

@@ -492,8 +492,8 @@ If Flink is deployed in standalone mode, you can install the precompiled OmniStr
     After the binary package is extracted, the JAR package, SO files, base libraries, and `include` directory are obtained.
 
     ```bash
-    flink-tnel-0.1-SNAPSHOT.jar
-    libtnel.so
+    boostkit-omniadaptor-flink-1.4.0.jar
+    libboostkit-omnistream.so.1.4.0
     libboundscheck.so
     libboostkit-omniop-codegen-2.2.0-aarch64.so
     libboostkit-omniop-operator-2.2.0-aarch64.so
@@ -515,7 +515,7 @@ If Flink is deployed in standalone mode, you can install the precompiled OmniStr
 
         ```bash
         # echo "$FLINK_CLASSPATH""$FLINK_DIST"
-        PATCH=/usr/local/OmniStream/flink-tnel-0.1-SNAPSHOT.jar
+        PATCH=/usr/local/OmniStream/boostkit-omniadaptor-flink-1.4.0.jar
         echo $PATCH:"$FLINK_CLASSPATH""$FLINK_DIST"
         ```
 
@@ -532,7 +532,7 @@ If Flink is deployed in standalone mode, you can install the precompiled OmniStr
         vi /usr/local/flink/conf/flink-conf.yaml
         ```
 
-    2. Press `i` to enter the insert mode. In `env.java.opts`, add the `libtnel.so` file path, that is, the path to the `.so` files extracted in [2](#zh-cn_topic_0000002263584129_li146334222212).
+    2. Press `i` to enter the insert mode. In `env.java.opts`, add the `libboostkit-omnistream.so.1.4.0` file path, that is, the path to the `.so` files extracted in [2](#zh-cn_topic_0000002263584129_li146334222212).
 
         ```bash
         env.java.opts: -Djava.library.path=/usr/local/OmniStream/
