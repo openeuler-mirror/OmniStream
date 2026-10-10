@@ -14,6 +14,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
+#include <utility>
 #include "DelayedWorkQueue.h"
 #include "common.h"
 
@@ -27,9 +28,8 @@ public:
 
     void WorkerThreadProc()
     {
-        ScheduledFutureTask* task;
         while (!stop.load()) {
-            task = workQueue->Take();
+            auto task = workQueue->Take();
             if (task == nullptr) {
                 continue;
             }
@@ -62,21 +62,23 @@ public:
         }
     }
 
-    ScheduledFutureTask* Schedule(omnistream::Runnable* task, long initialDelay)
+    std::shared_ptr<ScheduledFutureTask> Schedule(std::unique_ptr<omnistream::Runnable>&& task, long initialDelay)
     {
-        auto* futureTask = new ScheduledFutureTask(initialDelay, task);
+        auto futureTask = std::make_shared<ScheduledFutureTask>(initialDelay, std::move(task));
         workQueue->Offer(futureTask);
         return futureTask;
     }
 
-    ScheduledFutureTask* ScheduleWithFixedDelay(omnistream::Runnable* task, long initialDelay, long period)
+    std::shared_ptr<ScheduledFutureTask> ScheduleWithFixedDelay(
+        std::unique_ptr<omnistream::Runnable>&& task, long initialDelay, long period)
     {
-        ScheduledFutureTask* futureTask = new ScheduledFutureTask(initialDelay, period, task);
+        auto futureTask = std::make_shared<ScheduledFutureTask>(initialDelay, period, std::move(task));
         workQueue->Offer(futureTask);
         return futureTask;
     }
 
-    ScheduledFutureTask* ScheduleAtFixedRate(omnistream::Runnable* task, long initialDelay, long period)
+    std::shared_ptr<ScheduledFutureTask> ScheduleAtFixedRate(
+        std::unique_ptr<omnistream::Runnable>&& task, long initialDelay, long period)
     {
         NOT_IMPL_EXCEPTION;
     }

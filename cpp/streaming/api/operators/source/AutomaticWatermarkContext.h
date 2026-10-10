@@ -31,7 +31,7 @@ public:
         lastRecordTime = INT64_MAX;
         int64_t now = timeService->getCurrentProcessingTime();
         timeService->registerTimer(
-            now + watermarkInterval, new WatermarkEmittingTask(timeService, checkpointLock, output));
+            now + watermarkInterval, std::make_shared<WatermarkEmittingTask>(timeService, checkpointLock, output));
     }
 
     ~AutomaticWatermarkContext() override

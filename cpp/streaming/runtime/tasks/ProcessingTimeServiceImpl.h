@@ -11,11 +11,13 @@
 
 #pragma once
 
+#include <memory>
 #include "ProcessingTimeService.h"
 
 class ProcessingTimeServiceImpl : public ProcessingTimeService {
 public:
-    using ProcessingTimeCallbackWrapper = std::function<ProcessingTimeCallback*(ProcessingTimeCallback*)>;
+    using ProcessingTimeCallbackWrapper =
+        std::function<std::shared_ptr<ProcessingTimeCallback>(std::shared_ptr<ProcessingTimeCallback>)>;
 
     ProcessingTimeServiceImpl(
         std::shared_ptr<ProcessingTimeService> timerService,
@@ -30,13 +32,20 @@ public:
         return timerService_->getCurrentProcessingTime();
     };
 
-    ScheduledFutureTask* registerTimer(int64_t timestamp, ProcessingTimeCallback* target) override
+    std::shared_ptr<ScheduledFutureTask> registerTimer(int64_t timestamp, ProcessingTimeCallback* target) override
+    {
+        std::shared_ptr<ProcessingTimeCallback> ptr(target, [](ProcessingTimeCallback*) {});
+        return timerService_->registerTimer(timestamp, processingTimeCallbackWrapper_(ptr));
+    }
+
+    std::shared_ptr<ScheduledFutureTask> registerTimer(
+        int64_t timestamp, std::shared_ptr<ProcessingTimeCallback> target) override
     {
         return timerService_->registerTimer(timestamp, processingTimeCallbackWrapper_(target));
     }
 
-    ScheduledFutureTask* scheduleWithFixedDelay(
-        ProcessingTimeCallback* callback, long initialDelay, long period) override
+    std::shared_ptr<ScheduledFutureTask> scheduleWithFixedDelay(
+        std::shared_ptr<ProcessingTimeCallback> callback, long initialDelay, long period) override
     {
         return timerService_->scheduleWithFixedDelay(processingTimeCallbackWrapper_(callback), initialDelay, period);
     }

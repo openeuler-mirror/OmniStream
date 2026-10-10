@@ -61,6 +61,9 @@ void SubtaskCheckpointCoordinatorImpl::registerAlignmentTimer(
             } catch (const std::exception& e) {
                 LOG("Exception during alignment timer execution: " + std::string(e.what()));
             }
+            if (alignmentTimer) {
+                delete alignmentTimer;
+            }
             this->alignmentTimer = nullptr;
         }),
         std::chrono::milliseconds(timerDelay));
@@ -72,6 +75,7 @@ void SubtaskCheckpointCoordinatorImpl::CancelAlignmentTimer()
 {
     if (alignmentTimer) {
         alignmentTimer->Cancel();
+        delete alignmentTimer;
         alignmentTimer = nullptr;
     }
 }

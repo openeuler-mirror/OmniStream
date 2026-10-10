@@ -12,7 +12,7 @@
 #include "DelayedWorkQueue.h"
 #include "common.h"
 
-void DelayedWorkQueue::Offer(ScheduledFutureTask* task)
+void DelayedWorkQueue::Offer(std::shared_ptr<ScheduledFutureTask>& task)
 {
     if (task == nullptr) {
         THROW_RUNTIME_ERROR("DelayedWorkQueue::Offer, task is nullptr");
@@ -22,7 +22,7 @@ void DelayedWorkQueue::Offer(ScheduledFutureTask* task)
     condition.notify_one();
 }
 
-ScheduledFutureTask* DelayedWorkQueue::Take()
+std::shared_ptr<ScheduledFutureTask> DelayedWorkQueue::Take()
 {
     std::unique_lock<std::mutex> lock(queueMutex);
 
@@ -33,7 +33,7 @@ ScheduledFutureTask* DelayedWorkQueue::Take()
             break;
         }
 
-        ScheduledFutureTask* task = queue.top();
+        std::shared_ptr<ScheduledFutureTask> task = queue.top();
         long delay = task->GetDelay();
         if (delay <= 0) {
             queue.pop();

@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <memory>
 #include "streaming/runtime/tasks/SystemProcessingTimeService.h"
 
 TEST(SystemProcessingTimeServiceTest, DISABLED_SelectFromRow)
@@ -16,7 +17,7 @@ TEST(SystemProcessingTimeServiceTest, DISABLED_SelectFromRow)
         }
     };
 
-    MockProcessingTimeCallback* callback = new MockProcessingTimeCallback();
+    auto callback = std::make_shared<MockProcessingTimeCallback>();
     systemProcessingTimeService.scheduleWithFixedDelay(callback, 2000, 3000);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(7900));

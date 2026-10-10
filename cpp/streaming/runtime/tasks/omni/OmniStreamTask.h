@@ -180,8 +180,8 @@ protected:
     StreamOperator* mainOperator_ = nullptr;
     OmniStreamInputProcessor* inputProcessor_ = nullptr;
 
-    static ProcessingTimeCallback* deferCallbackToMailBox(
-        shared_ptr<MailboxExecutor> mailboxExecutor, ProcessingTimeCallback* callback);
+    static std::shared_ptr<ProcessingTimeCallback> deferCallbackToMailBox(
+        shared_ptr<MailboxExecutor> mailboxExecutor, std::shared_ptr<ProcessingTimeCallback>& callback);
 
 protected:
     /**

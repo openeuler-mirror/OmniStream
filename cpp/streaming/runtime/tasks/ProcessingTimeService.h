@@ -18,8 +18,10 @@
 class ProcessingTimeService {
 public:
     virtual ~ProcessingTimeService() = default;
-    virtual ScheduledFutureTask* registerTimer(int64_t timestamp, ProcessingTimeCallback* target) = 0;
+    virtual std::shared_ptr<ScheduledFutureTask> registerTimer(int64_t timestamp, ProcessingTimeCallback* target) = 0;
+    virtual std::shared_ptr<ScheduledFutureTask> registerTimer(
+        int64_t timestamp, std::shared_ptr<ProcessingTimeCallback> target) = 0;
     virtual int64_t getCurrentProcessingTime() = 0;
-    virtual ScheduledFutureTask* scheduleWithFixedDelay(
-        ProcessingTimeCallback* callback, long initialDelay, long period) = 0;
+    virtual std::shared_ptr<ScheduledFutureTask> scheduleWithFixedDelay(
+        std::shared_ptr<ProcessingTimeCallback> callback, long initialDelay, long period) = 0;
 };
