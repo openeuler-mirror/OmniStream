@@ -9,7 +9,3 @@
 - [User Guide](user_guide.md)
 - [FAQs](faq.md)
 - [Change History](change_history.md)
-
-| Release | Date | Description |
-| --- | --- | --- |
-| 01 | 2026-09-30 | This is the first official release. |
