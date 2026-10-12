@@ -94,21 +94,17 @@ static bool isRestoreSupportedType(omniruntime::type::DataTypeId typeId)
     }
 }
 
-omnistream::ComboId VectorBatchRestoreUtil::appendRowToVectorBatch(
+omnistream::ComboId VectorBatchRestoreUtil::appendRowToVectorBatchBase(
     VbBatchState& vbState,
-    const std::vector<int8_t>& valueBytes,
+    DataInputDeserializer& valInput,
+    size_t valueByteSize,
     const std::vector<omniruntime::type::DataTypeId>& columnTypes,
     int batchSize,
     int32_t keyGroupId)
 {
-    if (valueBytes.empty()) {
-        INFO_RELEASE("VectorBatchRestoreUtil: empty value bytes, cannot parse RowData");
-        return omnistream::INVALID_COMBO_ID;
-    }
-
     int numFields = static_cast<int>(columnTypes.size());
     if (numFields == 0) {
-        INFO_RELEASE("VectorBatchRestoreUtil: no column types, value has " << valueBytes.size() << " bytes");
+        INFO_RELEASE("VectorBatchRestoreUtil: no column types, value has " << valueByteSize << " bytes");
         return omnistream::INVALID_COMBO_ID;
     }
 
@@ -122,12 +118,9 @@ omnistream::ComboId VectorBatchRestoreUtil::appendRowToVectorBatch(
         }
     }
 
-    DataInputDeserializer valInput(
-        reinterpret_cast<const uint8_t*>(valueBytes.data()), static_cast<int>(valueBytes.size()), 0);
-
     // 按输入长度动态构造 BinaryRowData，替代固定 SEG_SIZE 的 BinaryRowDataSerializer::deserialize
     int rowLen = valInput.readInt();
-    if (rowLen <= 0 || rowLen > static_cast<int>(valueBytes.size())) {
+    if (rowLen <= 0 || rowLen > static_cast<int>(valueByteSize)) {
         INFO_RELEASE("VectorBatchRestoreUtil: invalid serialized row length " << rowLen);
         return omnistream::INVALID_COMBO_ID;
     }
@@ -159,6 +152,42 @@ omnistream::ComboId VectorBatchRestoreUtil::appendRowToVectorBatch(
     auto comboId = VectorBatchUtil::getComboId(keyGroupId, vbState.currentBatchId, vbState.currentRowId);
     vbState.currentRowId++;
     return comboId;
+}
+
+omnistream::ComboId VectorBatchRestoreUtil::appendRowToVectorBatch(
+    VbBatchState& vbState,
+    const std::vector<int8_t>& valueBytes,
+    const std::vector<omniruntime::type::DataTypeId>& columnTypes,
+    int batchSize,
+    int32_t keyGroupId)
+{
+    if (valueBytes.empty()) {
+        INFO_RELEASE("VectorBatchRestoreUtil: empty value bytes, cannot parse RowData");
+        return omnistream::INVALID_COMBO_ID;
+    }
+
+    DataInputDeserializer valInput(
+        reinterpret_cast<const uint8_t*>(valueBytes.data()), static_cast<int>(valueBytes.size()), 0);
+
+    return appendRowToVectorBatchBase(vbState, valInput, valueBytes.size(), columnTypes, batchSize, keyGroupId);
+}
+
+omnistream::ComboId VectorBatchRestoreUtil::appendRowToVectorBatch(
+    VbBatchState& vbState,
+    const ByteView& valueBytes,
+    const std::vector<omniruntime::type::DataTypeId>& columnTypes,
+    int batchSize,
+    int32_t keyGroupId)
+{
+    if (valueBytes.empty()) {
+        INFO_RELEASE("VectorBatchRestoreUtil: empty value bytes, cannot parse RowData");
+        return omnistream::INVALID_COMBO_ID;
+    }
+
+    DataInputDeserializer valInput(
+        reinterpret_cast<const uint8_t*>(valueBytes.data()), static_cast<int>(valueBytes.size()), 0);
+
+    return appendRowToVectorBatchBase(vbState, valInput, valueBytes.size(), columnTypes, batchSize, keyGroupId);
 }
 
 StateMetaInfoSnapshot VectorBatchRestoreUtil::buildOmniMainMetaInfo(

@@ -114,6 +114,11 @@ public:
         writtenValues.push_back(lastValueBytes);
     }
 
+    void writeComboIdList(
+        const std::vector<int8_t>& /*keyBytes*/, const std::vector<omnistream::ComboId>& /*comboIds*/) override
+    {
+    }
+
 protected:
     void flushVectorBatchIfNotEmpty() override
     {

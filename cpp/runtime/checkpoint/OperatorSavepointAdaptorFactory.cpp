@@ -14,6 +14,7 @@
 #include "AppendOnlyTopNSavepointAdaptor.h"
 #include "DeduplicateSavepointAdaptor.h"
 #include "StreamingJoinSavepointAdaptor.h"
+#include "WindowJoinSavepointAdaptor.h"
 
 namespace omnistream {
 std::unique_ptr<OperatorSavepointAdaptor> OperatorSavepointAdaptorFactory::createAdaptor(FlinkSavepointAdaptorType type)
@@ -25,6 +26,8 @@ std::unique_ptr<OperatorSavepointAdaptor> OperatorSavepointAdaptorFactory::creat
         case FlinkSavepointAdaptorType::StreamingJoinNoUniqueKeyAdaptor:
         case FlinkSavepointAdaptorType::StreamingLeftOuterJoinNoUniqueKeyAdaptor:
             return std::make_unique<StreamingJoinSavepointAdaptor>(type);
+        case FlinkSavepointAdaptorType::WindowJoinAdaptor:
+            return std::make_unique<WindowJoinSavepointAdaptor>();
         case FlinkSavepointAdaptorType::OmniIsCompatible:
         case FlinkSavepointAdaptorType::None:
         default: return nullptr;
