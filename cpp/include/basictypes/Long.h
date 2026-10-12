@@ -56,6 +56,11 @@ public:
     Long* next = nullptr;
     inline void setValue(const std::string& basicString) override;
 
+    int64_t sizeInBytes() const override
+    {
+        return static_cast<int64_t>(sizeof(*this));
+    }
+
 protected:
     static std::uint64_t parseLong(std::string_view s);
 };

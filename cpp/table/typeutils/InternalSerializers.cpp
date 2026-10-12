@@ -33,6 +33,7 @@ TypeSerializer* InternalSerializers::createInternal(LogicalType* type)
         case DataTypeId::OMNI_INT:
             return LongSerializer::INSTANCE; // `LongSerializer` is currently dummy, we use `RowDataSerializer`'s
                                              // `serialize` and `deserialize` for now
+        case DataTypeId::OMNI_BOOLEAN: return LongSerializer::INSTANCE;
         case DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE: return LongSerializer::INSTANCE;
         case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE: return LongSerializer::INSTANCE;
         case DataTypeId::OMNI_TIMESTAMP_WITH_TIME_ZONE: return LongSerializer::INSTANCE;

@@ -107,8 +107,9 @@ template <typename K>
 void HeapRestoreKVStateVB<K>::writeLongEntry(const std::vector<int8_t>& keyBytes, int64_t value)
 {
     ensureMainTableReady();
-    auto [rawKey, rawNs] = deserializeKey(keyBytes);
-    DeserializedKeyGuard keyGuard(rawKey, rawNs);
+    auto keyGuard = deserializeKey(keyBytes);
+    auto rawKey = keyGuard.getRawKey();
+    auto rawNs = keyGuard.getRawNamespace();
 
     auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, int64_t>*>(stateInfo_.mainTablePtr);
     table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), value);

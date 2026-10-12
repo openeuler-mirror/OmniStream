@@ -5,6 +5,7 @@
 #ifndef SIMPLESELECTORRECORDWRITERV2_H
 #define SIMPLESELECTORRECORDWRITERV2_H
 
+#include <core/utils/ByteBuffer.h>
 #include <streaming/runtime/partitioner/StreamPartitioner.h>
 #include <streaming/runtime/streamrecord/StreamRecord.h>
 
@@ -12,6 +13,7 @@
 #include <runtime/plugable/SerializationDelegate.h>
 
 #include "RecordWriterV2.h"
+#include "table/data/vectorbatch/VectorBatch.h"
 
 namespace omnistream {
 class SimpleSelectorRecordWriterV2 : public RecordWriterV2 {

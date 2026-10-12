@@ -13,6 +13,7 @@
 
 #include <vector>
 #include <fstream>
+#include <memory>
 #include <unordered_map>
 #include <set>
 #include <limits>
@@ -39,7 +40,7 @@ public:
         keyIndex = config["grouping"].get<std::vector<int32_t>>();
         inputTypes = config["inputTypes"].get<std::vector<std::string>>();
         keyedTypes = getKeyedTypes(keyIndex, config["inputTypes"]);
-        groupByKeySelector = new KeySelector<RowData*>(keyedTypes, keyIndex);
+        groupByKeySelector = std::make_unique<KeySelector<RowData*>>(keyedTypes, keyIndex);
     };
 
 public:
@@ -99,7 +100,7 @@ private:
     // Uses int64_t as the template type but not omnistream::ComboId to keep compatibility with existing code.
     ValueState<int64_t>* recordStateVB = nullptr;
 
-    KeySelector<RowData*>* groupByKeySelector;
+    std::unique_ptr<KeySelector<RowData*>> groupByKeySelector;
     std::vector<int32_t> keyedTypes;
 
     // omnistream::VectorBatch *res = nullptr;

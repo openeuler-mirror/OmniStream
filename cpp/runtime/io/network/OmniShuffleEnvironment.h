@@ -17,6 +17,7 @@
 #include <shuffle/ShuffleEnvironment.h>
 #include <taskmanager/OmniShuffleEnvironmentConfiguration.h>
 #include "partition/consumer/InputGateID.h"
+#include "netty/GlobalNettyBufferPool.h"
 
 namespace omnistream {
 class OmniShuffleEnvironment : public ShuffleEnvironment {
@@ -33,13 +34,15 @@ public:
         const std::shared_ptr<NetworkObjectBufferPool>& networkBufferPool,
         const std::shared_ptr<ResultPartitionManager>& resultPartitionManager,
         const std::shared_ptr<ResultPartitionFactory>& resultPartitionFactory,
-        const std::shared_ptr<SingleInputGateFactory>& singleInputGateFactory)
+        const std::shared_ptr<SingleInputGateFactory>& singleInputGateFactory,
+        const std::shared_ptr<GlobalNettyBufferPool>& globalNettyBufferPool = nullptr)
         : taskExecutorResourceId(taskExecutorResourceId),
           config(config),
           networkBufferPool(networkBufferPool),
           resultPartitionManager(resultPartitionManager),
           resultPartitionFactory(resultPartitionFactory),
           singleInputGateFactory(singleInputGateFactory),
+          globalNettyBufferPool_(globalNettyBufferPool),
           isClosed_(false)
     {
         inputGatesById = std::make_shared<std::map<std::shared_ptr<InputGateID>, std::shared_ptr<SingleInputGate>>>();
@@ -112,6 +115,10 @@ public:
     {
         return singleInputGateFactory;
     }
+    std::shared_ptr<GlobalNettyBufferPool> getGlobalNettyBufferPool() const
+    {
+        return globalNettyBufferPool_;
+    }
     bool isClosed() const
     {
         return isClosed_;
@@ -169,6 +176,7 @@ private:
     std::shared_ptr<ResultPartitionManager> resultPartitionManager;
     std::shared_ptr<ResultPartitionFactory> resultPartitionFactory;
     std::shared_ptr<SingleInputGateFactory> singleInputGateFactory;
+    std::shared_ptr<GlobalNettyBufferPool> globalNettyBufferPool_;
     std::shared_ptr<std::map<std::shared_ptr<InputGateID>, std::shared_ptr<SingleInputGate>>> inputGatesById;
     bool isClosed_;
 

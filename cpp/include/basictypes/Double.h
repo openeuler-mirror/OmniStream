@@ -34,6 +34,11 @@ public:
 
     double value;
     double jsonValue();
+
+    int64_t sizeInBytes() const override
+    {
+        return static_cast<int64_t>(sizeof(*this));
+    }
 };
 
 #endif // MT_CHECK_DOUBLE_H

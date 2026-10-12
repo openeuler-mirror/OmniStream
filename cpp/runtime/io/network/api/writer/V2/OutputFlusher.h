@@ -5,6 +5,7 @@
 #ifndef OUTPUTFLUSHER_H
 #define OUTPUTFLUSHER_H
 
+#include <atomic>
 #include <memory>
 #include <thread>
 #include <exception>
@@ -27,7 +28,10 @@ private:
     long timeout;
     RecordWriterV2* writer;
     std::thread thread;
-    bool running;
+    // Written by the task thread in terminate(), read by the flusher thread in run(). Must be
+    // atomic: as a plain bool the read can be hoisted out of the loop, and terminate() would then
+    // block forever in join().
+    std::atomic<bool> running;
 
     std::string taskName;
 

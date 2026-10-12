@@ -254,6 +254,11 @@ private:
         NotifyCheckpointOperation notifyCheckpointOperation);
     std::shared_ptr<CachingCheckpointStorageWorkerView> checkpointStorage;
     std::string taskName;
+    void SetisRecoveredFlag(bool flag)
+    {
+        isRecovered_ = flag;
+    }
+    bool isRecovered_ = false;
     std::shared_ptr<omnistream::StreamTaskActionExecutor> actionExecutor;
     std::shared_ptr<omnistream::EnvironmentV2> env;
     std::function<std::shared_ptr<CompletableFutureV2<void>>(std::shared_ptr<ChannelStateWriter>, long)>*

@@ -13,6 +13,8 @@
 
 namespace omnistream {
 
+const int LocalBufferPool::UNKNOWN_CHANNEL;
+
 LocalBufferPool::LocalBufferPool(
     std::shared_ptr<NetworkBufferPool> networkBufferPool,
     int numberOfSubpartitions,

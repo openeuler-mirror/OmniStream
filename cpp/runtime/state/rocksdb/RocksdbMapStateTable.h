@@ -107,6 +107,20 @@ public:
 
         DefaultConfigurableOptionsFactory::createColumnOptions(familyOptions, blockBasedTableOptions);
 
+        // per-state RocksDB memory estimate from this state's OWN effective options
+        // (see RocksdbStateTable::createTable). memory = maxWriteBufferNumber * writeBufferSize +
+        // blockCacheSize.
+        int64_t blockCacheBytes = 0;
+        auto blockCacheSize =
+            reinterpret_cast<String*>(Configuration::TM_CONFIG->getValue(RocksDBConfigurableOptions::BLOCK_CACHE_SIZE));
+        if (blockCacheSize != nullptr) {
+            blockCacheBytes = static_cast<int64_t>(MemorySize::parseBytes(blockCacheSize->getData()));
+            blockCacheSize->putRefCount();
+        }
+        stateMemoryBytes_ = static_cast<int64_t>(familyOptions.max_write_buffer_number) *
+                                static_cast<int64_t>(familyOptions.write_buffer_size) +
+                            blockCacheBytes;
+
         ROCKSDB_NAMESPACE::Status s;
         auto it1 = kvStateInformation->find(cfName);
         if (it1 != kvStateInformation->end() && it1->second->columnFamilyHandle_) {
@@ -133,6 +147,12 @@ public:
             }
         }
         INFO_RELEASE("rocksdbMapStateTable createTable " << " cfName=" << cfName);
+    }
+
+    // per-state RocksDB memory estimate (bytes), captured in createTable.
+    int64_t getStateMemoryBytes() const
+    {
+        return stateMemoryBytes_;
     }
 
     UV get(const N& nameSpace, const UK& userKey)
@@ -820,7 +840,7 @@ public:
         omnistream::SerializedBatchInfo serializedBatchInfo =
             omnistream::VectorBatchSerializationUtils::serializeVectorBatch(vectorBatch, batchSize, buffer);
         ROCKSDB_NAMESPACE::Slice vbValue(
-            reinterpret_cast<const char*>(serializedBatchInfo.buffer), serializedBatchInfo.size);
+            reinterpret_cast<const char*>(serializedBatchInfo.dataAddress), serializedBatchInfo.dataSize);
 
         auto status = rocksDb->Put(writeOptions, VBTable, key, vbValue);
         if (!status.ok()) {
@@ -1628,6 +1648,8 @@ private:
     ROCKSDB_NAMESPACE::ColumnFamilyHandle* table; // 是不是编程columnsFamily
     ROCKSDB_NAMESPACE::ColumnFamilyHandle* VBTable;
     std::unique_ptr<RegisteredKeyValueStateBackendMetaInfo> metaInfo;
+    // per-state RocksDB memory estimate (bytes), set in createTable.
+    int64_t stateMemoryBytes_ = 0;
     int size = 0;
     omnistream::SequenceNumberHelper sequenceNumberHelper_{}; // only used for VectorBatch storage
     ROCKSDB_NAMESPACE::DB* rocksDb;

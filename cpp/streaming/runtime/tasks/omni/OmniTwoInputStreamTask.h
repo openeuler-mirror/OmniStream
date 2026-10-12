@@ -35,7 +35,8 @@ protected:
         std::vector<std::shared_ptr<IndexedInputGate>> inputGates1,
         std::vector<std::shared_ptr<IndexedInputGate>> inputGates2,
         const json& inputTypes,
-        std::function<StreamPartitioner<IOReadableWritable>*(int)> getPartitionerFunction);
+        std::function<StreamPartitioner<IOReadableWritable>*(int)> getPartitionerFunction,
+        std::function<StreamPartitionerV2<StreamRecord>*(int)> getSqlPartitionerFunction);
 
 private:
     std::shared_ptr<CheckpointBarrierHandler> checkpointBarrierHandler;

@@ -17,7 +17,7 @@ OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2*
 >- [**表 2** 支持的算子列表](#支持的算子列表)和[**表 3** 支持的表达式列表](#支持的表达式列表)中仅描述了OmniStream Flink Native化特性支持或涉及的数据类型，未展示的数据类型是OmniStream Flink Native化特性不支持的。
 >- 如果使用OmniStream Flink Native化特性不支持的算子和表达式，会导致执行计划回退为原生执行，对性能会有影响。
 >- 使用sql-client交互式界面执行SQL时，推荐将SQL的结果输出到connector为blackhole的数据表中，具体可参考Nexmark Q0的执行方式。
->- 由于内存限制，默认情况下只支持Calc和LookupJoin算子，其他支持的算子需要export FLINK\_PERFORMANCE=false设置环境变量使能。
+>- 由于内存限制，默认情况下只支持Calc和LookupJoin算子，其他支持的算子需要通过`export FLINK_PERFORMANCE=false`设置环境变量启用。
 
 ### 作业切换支持
 
@@ -100,9 +100,9 @@ SQL场景下，OmniStream支持通过Flink标准格式的Savepoint（SP），实
 
 支持的数据传输对象包括Long、String和Tuple2<String, Long\>。
 
-支持的依赖类及接口如[**表 1** 支持的表达式列表](#支持的表达式列表_1)所示，其余约束请参见[UDF翻译工具用户指南](https://gitcode.com/openeuler/docs/blob/stable-24.03_LTS_SP2/docs/zh/server/development/unt/unt_guide.md)。环境配置不同可能会导致支持的表达式略有变化，如有差异，可通过提交issue反馈问题。
+支持的依赖类及接口如[**表 1** 支持的依赖类及接口列表](#支持的依赖类及接口列表)所示，其余约束请参见[UDF翻译工具用户指南](https://gitcode.com/openeuler/docs/blob/stable-24.03_LTS_SP2/docs/zh/server/development/unt/unt_guide.md)。环境配置不同可能会导致支持的表达式略有变化，如有差异，可通过提交issue反馈问题。
 
-**表 1** 支持的表达式列表<a id="支持的表达式列表_1"></a>
+**表 1** 支持的依赖类及接口列表<a id="支持的依赖类及接口列表"></a>
 
 |Java类|Java类接口|
 |--|--|
@@ -127,9 +127,9 @@ SQL场景下，OmniStream支持通过Flink标准格式的Savepoint（SP），实
 |JsonElement|JsonObject getAsJsonObject();<br> double getAsDouble();<br> float getAsFloat();<br> int getAsInt();<br> long getAsLong();<br> short getAsShort();<br> boolean getAsBoolean();<br> String getAsString();<br> boolean isJsonNull();<br> String toString();<br> String toString();<br> |
 |JsonArray|Iterator\<JsonElement> iterator();<br> |
 
-### （SQL场景）使能OmniStream<a name="ZH-CN_TOPIC_0000002549640821"></a>
+### （SQL场景）启用OmniStream<a name="ZH-CN_TOPIC_0000002549640821"></a>
 
-在SQL场景下，详细描述从启动Flink集群到完成OmniStream使能的操作步骤。
+在SQL场景下，详细描述从启动Flink集群到启用OmniStream的操作步骤。
 
 1. 进入flink\_jm\_8c32g容器，启动Flink集群。
 
@@ -211,7 +211,7 @@ SQL场景下，OmniStream支持通过Flink标准格式的Savepoint（SP），实
     ```
 
     - 日志中提示`Shared Memory Metric Manager Loading Succeed!`，表示Native so库已经正常加载。
-    - 日志中提示`welcome to native`，表示已经成功使能OmniStream。
+    - 日志中提示`welcome to native`，表示已经成功启用OmniStream。
 
     ![](figures/zh-cn_image_0000002517961058.png)
 
@@ -258,11 +258,11 @@ SQL场景下，OmniStream支持通过Flink标准格式的Savepoint（SP），实
 
     `omni.recovery.savepoint.format`用于指定待恢复SP的格式，取值为`compatible`时表示恢复Flink标准格式的SP。
 
-### （DataStream场景）使能OmniStream<a name="ZH-CN_TOPIC_0000002518120974"></a>
+### （DataStream场景）启用OmniStream<a name="ZH-CN_TOPIC_0000002518120974"></a>
 
-在DataStream场景下，详细描述从启动Flink集群到完成OmniStream使能的操作步骤。
+在DataStream场景下，详细描述从启动Flink集群到启用OmniStream的操作步骤。
 
-1. 如果是在多Task Manager场景下运行DataStream任务，需要在flink-conf.yaml文件中添加配置omni.batch: true，以提升多该场景下的shuffle效率，以达到更优性能。
+1. 如果是在多Task Manager场景下运行DataStream任务，需要在flink-conf.yaml文件中添加配置omni.batch: true，以提升该场景下的shuffle效率，以达到更优性能。
     1. 进入容器flink_jm_8c32g在flink-conf.yaml文件中添加配置omni.batch: true。
 
         ```bash
@@ -695,7 +695,7 @@ SQL场景下，OmniStream支持通过Flink标准格式的Savepoint（SP），实
     cd /usr/local/flink-1.16.3/log
     ```
 
-    确认无报错信息，表示已经成功使能OmniStream。
+    确认无报错信息，表示已经成功启用OmniStream。
 
     ![](figures/zh-cn_image_0000002518120980.png)
 

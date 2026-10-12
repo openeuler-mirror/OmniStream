@@ -21,6 +21,7 @@
 #include "../../../../../core/typeutils/TypeSerializer.h"
 
 using namespace ::datastream;
+class StreamRecord;
 namespace omnistream::datastream {
 class RecordDeserializer : public TypeSerializer {
 public:
@@ -43,6 +44,13 @@ public:
     virtual std::vector<omnistream::Buffer*> GetUnconsumedBuffer()
     {
         return {};
+    }
+
+    // SQL object buffers are already deserialized and cannot go through getNextRecord().
+    // Rescaling deserializers override this hook to split a batch by row ownership.
+    virtual ::StreamRecord* FilterRecordForSql(::StreamRecord& record)
+    {
+        return &record;
     }
 
     /**

@@ -37,8 +37,8 @@ BarrierHandlerState* AlternatingWaitingForFirstBarrierUnaligned::BarrierReceived
     if (markChannelBlocked && !barrier->GetCheckpointOptions()->IsUnalignedCheckpoint()) {
         state_.BlockChannel(channelInfo);
     }
-
-    CheckpointBarrier* unalignedBarrier = barrier->AsUnaligned();
+    bool isNeedDel = false;
+    CheckpointBarrier* unalignedBarrier = barrier->AsUnaligned(isNeedDel);
     controller->InitInputsCheckpoint(*unalignedBarrier);
     for (auto* input : state_.getInputs()) {
         omnistream::IndexedInputGate* inputGate = dynamic_cast<omnistream::IndexedInputGate*>(input);
@@ -54,10 +54,19 @@ BarrierHandlerState* AlternatingWaitingForFirstBarrierUnaligned::BarrierReceived
         for (auto* input : state_.getInputs()) {
             input->CheckpointStopped(unalignedBarrier->GetId());
         }
+        if (isNeedDel) {
+            INFO_RELEASE("unalignedBarrier need del ");
+            delete unalignedBarrier;
+        }
         return FinishCheckpoint();
     }
-
-    return new AlternatingCollectingBarriersUnaligned(alternating_, std::move(state_), unalignedBarrier->GetId());
+    BarrierHandlerState* newState =
+        new AlternatingCollectingBarriersUnaligned(alternating_, std::move(state_), unalignedBarrier->GetId());
+    if (isNeedDel) {
+        INFO_RELEASE("unalignedBarrier need del ");
+        delete unalignedBarrier;
+    }
+    return newState;
 }
 
 BarrierHandlerState* AlternatingWaitingForFirstBarrierUnaligned::AlignedCheckpointTimeout(

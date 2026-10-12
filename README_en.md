@@ -1,7 +1,5 @@
 # Introduction to OmniStream<a name="ZH-CN_TOPIC_0000002549521549"></a>
 
-English | [简体中文](README.md)
-
 ## Latest Updates<a name="ZH-CN_TOPIC_0000002517961774"></a>
 
 - \[2026-06-30\]: Released OmniStream 1.3.0. Added the following support in SQL scenarios: WindowAgg and WindowJoin operators are supported. The Calc operator supports UDF registration, as well as built-in functions such as JSON_VALUE, JSON_QUERY, COALESCE, PROCTIME_MATERIALIZE, CHAR_LENGTH, and TO_TIMESTAMP_LTZ. The Calc operator also supports data types including INTEGER and TIMESTAMP_WITH_LOCAL_TIMEZONE(3).
@@ -89,8 +87,9 @@ OmniStream has restrictions on supported data types, operators, and state backen
 - The state backend supports only the memory and RocksDB.
 - Flink stores states in the memory state backend, and the memory usage grows over time as the volume of data increases. In comparison, OmniStream uses the columnar vectorized architecture to optimize performance. Its state storage behaves the same as the native Flink while delivering a higher processing speed and consuming the memory space faster. Therefore, the Nexmark benchmark test cases support a maximum of 50 million data records.
 - In SQL scenarios, checkpoints and savepoints are supported. The related configuration options and commands are consistent with those of the open-source Flink community.
-- In SQL scenarios, parallelism changes for checkpoints and savepoints are not supported.
-- In SQL scenarios, when Kafka is used as a data source, running in multi-parallelism mode is not supported.
+- In SQL scenarios, when Kafka is used as a data source, running in multi-parallelism mode is not supported. In other scenarios, In other scenarios, high parallelism is currently supported only for stateless operators.
+- In SQL scenarios, OmniStream supports saving savepoints in Flink standard format via the command line `./flink savepoint/stop --type [compatible]`. Currently, only Join, Deduplicate, and Rank operators are supported.
+- In SQL scenarios, OmniStream supports restoring savepoints in Flink standard format via the parameter `"SET 'omni.recovery.savepoint.format' = 'compatible'"`. Currently, only Join, Deduplicate, and Rank operators are supported.
 
 **DataStream<a name="zh-cn_topic_0000002512242608_section14862183194614"></a>**
 
@@ -169,7 +168,6 @@ For instructions on quickly verifying whether OmniStream is active and its perfo
 |[Quick Start](./docs/en/quick_start.md)|Provides guidance on how to quickly enable and verify the OmniStream feature.|
 |[Release Notes](./docs/en/release_notes.md)|Provides basic information and feature updates of each OmniStream version.|
 |[Installation Guide](./docs/en/installation_guide.md)|Describes how to install OmniStream.|
-|[Build Guide](./docs/en/compile_guide.md)|Describes how to build OmniStream and run its unit tests.|
 |[User Guide](./docs/en/user_guide.md)|Provides details about how to use OmniStream.|
 |[FAQs](./docs/zh/faq.md)|Provides answers to frequently asked questions (FAQs) about installing and using OmniStream.|
 
@@ -309,5 +307,9 @@ Documents in the `docs` directory are licensed under CC-BY 4.0. For details, see
 You are welcome to contribute to the community. If you have any questions or suggestions, please submit an [issue](https://gitcode.com/boostkit/omnistream). We will reply as soon as possible. Thank you for your support.
 
 ## Acknowledgement<a name="ZH-CN_TOPIC_0000002549641563"></a>
+
+OmniStream is jointly developed by the following Huawei departments:
+
+Kunpeng Computing BoostKit Development Dept
 
 Thank you to everyone in the community for your PRs. We warmly welcome contributions to OmniStream!

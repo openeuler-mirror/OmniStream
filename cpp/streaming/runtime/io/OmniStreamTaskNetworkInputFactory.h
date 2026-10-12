@@ -26,6 +26,7 @@ public:
         std::vector<long>& channelInfos,
         std::shared_ptr<InflightDataRescalingDescriptor> inflightDataRescalingDescriptor,
         std::function<StreamPartitioner<IOReadableWritable>*(int)> getPartitionerFunction,
+        std::function<StreamPartitionerV2<StreamRecord>*(int)> getSqlPartitionerFunction,
         TaskInformationPOD* taskInfo)
     {
         INFO_RELEASE("inflight is null:" << (inflightDataRescalingDescriptor == nullptr));
@@ -49,6 +50,7 @@ public:
             channelInfos,
             inflightDataRescalingDescriptor,
             getPartitionerFunction,
+            getSqlPartitionerFunction,
             taskInfo);
     }
 };

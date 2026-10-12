@@ -20,6 +20,7 @@ OutputFlusher::OutputFlusher(const std::string& name, long timeout, RecordWriter
 
 OutputFlusher::~OutputFlusher()
 {
+    INFO_RELEASE("~OutputFlusher for " << taskName);
     terminate();
     if (thread.joinable()) {
         thread.join();
@@ -28,11 +29,14 @@ OutputFlusher::~OutputFlusher()
 
 void OutputFlusher::terminate()
 {
-    LOG_INFO_IMP("Terminating... " << taskName);
+    // INFO_RELEASE, not LOG_INFO_IMP: that macro is disabled in this build, which is why the
+    // terminate/terminated messages were invisible while diagnosing the thread leak.
+    INFO_RELEASE("OutputFlusher::terminate entered for " << taskName);
     running = false;
     if (thread.joinable()) {
         thread.join();
     }
+    INFO_RELEASE("OutputFlusher::terminate joined for " << taskName);
 }
 
 void OutputFlusher::start()
@@ -66,7 +70,7 @@ void OutputFlusher::run()
                 writer->flushAll();
             }
         }
-        LOG_INFO_IMP("OutputFlusher::run terminated" << taskName << " timeout " << timeout);
+        INFO_RELEASE("OutputFlusher::run terminated " << taskName << " timeout " << timeout);
     } catch (const std::exception& t) {
         LOG_INFO_IMP("OutputFlusher error : " << t.what());
         notifyFlusherException(std::current_exception());

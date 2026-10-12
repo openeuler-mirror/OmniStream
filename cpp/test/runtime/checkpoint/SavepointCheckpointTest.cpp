@@ -674,7 +674,8 @@ TEST(CheckpointBarrierTest, AsUnalignedAlreadyUnalignedReturnsThis)
         CheckpointOptions::AlignmentType::UNALIGNED,
         CheckpointOptions::NO_ALIGNED_CHECKPOINT_TIME_OUT);
     CheckpointBarrier barrier(1, 1000, opts);
-    auto* result = barrier.AsUnaligned();
+    bool isNeedDel = false;
+    auto* result = barrier.AsUnaligned(isNeedDel);
     EXPECT_EQ(result, &barrier);
 }
 
@@ -683,7 +684,8 @@ TEST(CheckpointBarrierTest, AsUnalignedCreatesNewWhenAligned)
     auto options = std::make_shared<CheckpointOptions>(
         CheckpointType::CHECKPOINT, CheckpointStorageLocationReference::GetDefault());
     CheckpointBarrier barrier(1, 1000, options);
-    auto* result = barrier.AsUnaligned();
+    bool isNeedDel = false;
+    auto* result = barrier.AsUnaligned(isNeedDel);
     EXPECT_NE(result, &barrier);
     EXPECT_TRUE(result->GetCheckpointOptions()->IsUnalignedCheckpoint());
     delete result;

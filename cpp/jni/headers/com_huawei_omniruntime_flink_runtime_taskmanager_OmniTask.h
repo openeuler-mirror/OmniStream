@@ -75,6 +75,14 @@ JNIEXPORT jlong JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_Om
 
 /*
  * Class:     com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask
+ * Method:    notifyNativeTaskRunFinished
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_notifyNativeTaskRunFinished(
+    JNIEnv*, jobject, jlong);
+
+/*
+ * Class:     com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask
  * Method:    createNativeTaskMetricGroup
  * Signature: (J)J
  */

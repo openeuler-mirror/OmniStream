@@ -110,6 +110,10 @@ public:
     {
         return 0;
     }
+    virtual size_t getConsumedBufferSize() const
+    {
+        return 0;
+    }
     virtual void setup() {};
     virtual std::string toString() {};
     static const int initBackoffConstant = 100;

@@ -106,7 +106,8 @@ public:
 
         ObjectSegment* objectSegment = new ObjectSegment(kTempRestoreBufferSize);
 
-        VectorBatchBuffer* buffer = new VectorBatchBuffer(objectSegment, std::make_shared<DummyObjectBufferRecycler>());
+        VectorBatchBuffer* buffer =
+            new VectorBatchBuffer(objectSegment, std::make_shared<DeepCopiedObjectBufferRecycler>());
 
         return {ChannelStateByteBuffer::wrap(buffer), buffer};
     }

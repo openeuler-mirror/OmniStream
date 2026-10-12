@@ -14,6 +14,13 @@
 
 JNIEXPORT jlong JNICALL Java_org_apache_flink_metrics_SimpleCounter_getNativeCounterNew(JNIEnv*, jobject, jlong nativeR)
 {
+    // Flink's ViewUpdater polls counters on a timer and holds this address indefinitely, but the
+    // counter dies with its metric group when the task is destroyed. Without this check the poll
+    // dereferences freed memory -- observed as a TaskManager SIGSEGV in ViewUpdaterTask.run().
+    // A dead counter reports 0: its task is gone, so there is no count left to report.
     auto counter = reinterpret_cast<omnistream::SimpleCounter*>(nativeR);
+    if (!omnistream::SimpleCounter::IsLive(counter)) {
+        return 0;
+    }
     return counter->GetCount();
 }

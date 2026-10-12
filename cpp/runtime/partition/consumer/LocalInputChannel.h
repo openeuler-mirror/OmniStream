@@ -73,6 +73,7 @@ public:
     void announceBufferSize(int newBufferSize) override;
     int getBuffersInUseCount() override;
     int unsynchronizedGetNumberOfQueuedBuffers() override;
+    size_t getConsumedBufferSize() const override;
     std::string toString() override;
     std::shared_ptr<ResultSubpartitionView> getSubpartitionView();
     void notifyBufferAvailable(int subpartitionId) override;

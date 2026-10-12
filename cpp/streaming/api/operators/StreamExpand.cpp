@@ -22,7 +22,11 @@ StreamExpand::StreamExpand(const nlohmann::json& description, Output* output)
     LOG("StreamExpand description: " << description);
 }
 
-StreamExpand::~StreamExpand() = default;
+StreamExpand::~StreamExpand()
+{
+    delete timestampedCollector_;
+    timestampedCollector_ = nullptr;
+}
 
 void StreamExpand::parseDescription(nlohmann::json& subDesc, int index)
 {

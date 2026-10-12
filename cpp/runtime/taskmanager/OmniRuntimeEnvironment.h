@@ -117,7 +117,7 @@ public:
         taskStateManager_ = std::move(taskStateManager);
     }
 
-    [[nodiscard]] std::shared_ptr<TaskMetricGroup> taskMetricGroup() const
+    [[nodiscard]] std::shared_ptr<TaskMetricGroup> taskMetricGroup() const override
     {
         return taskMetricGroup_;
     }

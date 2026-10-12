@@ -135,17 +135,12 @@ public:
 
     std::shared_ptr<CompletableFuture> GetAvailableFuture() override
     {
-        // no inputGate no output
-
-        if (taskType == 1 && checkpointInterval == -1) {
+        if (currentRecordDeserializer != nullptr) {
             return AVAILABLE;
-        } else {
-            if (currentRecordDeserializer != nullptr) {
-                return AVAILABLE;
-            }
-            return inputGate->GetAvailableFuture();
         }
+        return inputGate->GetAvailableFuture();
     }
+
     std::unique_ptr<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>> getRecordDeserializers(
         std::vector<long>& channelInfos)
     {
@@ -178,6 +173,8 @@ public:
         LOG(">>>>> bufferOrEventOpt bufferOrEvent" + std::to_string(reinterpret_cast<int64_t>(bufferOrEvent)));
         if (bufferOrEvent->isBuffer()) {
             auto buff = reinterpret_cast<ObjectBuffer*>(bufferOrEvent->getBuffer());
+            std::shared_ptr<DeepCopiedObjectBufferRecycler> objectBufferRecycler =
+                std::dynamic_pointer_cast<DeepCopiedObjectBufferRecycler>(buff->GetRecycler());
             lastChannel_ = bufferOrEvent->getChannelInfo();
 
             auto size = buff->GetSize();
@@ -189,24 +186,46 @@ public:
             LOG("===================start output=======================");
             for (int64_t index = offset; index < offset + size; index++) {
                 StreamElement* object = objSegment->getObject(index);
+                ObjectSegment::countDrained();
                 int tag = static_cast<int>(object->getTag());
                 LOG("OmniAbstractStreamTaskNetworkInput tag: " << tag << " channelIndex: "
                                                                << lastChannel_.getInputChannelIdx());
                 if (object->getTag() == StreamElementTag::TAG_REC_WITH_TIMESTAMP ||
                     object->getTag() == StreamElementTag::TAG_REC_WITHOUT_TIMESTAMP) {
                     auto record = static_cast<StreamRecord*>(object);
-                    auto vectorBatch = static_cast<VectorBatch*>(record->getValue());
+                    auto* activeDeserializer = getActiveSerializer(lastChannel_.getComplexId());
+                    auto* filteredRecord = activeDeserializer->FilterRecordForSql(*record);
+                    if (filteredRecord == nullptr) {
+                        continue;
+                    }
+                    auto vectorBatch = static_cast<VectorBatch*>(filteredRecord->getValue());
                     size_t row_cnt = vectorBatch->GetRowCount();
                     numberOfRow += row_cnt;
 
-                    output->emitRecord(reinterpret_cast<StreamRecord*>(object));
+                    output->emitRecord(filteredRecord);
                 } else if (object->getTag() == StreamElementTag::TAG_WATERMARK) {
-                    auto watermark = std::unique_ptr<Watermark>(reinterpret_cast<Watermark*>(object));
-                    statusWatermarkValve_.inputWatermark(watermark.get(), lastChannel_.getInputChannelIdx(), output);
+                    if (objectBufferRecycler == nullptr) {
+                        auto watermark = std::unique_ptr<Watermark>(reinterpret_cast<Watermark*>(object));
+                        statusWatermarkValve_.inputWatermark(
+                            watermark.get(), lastChannel_.getInputChannelIdx(), output);
+                    } else {
+                        statusWatermarkValve_.inputWatermark(
+                            reinterpret_cast<Watermark*>(object), lastChannel_.getInputChannelIdx(), output);
+                    }
                 } else if (object->getTag() == StreamElementTag::TAG_STREAM_STATUS) {
-                    statusWatermarkValve_.inputWatermarkStatus(
-                        reinterpret_cast<WatermarkStatus*>(object), lastChannel_.getInputChannelIdx(), output);
+                    if (objectBufferRecycler == nullptr) {
+                        auto watermarkstatus =
+                            std::unique_ptr<WatermarkStatus>(reinterpret_cast<WatermarkStatus*>(object));
+                        statusWatermarkValve_.inputWatermarkStatus(
+                            watermarkstatus.get(), lastChannel_.getInputChannelIdx(), output);
+                    } else {
+                        statusWatermarkValve_.inputWatermarkStatus(
+                            reinterpret_cast<WatermarkStatus*>(object), lastChannel_.getInputChannelIdx(), output);
+                    }
                 } else {
+                    if (objectBufferRecycler == nullptr) {
+                        delete object;
+                    }
                     LOG("Bypass the tag for now: " << tag);
                 }
             }

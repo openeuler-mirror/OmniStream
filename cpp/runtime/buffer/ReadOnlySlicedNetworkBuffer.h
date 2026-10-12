@@ -22,8 +22,6 @@ public:
         memorySegmentOffset = parent->GetMemorySegmentOffset() + index;
     }
 
-    ~ReadOnlySlicedNetworkBuffer() override = default;
-
     std::shared_ptr<BufferRecycler> GetRecycler() override
     {
         return parent_->GetRecycler();

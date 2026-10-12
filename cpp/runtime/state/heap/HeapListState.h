@@ -117,6 +117,10 @@ HeapListState<K, N, UV>::~HeapListState()
 template <typename K, typename N, typename UV>
 void HeapListState<K, N, UV>::clear()
 {
+    std::vector<UV>* userList = stateTable->get(currentNamespace);
+    if (userList != nullptr) {
+        stateTable->liveNumElements_ -= static_cast<int64_t>(userList->size());
+    }
     stateTable->remove(currentNamespace);
 }
 
@@ -129,6 +133,7 @@ void HeapListState<K, N, UV>::clearVectorBatches(int64_t currentTimestamp)
          ++keyGroup) {
         auto nextSequenceNumber = this->getNextSequenceNumber(keyGroup);
         for (uint32_t sequenceNumber = 0; sequenceNumber < nextSequenceNumber; ++sequenceNumber) {
+            State::releaseVbStatistic(vectorBatchStateTable->get(sequenceNumber, keyGroup, nameSpace));
             vectorBatchStateTable->remove(sequenceNumber, keyGroup, nameSpace);
         }
     }
@@ -139,6 +144,7 @@ void HeapListState<K, N, UV>::clearVectorBatches(int32_t keyGroup, std::vector<u
 {
     VoidNamespace nameSpace;
     for (auto sequenceNumber : sequenceNumbersToDelete) {
+        State::releaseVbStatistic(vectorBatchStateTable->get(sequenceNumber, keyGroup, nameSpace));
         vectorBatchStateTable->remove(sequenceNumber, keyGroup, nameSpace);
     }
 }
@@ -156,6 +162,7 @@ void HeapListState<K, N, UV>::addVectorBatch(int32_t keyGroup, omnistream::Vecto
     auto sequenceNumber = vectorBatchStateTable->getNextSequenceNumber(keyGroup);
     vectorBatchStateTable->put(sequenceNumber, keyGroup, nameSpace, vectorBatch);
     vectorBatchStateTable->addNextSequenceNumber(keyGroup);
+    State::recordVbStatistic(vectorBatch);
 }
 
 template <typename K, typename N, typename UV>
@@ -167,6 +174,7 @@ void HeapListState<K, N, UV>::addVectorBatches(
         auto nextSequenceNumber = vectorBatchStateTable->getNextSequenceNumber(keyGroup);
         vectorBatchStateTable->put(nextSequenceNumber, keyGroup, nameSpace, vectorBatch);
         vectorBatchStateTable->addNextSequenceNumber(keyGroup);
+        State::recordVbStatistic(vectorBatch);
     }
 }
 
@@ -200,6 +208,8 @@ void HeapListState<K, N, UV>::add(const UV& value)
         stateTable->put(currentNamespace, userList);
     }
     userList->push_back(value);
+    stateTable->liveNumElements_ += 1;          // CORRECTION 11: one element added
+    stateTable->refreshSampledWidthsIfNeeded(); // CORRECTION 13: task-thread width sampling
 }
 
 template <typename K, typename N, typename UV>
@@ -212,6 +222,8 @@ void HeapListState<K, N, UV>::addAll(const std::vector<UV>& values)
     } else {
         userList->insert(userList->end(), values.begin(), values.end());
     }
+    stateTable->liveNumElements_ += static_cast<int64_t>(values.size()); // CORRECTION 11
+    stateTable->refreshSampledWidthsIfNeeded();                          // CORRECTION 13: task-thread width sampling
 }
 
 template <typename K, typename N, typename UV>
@@ -221,9 +233,13 @@ void HeapListState<K, N, UV>::update(const std::vector<UV>& values)
     if (userList == nullptr) {
         userList = new std::vector<UV>(values);
         stateTable->put(currentNamespace, userList);
+        stateTable->liveNumElements_ += static_cast<int64_t>(values.size()); // CORRECTION 11
     } else {
+        // CORRECTION 11: full replace -> adjust by the size delta before overwriting.
+        stateTable->liveNumElements_ += static_cast<int64_t>(values.size()) - static_cast<int64_t>(userList->size());
         *userList = values;
     }
+    stateTable->refreshSampledWidthsIfNeeded(); // CORRECTION 13: task-thread width sampling
 }
 
 template <typename K, typename N, typename UV>
@@ -242,6 +258,8 @@ void HeapListState<K, N, UV>::merge(const std::vector<UV>& other)
     } else {
         userList->insert(userList->end(), other.begin(), other.end());
     }
+    stateTable->liveNumElements_ += static_cast<int64_t>(other.size()); // CORRECTION 11
+    stateTable->refreshSampledWidthsIfNeeded();                         // CORRECTION 13: task-thread width sampling
 }
 
 template <typename K, typename N, typename UV>

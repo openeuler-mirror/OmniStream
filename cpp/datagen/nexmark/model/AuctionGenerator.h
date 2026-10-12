@@ -26,9 +26,9 @@ public:
 
     virtual ~AuctionGenerator()
     {
-        delete nameBuffer;
-        delete descBuffer;
-        delete extraBuffer;
+        delete[] nameBuffer;
+        delete[] descBuffer;
+        delete[] extraBuffer;
     };
 
     /**

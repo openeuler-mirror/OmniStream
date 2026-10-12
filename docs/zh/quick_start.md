@@ -405,7 +405,7 @@ grep "welcome to native" "$FLINK_HOME"/log/*
 
 > ![](public_sys-resources/icon-note.gif) **说明：**
 >
-> 日志中出现`OmniTask::DoRunInvoke welcome to native`，表示OmniStream已经成功使能。
+> 日志中出现`OmniTask::DoRunInvoke welcome to native`，表示OmniStream已经成功启用。
 
 ## 常见问题
 
@@ -444,7 +444,7 @@ Flink日志提示无法解析配置
 - [用户指南](./user_guide.md)
 - [常见问题](./faq.md)
 
-# 免责声明
+## 免责声明
 
 此代码仓计划参与Flink软件开源，仅作Flink功能扩展/Flink性能提升，编码风格遵照原生开源软件，继承原生开源软件安全设计，不破坏原生开源软件设计及编码风格和方式，软件的任何漏洞与安全问题，均由相应的上游社区根据其漏洞和安全响应机制解决。请密切关注上游社区发布的通知和版本更新。鲲鹏计算社区对软件的漏洞及安全问题不承担任何责任。
 

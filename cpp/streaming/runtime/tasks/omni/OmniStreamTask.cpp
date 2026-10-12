@@ -265,27 +265,24 @@ void OmniStreamTask::restoreGates()
         INFO_RELEASE("restoreGates before recovery mailbox loop");
         mailboxProcessor_->runMailboxLoop();
         INFO_RELEASE("restoreGates after recovery mailbox loop");
-        bool allRecovered = true;
+        bool allRecovered;
         do {
-            for (const auto& inputGate : inputGateVec) {
-                auto recoveredFlags = inputGate->getStateConsumedFuture1();
-                allRecovered = true;
-                for (bool done : recoveredFlags) {
-                    if (!done) {
-                        allRecovered = false;
-                        break;
-                    }
+            allRecovered = true;
+            for (size_t gateIndex = 0; gateIndex < inputGateVec.size(); ++gateIndex) {
+                const auto recoveredFlags = inputGateVec[gateIndex]->getStateConsumedFuture1();
+                const bool gateRecovered =
+                    std::all_of(recoveredFlags.begin(), recoveredFlags.end(), [](bool recovered) { return recovered; });
+                if (!gateRecovered) {
+                    allRecovered = false;
+                    INFO_RELEASE("restoreGates: recovered channels are not fully consumed, gateIndex=" << gateIndex);
                 }
-
-                if (!allRecovered) {
-                    INFO_RELEASE("restoreGates: some recovered channels are not fully consumed yet");
-                    continue;
-                }
-
-                INFO_RELEASE("restoreGates requestPartitions directly after recovery loop");
-                inputGate->RequestPartitions();
             }
         } while (!allRecovered);
+
+        for (size_t gateIndex = 0; gateIndex < inputGateVec.size(); ++gateIndex) {
+            INFO_RELEASE("restoreGates requestPartitions after all gates recovered, gateIndex=" << gateIndex);
+            inputGateVec[gateIndex]->RequestPartitions();
+        }
 
         INFO_RELEASE("restoreGates complete!");
     } catch (...) {
@@ -374,8 +371,9 @@ void OmniStreamTask::processInput(MailboxDefaultAction::Controller* controller)
             if (--numberOfInnerRecover == 0) {
                 mailboxProcessor_->suspend();
             }
-            return;
-        case DataInputStatus::END_OF_RECOVERY: return;
+            GetSubtaskCheckpointCoordinator()->SetisRecoveredFlag(true);
+            break;
+        case DataInputStatus::END_OF_RECOVERY: GetSubtaskCheckpointCoordinator()->SetisRecoveredFlag(false); return;
         case DataInputStatus::END_OF_DATA: EndData(StopMode::DRAIN); return;
         case DataInputStatus::NOT_PROCESSED: return;
         case DataInputStatus::STOPPED: EndData(StopMode::NO_DRAIN); return;

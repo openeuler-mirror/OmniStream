@@ -190,5 +190,4 @@ void ResultPartition::OnConsumedSubpartition(int subpartitionIndex)
     std::cout << toString() << ": Received release notification for subpartition " << subpartitionIndex << "."
               << std::endl;
 }
-
 } // namespace omnistream

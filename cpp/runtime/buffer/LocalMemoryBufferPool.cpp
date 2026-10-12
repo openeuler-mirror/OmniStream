@@ -156,7 +156,7 @@ BufferBuilder* LocalMemoryBufferPool::requestBufferBuilder()
     return requestMemoryBufferBuilder();
 };
 
-BufferBuilder* LocalMemoryBufferPool::requestBufferBuilder(int targetChannel)
+BufferBuilder* LocalMemoryBufferPool::requestBufferBuilder(int targetChannel, uint64_t /*bytes*/)
 {
     return requestMemoryBufferBuilder(targetChannel);
 };
@@ -166,7 +166,7 @@ BufferBuilder* LocalMemoryBufferPool::requestBufferBuilderBlocking()
     return requestMemoryBufferBuilderBlocking();
 };
 
-BufferBuilder* LocalMemoryBufferPool::requestBufferBuilderBlocking(int targetChannel)
+BufferBuilder* LocalMemoryBufferPool::requestBufferBuilderBlocking(int targetChannel, uint64_t /*bytes*/)
 {
     return requestMemoryBufferBuilderBlocking(targetChannel);
 };

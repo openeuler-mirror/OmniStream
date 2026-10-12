@@ -61,12 +61,23 @@ void ChannelStateWriteRequestDispatcherImpl::dispatchInternal(std::shared_ptr<Ch
     if (it != writers.end()) {
         writer = it->second;
     }
-    if (auto req = std::dynamic_pointer_cast<CheckpointStartRequest>(request)) {
+    if (auto req = std::dynamic_pointer_cast<SubtaskRegisterRequest>(request)) {
+        registeredSubtasks.insert(SubtaskID::Of(req->getJobVertexID(), req->getSubtaskIndex()));
+        if (writer) {
+            req->execute(writer);
+        }
+    } else if (auto req = std::dynamic_pointer_cast<CheckpointStartRequest>(request)) {
         handleCheckpointStartRequest(req);
     } else if (auto req = std::dynamic_pointer_cast<CheckpointInProgressRequest>(request)) {
         if (writer && ongoingCheckpointId == request->getCheckpointId()) {
             LOG_DEBUG(" dispatchInternal " << request->getName() << " checkpoint " << request->getCheckpointId());
             req->execute(writer);
+        } else {
+            req->cancel(
+                std::make_exception_ptr(
+                    std::runtime_error(
+                        "Channel state writer not found for checkpoint " +
+                        std::to_string(request->getCheckpointId()))));
         }
     } else if (auto req = std::dynamic_pointer_cast<SubtaskReleaseRequest>(request)) {
         SubtaskID sid = SubtaskID::Of(req->getJobVertexID(), req->getSubtaskIndex());
@@ -74,6 +85,8 @@ void ChannelStateWriteRequestDispatcherImpl::dispatchInternal(std::shared_ptr<Ch
         if (writer) {
             req->execute(writer);
         }
+    } else if (std::dynamic_pointer_cast<CheckpointAbortRequest>(request)) {
+        // Handled below after the aborted-checkpoint check updates the shared writer state.
     } else {
         LOG_DEBUG("ChannelStateWriteRequestDispatcherImpl::dispatchInternal");
         throw std::invalid_argument("Unknown request type");
@@ -117,7 +130,7 @@ void ChannelStateWriteRequestDispatcherImpl::handleCheckpointStartRequest(
             ", Requested: " + std::to_string(request->getCheckpointId()));
     }
 
-    if (request->getCheckpointId() > ongoingCheckpointId) {
+    if (ongoingCheckpointId >= 0 && request->getCheckpointId() > ongoingCheckpointId) {
         failAndClearWriter(
             std::make_exception_ptr(CheckpointException(CheckpointFailureReason::CHECKPOINT_DECLINED_SUBSUMED)));
     }
@@ -183,7 +196,7 @@ void ChannelStateWriteRequestDispatcherImpl::failAndClearWriter(const std::excep
     }
     if (writer) {
         writer->Fail(e);
-        writer->Reset();
+        writers.erase(ongoingCheckpointId);
     } else {
         registeredSubtasks.clear();
     }
@@ -199,7 +212,9 @@ void ChannelStateWriteRequestDispatcherImpl::failAndClearWriter(
     }
     if (writer) {
         writer->Fail(jvid, idx, e);
-        writer->Reset();
+        writers.erase(ongoingCheckpointId);
+    } else {
+        registeredSubtasks.erase(SubtaskID::Of(jvid, idx));
     }
 }
 

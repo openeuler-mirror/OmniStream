@@ -35,6 +35,9 @@ public:
         int bufferType);
 
     std::optional<BufferAndAvailability> getNextBuffer() override;
+    int unsynchronizedGetNumberOfQueuedBuffers() override;
+    int unsynchronizedGetSizeOfQueuedBuffers() override;
+    size_t getConsumedBufferSize() const override;
 
     std::shared_ptr<ObjectSegment> DoDataDeserializationResult(uint8_t*& buffer, int bufferLength);
 

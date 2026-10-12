@@ -31,6 +31,8 @@
 #include "partition/consumer/InputChannelInfo.h"
 #include "checkpoint/InflightDataRescalingDescriptor.h"
 #include "runtime/io/recover/RecordFilter.h"
+#include "streaming/runtime/partitioner/V2/StreamPartitionerV2.h"
+#include "table/data/util/VectorBatchUtil.h"
 
 namespace omnistream {
 
@@ -40,15 +42,20 @@ public:
     struct VirtualChannel {
         std::shared_ptr<RecordDeserializer> deserializer;
         std::function<bool(StreamRecord&)> recordFilter;
+        std::function<StreamRecord*(StreamRecord&)> sqlRecordFilter;
         Watermark lastWatermark = Watermark::UNINITIALIZED;
         WatermarkStatus* watermarkStatus = WatermarkStatus::active();
         DeserializationResult* lastResult;
 
-        VirtualChannel(std::shared_ptr<RecordDeserializer> deser, std::function<bool(StreamRecord&)> filter)
+        VirtualChannel(
+            std::shared_ptr<RecordDeserializer> deser,
+            std::function<bool(StreamRecord&)> filter,
+            std::function<StreamRecord*(StreamRecord&)> sqlFilter)
             :
 
               deserializer(std::move(deser)),
-              recordFilter(filter)
+              recordFilter(std::move(filter)),
+              sqlRecordFilter(std::move(sqlFilter))
         {
         }
 
@@ -112,6 +119,14 @@ public:
             throw std::runtime_error(oss.str());
         }
         currentVirtualChannel = it->second;
+    }
+
+    StreamRecord* FilterRecordForSql(StreamRecord& record) override
+    {
+        if (!currentVirtualChannel) {
+            throw std::runtime_error("Cannot filter SQL record before selecting a recovered channel.");
+        }
+        return currentVirtualChannel->sqlRecordFilter(record);
     }
 
     bool hasMappings() const
@@ -194,7 +209,8 @@ public:
         const InputChannelInfo& channelInfo,
         const InflightDataRescalingDescriptor& rescalingDescriptor,
         std::function<std::shared_ptr<RecordDeserializer>(int)> deserializerFactory,
-        std::function<std::function<bool(StreamRecord&)>(const InputChannelInfo&)> recordFilterFactory)
+        std::function<std::function<bool(StreamRecord&)>(const InputChannelInfo&)> recordFilterFactory,
+        std::function<std::function<StreamRecord*(StreamRecord&)>(const InputChannelInfo&)> sqlRecordFilterFactory)
     {
         std::vector<int> oldSubtaskIndexes = rescalingDescriptor.GetOldSubtaskIndexes(channelInfo.getGateIdx());
         if (oldSubtaskIndexes.empty()) {
@@ -219,7 +235,10 @@ public:
                     deserializerFactory(totalChannels),
                     rescalingDescriptor.IsAmbiguous(channelInfo.getGateIdx(), subtask)
                         ? recordFilterFactory(channelInfo)
-                        : RecordFilter::all());
+                        : RecordFilter::all(),
+                    rescalingDescriptor.IsAmbiguous(channelInfo.getGateIdx(), subtask)
+                        ? sqlRecordFilterFactory(channelInfo)
+                        : std::function<StreamRecord*(StreamRecord&)>([](StreamRecord& record) { return &record; }));
             }
         }
         INFO_RELEASE("DemultiplexingRecordDeserializer create channel size:" << virtualChannels.size());

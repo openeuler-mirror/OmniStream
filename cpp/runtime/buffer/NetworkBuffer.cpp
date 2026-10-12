@@ -77,9 +77,9 @@ NetworkBuffer::NetworkBuffer(
     this->recycler = recycler;
     this->currentSize = bufferLength;
     this->readerIndex_ = readIndex;
+    refCount_ = 1;
     this->segmentOwner = segmentOwner;
 }
-
 MemorySegment* NetworkBuffer::getMemorySegment()
 {
     return memorySegment;

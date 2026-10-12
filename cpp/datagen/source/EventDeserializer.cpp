@@ -144,5 +144,10 @@ void BatchEventDeserializer::setNullBid()
 
 BatchEventDeserializer::~BatchEventDeserializer()
 {
+    // vb is handed downstream once a batch fills up, and collectedCnt is reset to 0 at that point.
+    // A non-zero count therefore means the last batch was left partially filled and is still ours.
+    if (collectedCnt > 0) {
+        delete vb;
+    }
     delete reUseRecord;
 }

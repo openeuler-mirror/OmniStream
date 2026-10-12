@@ -66,14 +66,15 @@ bool CheckpointBarrier::IsCheckpoint() const
     return !(checkpointOptions_->GetCheckpointType()->IsSavepoint());
 }
 
-CheckpointBarrier* CheckpointBarrier::AsUnaligned()
+CheckpointBarrier* CheckpointBarrier::AsUnaligned(bool& isNeedDel)
 {
-    return checkpointOptions_->IsUnalignedCheckpoint()
-               ? this
-               : new CheckpointBarrier(
-                     GetId(),
-                     GetTimestamp(),
-                     std::shared_ptr<CheckpointOptions>(GetCheckpointOptions()->ToUnaligned()));
+    if (checkpointOptions_->IsUnalignedCheckpoint()) {
+        return this;
+    } else {
+        isNeedDel = true;
+        return new CheckpointBarrier(
+            id_, timestamp_, std::shared_ptr<CheckpointOptions>(checkpointOptions_->ToUnaligned()));
+    }
 }
 
 std::string CheckpointBarrier::ToString() const

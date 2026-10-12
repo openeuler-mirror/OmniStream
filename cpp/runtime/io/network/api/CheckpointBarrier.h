@@ -42,7 +42,7 @@ public:
     long GetId() const;
     long GetTimestamp() const;
     bool IsCheckpoint() const;
-    CheckpointBarrier* AsUnaligned();
+    CheckpointBarrier* AsUnaligned(bool& isNeedDel);
     std::string ToString() const;
 
 private:

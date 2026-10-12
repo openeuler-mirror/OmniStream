@@ -11,14 +11,15 @@
 
 #pragma once
 
+#include <atomic>
 #include <cstdint>
 #include <unordered_map>
 #include <vector>
 
 #include "common.h"
+#include "table/data/vectorbatch/VectorBatch.h"
 
 namespace omnistream {
-class VectorBatch;
 enum class StateType {
     UNKNOWN = -1,
     HEAP = 0,
@@ -76,4 +77,37 @@ public:
     {
         NOT_IMPL_EXCEPTION;
     }
+
+    int64_t getVbDataSize() const
+    {
+        return vbDataSize_.load(std::memory_order_relaxed);
+    }
+
+    int64_t getVbCount() const
+    {
+        return vbCount_.load(std::memory_order_relaxed);
+    }
+
+protected:
+    void recordVbStatistic(omnistream::VectorBatch* vectorBatch)
+    {
+        if (vectorBatch == nullptr) {
+            return;
+        }
+        vbDataSize_.fetch_add(vectorBatch->getSizeInBytes(), std::memory_order_relaxed);
+        vbCount_.fetch_add(1, std::memory_order_relaxed);
+    }
+
+    void releaseVbStatistic(omnistream::VectorBatch* vectorBatch)
+    {
+        if (vectorBatch == nullptr) {
+            return;
+        }
+        vbDataSize_.fetch_sub(vectorBatch->getSizeInBytes(), std::memory_order_relaxed);
+        vbCount_.fetch_sub(1, std::memory_order_relaxed);
+    }
+
+private:
+    std::atomic<int64_t> vbDataSize_{0};
+    std::atomic<int64_t> vbCount_{0};
 };

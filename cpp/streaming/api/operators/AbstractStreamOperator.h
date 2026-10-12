@@ -15,6 +15,7 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include "StreamOperator.h"
+#include "NamedOperator.h"
 #include "StreamOperatorStateHandler.h"
 #include "Output.h"
 #include "StreamingRuntimeContext.h"
@@ -41,12 +42,24 @@ class OmniStreamTask;
 class VectorBatch;
 } // namespace omnistream
 
+class Object;
+class RowData;
+
+template <typename K>
+class StreamingRuntimeContext;
+
+namespace omnistream {
+class OmniStreamTask;
+class VectorBatch;
+} // namespace omnistream
+
 /**
  * K: such as Object*
  * */
 template <typename K>
 class AbstractStreamOperator : public StreamOperator,
                                public KeyContext<K>,
+                               public NamedOperator,
                                public StreamOperatorStateHandler<K>::CheckpointedStreamOperator {
 public:
     void setDescription(nlohmann::json description)
@@ -68,16 +81,6 @@ public:
     ~AbstractStreamOperator() override;
 
     void setup();
-
-    void SetOpName(std::string operatorName)
-    {
-        this->opName = operatorName;
-    }
-
-    std::string GetOpName()
-    {
-        return this->opName;
-    }
 
     void setup(std::shared_ptr<omnistream::OmniStreamTask> task);
 
@@ -231,7 +234,6 @@ protected:
     nlohmann::json desc;
     InternalTimeServiceManager<K>* timeServiceManager = nullptr;
     std::shared_ptr<omnistream::TaskMetricGroup> metrics;
-    std::string opName;
     bool isStream = false;
     omnistream::IndexedCombinedWatermarkStatus* combinedWatermark = nullptr;
 

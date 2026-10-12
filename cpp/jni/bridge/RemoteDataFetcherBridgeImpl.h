@@ -21,6 +21,8 @@ public:
 
     void CleanJavaRemoteDataFetcher();
 
+    void ReleaseJavaRemoteDataFetcher() override;
+
 private:
     jobject javaRemoteDataFetcherRef_ = nullptr;
 };

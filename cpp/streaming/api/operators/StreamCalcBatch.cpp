@@ -51,6 +51,8 @@ StreamCalcBatch::StreamCalcBatch(const nlohmann::json& description, Output* outp
 
 StreamCalcBatch::~StreamCalcBatch()
 {
+    delete timestampedCollector_;
+    timestampedCollector_ = nullptr;
 }
 
 void StreamCalcBatch::processBatch(StreamRecord* input)

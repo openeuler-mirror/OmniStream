@@ -146,10 +146,10 @@ TEST(VectorBatchTest, VectorBatchSerializationTestInt64)
 
     SerializedBatchInfo serializedBatchInfo =
         VectorBatchSerializationUtils::serializeVectorBatch(&vectorBatch, batchSize, buffer);
-    readDataType(serializedBatchInfo.buffer);
+    readDataType(serializedBatchInfo.dataAddress);
 
     omnistream::VectorBatch* deserializedVectorBatch =
-        VectorBatchDeserializationUtils::deserializeVectorBatch(serializedBatchInfo.buffer);
+        VectorBatchDeserializationUtils::deserializeVectorBatch(serializedBatchInfo.dataAddress);
 
     RowKind* rowKinds = deserializedVectorBatch->getRowKinds();
     EXPECT_EQ(rowKinds[0], rowKind1);
@@ -212,10 +212,10 @@ TEST(VectorBatchTest, VectorBatchSerializationTestInt32)
 
     SerializedBatchInfo serializedBatchInfo =
         VectorBatchSerializationUtils::serializeVectorBatch(&vectorBatch, batchSize, buffer);
-    uint8_t* serializeResult = serializedBatchInfo.buffer;
-    readDataType(serializedBatchInfo.buffer);
+    uint8_t* serializeResult = serializedBatchInfo.dataAddress;
+    readDataType(serializedBatchInfo.dataAddress);
     omnistream::VectorBatch* deserializedVectorBatch =
-        VectorBatchDeserializationUtils::deserializeVectorBatch(serializedBatchInfo.buffer);
+        VectorBatchDeserializationUtils::deserializeVectorBatch(serializedBatchInfo.dataAddress);
 
     RowKind* rowKinds = deserializedVectorBatch->getRowKinds();
     EXPECT_EQ(rowKinds[0], rowKind1);
@@ -279,10 +279,10 @@ TEST(VectorBatchTest, VectorBatchSerializationTestInt16)
     uint8_t* buffer = new uint8_t[batchSize];
     SerializedBatchInfo serializedBatchInfo =
         VectorBatchSerializationUtils::serializeVectorBatch(&vectorBatch, batchSize, buffer);
-    uint8_t* serializeResult = serializedBatchInfo.buffer;
-    readDataType(serializedBatchInfo.buffer);
+    uint8_t* serializeResult = serializedBatchInfo.dataAddress;
+    readDataType(serializedBatchInfo.dataAddress);
     omnistream::VectorBatch* deserializedVectorBatch =
-        VectorBatchDeserializationUtils::deserializeVectorBatch(serializedBatchInfo.buffer);
+        VectorBatchDeserializationUtils::deserializeVectorBatch(serializedBatchInfo.dataAddress);
 
     RowKind* rowKinds = deserializedVectorBatch->getRowKinds();
     EXPECT_EQ(rowKinds[0], rowKind1);
@@ -344,10 +344,10 @@ TEST(VectorBatchTest, VectorBatchSerializationTestDouble)
 
     SerializedBatchInfo serializedBatchInfo =
         VectorBatchSerializationUtils::serializeVectorBatch(&vectorBatch, batchSize, buffer);
-    uint8_t* serializeResult = serializedBatchInfo.buffer;
-    readDataType(serializedBatchInfo.buffer);
+    uint8_t* serializeResult = serializedBatchInfo.dataAddress;
+    readDataType(serializedBatchInfo.dataAddress);
     omnistream::VectorBatch* deserializedVectorBatch =
-        VectorBatchDeserializationUtils::deserializeVectorBatch(serializedBatchInfo.buffer);
+        VectorBatchDeserializationUtils::deserializeVectorBatch(serializedBatchInfo.dataAddress);
 
     RowKind* rowKinds = deserializedVectorBatch->getRowKinds();
     EXPECT_EQ(rowKinds[0], rowKind1);
@@ -407,10 +407,10 @@ TEST(VectorBatchTest, VectorBatchSerializationTestBoolean)
 
     SerializedBatchInfo serializedBatchInfo =
         VectorBatchSerializationUtils::serializeVectorBatch(&vectorBatch, batchSize, buffer);
-    uint8_t* serializeResult = serializedBatchInfo.buffer;
-    readDataType(serializedBatchInfo.buffer);
+    uint8_t* serializeResult = serializedBatchInfo.dataAddress;
+    readDataType(serializedBatchInfo.dataAddress);
     omnistream::VectorBatch* deserializedVectorBatch =
-        VectorBatchDeserializationUtils::deserializeVectorBatch(serializedBatchInfo.buffer);
+        VectorBatchDeserializationUtils::deserializeVectorBatch(serializedBatchInfo.dataAddress);
 
     RowKind* rowKinds = deserializedVectorBatch->getRowKinds();
     EXPECT_EQ(rowKinds[0], rowKind1);
@@ -480,10 +480,10 @@ TEST(VectorBatchTest, DISABLED_VectorBatchSerializationTestString)
 
     SerializedBatchInfo serializedBatchInfo =
         VectorBatchSerializationUtils::serializeVectorBatch(&vectorBatch, batchSize, buffer);
-    uint8_t* serializeResult = serializedBatchInfo.buffer;
-    readDataType(serializedBatchInfo.buffer);
+    uint8_t* serializeResult = serializedBatchInfo.dataAddress;
+    readDataType(serializedBatchInfo.dataAddress);
     omnistream::VectorBatch* deserializedVectorBatch =
-        VectorBatchDeserializationUtils::deserializeVectorBatch(serializedBatchInfo.buffer);
+        VectorBatchDeserializationUtils::deserializeVectorBatch(serializedBatchInfo.dataAddress);
 
     RowKind* rowKinds = deserializedVectorBatch->getRowKinds();
     EXPECT_EQ(rowKinds[0], rowKind1);
@@ -558,10 +558,10 @@ TEST(VectorBatchTest, DISABLED_VectorBatchSerializationTestMix)
 
     SerializedBatchInfo serializedBatchInfo =
         VectorBatchSerializationUtils::serializeVectorBatch(&vectorBatch, batchSize, buffer);
-    uint8_t* serializeResult = serializedBatchInfo.buffer;
-    readDataType(serializedBatchInfo.buffer);
+    uint8_t* serializeResult = serializedBatchInfo.dataAddress;
+    readDataType(serializedBatchInfo.dataAddress);
     omnistream::VectorBatch* deserializedVectorBatch =
-        VectorBatchDeserializationUtils::deserializeVectorBatch(serializedBatchInfo.buffer);
+        VectorBatchDeserializationUtils::deserializeVectorBatch(serializedBatchInfo.dataAddress);
 
     RowKind* rowKinds = deserializedVectorBatch->getRowKinds();
     EXPECT_EQ(rowKinds[0], rowKind1);
@@ -654,11 +654,11 @@ TEST(VectorBatchTest, DISABLED_StringDictionaryContainer)
     uint8_t* buffer = new uint8_t[batchSize];
     SerializedBatchInfo serializedBatchInfo =
         VectorBatchSerializationUtils::serializeVectorBatch(&vectorBatch, batchSize, buffer);
-    uint8_t* serializeResult = serializedBatchInfo.buffer;
-    readDataType(serializedBatchInfo.buffer);
+    uint8_t* serializeResult = serializedBatchInfo.dataAddress;
+    readDataType(serializedBatchInfo.dataAddress);
 
     omnistream::VectorBatch* deserializedVectorBatch =
-        VectorBatchDeserializationUtils::deserializeVectorBatch(serializedBatchInfo.buffer);
+        VectorBatchDeserializationUtils::deserializeVectorBatch(serializedBatchInfo.dataAddress);
 
     RowKind* rowKinds = deserializedVectorBatch->getRowKinds();
     for (int i = 0; i < valueSize; i++) {
@@ -788,10 +788,10 @@ TEST(VectorBatchTest, DISABLED_StringDictionaryContainerAndOtherVector)
 
     SerializedBatchInfo serializedBatchInfo =
         VectorBatchSerializationUtils::serializeVectorBatch(&vectorBatch, batchSize, buffer);
-    uint8_t* serializeResult = serializedBatchInfo.buffer;
-    readDataType(serializedBatchInfo.buffer);
+    uint8_t* serializeResult = serializedBatchInfo.dataAddress;
+    readDataType(serializedBatchInfo.dataAddress);
     omnistream::VectorBatch* deserializedVectorBatch =
-        VectorBatchDeserializationUtils::deserializeVectorBatch(serializedBatchInfo.buffer);
+        VectorBatchDeserializationUtils::deserializeVectorBatch(serializedBatchInfo.dataAddress);
 
     RowKind* rowKinds = deserializedVectorBatch->getRowKinds();
     for (int i = 0; i < valueSize; i++) {
