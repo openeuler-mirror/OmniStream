@@ -12,7 +12,9 @@
 #include "ListSerializer.h"
 #include "basictypes/java_util_List.h"
 
-ListSerializer::ListSerializer(TypeSerializer* elementSerializer) : elementSerializer(elementSerializer)
+ListSerializer::ListSerializer(TypeSerializer* elementSerializer, bool ownsElementSerializer)
+    : elementSerializer(elementSerializer),
+      ownsElementSerializer(ownsElementSerializer)
 {
     setSubBufferReusable(false);
     reuseBuffer = new ArrayList();
