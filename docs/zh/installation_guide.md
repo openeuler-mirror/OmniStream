@@ -1,5 +1,7 @@
 # 安装指南<a name="ZH-CN_TOPIC_0000002517504838"></a>
 
+本文档介绍OmniStream Flink Native化特性在单机容器化环境下的安装，涵盖组网规划、环境要求及Docker、JDK、Flink、OmniStream、UDF翻译工具的安装与容器化部署，适用于需要部署该特性的用户。
+
 ## 安装简介<a name="ZH-CN_TOPIC_0000002548944711"></a>
 
 ### 组网规划<a name="ZH-CN_TOPIC_0000002549064701"></a>
@@ -9,7 +11,7 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 一共部署3个Docker容器，容器规格均为8c32g，其中1个容器运行Job Manager，另外2个容器运行Task Manager。组网规划如[**图 1** 组网规划](#组网规划)所示。
 
 **图 1** 组网规划<a name="zh-cn_topic_0000002263664085_fig2900236105214"></a><a id="组网规划"></a><br>
-![](figures/组网规划.png "组网规划")
+![单机容器化部署组网图，1个Job Manager容器与2个Task Manager容器通过flink-network业务网络互联](figures/组网规划.png "组网规划")
 
 ### 环境要求<a name="ZH-CN_TOPIC_0000002517344922"></a>
 
@@ -65,7 +67,7 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 |AI4C| AI4C-1.0.4-8.aarch64.rpm                  |开源|支持编译器集成机器学习驱动的优化技术的框架。RPM包直接安装。| [获取链接](https://gitcode.com/boostkit/boostkit-bigdata/releases/download/25.1.RC1-OmniStream-release/AI4C-1.0.4-8.aarch64.rpm)                                                                                                                                   |
 |KACC_JSON| BoostKit-kaccjson_1.1.0.zip               |闭源|用于UDF翻译中替换GSON的C++版实现，该ZIP包含适配层和KACC_JSON核心实现，内含若干头文件和静态库。<br>该文件从Dependency_library_OmniStream.zip解压获得。| [获取链接](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip)                                                                                                                                    |
 |KSL| BoostKit-ksl_2.5.1.zip                    |闭源|正则加速库，该zip包含ReplaceAll用于优化String基础库，内含头文件和1个静态库。| [获取链接](https://www.hikunpeng.com/boostkit/library/system?subtab=Hyperscan&version=2.5.1)                                                                                                                                                                           |
-|依赖库| Dependency_library_Default                |开源|OmniStream Flink Native化运行时所依赖的库文件。<br>该文件夹从Dependency_library_OmniStream.zip解压获得。| [获取链接](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip) |
+|依赖库| Dependency_library_Default                |开源|请从开源仓Releses页面获取最新发布版本的库文件| [获取链接](https://gitcode.com/openeuler/OmniStream/releases) |
 
 **软件安装包完整性校验<a name="section16501429204018"></a>**
 
@@ -131,7 +133,7 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
     docker network ls
     ```
 
-    ![](figures/zh-cn_image_0000002548944731.png)
+    ![docker network ls命令输出截图，显示新建的flink-network网络信息](figures/zh-cn_image_0000002548944731.png)
 
 3. 创建并启动3个Docker容器。
 
@@ -151,7 +153,7 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 
     下图中第一列为容器ID。
 
-    ![](figures/zh-cn_image_0000002549064727.png)
+    ![docker ps命令输出截图，显示3个已启动容器列表，第一列为容器ID](figures/zh-cn_image_0000002549064727.png)
 
 5. 登录所有容器，容器内启动SSH服务，并配置免密登录。
     1. 依次登录容器，执行步骤[5.b](#zh-cn_topic_0000002228584730_li791415596401)～[5.g](#li1581214912220)。
@@ -489,7 +491,7 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
 
     解压二进制包后主要得到如下JAR包、so文件和基础库、头文件目录include。
 
-    ```bash
+    ```output
     flink-tnel-0.1-SNAPSHOT.jar
     libtnel.so
     libboundscheck.so
@@ -519,7 +521,7 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
 
         修改后的配置文件如下图。
 
-        ![](figures/zh-cn_image_0000002517504848.png)
+        ![config.sh修改后截图，constructFlinkClassPath函数中已注释原echo行并新增PATCH路径](figures/zh-cn_image_0000002517504848.png)
 
     3. 按`Esc`键，输入 **:wq!**，按`Enter`保存并退出编辑。
 
@@ -726,19 +728,19 @@ rpm -ivh --nodeps AI4C-1.0.4-8.aarch64.rpm
     ```bash
     docker cp /opt/nexmark flink_jm_8c32g:/usr/local/
     docker cp /usr/local/flink-1.16.3 flink_jm_8c32g:/usr/local/
-    docker cp /usr/local/bisheng-bisheng-jdk-17.0.18-b13 flink_jm_8c32g:/usr/local/
+    docker cp /usr/local/bisheng-jdk-17.0.18-b13 flink_jm_8c32g:/usr/local/
     docker cp /opt/Dependency_library/Dependency_library_Default flink_jm_8c32g:/opt/Dependency_library
     docker cp /usr/local/OmniStream flink_jm_8c32g:/usr/local/
     
     docker cp /opt/nexmark flink_tm1_8c32g:/usr/local/
     docker cp /usr/local/flink-1.16.3 flink_tm1_8c32g:/usr/local/
-    docker cp /usr/local/bisheng-bisheng-jdk-17.0.18-b13 flink_tm1_8c32g:/usr/local/
+    docker cp /usr/local/bisheng-jdk-17.0.18-b13 flink_tm1_8c32g:/usr/local/
     docker cp /opt/Dependency_library/Dependency_library_Default flink_tm1_8c32g:/opt/Dependency_library
     docker cp /usr/local/OmniStream flink_tm1_8c32g:/usr/local/
     
     docker cp /opt/nexmark flink_tm2_8c32g:/usr/local/
     docker cp /usr/local/flink-1.16.3 flink_tm2_8c32g:/usr/local/
-    docker cp /usr/local/bisheng-bisheng-jdk-17.0.18-b13 flink_tm2_8c32g:/usr/local/
+    docker cp /usr/local/bisheng-jdk-17.0.18-b13 flink_tm2_8c32g:/usr/local/
     docker cp /opt/Dependency_library/Dependency_library_Default flink_tm2_8c32g:/opt/Dependency_library
     docker cp /usr/local/OmniStream flink_tm2_8c32g:/usr/local/
     ```
