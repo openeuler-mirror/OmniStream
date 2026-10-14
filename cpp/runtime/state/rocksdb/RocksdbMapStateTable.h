@@ -359,6 +359,32 @@ public:
         }
     };
 
+    // Current keyed key is already set by the operator. One WriteBatch for every user key.
+    void putAllCurrentKey(const N& nameSpace, const std::vector<std::pair<UK, UV>>& entries)
+    {
+        if (entries.empty()) {
+            return;
+        }
+        ROCKSDB_NAMESPACE::WriteBatch putBatch;
+        for (const auto& item : entries) {
+            DataOutputSerializer outputSerializer;
+            OutputBufferStatus outputBufferStatus;
+            outputSerializer.setBackendBuffer(&outputBufferStatus);
+            ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, item.first, nameSpace);
+
+            DataOutputSerializer valueOutputSerializer;
+            OutputBufferStatus valueOutputBufferStatus;
+            valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
+            ROCKSDB_NAMESPACE::Slice sliceValue = serializerValue(valueOutputSerializer, item.second);
+            putBatch.Put(table, sliceKey, sliceValue);
+        }
+        writeOptions.memtable_insert_hint_per_batch = true;
+        auto ret = rocksDb->Write(writeOptions, &putBatch);
+        if (!ret.ok()) {
+            THROW_RUNTIME_ERROR("rocksdb map state table putAll failed, status is << " << ret.ToString());
+        }
+    }
+
     void putByBatch(const N& nameSpace, const K& key, const std::unordered_map<UK, UV>& dataToAdd)
     {
         keyContext->setCurrentKey(key);
@@ -558,6 +584,25 @@ public:
             THROW_RUNTIME_ERROR("rocksdb map state table remove failed, status is << " << s.ToString());
         }
     };
+
+    void removeAllCurrentKey(const N& nameSpace, const std::vector<UK>& userKeys)
+    {
+        if (userKeys.empty()) {
+            return;
+        }
+        ROCKSDB_NAMESPACE::WriteBatch deleteBatch;
+        for (const auto& userKey : userKeys) {
+            DataOutputSerializer outputSerializer;
+            OutputBufferStatus outputBufferStatus;
+            outputSerializer.setBackendBuffer(&outputBufferStatus);
+            ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, userKey, nameSpace);
+            deleteBatch.Delete(table, sliceKey);
+        }
+        auto ret = rocksDb->Write(writeOptions, &deleteBatch);
+        if (!ret.ok()) {
+            THROW_RUNTIME_ERROR("rocksdb map state table removeAll failed, status is << " << ret.ToString());
+        }
+    }
 
     void removeByBatch(const N& nameSpace, std::unordered_map<K, std::unordered_set<UK>>& dataToRemove)
     {

@@ -10,7 +10,14 @@
 #include "table/typeutils/BinaryRowDataSerializer.h"
 #include "table/data/RowKind.h"
 #include "OmniOperatorJIT/core/test/util/test_util.h"
+#include "runtime/state/EmbeddedRocksDBStateBackend.h"
+#include "runtime/state/TaskLocalStateStore.h"
+#include "runtime/state/LocalRecoveryDirectoryProviderImpl.h"
+#include "runtime/taskmanager/CheckpointResponder.h"
 #include <nlohmann/json.hpp>
+#include <filesystem>
+#include <fstream>
+#include <sstream>
 
 namespace omnistream {
 VectorBatch* createVectorBatchFromCSV(std::string filepath, int nrow, int ncol)
@@ -62,8 +69,8 @@ nlohmann::json makeRankConfig(bool outputRankNumber, bool generateUpdateBefore, 
 KeyedProcessOperator<RowData*, RowData*, RowData*>* openAppendOnlyTopN(
     const nlohmann::json& rankConfig, BatchOutputTest* output)
 {
-    auto func = reinterpret_cast<KeyedProcessFunction<RowData*, RowData*, RowData*>*>(
-        new AppendOnlyTopNFunction<RowData*>(rankConfig));
+    auto* topN = new AppendOnlyTopNFunction<RowData*>(rankConfig);
+    auto func = reinterpret_cast<KeyedProcessFunction<RowData*, RowData*, RowData*>*>(topN);
     nlohmann::json newRankConfig = rankConfig;
     auto* op = new KeyedProcessOperator(func, output, newRankConfig);
     op->setup();
@@ -104,6 +111,69 @@ void expectRowKinds(omnistream::VectorBatch* actual, const std::vector<RowKind>&
     for (size_t i = 0; i < expected.size(); ++i) {
         EXPECT_EQ(actual->getRowKind(i), expected[i]) << "rowKind mismatch at " << i;
     }
+}
+
+std::string formatChangelog(omnistream::VectorBatch* batch)
+{
+    if (batch == nullptr) {
+        return "";
+    }
+    std::ostringstream os;
+    int rows = batch->GetRowCount();
+    int cols = batch->GetVectorCount();
+    for (int row = 0; row < rows; ++row) {
+        os << to_string(batch->getRowKind(row));
+        for (int col = 0; col < cols; ++col) {
+            os << " " << batch->GetValueAt<int64_t>(col, row);
+        }
+        os << "\n";
+    }
+    return os.str();
+}
+
+KeyedProcessOperator<RowData*, RowData*, RowData*>* openAppendOnlyTopNRocks(
+    const nlohmann::json& rankConfig, BatchOutputTest* output, const std::string& dbPath)
+{
+    std::filesystem::remove_all(dbPath);
+    std::filesystem::create_directories(dbPath);
+    auto* topN = new AppendOnlyTopNFunction<RowData*>(rankConfig);
+    auto func = reinterpret_cast<KeyedProcessFunction<RowData*, RowData*, RowData*>*>(topN);
+    auto* op = new KeyedProcessOperator(func, output, rankConfig);
+    op->setup();
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("EmbeddedRocksDBStateBackend");
+    taskInfo->setRocksdbStorePaths({dbPath});
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    JobIDPOD jobId;
+    ExecutionAttemptIDPOD attemptId;
+    omnistream::JobVertexID vertexId(0, 0);
+    auto dirProvider = std::make_shared<LocalRecoveryDirectoryProviderImpl>(
+        std::vector<std::filesystem::path>{dbPath}, jobId, vertexId, 0);
+    auto localRecoveryConfig = std::make_shared<LocalRecoveryConfig>(dirProvider);
+    auto* stateStore = new TaskLocalStateStore(jobId, vertexId, 0, localRecoveryConfig);
+    auto* responder = new NoOpCheckpoingResponder();
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>(jobId, attemptId, stateStore, responder));
+    env2->setTaskConfiguration(*taskInfo);
+    auto* rocks = new EmbeddedRocksDBStateBackend(*taskInfo);
+    auto* initializer = new StreamTaskStateInitializerImpl(rocks, env2);
+    TypeSerializer* ser = new BinaryRowDataSerializer(1);
+    op->initializeState(initializer, ser);
+    op->open();
+    return op;
+}
+
+void writeCaseArtifacts(const std::string& dir, const std::string& changelog)
+{
+    std::filesystem::create_directories(dir);
+    std::ofstream out(dir + "/changelog.txt");
+    out << changelog;
 }
 } // namespace omnistream
 
@@ -392,4 +462,82 @@ TEST(AppendOnlyTopNFunctionTest, IgnoreSortKeyOutsideTopN)
     auto* actual = output->getVectorBatch();
     ASSERT_NE(actual, nullptr);
     EXPECT_EQ(actual->GetRowCount(), 0);
+}
+
+// Three rows share one sort key and each stays inside Top-N, so the changelog keeps all three inserts.
+TEST(AppendOnlyTopNFunctionTest, SameSortKeyInOneBatchKeepsAllInserts)
+{
+    auto rankConfig = omnistream::makeRankConfig(false, false, 10);
+    auto* output = new BatchOutputTest();
+    auto* op = omnistream::openAppendOnlyTopN(rankConfig, output);
+
+    auto* inputVB = omnistream::makeLongBatch({0, 0, 0}, {10, 10, 10}, {1, 2, 3});
+    op->processBatch(new StreamRecord(inputVB));
+
+    auto* expectedVB = omnistream::makeLongBatch({0, 0, 0}, {10, 10, 10}, {1, 2, 3});
+    auto* actual = output->getVectorBatch();
+    omnistream::expectRowKinds(actual, {RowKind::INSERT, RowKind::INSERT, RowKind::INSERT});
+    EXPECT_TRUE(omniruntime::TestUtil::VecBatchMatch(actual, expectedVB));
+}
+
+namespace {
+std::string rankOutRoot()
+{
+    const char* env = std::getenv("RANK_OUT");
+    return env == nullptr ? "/opt/buildtools/dev-feat/AppendOnlyTopNFunction-test/omni-rowdata" : std::string(env);
+}
+
+void runRocksCase(
+    const std::string& name,
+    bool outputRank,
+    bool updateBefore,
+    int rankEnd,
+    const std::vector<std::vector<int64_t>>& batches)
+{
+    auto rankConfig = omnistream::makeRankConfig(outputRank, updateBefore, rankEnd);
+    auto* output = new BatchOutputTest();
+    std::string dbPath = "/tmp/rank-rocks-" + name;
+    auto* op = omnistream::openAppendOnlyTopNRocks(rankConfig, output, dbPath);
+    std::ostringstream changelog;
+    for (const auto& flat : batches) {
+        int n = static_cast<int>(flat.size() / 3);
+        std::vector<int64_t> c0, c1, c2;
+        for (int r = 0; r < n; ++r) {
+            c0.push_back(flat[r * 3]);
+            c1.push_back(flat[r * 3 + 1]);
+            c2.push_back(flat[r * 3 + 2]);
+        }
+        op->processBatch(new StreamRecord(omnistream::makeLongBatch(c0, c1, c2)));
+        if (output->getStreamRecord() != nullptr) {
+            changelog << omnistream::formatChangelog(output->getVectorBatch());
+        }
+    }
+    omnistream::writeCaseArtifacts(rankOutRoot() + "/" + name, changelog.str());
+}
+} // namespace
+
+TEST(RankSection224, Case1SameSortKeyList)
+{
+    runRocksCase("case1", false, false, 10, {{0, 10, 1, 0, 10, 2, 0, 10, 3}});
+}
+
+TEST(RankSection224, Case2EvictKeepsColumns)
+{
+    runRocksCase("case2", false, true, 2, {{0, 10, 100, 0, 20, 200, 0, 30, 300}});
+}
+
+TEST(RankSection224, Case3PreviousBatchColumns)
+{
+    runRocksCase("case3", true, true, 2, {{0, 20, 200, 0, 10, 100}, {0, 30, 300}});
+}
+
+TEST(RankSection224, Case4TwoPartitions)
+{
+    runRocksCase(
+        "case4", false, false, 10, {{0, 1, 100, 0, 2, 200, 0, 3, 300, 1, 4, 400, 1, 5, 500, 1, 6, 600}});
+}
+
+TEST(RankSection224, Case5IgnoreOutside)
+{
+    runRocksCase("case5", false, true, 2, {{0, 30, 300, 0, 20, 200}, {0, 10, 100}});
 }

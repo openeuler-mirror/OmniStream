@@ -19,6 +19,8 @@
 #include "TopNBuffer.h"
 #include "core/api/common/state/MapState.h"
 #include "core/api/common/state/MapStateDescriptor.h"
+#include "runtime/state/VoidNamespace.h"
+#include "runtime/state/rocksdb/RocksdbMapState.h"
 #include "streaming/api/operators/StreamingRuntimeContext.h"
 #include "table/runtime/keyselector/KeySelector.h"
 #include "table/typeutils/BinaryRowDataListSerializer.h"
@@ -26,7 +28,7 @@
 
 // Aligns with Flink AppendOnlyTopNFunction:
 // MapState<sortKey, List<RowData>> named "data-state-with-append" + TopNBuffer.
-// Omni entry is processBatch; each row follows Flink processElement.
+// Omni entry is processBatch; each row goes through processElement.
 template <typename K>
 class AppendOnlyTopNFunction : public AbstractTopNFunction<K> {
 public:
@@ -58,10 +60,10 @@ public:
         auto* desc =
             new MapStateDescriptor<RowData*, std::vector<RowData*>*>("data-state-with-append", sortKeySer, valueSer);
         desc->setKeyValueBackendTypeId(BackendDataType::ROW_BK, BackendDataType::ROW_LIST_BK);
-        this->dataState = static_cast<StreamingRuntimeContext<K>*>(this->getRuntimeContext())
-                              ->template getMapState<RowData*, std::vector<RowData*>*>(desc);
         auto* runtimeContext = static_cast<StreamingRuntimeContext<K>*>(this->getRuntimeContext());
-        omnistream::checkStateType(runtimeContext->getStateType(), "AppendOnlyTopNFunction");
+        this->dataState = runtimeContext->template getMapState<RowData*, std::vector<RowData*>*>(desc);
+        stateType_ = runtimeContext->getStateType();
+        omnistream::checkStateType(stateType_, "AppendOnlyTopNFunction");
     }
 
     void processBatch(
@@ -72,13 +74,21 @@ public:
         auto inputBatchGuard = std::unique_ptr<omnistream::VectorBatch>(inputBatch);
         this->initRankEnd(nullptr);
         int rowCnt = inputBatchGuard->GetRowCount();
+        bool havePartition = false;
+        K activePartition{};
         for (int i = 0; i < rowCnt; ++i) {
             K partitionKey = partitionKeySelector.getKey(inputBatchGuard.get(), i);
+            if (havePartition && !samePartition(activePartition, partitionKey)) {
+                flushPendingState();
+            }
             ctx.setCurrentKey(partitionKey);
             RowData* input = inputBatchGuard->extractRowData(i);
             int64_t timestamp = inputBatchGuard->getTimestamp(i);
-            processElementLikeFlink(input, timestamp, partitionKey);
+            processElement(input, timestamp, partitionKey);
+            activePartition = partitionKey;
+            havePartition = true;
         }
+        flushPendingState();
         omnistream::VectorBatch* outputBatch = this->createOutputBatch();
         this->collectOutputBatch(out, outputBatch);
     }
@@ -92,11 +102,26 @@ private:
     static const int64_t serialVersionUID = -4708453213104128011LL;
 
     MapState<RowData*, std::vector<RowData*>*>* dataState = nullptr;
+    omnistream::StateType stateType_ = omnistream::StateType::UNKNOWN;
     TopNBuffer* buffer = nullptr;
     emhash7::HashMap<K, TopNBuffer*> kvSortedMap;
     std::unordered_map<int64_t, TopNBuffer*> bufferByPartitionLong;
     KeySelector<K> partitionKeySelector;
     KeySelector<RowData*> sortKeySelector;
+    struct PendingWrite {
+        RowData* sortKey = nullptr;
+        bool remove = false;
+    };
+    std::unordered_map<int64_t, PendingWrite> pendingWrites_;
+
+    static bool samePartition(const K& left, const K& right)
+    {
+        if constexpr (std::is_same<K, RowData*>::value) {
+            return left != nullptr && right != nullptr && *left->getLong(0) == *right->getLong(0);
+        } else {
+            return left == right;
+        }
+    }
 
     static bool equalSortKey(RowData* left, RowData* right)
     {
@@ -171,15 +196,55 @@ private:
 
     void putStateList(RowData* sortKey)
     {
-        auto* records = buffer->get(sortKey);
-        auto* copied = new std::vector<RowData*>();
-        if (records != nullptr) {
-            *copied = *records;
-        }
-        dataState->put(sortKey, copied);
+        pendingWrites_[*sortKey->getLong(0)] = PendingWrite{sortKey, false};
     }
 
-    void processElementLikeFlink(RowData* input, int64_t timestamp, K currentKey)
+    void removeStateKey(RowData* sortKey)
+    {
+        pendingWrites_[*sortKey->getLong(0)] = PendingWrite{sortKey, true};
+    }
+
+    void flushPendingState()
+    {
+        if (pendingWrites_.empty()) {
+            return;
+        }
+        std::vector<RowData*> removes;
+        std::vector<std::pair<RowData*, std::vector<RowData*>*>> puts;
+        for (auto& entry : pendingWrites_) {
+            PendingWrite& pending = entry.second;
+            if (pending.remove) {
+                removes.push_back(pending.sortKey);
+                continue;
+            }
+            auto* records = buffer->get(pending.sortKey);
+            auto* copied = new std::vector<RowData*>();
+            if (records != nullptr) {
+                *copied = *records;
+            }
+            puts.emplace_back(pending.sortKey, copied);
+        }
+        pendingWrites_.clear();
+        if (stateType_ == omnistream::StateType::ROCKSDB) {
+            auto* rocksState =
+                static_cast<RocksdbMapState<K, VoidNamespace, RowData*, std::vector<RowData*>*>*>(dataState);
+            if (!removes.empty()) {
+                rocksState->removeEntries(removes);
+            }
+            if (!puts.empty()) {
+                rocksState->putEntries(puts);
+            }
+            return;
+        }
+        for (RowData* key : removes) {
+            dataState->remove(key);
+        }
+        for (const auto& entry : puts) {
+            dataState->put(entry.first, entry.second);
+        }
+    }
+
+    void processElement(RowData* input, int64_t timestamp, K currentKey)
     {
         initHeapStates(currentKey);
         this->initRankEnd(input);
@@ -237,7 +302,7 @@ private:
         std::vector<RowData*> toDeleteSortKeys;
         for (; iterator != buffer->end(); ++iterator) {
             RowData* key = iterator->first;
-            dataState->remove(key);
+            removeStateKey(key);
             toDeleteSortKeys.push_back(key);
         }
         for (auto* toDeleteKey : toDeleteSortKeys) {
@@ -255,7 +320,7 @@ private:
             int size = lastList != nullptr ? static_cast<int>(lastList->size()) : 0;
             if (size <= 1) {
                 buffer->removeAll(lastKey);
-                dataState->remove(lastKey);
+                removeStateKey(lastKey);
             } else {
                 buffer->removeLast();
                 putStateList(lastKey);
