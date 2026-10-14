@@ -31,7 +31,7 @@ public:
         const std::shared_ptr<std::vector<S>>& internalList)
         : stateMetaInfo_(stateMetaInfo),
           internalList_(internalList),
-          internalListCopySerializer_(std::make_shared<ListSerializer>(stateMetaInfo->getStateSerializer()))
+          internalListCopySerializer_(std::make_shared<ListSerializer>(stateMetaInfo->getStateSerializer(), false))
     {
     }
 
@@ -45,13 +45,15 @@ public:
     }
 
     PartitionableListState(const std::shared_ptr<RegisteredOperatorStateBackendMetaInfo>& stateMetaInfo)
-        : PartitionableListState(stateMetaInfo, std::make_shared<ListSerializer>(stateMetaInfo->getStateSerializer()))
+        : PartitionableListState(
+              stateMetaInfo, std::make_shared<ListSerializer>(stateMetaInfo->getStateSerializer(), false))
     {
     }
 
     void setStateMetaInfo(const std::shared_ptr<RegisteredOperatorStateBackendMetaInfo>& stateMetaInfo)
     {
-        internalListCopySerializer_ = std::make_shared<ListSerializer>(stateMetaInfo->getStateSerializer());
+        // The descriptor/meta-info supplies the serializer; this state only borrows it.
+        internalListCopySerializer_ = std::make_shared<ListSerializer>(stateMetaInfo->getStateSerializer(), false);
         stateMetaInfo_ = stateMetaInfo;
     }
 
@@ -84,8 +86,9 @@ public:
     {
         return std::make_shared<PartitionableListState<S>>(
             std::make_shared<RegisteredOperatorStateBackendMetaInfo>(*this->stateMetaInfo_),
-            std::make_shared<std::vector<S>>(*this->internalList_),
-            std::make_shared<ListSerializer>(*this->internalListCopySerializer_));
+            // Construct a fresh borrowing wrapper instead of shallow-copying
+            // ListSerializer's elementSerializer and TypeSerializer's reuseBuffer.
+            std::make_shared<std::vector<S>>(*this->internalList_));
     }
 
     void add(const S& value) override

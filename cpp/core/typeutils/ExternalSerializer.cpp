@@ -1,5 +1,8 @@
 #include "ExternalSerializer.h"
+#include <memory>
+#include "core/typeutils/LongSerializer.h"
 #include "table/typeutils/InternalSerializers.h"
+#include "table/typeutils/StringDataSerializer.h"
 
 ExternalSerializer::ExternalSerializer(LogicalType* dateType, TypeSerializer* internalSerializer, bool isInternalInput)
     : isInternalInput(isInternalInput),
@@ -20,7 +23,17 @@ BackendDataType ExternalSerializer::getBackendId() const
 ExternalSerializer* ExternalSerializer::of(LogicalType* dateType)
 {
     TypeSerializer* typeSerializer = InternalSerializers::create(dateType);
-    return new ExternalSerializer(dateType, typeSerializer, false);
+    // ExternalSerializer owns its internal serializer. Do not transfer ownership
+    // of the shared instances returned by InternalSerializers::create().
+    if (typeSerializer == LongSerializer::INSTANCE) {
+        typeSerializer = new LongSerializer();
+    } else if (typeSerializer == StringDataSerializer::INSTANCE) {
+        typeSerializer = new StringDataSerializer();
+    }
+    std::unique_ptr<TypeSerializer> ownedSerializer(typeSerializer);
+    auto serializer = new ExternalSerializer(dateType, ownedSerializer.get(), false);
+    ownedSerializer.release();
+    return serializer;
 }
 
 LogicalType* ExternalSerializer::getDataType()

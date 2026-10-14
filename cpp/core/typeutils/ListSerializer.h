@@ -16,11 +16,11 @@
 
 class ListSerializer : public TypeSerializerSingleton {
 public:
-    explicit ListSerializer(TypeSerializer* elementSerializer);
+    explicit ListSerializer(TypeSerializer* elementSerializer, bool ownsElementSerializer = true);
 
     ~ListSerializer() override
     {
-        if (elementSerializer != nullptr) {
+        if (ownsElementSerializer && elementSerializer != nullptr) {
             delete elementSerializer;
             elementSerializer = nullptr;
         }
@@ -58,6 +58,7 @@ public:
 
 private:
     TypeSerializer* elementSerializer = nullptr;
+    bool ownsElementSerializer;
 };
 
 #endif // OMNISTREAM_LISTSERIALIZER_H
