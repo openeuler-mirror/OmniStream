@@ -4,6 +4,8 @@
 
 #include "core/typeutils/TypeSerializerSingleton.h"
 #include "core/typeinfo/typeconstants.h"
+#include "core/typeutils/ListSerializer.h"
+#include "core/typeutils/LongSerializer.h"
 
 using namespace omniruntime::type;
 
@@ -42,6 +44,10 @@ public:
     std::string toJson() override
     {
         SerializerJsonInfo typeJson = {SerializerType::POJO, TYPE_NAME_SORTED_VECTOR_LONG_CLASS};
+        // Describe the Java POJO field explicitly instead of relying on generic type inference.
+        ListSerializer listSerializer(new LongSerializer());
+        typeJson.fieldNames = {"list"};
+        typeJson.fieldSerializers = {&listSerializer};
         return typeJson.toJson();
     }
 
