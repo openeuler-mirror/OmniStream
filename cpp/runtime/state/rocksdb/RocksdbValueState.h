@@ -219,12 +219,31 @@ public:
                     return value;
                 }
             }
+            // FalconValue<RowData*> owns a deep copy. Make room before inserting
+            // so the value returned below cannot be invalidated immediately by
+            // removeEldestState(), which flushes and clears the whole cache.
+            if constexpr (std::is_same_v<V, RowData*>) {
+                if (cache.size() >= cacheSizeLimit) {
+                    removeEldestState();
+                }
+            }
+
             auto falconValue = new ValType(value, false);
             cache.emplace(falconKey, falconValue);
-            if (cache.size() > cacheSizeLimit) {
-                removeEldestState();
+            if constexpr (std::is_same_v<V, RowData*>) {
+                // getValue() returns a newly allocated RowData on a RocksDB
+                // cache miss. The cache has already deep-copied it, so release
+                // the temporary and return the cache-owned copy. Cache hits and
+                // misses now have the same ownership contract for callers.
+                V cachedValue = falconValue->getValue();
+                delete value;
+                return cachedValue;
+            } else {
+                if (cache.size() > cacheSizeLimit) {
+                    removeEldestState();
+                }
+                return value;
             }
-            return value;
         }
     }
 
