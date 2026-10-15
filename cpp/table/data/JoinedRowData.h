@@ -34,6 +34,7 @@ public:
     int* getInt(int pos) override;
     TimestampData getTimestamp(int pos) override;
     TimestampData getTimestampPrecise(int pos) override;
+    void* getRawValue(int pos) override;
     std::string_view getStringView(int pos);
     void setStringView(int pos, std::string_view value);
 

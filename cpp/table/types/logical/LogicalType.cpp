@@ -14,6 +14,7 @@
 
 #include "LogicTypeUtils.h"
 #include "LogicalType.h"
+#include "RawType.h"
 #include "CharType.h"
 #include "VarCharType.h"
 #include "TimestampWithoutTimeZoneType.h"
@@ -127,6 +128,10 @@ LogicalType* LogicalType::flinkTypeToOmniType(const std::string& flinkType)
     nlohmann::json options = LogicTypeUtils::optionsFromFlinkType(basicStrippedType);
     options["nullable"] = !isNotNull;
 
+    if (LogicTypeUtils::startsWith(basicStrippedType, "RAW(")) {
+        return parseRawType(flinkType, basicStrippedType, !isNotNull);
+    }
+
     auto it = nameToIdMap.find(basicStrippedType);
     if (it != nameToIdMap.end()) {
         return BasicLogicalType::getTypeBy(it->second, options);
@@ -174,6 +179,30 @@ LogicalType* LogicalType::flinkTypeToOmniType(const std::string& flinkType)
     }
 
     return BasicLogicalType::getTypeBy(DataTypeId::OMNI_INVALID, options);
+}
+
+LogicalType* LogicalType::parseRawType(
+    const std::string& flinkType, const std::string& basicStrippedType, bool isNullable)
+{
+    std::vector<std::string> arguments;
+    bool inQuote = false;
+    std::string current;
+    for (size_t i = basicStrippedType.find('(') + 1; i < basicStrippedType.size(); ++i) {
+        const char ch = basicStrippedType[i];
+        if (ch == '\'') {
+            if (inQuote) {
+                arguments.push_back(current);
+                current.clear();
+            }
+            inQuote = !inQuote;
+        } else if (inQuote) {
+            current.push_back(ch);
+        }
+    }
+    if (arguments.size() != 2 || arguments[0].empty()) {
+        throw std::invalid_argument("Invalid Flink RAW type: " + flinkType);
+    }
+    return new omnistream::RawType(isNullable, arguments[0], arguments[1]);
 }
 
 bool LogicalType::isSharedLogicalType(const LogicalType* logicalType)
@@ -277,6 +306,7 @@ BasicLogicalType* BasicLogicalType::getTypeBy(DataTypeId typeId, const nlohmann:
         case DataTypeId::OMNI_TIMESTAMP:
         case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
         case DataTypeId::OMNI_TIMESTAMP_WITH_TIME_ZONE:
+        case DataTypeId::OMNI_CONTAINER:
         case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE: {
             type = getTypeBy(nullable, typeId, options);
             break;
@@ -343,6 +373,17 @@ BasicLogicalType* BasicLogicalType::getTypeBy(
             int precision = options.value("precision", 0);
             type = new TimestampWithLocalTimeZoneType(isNullable, precision);
             break;
+        }
+        case DataTypeId::OMNI_CONTAINER: {
+            const std::string typeName = options.value("type", "");
+            if (typeName == "RAW") {
+                const std::string className = options.value("class", "");
+                const std::string serializerString = options.value("serializer", "");
+                type = new omnistream::RawType(isNullable, className, serializerString);
+                break;
+            }
+            THROW_LOGIC_EXCEPTION(
+                "OMNI_CONTAINER requires RAW metadata; ROW must be constructed explicitly, typeName=" << typeName);
         }
         default: THROW_LOGIC_EXCEPTION("Unsupported DataTypeId : " << typeId << " in inputRowType.");
     }

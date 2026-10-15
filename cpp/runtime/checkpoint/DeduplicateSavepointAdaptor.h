@@ -21,6 +21,7 @@
 
 #include "OperatorSavepointAdaptor.h"
 #include "runtime/state/restore/RestoreBackendDelegate.h"
+#include "runtime/state/restore/vb/VectorBatchRestoreHooks.h"
 #include "runtime/state/vbsave/VectorBatchSaveHooks.h"
 #include "runtime/state/vbsave/VectorBatchSavePlan.h"
 #include "runtime/state/metainfo/StateMetaInfoSnapshot.h"
@@ -34,11 +35,13 @@ class OmniTaskBridge;
 
 // RowTimeDeduplicateFunction 的兼容 Savepoint 适配器（新模型）。
 //
-// 只继承 OperatorSavepointAdaptor；VectorBatch/comboId 的保存与恢复通过组合公共 flow 完成：
+// 实现保存与恢复 hooks；VectorBatch/comboId 的保存与恢复通过组合公共 flow 完成：
 //   保存方向实现 VectorBatchSaveHooks，save() 调用 VectorBatchSaveFlow；
 //   恢复方向 restore() 调用 VectorBatchRestoreFlow，以自身为 Derived hook
 //   提供 getStateType()/buildOmniMainMetaInfo()/retrieveKVRowData()。
-class DeduplicateSavepointAdaptor : public OperatorSavepointAdaptor, public VectorBatchSaveHooks {
+class DeduplicateSavepointAdaptor : public OperatorSavepointAdaptor,
+                                    public VectorBatchSaveHooks,
+                                    public VectorBatchRestoreHooks {
 public:
     DeduplicateSavepointAdaptor() = default;
 
@@ -88,7 +91,10 @@ public:
     // 解码一条 Flink logical entry 的 value，通过回调产出 key+RowDataView。
     // Deduplicate 为 1→1 映射：每条 Flink entry 恰好产出 1 次 writeRowData(key, row)。
     void retrieveKVRowData(
-        const std::vector<int8_t>& key, const std::vector<int8_t>& value, int kvStateId, RestoreKVStateVB* writer)
+        const std::vector<int8_t>& key,
+        const std::vector<int8_t>& value,
+        int kvStateId,
+        RestoreKVStateVB* writer) override
     {
         RowDataView row{&value, &restoreColumnTypes_};
         writer->writeRowData(key, row);

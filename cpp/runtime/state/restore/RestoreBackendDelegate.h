@@ -27,6 +27,7 @@ enum class RestoreStateType {
     KV_TRANSFORMED, // payload 直接透传，但使用 Adaptor 构造的目标 metadata
     KV_WITH_VB,     // 带 VectorBatch side table 的 KV 状态
     PQ,             // PriorityQueue 状态
+    KV_TRANSFORM,   // 使用 Adaptor 转换 KV payload 和目标 metadata（GroupAgg accumulator）
     UNSUPPORT,      // 未支持的状态
 };
 

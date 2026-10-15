@@ -10,6 +10,8 @@
  */
 
 #include "BinaryWriter.h"
+#include "table/data/binary/BinaryRowData.h"
+#include "../../types/logical/RawType.h"
 #include "table/data/TimestampData.h"
 
 using namespace omniruntime::type;
@@ -24,6 +26,17 @@ void BinaryWriter::write(BinaryWriter* writer, int pos, void* object, LogicalTyp
         case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
             writer->writeLong(pos, reinterpret_cast<TimestampData*>(object)->getMillisecond());
             break;
+        case DataTypeId::OMNI_CONTAINER: {
+            if (dynamic_cast<omnistream::RawType*>(type) == nullptr) {
+                THROW_LOGIC_EXCEPTION("Unsupported OMNI_CONTAINER type: " << type->getTypeName());
+            }
+            if (object == nullptr) {
+                throw std::invalid_argument("Non-null RAW field has null value");
+            }
+            auto* raw = static_cast<BinaryRawValueData*>(object);
+            writer->writeRawValue(pos, raw->data(), raw->size());
+            break;
+        }
         default: THROW_LOGIC_EXCEPTION("Unknown type" + std::to_string(type->getTypeId()));
     }
 }

@@ -23,14 +23,22 @@ public:
         : keyTypeInfo(keyInfo),
           valueTypeInfo(valueInfo)
     {
-        keyInfo->getRefCount();
-        valueInfo->getRefCount();
+        if (keyInfo != nullptr) {
+            keyInfo->getRefCount();
+        }
+        if (valueInfo != nullptr) {
+            valueInfo->getRefCount();
+        }
     }
 
     ~MapTypeInfo() override
     {
-        keyTypeInfo->putRefCount();
-        valueTypeInfo->putRefCount();
+        if (keyTypeInfo != nullptr) {
+            keyTypeInfo->putRefCount();
+        }
+        if (valueTypeInfo != nullptr) {
+            valueTypeInfo->putRefCount();
+        }
     }
 
     bool isBasicType() const
