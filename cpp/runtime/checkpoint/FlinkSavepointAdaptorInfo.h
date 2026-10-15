@@ -31,22 +31,15 @@ enum class FlinkSavepointAdaptorType {
 inline const char* flinkSavepointAdaptorTypeName(FlinkSavepointAdaptorType type) noexcept
 {
     switch (type) {
-        case FlinkSavepointAdaptorType::None:
-            return "None";
-        case FlinkSavepointAdaptorType::OmniIsCompatible:
-            return "OmniIsCompatible";
-        case FlinkSavepointAdaptorType::DeduplicateAdaptor:
-            return "DeduplicateAdaptor";
-        case FlinkSavepointAdaptorType::AppendOnlyTopNAdaptor:
-            return "AppendOnlyTopNAdaptor";
-        case FlinkSavepointAdaptorType::StreamingJoinNoUniqueKeyAdaptor:
-            return "StreamingJoinNoUniqueKeyAdaptor";
+        case FlinkSavepointAdaptorType::None: return "None";
+        case FlinkSavepointAdaptorType::OmniIsCompatible: return "OmniIsCompatible";
+        case FlinkSavepointAdaptorType::DeduplicateAdaptor: return "DeduplicateAdaptor";
+        case FlinkSavepointAdaptorType::AppendOnlyTopNAdaptor: return "AppendOnlyTopNAdaptor";
+        case FlinkSavepointAdaptorType::StreamingJoinNoUniqueKeyAdaptor: return "StreamingJoinNoUniqueKeyAdaptor";
         case FlinkSavepointAdaptorType::StreamingLeftOuterJoinNoUniqueKeyAdaptor:
             return "StreamingLeftOuterJoinNoUniqueKeyAdaptor";
-        case FlinkSavepointAdaptorType::WindowJoinAdaptor:
-            return "WindowJoinAdaptor";
-        default:
-            return "Unknown";
+        case FlinkSavepointAdaptorType::WindowJoinAdaptor: return "WindowJoinAdaptor";
+        default: return "Unknown";
     }
 }
 

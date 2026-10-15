@@ -47,11 +47,17 @@ struct RowDataView {
     bool useByteView;
 
     RowDataView(const std::vector<int8_t>* bytes, const std::vector<omniruntime::type::DataTypeId>* types)
-        : valueBytes(bytes), columnTypes(types), valueByteView(), useByteView(false)
+        : valueBytes(bytes),
+          columnTypes(types),
+          valueByteView(),
+          useByteView(false)
     {
     }
     RowDataView(const ByteView view, const std::vector<omniruntime::type::DataTypeId>* types)
-        : valueBytes(nullptr), columnTypes(types), valueByteView(view), useByteView(true)
+        : valueBytes(nullptr),
+          columnTypes(types),
+          valueByteView(view),
+          useByteView(true)
     {
     }
     RowDataView() : valueBytes(nullptr), columnTypes(nullptr), valueByteView(), useByteView(false)

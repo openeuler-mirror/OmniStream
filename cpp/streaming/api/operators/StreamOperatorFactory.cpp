@@ -184,8 +184,7 @@ StreamOperator* StreamOperatorFactory::createOperatorAndCollector(
     } else if (uniqueName == OPERATOR_NAME_GLOBAL_WINDOW_AGG) {
         const auto description = opConfig.getDescription();
         auto processor = std::make_unique<AbstractWindowAggProcessor>(description, chainOutput);
-        auto* op = new SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>(
-            std::move(processor), description);
+        auto* op = new SlicingWindowOperator<std::shared_ptr<RowData>, int64_t>(std::move(processor), description);
         op->setup();
         configureSavepoint(
             op, "SlicingWindowAgg", description, WindowAggSavepointCompatibility::forSlicing(description));
@@ -193,8 +192,7 @@ StreamOperator* StreamOperatorFactory::createOperatorAndCollector(
         return static_cast<OneInputStreamOperator*>(op);
     } else if (opConfig.getUniqueName() == OPERATOR_NAME_GROUP_WINDOW_AGG) {
         const auto description = opConfig.getDescription();
-        auto* op =
-            new AggregateWindowOperator<std::shared_ptr<RowData>, TimeWindow>(description, chainOutput);
+        auto* op = new AggregateWindowOperator<std::shared_ptr<RowData>, TimeWindow>(description, chainOutput);
         op->setup();
         configureSavepoint(op, "GroupWindowAgg", description, WindowAggSavepointCompatibility::forGroup(description));
         LOG("Operator AggregateWindowOperator address " + std::to_string(reinterpret_cast<long>(op)));

@@ -108,8 +108,7 @@ protected:
     {
     }
 
-    void writeComboIdList(
-        const std::vector<int8_t>& /*keyBytes*/, const std::vector<ComboId>& /*comboIds*/) override
+    void writeComboIdList(const std::vector<int8_t>& /*keyBytes*/, const std::vector<ComboId>& /*comboIds*/) override
     {
     }
 };
