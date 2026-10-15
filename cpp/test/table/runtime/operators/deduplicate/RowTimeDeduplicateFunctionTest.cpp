@@ -1,4 +1,8 @@
 #include "table/runtime/operators/deduplicate/RowTimeDeduplicateFunction.h"
+#include <cstdint>
+#include <filesystem>
+#include <memory>
+#include <type_traits>
 #include <vector>
 #include <nlohmann/json.hpp>
 #include "streaming/runtime/streamrecord/StreamRecord.h"
@@ -8,6 +12,8 @@
 #include <gtest/gtest.h>
 #include "table/data/binary/BinaryRowData.h"
 #include "runtime/taskmanager/OmniRuntimeEnvironment.h"
+#include "runtime/state/EmbeddedRocksDBStateBackend.h"
+#include "runtime/state/rocksdb/RocksdbValueState.h"
 #include "core/api/common/TaskInfoImpl.h"
 #include "table/typeutils/RowDataSerializer.h"
 #include "streaming/api/operators/KeyedProcessOperator.h"
@@ -15,9 +21,6 @@
 #include "../../../../core/operators/OutputTest.h"
 #include "table/data/util/VectorBatchUtil.h"
 #include <string.h>
-#include <cstdint>
-#include <memory>
-#include <type_traits>
 #include "table/data/RowKind.h"
 
 #if defined(__has_include)
@@ -269,6 +272,32 @@ omnistream::VectorBatch* getBatch3()
     return vbatch;
 }
 
+omnistream::VectorBatch* getSameKeyBatch(
+    const std::vector<int64_t>& rowtimes, int64_t timestampBase, int64_t key0Value = 7, int64_t key1Value = 7000)
+{
+    const int32_t rowCount = static_cast<int32_t>(rowtimes.size());
+    auto* vbatch = new omnistream::VectorBatch(rowCount);
+
+    auto* key0 = new omniruntime::vec::Vector<int64_t>(rowCount);
+    auto* key1 = new omniruntime::vec::Vector<int64_t>(rowCount);
+    auto* rowtime = new omniruntime::vec::Vector<int64_t>(rowCount);
+    auto* payload = new omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>(rowCount);
+    for (int32_t row = 0; row < rowCount; ++row) {
+        key0->SetValue(row, key0Value);
+        key1->SetValue(row, key1Value);
+        rowtime->SetValue(row, rowtimes[row]);
+        std::string value = "rowtime_" + std::to_string(rowtimes[row]);
+        std::string_view valueView(value);
+        payload->SetValue(row, valueView);
+        vbatch->setTimestamp(row, timestampBase + row);
+    }
+    vbatch->Append(key0);
+    vbatch->Append(key1);
+    vbatch->Append(rowtime);
+    vbatch->Append(payload);
+    return vbatch;
+}
+
 omnistream::VectorBatch* getOutput1()
 {
     // Batch
@@ -319,7 +348,7 @@ omnistream::VectorBatch* getOutput2()
     /*
     (int) , (long)       , (long)
     KeyCol1, keyCol2, time,    timeStamp, rowkind
-    0     , 1000         , 1,     100     rowkind::UPDATE_BEFORE
+    0     , 1000         , 1,     103     rowkind::UPDATE_BEFORE
     0     , 1000         , 9,     103     RowKind::UPDATE_AFTER
     */
 
@@ -359,7 +388,10 @@ omnistream::VectorBatch* getOutput2()
 
     vbatch->Append(stringVecLeft.release());
 
-    vbatch->setTimestamp(0, 100);
+    // Flink emits UPDATE_BEFORE and UPDATE_AFTER while processing the current
+    // record, so both carry the current record timestamp. The previous row's
+    // transport timestamp is intentionally not part of ValueState<RowData*>.
+    vbatch->setTimestamp(0, 103);
     vbatch->setTimestamp(1, 103);
     // vbatch->setTimestamp(2, 105);
     vbatch->setRowKind(0, RowKind::UPDATE_BEFORE);
@@ -742,12 +774,340 @@ TEST(RowTimeDeduplicateTest, UpdateBeforeKeepLastRowTimeTest)
     delete outputVB3;
 }
 
+TEST(RowTimeDeduplicateTest, KeepLastSelectsSingleWinnerForSameKeyWithinBatch)
+{
+    json parsedJson = json::parse(description);
+    OperatorConfig opConfig(
+        uniqueName,
+        "Deduplicate(keep=[LastRow], key=[$1, $2], order=[ROWTIME])",
+        parsedJson["operators"][0]["description"]["inputTypes"],
+        parsedJson["operators"][0]["description"]["outputTypes"],
+        parsedJson["operators"][0]["description"]);
+
+    auto* output = new BatchOutputTest();
+    StreamOperatorFactory streamOperatorFactory;
+    auto* keyedOp = dynamic_cast<KeyedProcessOperator<RowData*, omnistream::VectorBatch*, omnistream::VectorBatch*>*>(
+        streamOperatorFactory.createOperatorAndCollector(opConfig, output));
+    ASSERT_NE(keyedOp, nullptr);
+
+    auto* env = new omnistream::RuntimeEnvironmentV2();
+    auto* taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
+    env->setTaskConfiguration(*taskInfo);
+    auto* initializer = new StreamTaskStateInitializerImpl(env);
+    auto* keyFields = new std::vector<omnistream::RowField>(
+        {omnistream::RowField("col0", BasicLogicalType::BIGINT),
+         omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    auto* keySerializer = new RowDataSerializer(new omnistream::RowType(false, *keyFields));
+
+    keyedOp->initializeState(initializer, keySerializer);
+    keyedOp->open();
+
+    // KeepLast resolves an equal maximum rowtime in favor of the later row.
+    keyedOp->processBatch(new StreamRecord(getSameKeyBatch({3, 7, 7, 5}, 100)));
+    auto* firstOutput = output->getVectorBatch();
+    ASSERT_NE(firstOutput, nullptr);
+    ASSERT_EQ(firstOutput->GetRowCount(), 1);
+    EXPECT_EQ(reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(firstOutput->Get(2))->GetValue(0), 7);
+    EXPECT_EQ(firstOutput->getTimestamp(0), 102);
+    EXPECT_EQ(firstOutput->getRowKind(0), RowKind::INSERT);
+
+    // An older row in a later batch must not replace the rowtime=7 state.
+    keyedOp->processBatch(new StreamRecord(getSameKeyBatch({6}, 200)));
+    auto* secondOutput = output->getVectorBatch();
+    ASSERT_NE(secondOutput, nullptr);
+    EXPECT_EQ(secondOutput->GetRowCount(), 0);
+
+    // Across batches KeepLast also treats an equal rowtime as a replacement.
+    keyedOp->processBatch(new StreamRecord(getSameKeyBatch({7}, 300)));
+    auto* equalOutput = output->getVectorBatch();
+    ASSERT_NE(equalOutput, nullptr);
+    ASSERT_EQ(equalOutput->GetRowCount(), 2);
+    EXPECT_EQ(equalOutput->getRowKind(0), RowKind::UPDATE_BEFORE);
+    EXPECT_EQ(equalOutput->getRowKind(1), RowKind::UPDATE_AFTER);
+    EXPECT_EQ(equalOutput->getTimestamp(0), 300);
+    EXPECT_EQ(equalOutput->getTimestamp(1), 300);
+}
+
+TEST(RowTimeDeduplicateTest, KeepFirstSelectsSingleWinnerForSameKeyWithinBatch)
+{
+    json parsedJson = json::parse(description);
+    parsedJson["operators"][0]["description"]["keepLastRow"].get_ref<json::boolean_t&>() = false;
+    OperatorConfig opConfig(
+        uniqueName,
+        "Deduplicate(keep=[FirstRow], key=[$1, $2], order=[ROWTIME])",
+        parsedJson["operators"][0]["description"]["inputTypes"],
+        parsedJson["operators"][0]["description"]["outputTypes"],
+        parsedJson["operators"][0]["description"]);
+
+    auto* output = new BatchOutputTest();
+    StreamOperatorFactory streamOperatorFactory;
+    auto* keyedOp = dynamic_cast<KeyedProcessOperator<RowData*, omnistream::VectorBatch*, omnistream::VectorBatch*>*>(
+        streamOperatorFactory.createOperatorAndCollector(opConfig, output));
+    ASSERT_NE(keyedOp, nullptr);
+
+    auto* env = new omnistream::RuntimeEnvironmentV2();
+    auto* taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
+    env->setTaskConfiguration(*taskInfo);
+    auto* initializer = new StreamTaskStateInitializerImpl(env);
+    auto* keyFields = new std::vector<omnistream::RowField>(
+        {omnistream::RowField("col0", BasicLogicalType::BIGINT),
+         omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    auto* keySerializer = new RowDataSerializer(new omnistream::RowType(false, *keyFields));
+
+    keyedOp->initializeState(initializer, keySerializer);
+    keyedOp->open();
+
+    // KeepFirst resolves an equal minimum rowtime in favor of the earlier row.
+    keyedOp->processBatch(new StreamRecord(getSameKeyBatch({3, 3, 7, 5}, 100)));
+    auto* firstOutput = output->getVectorBatch();
+    ASSERT_NE(firstOutput, nullptr);
+    ASSERT_EQ(firstOutput->GetRowCount(), 1);
+    EXPECT_EQ(reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(firstOutput->Get(2))->GetValue(0), 3);
+    EXPECT_EQ(firstOutput->getTimestamp(0), 100);
+    EXPECT_EQ(firstOutput->getRowKind(0), RowKind::INSERT);
+
+    // A later row in another batch must not replace the rowtime=3 state.
+    keyedOp->processBatch(new StreamRecord(getSameKeyBatch({4}, 200)));
+    auto* secondOutput = output->getVectorBatch();
+    ASSERT_NE(secondOutput, nullptr);
+    EXPECT_EQ(secondOutput->GetRowCount(), 0);
+
+    // Across batches KeepFirst also keeps the existing row on an equal rowtime.
+    keyedOp->processBatch(new StreamRecord(getSameKeyBatch({3}, 300)));
+    auto* equalOutput = output->getVectorBatch();
+    ASSERT_NE(equalOutput, nullptr);
+    EXPECT_EQ(equalOutput->GetRowCount(), 0);
+}
+
+TEST(RowTimeDeduplicateTest, UpdateAfterOnlyModeDoesNotEmitInsertOrUpdateBefore)
+{
+    json parsedJson = json::parse(description);
+    auto& operatorDescription = parsedJson["operators"][0]["description"];
+    operatorDescription["generateUpdateBefore"].get_ref<json::boolean_t&>() = false;
+    operatorDescription["generateInsert"].get_ref<json::boolean_t&>() = false;
+    OperatorConfig opConfig(
+        uniqueName,
+        "Deduplicate(keep=[LastRow], key=[$1, $2], order=[ROWTIME])",
+        operatorDescription["inputTypes"],
+        operatorDescription["outputTypes"],
+        operatorDescription);
+
+    auto* output = new BatchOutputTest();
+    StreamOperatorFactory streamOperatorFactory;
+    auto* keyedOp = dynamic_cast<KeyedProcessOperator<RowData*, omnistream::VectorBatch*, omnistream::VectorBatch*>*>(
+        streamOperatorFactory.createOperatorAndCollector(opConfig, output));
+    ASSERT_NE(keyedOp, nullptr);
+
+    auto* env = new omnistream::RuntimeEnvironmentV2();
+    auto* taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
+    env->setTaskConfiguration(*taskInfo);
+    auto* initializer = new StreamTaskStateInitializerImpl(env);
+    auto* keyFields = new std::vector<omnistream::RowField>(
+        {omnistream::RowField("col0", BasicLogicalType::BIGINT),
+         omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    auto* keySerializer = new RowDataSerializer(new omnistream::RowType(false, *keyFields));
+
+    keyedOp->initializeState(initializer, keySerializer);
+    keyedOp->open();
+
+    keyedOp->processBatch(new StreamRecord(getSameKeyBatch({3}, 100)));
+    auto* insertOutput = output->getVectorBatch();
+    ASSERT_NE(insertOutput, nullptr);
+    ASSERT_EQ(insertOutput->GetRowCount(), 1);
+    EXPECT_EQ(insertOutput->getRowKind(0), RowKind::UPDATE_AFTER);
+    EXPECT_EQ(insertOutput->getTimestamp(0), 100);
+
+    keyedOp->processBatch(new StreamRecord(getSameKeyBatch({4}, 200)));
+    auto* updateOutput = output->getVectorBatch();
+    ASSERT_NE(updateOutput, nullptr);
+    ASSERT_EQ(updateOutput->GetRowCount(), 1);
+    EXPECT_EQ(updateOutput->getRowKind(0), RowKind::UPDATE_AFTER);
+    EXPECT_EQ(updateOutput->getTimestamp(0), 200);
+    EXPECT_EQ(reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(updateOutput->Get(2))->GetValue(0), 4);
+}
+
+TEST(RowTimeDeduplicateTest, RocksDBWithoutCacheStoresAndReadsSelectedRowData)
+{
+    json parsedJson = json::parse(description);
+    auto& operatorDescription = parsedJson["operators"][0]["description"];
+    OperatorConfig opConfig(
+        uniqueName,
+        "Deduplicate(keep=[LastRow], key=[$1, $2], order=[ROWTIME])",
+        operatorDescription["inputTypes"],
+        operatorDescription["outputTypes"],
+        operatorDescription);
+
+    auto* output = new BatchOutputTest();
+    StreamOperatorFactory streamOperatorFactory;
+    auto* keyedOp = dynamic_cast<KeyedProcessOperator<RowData*, omnistream::VectorBatch*, omnistream::VectorBatch*>*>(
+        streamOperatorFactory.createOperatorAndCollector(opConfig, output));
+    ASSERT_NE(keyedOp, nullptr);
+
+    const auto rocksPath = std::filesystem::temp_directory_path() / "rowtime-deduplicate-rocksdb-no-cache";
+    std::filesystem::remove_all(rocksPath);
+
+    auto* env = new omnistream::RuntimeEnvironmentV2();
+    auto* taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("EmbeddedRocksDBStateBackend");
+    taskInfo->setRocksdbStorePaths({rocksPath.string()});
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    auto jobId = omnistream::JobIDPOD(1, 2);
+    auto jobVertexId = omnistream::JobVertexID(3, 4);
+    auto attemptId = omnistream::ExecutionAttemptIDPOD::randomId();
+    auto* stateStore = new TaskLocalStateStore(jobId, jobVertexId, 0, nullptr);
+    auto* responder = new omnistream::NoOpCheckpoingResponder();
+    env->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>(jobId, attemptId, stateStore, responder));
+    env->setTaskConfiguration(*taskInfo);
+    auto* rocksBackend = new EmbeddedRocksDBStateBackend(*taskInfo);
+    auto* initializer = new StreamTaskStateInitializerImpl(rocksBackend, env);
+    auto* keyFields = new std::vector<omnistream::RowField>(
+        {omnistream::RowField("col0", BasicLogicalType::BIGINT),
+         omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    auto* keySerializer = new RowDataSerializer(new omnistream::RowType(false, *keyFields));
+
+    keyedOp->initializeState(initializer, keySerializer);
+    keyedOp->open();
+
+    keyedOp->processBatch(new StreamRecord(getSameKeyBatch({3}, 100)));
+    auto* insertOutput = output->getVectorBatch();
+    ASSERT_NE(insertOutput, nullptr);
+    ASSERT_EQ(insertOutput->GetRowCount(), 1);
+    EXPECT_EQ(insertOutput->getRowKind(0), RowKind::INSERT);
+
+    keyedOp->processBatch(new StreamRecord(getSameKeyBatch({4}, 200)));
+    auto* updateOutput = output->getVectorBatch();
+    ASSERT_NE(updateOutput, nullptr);
+    ASSERT_EQ(updateOutput->GetRowCount(), 2);
+    EXPECT_EQ(updateOutput->getRowKind(0), RowKind::UPDATE_BEFORE);
+    EXPECT_EQ(updateOutput->getRowKind(1), RowKind::UPDATE_AFTER);
+    EXPECT_EQ(reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(updateOutput->Get(2))->GetValue(1), 4);
+
+    keyedOp->processBatch(new StreamRecord(getSameKeyBatch({2}, 300)));
+    auto* olderOutput = output->getVectorBatch();
+    ASSERT_NE(olderOutput, nullptr);
+    EXPECT_EQ(olderOutput->GetRowCount(), 0);
+}
+
+TEST(RowTimeDeduplicateTest, RocksDBCacheMissReadsAndUpdatesSelectedRowData)
+{
+    struct FalconConfigGuard {
+        FalconConfigGuard()
+        {
+            Configuration::TM_CONFIG->setConfiguration(
+                {{"state.backend.rocksdb.falcon.use-state-cache", "true"},
+                 {"state.backend.rocksdb.falcon.state-cache-sizeLimit", "1"}});
+        }
+        ~FalconConfigGuard()
+        {
+            Configuration::TM_CONFIG->setConfiguration(
+                {{"state.backend.rocksdb.falcon.use-state-cache", "false"},
+                 {"state.backend.rocksdb.falcon.state-cache-sizeLimit", "3000"}});
+        }
+    } falconConfigGuard;
+
+    json parsedJson = json::parse(description);
+    auto& operatorDescription = parsedJson["operators"][0]["description"];
+    OperatorConfig opConfig(
+        uniqueName,
+        "Deduplicate(keep=[LastRow], key=[$1, $2], order=[ROWTIME])",
+        operatorDescription["inputTypes"],
+        operatorDescription["outputTypes"],
+        operatorDescription);
+
+    auto* output = new BatchOutputTest();
+    StreamOperatorFactory streamOperatorFactory;
+    auto* keyedOp = dynamic_cast<KeyedProcessOperator<RowData*, omnistream::VectorBatch*, omnistream::VectorBatch*>*>(
+        streamOperatorFactory.createOperatorAndCollector(opConfig, output));
+    ASSERT_NE(keyedOp, nullptr);
+
+    const auto rocksPath = std::filesystem::temp_directory_path() / "rowtime-deduplicate-rocksdb-cache";
+    std::filesystem::remove_all(rocksPath);
+
+    auto* env = new omnistream::RuntimeEnvironmentV2();
+    auto* taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("EmbeddedRocksDBStateBackend");
+    taskInfo->setRocksdbStorePaths({rocksPath.string()});
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    auto jobId = omnistream::JobIDPOD(5, 6);
+    auto jobVertexId = omnistream::JobVertexID(7, 8);
+    auto attemptId = omnistream::ExecutionAttemptIDPOD::randomId();
+    auto* stateStore = new TaskLocalStateStore(jobId, jobVertexId, 0, nullptr);
+    auto* responder = new omnistream::NoOpCheckpoingResponder();
+    env->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>(jobId, attemptId, stateStore, responder));
+    env->setTaskConfiguration(*taskInfo);
+    auto* rocksBackend = new EmbeddedRocksDBStateBackend(*taskInfo);
+    auto* initializer = new StreamTaskStateInitializerImpl(rocksBackend, env);
+    auto* keyFields = new std::vector<omnistream::RowField>(
+        {omnistream::RowField("col0", BasicLogicalType::BIGINT),
+         omnistream::RowField("col1", BasicLogicalType::BIGINT)});
+    auto* keySerializer = new RowDataSerializer(new omnistream::RowType(false, *keyFields));
+
+    keyedOp->initializeState(initializer, keySerializer);
+    keyedOp->open();
+
+    auto* function = dynamic_cast<RowTimeDeduplicateFunction*>(keyedOp->getUserFunction());
+    ASSERT_NE(function, nullptr);
+    auto* rocksState = dynamic_cast<RocksdbValueState<RowData*, VoidNamespace, RowData*>*>(function->getValueState());
+    ASSERT_NE(rocksState, nullptr);
+    ASSERT_EQ(rocksState->stateCache->getSizeLimit(), 1);
+
+    // Insert key A, then key B. With a cache limit of one this evicts cached A.
+    keyedOp->processBatch(new StreamRecord(getSameKeyBatch({3}, 100, 7, 7000)));
+    keyedOp->processBatch(new StreamRecord(getSameKeyBatch({5}, 200, 8, 8000)));
+
+    // Reading A again must miss the cache, deserialize RowData from RocksDB,
+    // and then update the stored winner from rowtime 3 to rowtime 4.
+    keyedOp->processBatch(new StreamRecord(getSameKeyBatch({4}, 300, 7, 7000)));
+    auto* updateOutput = output->getVectorBatch();
+    ASSERT_NE(updateOutput, nullptr);
+    ASSERT_EQ(updateOutput->GetRowCount(), 2);
+    EXPECT_EQ(updateOutput->getRowKind(0), RowKind::UPDATE_BEFORE);
+    EXPECT_EQ(updateOutput->getRowKind(1), RowKind::UPDATE_AFTER);
+    EXPECT_EQ(reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(updateOutput->Get(2))->GetValue(0), 3);
+    EXPECT_EQ(reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(updateOutput->Get(2))->GetValue(1), 4);
+}
+
 namespace {
 
-// Bytes currently handed out by the allocator, or -1 when the running allocator does not
-// report them (mallinfo2 needs glibc >= 2.33, and returns zeros under a preloaded
-// jemalloc/tcmalloc). This counts live allocations, so it does not need malloc_trim:
-// memory the allocator keeps but no longer owes to the program is already excluded.
 int64_t LiveHeapBytes()
 {
 #if defined(__GLIBC__) && defined(__GLIBC_PREREQ)
@@ -767,23 +1127,15 @@ int64_t LiveHeapBytes()
 
 } // namespace
 
-// The function owns its KeySelector, so creating and destroying operator instances must not
-// accumulate memory. Before the selector became a unique_ptr, every destroyed instance leaked
-// it along with its type/serializer vectors and its reusable BinaryRowData key.
 TEST(RowTimeDeduplicateTest, DestructorReleasesKeySelector)
 {
     json config = json::parse(description)["operators"][0]["description"];
 
     const int warmupIterations = 1000;
     const int measuredIterations = 20000;
-    // The leak is a few hundred bytes per instance, so it shows up as megabytes over the
-    // measured run. Anything below this is one-time allocation noise, not accumulation.
     const int64_t allowedGrowthBytes = 256 * 1024;
-
-    // Keeps the optimizer from discarding instances it can prove are unused.
     volatile uintptr_t sink = 0;
 
-    // Absorb the one-time allocations of the first construction (static tables, json internals).
     for (int i = 0; i < warmupIterations; i++) {
         auto func = std::make_unique<RowTimeDeduplicateFunction>(config);
         sink ^= reinterpret_cast<uintptr_t>(func.get());
@@ -805,8 +1157,6 @@ TEST(RowTimeDeduplicateTest, DestructorReleasesKeySelector)
         << (growth / measuredIterations) << " bytes per instance)";
 }
 
-// Owning the selector makes the function non-copyable. That is fine because
-// StreamOperatorFactory builds it with new and hands it to the operator by pointer.
 TEST(RowTimeDeduplicateTest, FunctionIsNonCopyable)
 {
     static_assert(
