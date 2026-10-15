@@ -17,10 +17,18 @@
 #include "runtime/checkpoint/FlinkSavepointAdaptorInfo.h"
 #include "runtime/checkpoint/OperatorSavepointAdaptorFactory.h"
 #include "runtime/checkpoint/OperatorSavepointAdaptor.h"
+#include "runtime/checkpoint/GroupAggSavepointAdaptor.h"
 #include "runtime/checkpoint/StreamingJoinSavepointUtil.h"
 
 using omnistream::OperatorSavepointAdaptorFactory;
 using omnistream::StreamingJoinSavepointUtil;
+
+TEST(OperatorSavepointAdaptorFactoryTest, ReturnsGroupAggAdaptor)
+{
+    auto adaptor = OperatorSavepointAdaptorFactory::createAdaptor(FlinkSavepointAdaptorType::GroupAggAdaptor);
+    ASSERT_NE(adaptor, nullptr);
+    EXPECT_NE(dynamic_cast<omnistream::GroupAggSavepointAdaptor*>(adaptor.get()), nullptr);
+}
 
 namespace {
 nlohmann::json createStreamingJoinDescription(const std::string& timestampType)
