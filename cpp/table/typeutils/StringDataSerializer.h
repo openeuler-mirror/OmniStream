@@ -12,6 +12,7 @@
 #define FLINK_TNEL_STRINGDATASERIALIZER_H
 
 #include <memory>
+#include "../../core/typeutils/SerializerJsonInfo.h"
 #include "../../core/typeutils/TypeSerializerSingleton.h"
 #include "../data/StringData.h"
 #include "OmniOperatorJIT/core/src/type/data_type.h"
@@ -24,6 +25,12 @@ public:
     void* deserialize(DataInputView& source) override;
 
     void serialize(void* record, DataOutputSerializer& target) override;
+
+    std::string toJson() override
+    {
+        SerializerJsonInfo typeJson = {SerializerType::STRING_T};
+        return typeJson.toJson();
+    }
 
     static StringDataSerializer* INSTANCE;
 
