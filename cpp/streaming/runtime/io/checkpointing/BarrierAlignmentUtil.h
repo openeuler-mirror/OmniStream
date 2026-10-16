@@ -26,19 +26,22 @@ public:
 
     class Cancellable {
     public:
-        explicit Cancellable(ScheduledFutureTask* scheduledFuture) : scheduledFuture_(scheduledFuture) {};
+        explicit Cancellable(std::shared_ptr<ScheduledFutureTask> scheduledFuture)
+            : scheduledFuture_(scheduledFuture) {};
 
         ~Cancellable() = default;
 
         void Cancel()
         {
-            if (scheduledFuture_ != nullptr) {
-                scheduledFuture_->Cancel();
+            if (auto sp = scheduledFuture_.lock()) {
+                sp->Cancel();
             }
         }
 
     private:
-        ScheduledFutureTask* scheduledFuture_;
+        // ScheduledFutureTask will managed by std::shared_ptr and need release memeory after task finished
+        // use the std::weak_ptr to prevent ScheduledFutureTask memory release postponed by the Cancellable callback
+        std::weak_ptr<ScheduledFutureTask> scheduledFuture_;
     };
 
     template <typename Func>
@@ -102,7 +105,7 @@ public:
         {
             auto future = timerService_->registerTimer(
                 timerService_->getCurrentProcessingTime() + delay.count(),
-                new ProcessingTimeCallbackImpl(callable, executor_));
+                std::make_shared<ProcessingTimeCallbackImpl>(callable, executor_));
             return new Cancellable(future);
         }
 

@@ -14,11 +14,14 @@
 #include <chrono>
 #include <atomic>
 #include <exception>
+#include <memory>
 #include "TimerService.h"
 #include "core/utils/threads/CompletableFuture.h"
 #include "ScheduledTaskExecutor.h"
 #include "ProcessingTimeServiceUtil.h"
 #include "common.h"
+#include "runtime/tasks/ProcessingTimeCallback.h"
+#include "runtime/tasks/ScheduledFutureTask.h"
 
 class SystemProcessingTimeService : public omnistream::runtime::TimerService {
 public:
@@ -57,26 +60,34 @@ public:
         return false;
     }
 
-    ScheduledFutureTask* registerTimer(int64_t timestamp, ProcessingTimeCallback* target) override
+    std::shared_ptr<ScheduledFutureTask> registerTimer(int64_t timestamp, ProcessingTimeCallback* target) override
+    {
+        std::shared_ptr<ProcessingTimeCallback> ptr(target, [](ProcessingTimeCallback*) {});
+        return registerTimer(timestamp, ptr);
+    }
+
+    std::shared_ptr<ScheduledFutureTask> registerTimer(
+        int64_t timestamp, std::shared_ptr<ProcessingTimeCallback> target) override
     {
         if (status.load() != STATUS_ALIVE) {
-            return nullptr;
+            return std::shared_ptr<ScheduledFutureTask>(nullptr);
         }
 
         int64_t delay = ProcessingTimeServiceUtil::getProcessingTimeDelay(timestamp, getCurrentProcessingTime());
-        omnistream::Runnable* task = wrapOnTimerCallback(target, timestamp, 0);
-        return timeService.Schedule(task, delay);
+        auto task = wrapOnTimerCallback(target, timestamp, 0);
+        return timeService.Schedule(std::move(task), delay);
     }
 
-    ScheduledFutureTask* scheduleWithFixedDelay(
-        ProcessingTimeCallback* callback, long initialDelay, long period) override
+    std::shared_ptr<ScheduledFutureTask> scheduleWithFixedDelay(
+        std::shared_ptr<ProcessingTimeCallback> callback, long initialDelay, long period) override
     {
         return scheduleRepeatedly(callback, initialDelay, period, true);
     }
 
-    omnistream::Runnable* wrapOnTimerCallback(ProcessingTimeCallback* callback, long nextTimestamp, long period)
+    std::unique_ptr<omnistream::Runnable> wrapOnTimerCallback(
+        std::shared_ptr<ProcessingTimeCallback>& callback, long nextTimestamp, long period)
     {
-        return new ScheduledTask(status, callback, nextTimestamp, period);
+        return std::make_unique<ScheduledTask>(status, callback, nextTimestamp, period);
     }
 
 private:
@@ -90,7 +101,11 @@ private:
 
     class ScheduledTask : public omnistream::Runnable {
     public:
-        ScheduledTask(std::atomic<int>& serviceStatus, ProcessingTimeCallback* callback, long timestamp, long period)
+        ScheduledTask(
+            std::atomic<int>& serviceStatus,
+            std::shared_ptr<ProcessingTimeCallback>& callback,
+            long timestamp,
+            long period)
             : serviceStatus(serviceStatus),
               callback(callback),
               nextTimestamp(timestamp),
@@ -117,22 +132,22 @@ private:
 
     private:
         std::atomic<int>& serviceStatus;
-        ProcessingTimeCallback* callback;
+        std::shared_ptr<ProcessingTimeCallback> callback;
         long nextTimestamp;
         const long period;
     };
 
-    ScheduledFutureTask* scheduleRepeatedly(
-        ProcessingTimeCallback* callback, long initialDelay, long period, bool fixedDelay)
+    std::shared_ptr<ScheduledFutureTask> scheduleRepeatedly(
+        std::shared_ptr<ProcessingTimeCallback>& callback, long initialDelay, long period, bool fixedDelay)
     {
         long nextTimestamp = getCurrentProcessingTime() + initialDelay;
-        omnistream::Runnable* task = wrapOnTimerCallback(callback, nextTimestamp, period);
+        auto task = wrapOnTimerCallback(callback, nextTimestamp, period);
 
         try {
             if (fixedDelay) {
-                return timeService.ScheduleWithFixedDelay(task, initialDelay, period);
+                return timeService.ScheduleWithFixedDelay(std::move(task), initialDelay, period);
             } else {
-                return timeService.ScheduleAtFixedRate(task, initialDelay, period);
+                return timeService.ScheduleAtFixedRate(std::move(task), initialDelay, period);
             }
         } catch (const std::runtime_error& e) {
             THROW_RUNTIME_ERROR(

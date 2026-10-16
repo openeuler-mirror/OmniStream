@@ -64,7 +64,7 @@ ReaderOutput* ProgressiveTimestampsAndWatermarks::CreateMainOutput(
 
 void ProgressiveTimestampsAndWatermarks::StartPeriodicWatermarkEmits()
 {
-    if (periodicEmitHandle != nullptr) {
+    if (!periodicEmitHandle.expired()) {
         THROW_LOGIC_EXCEPTION("periodic emitter already started");
     }
     if (periodicWatermarkInterval == 0) {
@@ -72,15 +72,15 @@ void ProgressiveTimestampsAndWatermarks::StartPeriodicWatermarkEmits()
         return;
     }
     periodicEmitStopped_.store(false);
-    periodicEmitHandle =
-        timeService->scheduleWithFixedDelay(callback, periodicWatermarkInterval, periodicWatermarkInterval);
+    periodicEmitHandle = std::weak_ptr<ScheduledFutureTask>(
+        timeService->scheduleWithFixedDelay(callback, periodicWatermarkInterval, periodicWatermarkInterval));
 }
 
 void ProgressiveTimestampsAndWatermarks::StopPeriodicWatermarkEmits()
 {
     periodicEmitStopped_.store(true);
-    if (periodicEmitHandle != nullptr) {
-        periodicEmitHandle->Cancel();
-        periodicEmitHandle = nullptr;
+    if (auto sp = periodicEmitHandle.lock()) {
+        sp->Cancel();
+        periodicEmitHandle.reset();
     }
 }

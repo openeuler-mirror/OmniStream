@@ -9,6 +9,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "TimestampsAndWatermarks.h"
+#include <memory>
 #include "NoOpTimestampsAndWatermarks.h"
 #include "ProgressiveTimestampsAndWatermarks.h"
 #include "TimestampsAndWatermarksContext.h"
@@ -28,7 +29,7 @@ std::shared_ptr<TimestampsAndWatermarks> TimestampsAndWatermarks::CreateProgress
     auto timestampAssigner = watermarkStrategy->CreateTimestampAssigner();
     auto eventTimeLogic = std::make_shared<ProgressiveTimestampsAndWatermarks>(
         timestampAssigner, watermarkStrategy, timeService, periodicWatermarkIntervalMillis);
-    auto callback = new ProgressiveTimestampsAndWatermarks::TriggerProcessingTimeCallback(eventTimeLogic);
-    eventTimeLogic->callback = callback;
+    eventTimeLogic->callback =
+        std::make_shared<ProgressiveTimestampsAndWatermarks::TriggerProcessingTimeCallback>(eventTimeLogic);
     return eventTimeLogic;
 }

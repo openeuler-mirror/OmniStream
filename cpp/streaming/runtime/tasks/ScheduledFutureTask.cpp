@@ -11,17 +11,18 @@
 
 #include "ScheduledFutureTask.h"
 
-ScheduledFutureTask::ScheduledFutureTask(long initialDelay, const long period, omnistream::Runnable* outerTask)
+ScheduledFutureTask::ScheduledFutureTask(
+    long initialDelay, const long period, std::unique_ptr<omnistream::Runnable>&& outerTask)
     : period(period),
-      outerTask(outerTask)
+      outerTask(std::move(outerTask))
 {
     this->time = initialDelay + static_cast<int64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
                                                          std::chrono::system_clock::now().time_since_epoch())
                                                          .count());
 }
 
-ScheduledFutureTask::ScheduledFutureTask(long initialDelay, omnistream::Runnable* outerTask)
-    : ScheduledFutureTask(initialDelay, 0, outerTask)
+ScheduledFutureTask::ScheduledFutureTask(long initialDelay, std::unique_ptr<omnistream::Runnable>&& outerTask)
+    : ScheduledFutureTask(initialDelay, 0, std::move(outerTask))
 {
 }
 

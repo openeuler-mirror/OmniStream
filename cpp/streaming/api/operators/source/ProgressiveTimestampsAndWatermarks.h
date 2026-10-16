@@ -244,7 +244,7 @@ public:
         std::weak_ptr<ProgressiveTimestampsAndWatermarks> eventTimeLogic;
     };
 
-    TriggerProcessingTimeCallback* callback = nullptr;
+    std::shared_ptr<TriggerProcessingTimeCallback> callback;
 
     ~ProgressiveTimestampsAndWatermarks() override
     {
@@ -265,7 +265,7 @@ private:
     ProcessingTimeService* timeService = nullptr;
     long periodicWatermarkInterval;
 
-    ScheduledFutureTask* periodicEmitHandle = nullptr;
+    std::weak_ptr<ScheduledFutureTask> periodicEmitHandle;
     std::atomic<bool> periodicEmitStopped_ = true;
 
     void TriggerPeriodicEmit(long wallClockTimestamp);

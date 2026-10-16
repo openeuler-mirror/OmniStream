@@ -138,7 +138,7 @@ private:
             // reset flag; if it remains true when task fires, we have detected idleness
             failOnNextCheck = true;
             timeService->registerTimer(
-                timeService->getCurrentProcessingTime() + idleTimeout, new IdlenessDetectionTask(this));
+                timeService->getCurrentProcessingTime() + idleTimeout, std::make_shared<IdlenessDetectionTask>(this));
         }
     }
 

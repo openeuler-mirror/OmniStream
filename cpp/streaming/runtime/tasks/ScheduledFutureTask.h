@@ -17,9 +17,9 @@
 
 class ScheduledFutureTask {
 public:
-    ScheduledFutureTask(long time, const long period, omnistream::Runnable* outerTask);
+    ScheduledFutureTask(long time, const long period, std::unique_ptr<omnistream::Runnable>&& outerTask);
 
-    ScheduledFutureTask(long time, omnistream::Runnable* outerTask);
+    ScheduledFutureTask(long time, std::unique_ptr<omnistream::Runnable>&& outerTask);
 
     long GetDelay() const;
 
@@ -43,7 +43,7 @@ public:
 private:
     long time;
     const long period;
-    omnistream::Runnable* outerTask;
+    std::unique_ptr<omnistream::Runnable> outerTask;
     std::atomic<bool> stop = false;
 };
 

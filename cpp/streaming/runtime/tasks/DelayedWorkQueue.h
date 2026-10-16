@@ -17,9 +17,9 @@
 
 class DelayedWorkQueue {
 public:
-    void Offer(ScheduledFutureTask* task);
+    void Offer(std::shared_ptr<ScheduledFutureTask>& task);
 
-    ScheduledFutureTask* Take();
+    std::shared_ptr<ScheduledFutureTask> Take();
 
     void Shutdown();
 
@@ -27,7 +27,8 @@ public:
 
 private:
     struct Comparator {
-        bool operator()(ScheduledFutureTask* left, ScheduledFutureTask* right)
+        bool operator()(
+            const std::shared_ptr<ScheduledFutureTask>& left, const std::shared_ptr<ScheduledFutureTask>& right) const
         {
             // *left < *right means the right ScheduledFutureTask has higher priority (earlier execution time)
             return *left < *right;
@@ -36,7 +37,11 @@ private:
 
     std::mutex queueMutex;
     std::condition_variable condition;
-    std::priority_queue<ScheduledFutureTask*, std::vector<ScheduledFutureTask*>, Comparator> queue;
+    std::priority_queue<
+        std::shared_ptr<ScheduledFutureTask>,
+        std::vector<std::shared_ptr<ScheduledFutureTask>>,
+        Comparator>
+        queue;
     bool stop = false;
 };
 
