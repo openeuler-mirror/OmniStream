@@ -13,6 +13,7 @@
 #include "OperatorSavepointAdaptor.h"
 #include "AppendOnlyTopNSavepointAdaptor.h"
 #include "DeduplicateSavepointAdaptor.h"
+#include "GroupAggSavepointAdaptor.h"
 #include "StreamingJoinSavepointAdaptor.h"
 #include "WindowJoinSavepointAdaptor.h"
 
@@ -23,6 +24,7 @@ std::unique_ptr<OperatorSavepointAdaptor> OperatorSavepointAdaptorFactory::creat
         case FlinkSavepointAdaptorType::DeduplicateAdaptor: return std::make_unique<DeduplicateSavepointAdaptor>();
         case FlinkSavepointAdaptorType::AppendOnlyTopNAdaptor:
             return std::make_unique<AppendOnlyTopNSavepointAdaptor>();
+        case FlinkSavepointAdaptorType::GroupAggAdaptor: return std::make_unique<GroupAggSavepointAdaptor>();
         case FlinkSavepointAdaptorType::StreamingJoinNoUniqueKeyAdaptor:
         case FlinkSavepointAdaptorType::StreamingLeftOuterJoinNoUniqueKeyAdaptor:
             return std::make_unique<StreamingJoinSavepointAdaptor>(type);

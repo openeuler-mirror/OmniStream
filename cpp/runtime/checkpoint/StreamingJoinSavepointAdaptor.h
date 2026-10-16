@@ -21,6 +21,7 @@
 #include "OperatorSavepointAdaptor.h"
 #include "core/utils/ByteView.h"
 #include "runtime/state/restore/RestoreBackendDelegate.h"
+#include "runtime/state/restore/vb/VectorBatchRestoreHooks.h"
 #include "runtime/state/vbsave/VectorBatchSaveHooks.h"
 #include "runtime/state/vbsave/VectorBatchSavePlan.h"
 #include "table/types/logical/LogicalType.h"
@@ -38,7 +39,9 @@ class RestoreKVStateVB;
 // 两者的 entry payload 布局一致，差异只在 Omni Heap 快照会把同一 keyed key 下的 MapState
 // entry 聚合到一个 value 中。该适配器负责转换 metadata，并在保存 Heap 状态时展开聚合 Map；
 // 当前协议不再读取或写入 XXH128、ComboId 和 VectorBatch side table。
-class StreamingJoinSavepointAdaptor : public OperatorSavepointAdaptor, public VectorBatchSaveHooks {
+class StreamingJoinSavepointAdaptor : public OperatorSavepointAdaptor,
+                                      public VectorBatchSaveHooks,
+                                      public VectorBatchRestoreHooks {
 public:
     // 使用工厂判定出的 adaptorType 创建 StreamingJoin 格式互通适配器，算子描述在 prepare 阶段解析。
     explicit StreamingJoinSavepointAdaptor(FlinkSavepointAdaptorType adaptorType);
@@ -103,7 +106,7 @@ public:
         const std::vector<int8_t>& keyBytes,
         const std::vector<int8_t>& valueBytes,
         int kvStateId,
-        RestoreKVStateVB* writer);
+        RestoreKVStateVB* writer) override;
 
     /*========== Restore ==========*/
 

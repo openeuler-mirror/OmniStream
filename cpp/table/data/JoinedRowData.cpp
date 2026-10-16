@@ -245,3 +245,11 @@ void JoinedRowData::setStringView(int pos, std::string_view value)
         row2->setStringView(pos - row1->getArity(), value);
     }
 }
+
+void* JoinedRowData::getRawValue(int pos)
+{
+    if (pos < row1->getArity()) {
+        return row1->getRawValue(pos);
+    }
+    return row2->getRawValue(pos - row1->getArity());
+}
