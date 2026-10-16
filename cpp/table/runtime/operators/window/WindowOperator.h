@@ -82,6 +82,7 @@ public:
                 [](const std::string& type) { return type.find("RAW") != std::string::npos; }),
             accTypes.end());
         accumulatorArity = static_cast<int32_t>(accTypes.size());
+        accTypes_ = std::move(accTypes);
 
         // TODO: There should be different serializer for different window operator
         windowSerializer_ = std::make_unique<TimeWindow::Serializer>();
@@ -307,6 +308,7 @@ public:
     std::unique_ptr<Trigger<W>> trigger;
     std::unique_ptr<RecordCounter> recordCounter;
     int32_t accumulatorArity = 0;
+    std::vector<std::string> accTypes_;
     InternalValueState<K, W, RowData*>* windowState{};
     std::unique_ptr<InternalWindowProcessFunction<K, W>> windowFunction;
     InternalTimerService<W>* internalTimerService;
@@ -378,7 +380,7 @@ private:
     int32_t rowtimeIndex;
     int64_t allowedLateness = 0;
     std::unique_ptr<TypeSerializer> windowSerializer_;
-    std::unique_ptr<BinaryRowDataSerializer> accSerializer_;
+    std::unique_ptr<RowDataSerializer> accSerializer_;
     std::unique_ptr<KeySelector<K>> keySelector_;
     int64_t maxTimestamp = INT64_MIN;
 };

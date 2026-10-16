@@ -146,6 +146,9 @@ struct VectorBatchSavePlan {
 
     KeyGroupRange* keyGroupRange = nullptr;
     std::string keySerializerJson;
+
+    // 保存阶段由 Adaptor 持有的 serializer，保证构建 save contexts 后仍有明确的生命周期。
+    std::vector<std::unique_ptr<TypeSerializer>> ownedSerializers;
 };
 
 // ============================================================================

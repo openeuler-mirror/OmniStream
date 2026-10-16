@@ -107,6 +107,10 @@ protected:
     void writeBytesEntry(const std::vector<int8_t>&, ByteView) override
     {
     }
+
+    void writeComboIdList(const std::vector<int8_t>& /*keyBytes*/, const std::vector<ComboId>& /*comboIds*/) override
+    {
+    }
 };
 
 // Mock RestorePQState
