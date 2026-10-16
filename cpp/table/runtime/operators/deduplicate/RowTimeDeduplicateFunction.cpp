@@ -72,10 +72,17 @@ void RowTimeDeduplicateFunction::processBatch(omnistream::VectorBatch* inputVB, 
 
     for (const auto& [key, currentRowId] : candidates.rowIds) {
         ctx.setCurrentKey(key);
+        bool cacheHit = false;
+        if (backendType_ == omnistream::StateType::ROCKSDB && rocksdbCacheEnabled_) {
+            auto* rocksdbState = static_cast<RocksdbValueState<RowData*, VoidNamespace, RowData*>*>(recordState_);
+            cacheHit = rocksdbState->stateCache->contains(key, rocksdbState->getNamespace());
+        }
         RowData* previousRow = recordState_->value();
         std::unique_ptr<RowData> ownedPreviousRow;
-        if (backendType_ == omnistream::StateType::ROCKSDB && !rocksdbCacheEnabled_) {
-            ownedPreviousRow.reset(previousRow);
+        if (backendType_ == omnistream::StateType::ROCKSDB && previousRow != nullptr) {
+            // Misses return an owned row. Copy hits before later lookups can clear the cache.
+            ownedPreviousRow.reset(cacheHit ? previousRow->copy() : previousRow);
+            previousRow = ownedPreviousRow.get();
         }
         const bool isInsert = previousRow == nullptr;
         if (!isInsert && !shouldReplace(previousRow, inputVB, currentRowId)) {

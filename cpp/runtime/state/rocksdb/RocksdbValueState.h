@@ -164,6 +164,12 @@ public:
         clearAll();
     }
 
+    bool contains(const K& key, const N& ns) const
+    {
+        KeyType lookupKey(key, ns);
+        return cache.find(&lookupKey) != cache.end();
+    }
+
     V get(const K& key, const N& ns) override
     {
         // use new operator to create falconKey and falconValue, so that their life circle are bind with falcon cache.
@@ -217,31 +223,12 @@ public:
                     return value;
                 }
             }
-            // FalconValue<RowData*> owns a deep copy. Make room before inserting
-            // so the value returned below cannot be invalidated immediately by
-            // removeEldestState(), which flushes and clears the whole cache.
-            if constexpr (std::is_same_v<V, RowData*>) {
-                if (cache.size() >= cacheSizeLimit) {
-                    removeEldestState();
-                }
-            }
-
             auto falconValue = new ValType(value, false);
             cache.emplace(falconKey, falconValue);
-            if constexpr (std::is_same_v<V, RowData*>) {
-                // getValue() returns a newly allocated RowData on a RocksDB
-                // cache miss. The cache has already deep-copied it, so release
-                // the temporary and return the cache-owned copy. Cache hits and
-                // misses now have the same ownership contract for callers.
-                V cachedValue = falconValue->getValue();
-                delete value;
-                return cachedValue;
-            } else {
-                if (cache.size() > cacheSizeLimit) {
-                    removeEldestState();
-                }
-                return value;
+            if (cache.size() > cacheSizeLimit) {
+                removeEldestState();
             }
+            return value;
         }
     }
 
