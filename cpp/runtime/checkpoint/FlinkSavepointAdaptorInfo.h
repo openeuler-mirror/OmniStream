@@ -25,7 +25,8 @@ enum class FlinkSavepointAdaptorType {
     AppendOnlyTopNAdaptor,
     StreamingJoinNoUniqueKeyAdaptor,
     StreamingLeftOuterJoinNoUniqueKeyAdaptor,
-    WindowJoinAdaptor
+    WindowJoinAdaptor,
+    GroupAggAdaptor
 };
 
 inline const char* flinkSavepointAdaptorTypeName(FlinkSavepointAdaptorType type) noexcept
