@@ -269,13 +269,23 @@ void RocksdbMapState<K, N, UK, UV>::put(const UK& userKey, const UV& userValue)
 template <typename K, typename N, typename UK, typename UV>
 void RocksdbMapState<K, N, UK, UV>::putEntries(const std::vector<std::pair<UK, UV>>& entries)
 {
-    stateTable->putAllCurrentKey(currentNamespace, entries);
+    if (entries.empty()) {
+        return;
+    }
+    ROCKSDB_NAMESPACE::WriteBatch putBatch;
+    stateTable->putAllCurrentKey(putBatch, currentNamespace, entries);
+    stateTable->writeBatch(putBatch, true, "putAll");
 }
 
 template <typename K, typename N, typename UK, typename UV>
 void RocksdbMapState<K, N, UK, UV>::removeEntries(const std::vector<UK>& keys)
 {
-    stateTable->removeAllCurrentKey(currentNamespace, keys);
+    if (keys.empty()) {
+        return;
+    }
+    ROCKSDB_NAMESPACE::WriteBatch deleteBatch;
+    stateTable->removeAllCurrentKey(deleteBatch, currentNamespace, keys);
+    stateTable->writeBatch(deleteBatch, false, "removeAll");
 }
 
 template <typename K, typename N, typename UK, typename UV>

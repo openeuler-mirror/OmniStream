@@ -205,7 +205,7 @@ def test_q4_1m(flink_cluster):
     Test flink nexmark benchmark q4.sql
 
     There are 1000000 rows in the input file.
-    
+
     The query is specified in the file `q4_1m.sql`
 
     The expected output is:
