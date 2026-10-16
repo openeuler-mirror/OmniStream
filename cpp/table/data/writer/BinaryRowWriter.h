@@ -25,6 +25,8 @@ public:
     // virtual
     void writeLong(int pos, long value) override;
     void writeInt(int pos, int value) override;
+    void writeString(int pos, std::string_view value) override;
+    void writeRawValue(int pos, const uint8_t* bytes, size_t size) override;
 
     void reset() override;
 
@@ -42,6 +44,8 @@ protected:
     void setNullBit(int ordinal) override;
 
 private:
+    // 确保可变长度字段区有 requiredSize 字节的可用空间；必要时扩容并重新绑定 row。
+    void ensureVariableCapacity(int requiredSize);
     int nullBitsSizeInBytes_{};
     BinaryRowData* row_{};
     int fixedSize_{};

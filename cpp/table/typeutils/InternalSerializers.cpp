@@ -13,7 +13,9 @@
 
 #include "../../core/typeutils/LongSerializer.h"
 #include "../types/logical/RowType.h"
+#include "../types/logical/RawType.h"
 #include "RowDataSerializer.h"
+#include "RawValueDataSerializer.h"
 #include "StringDataSerializer.h"
 
 using namespace omniruntime::type;
@@ -26,7 +28,15 @@ TypeSerializer* InternalSerializers::create(LogicalType* type)
 TypeSerializer* InternalSerializers::createInternal(LogicalType* type)
 {
     switch (type->getTypeId()) {
-        case DataTypeId::OMNI_CONTAINER: return new RowDataSerializer(static_cast<omnistream::RowType*>(type));
+        case DataTypeId::OMNI_CONTAINER: {
+            if (auto* rowType = dynamic_cast<omnistream::RowType*>(type)) {
+                return new RowDataSerializer(rowType);
+            }
+            if (auto* rawType = dynamic_cast<omnistream::RawType*>(type)) {
+                return new RawValueDataSerializer(rawType->getClassName(), rawType->getSerializerString());
+            }
+            THROW_LOGIC_EXCEPTION("OMNI_CONTAINER type must be ROW or RAW: " << type->getTypeName());
+        }
         case DataTypeId::OMNI_LONG:
             return LongSerializer::INSTANCE; // `LongSerializer` is currently dummy, we use `RowDataSerializer`'s
                                              // `serialize` and `deserialize` for now

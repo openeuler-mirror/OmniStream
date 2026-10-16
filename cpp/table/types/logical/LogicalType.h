@@ -33,6 +33,10 @@ public:
     int getTypeId() const;
 
     bool isNullable() const;
+    const std::string& getTypeName() const
+    {
+        return typeName_;
+    }
     virtual std::vector<LogicalType*> getChildren() = 0;
 
     virtual nlohmann::json toJson() const;
@@ -45,6 +49,10 @@ public:
 
     static std::unordered_map<std::string, omniruntime::type::DataTypeId> nameToIdMap;
     static void buildNameToIdMap();
+
+private:
+    static LogicalType* parseRawType(
+        const std::string& flinkType, const std::string& basicStrippedType, bool isNullable);
 
 protected:
     bool isNullable_;

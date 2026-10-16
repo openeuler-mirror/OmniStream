@@ -274,14 +274,36 @@ TypeInformation* TypeInfoFactory::createDataStreamTypeInfo(const json& serialize
             typeInformation = new PojoTypeInfo(clazz, pojoFields);
         }
     } else if (serializerName == TYPE_NAME_MAP_SERIALIZER) {
-        if (serializerInfo.contains("keySerializer") && serializerInfo.contains("valueSerializer")) {
-            auto keyTypeInfo = createDataStreamTypeInfo(serializerInfo["keySerializer"]);
-            auto valueTypeInfo = createDataStreamTypeInfo(serializerInfo["valueSerializer"]);
-            typeInformation = new MapTypeInfo(keyTypeInfo, valueTypeInfo);
-        } else {
-            ERROR_RELEASE("Error:Unsupport map serializer format.");
-            throw std::runtime_error("Unsupport map serializer format.");
+        const json* keySerializer = nullptr;
+        const json* valueSerializer = nullptr;
+        if (serializerInfo.contains("keySerializer") && serializerInfo["keySerializer"].is_object() &&
+            !serializerInfo["keySerializer"].empty()) {
+            keySerializer = &serializerInfo["keySerializer"];
         }
+        if (serializerInfo.contains("valueSerializer") && serializerInfo["valueSerializer"].is_object() &&
+            !serializerInfo["valueSerializer"].empty()) {
+            valueSerializer = &serializerInfo["valueSerializer"];
+        }
+        // Compatibility with serializer descriptions that encode Map<K,V> as two nested fields.
+        if ((keySerializer == nullptr || valueSerializer == nullptr) && serializerInfo.contains("fieldSerializers") &&
+            serializerInfo["fieldSerializers"].is_array() && serializerInfo["fieldSerializers"].size() == 2) {
+            keySerializer = &serializerInfo["fieldSerializers"][0];
+            valueSerializer = &serializerInfo["fieldSerializers"][1];
+        }
+        if (keySerializer == nullptr || valueSerializer == nullptr) {
+            ERROR_RELEASE(
+                "MapSerializer missing key/value serializer; clazz=" << serializerInfo.value("clazz", "")
+                                                                     << ", json=" << serializerInfo.dump());
+            throw std::runtime_error(
+                "MapSerializer requires keySerializer and valueSerializer; java.util.HashMap does not contain "
+                "generic type information");
+        }
+        auto keyTypeInfo = createDataStreamTypeInfo(*keySerializer);
+        auto valueTypeInfo = createDataStreamTypeInfo(*valueSerializer);
+        if (keyTypeInfo == nullptr || valueTypeInfo == nullptr) {
+            throw std::runtime_error("MapSerializer nested serializer could not be converted to TypeInformation");
+        }
+        typeInformation = new MapTypeInfo(keyTypeInfo, valueTypeInfo);
     } else if (serializerName == TYPE_NAME_LIST_SERIALIZER) {
         auto elementTypeInfo = createDataStreamTypeInfo(serializerInfo["elementSerializer"]);
         typeInformation = new ListTypeInfo(elementTypeInfo);

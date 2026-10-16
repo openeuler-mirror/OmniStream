@@ -24,7 +24,8 @@ enum class FlinkSavepointAdaptorType {
     DeduplicateAdaptor,
     AppendOnlyTopNAdaptor,
     StreamingJoinNoUniqueKeyAdaptor,
-    StreamingLeftOuterJoinNoUniqueKeyAdaptor
+    StreamingLeftOuterJoinNoUniqueKeyAdaptor,
+    GroupAggAdaptor
 };
 
 struct FlinkSavepointAdaptorInfo {

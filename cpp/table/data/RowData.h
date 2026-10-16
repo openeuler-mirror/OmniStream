@@ -92,6 +92,12 @@ public:
     {
         NOT_IMPL_EXCEPTION;
     };
+
+    virtual void* getRawValue(int pos)
+    {
+        NOT_IMPL_EXCEPTION;
+    };
+
     virtual void setStringView(int pos, std::string_view value)
     {
         NOT_IMPL_EXCEPTION;

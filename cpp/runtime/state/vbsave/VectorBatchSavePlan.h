@@ -46,6 +46,7 @@ struct VectorBatchSaveStateContext {
     int mappedKvStateId = -1;
     std::string logicalStateName;
     TypeSerializer* valueSerializer = nullptr;
+    TypeSerializer* sourceValueSerializer = nullptr;
     std::shared_ptr<VectorBatchStateAccessor> vbAccessor;
     VectorBatchStateType stateType = VectorBatchStateType::KV;
 
@@ -63,12 +64,14 @@ struct VectorBatchSaveStateContext {
           mappedKvStateId(other.mappedKvStateId),
           logicalStateName(std::move(other.logicalStateName)),
           valueSerializer(other.valueSerializer),
+          sourceValueSerializer(other.sourceValueSerializer),
           vbAccessor(std::move(other.vbAccessor)),
           stateType(other.stateType)
     {
         other.writable = false;
         other.mappedKvStateId = -1;
         other.valueSerializer = nullptr;
+        other.sourceValueSerializer = nullptr;
         other.stateType = VectorBatchStateType::KV;
     }
 
@@ -80,11 +83,13 @@ struct VectorBatchSaveStateContext {
             mappedKvStateId = other.mappedKvStateId;
             logicalStateName = std::move(other.logicalStateName);
             valueSerializer = other.valueSerializer;
+            sourceValueSerializer = other.sourceValueSerializer;
             vbAccessor = std::move(other.vbAccessor);
             stateType = other.stateType;
             other.writable = false;
             other.mappedKvStateId = -1;
             other.valueSerializer = nullptr;
+            other.sourceValueSerializer = nullptr;
             other.stateType = VectorBatchStateType::KV;
         }
         return *this;
@@ -135,6 +140,7 @@ struct VectorBatchSavePlan {
         TypeSerializer* valueSerializer = nullptr;
         VectorBatchAccessorOptions accessorOptions;
         VectorBatchStateType stateType = VectorBatchStateType::KV_WITH_VB;
+        TypeSerializer* sourceValueSerializer = nullptr;
     };
     std::vector<StateContextSpec> stateContextSpecs;
 
