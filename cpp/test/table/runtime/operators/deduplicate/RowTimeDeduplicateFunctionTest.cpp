@@ -1104,6 +1104,23 @@ TEST(RowTimeDeduplicateTest, RocksDBCacheMissReadsAndUpdatesSelectedRowData)
     EXPECT_EQ(updateOutput->getRowKind(1), RowKind::UPDATE_AFTER);
     EXPECT_EQ(reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(updateOutput->Get(2))->GetValue(0), 3);
     EXPECT_EQ(reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(updateOutput->Get(2))->GetValue(1), 4);
+
+    auto probeBatch = std::unique_ptr<omnistream::VectorBatch>(getSameKeyBatch({4}, 400, 7, 7000));
+    KeySelector<RowData*> selector({OMNI_LONG, OMNI_LONG}, {0, 1});
+    auto probeKey = std::unique_ptr<RowData>(selector.getKey(probeBatch.get(), 0));
+    keyedOp->setCurrentKey(probeKey.get());
+    rocksState->stateCache->flush();
+    rocksState->stateCache->clearAll();
+    EXPECT_FALSE(rocksState->stateCache->contains(probeKey.get(), rocksState->getNamespace()));
+    std::unique_ptr<RowData> coldRow(rocksState->value());
+    ASSERT_NE(coldRow, nullptr);
+    // The baseline Falcon key compares raw RowData pointers by address. A lookup
+    // copies the key, so this path remains a miss even for the same logical key.
+    EXPECT_FALSE(rocksState->stateCache->contains(probeKey.get(), rocksState->getNamespace()));
+    std::unique_ptr<RowData> nextColdRow(rocksState->value());
+    ASSERT_NE(nextColdRow, nullptr);
+    EXPECT_NE(coldRow.get(), nextColdRow.get());
+    EXPECT_FALSE(rocksState->stateCache->contains(probeKey.get(), rocksState->getNamespace()));
 }
 
 namespace {
