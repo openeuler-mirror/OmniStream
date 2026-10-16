@@ -69,7 +69,3 @@ void TimeWindow::Serializer::copy(DataInputView* source, DataOutputSerializer* t
     target->writeLong(source->readLong());
     target->writeLong(source->readLong());
 }
-BackendDataType TimeWindow::Serializer::getBackendId() const
-{
-    return BackendDataType::TIME_WINDOW_BK;
-}

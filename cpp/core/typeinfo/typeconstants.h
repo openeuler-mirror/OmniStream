@@ -79,6 +79,7 @@ extern const char* TYPE_NAME_SORTED_VECTOR_LONG_CLASS_LINE;
 extern const char* TYPE_NAME_TIME_WINDOW;
 extern const char* TYPE_NAME_TIME_WINDOW_CLASS;
 extern const char* TYPE_NAME_TIME_WINDOW_CLASS_LINE;
+extern const char* TYPE_NAME_TIME_WINDOW_SERIALIZER;
 
 extern const char* TYPE_NAME_EXTERNAL_SERIALIZER;
 

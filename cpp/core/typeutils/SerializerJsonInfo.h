@@ -37,6 +37,7 @@ enum class SerializerType {
     ROW = 15,                  /* use fields [type, logicalType] */
     BINARY_ROW = 16,           /* use fields [type, fieldNames] */
     EXTERNAL = 17,             /* use fields [type, logicalType, valueSerializer, serializerAttributes] */
+    TIME_WINDOW = 18,          /* use fields [type, elementType] */
 };
 
 struct SerializerAttributes {
