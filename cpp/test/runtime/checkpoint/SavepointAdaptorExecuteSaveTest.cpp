@@ -24,6 +24,7 @@
 #include "runtime/checkpoint/AppendOnlyTopNSavepointAdaptor.h"
 #include "runtime/checkpoint/CheckpointOptions.h"
 #include "runtime/checkpoint/DeduplicateSavepointAdaptor.h"
+#include "runtime/checkpoint/GroupAggSavepointAdaptor.h"
 #include "runtime/checkpoint/SavepointType.h"
 #include "runtime/checkpoint/StreamingJoinSavepointAdaptor.h"
 #include "runtime/checkpoint/StreamingJoinSavepointUtil.h"
@@ -37,6 +38,8 @@
 #include "table/data/util/ComboIdUtil.h"
 #include "table/data/util/VectorBatchUtil.h"
 #include "table/typeutils/SortedVectorLong.h"
+#include "table/typeutils/RowDataSerializer.h"
+#include "table/types/logical/RowType.h"
 #include "test/runtime/state/MockSavepointBridge.h"
 
 using ::testing::_;
@@ -314,6 +317,40 @@ TEST_F(SavepointAdaptorExecuteSaveTest, DeduplicateSaveExecutesConvertKVRowData)
         std::make_pair(
             omnistream::VectorBatchUtil::getVectorBatchId(comboId), omnistream::VectorBatchUtil::getRowId(comboId)));
     EXPECT_EQ(accessor->closeCalls, 1);
+}
+
+TEST_F(SavepointAdaptorExecuteSaveTest, GroupAggSaveExecutesAccumulatorExpansion)
+{
+    omnistream::GroupAggSavepointAdaptor adaptor;
+    adaptor.prepareForSave({{"aggInfoList", {{"accTypes", {"RAW('example.DataView', '')", "BIGINT"}}}}});
+    omnistream::RowType rowType(true, std::vector<std::string>{"BIGINT"});
+    RowDataSerializer serializer(&rowType);
+    std::unique_ptr<BinaryRowData> row(BinaryRowData::createBinaryRowDataWithMem(1));
+    row->setLong(0, 37);
+    DataOutputSerializer valueOutput(128);
+    serializer.serialize(row.get(), valueOutput);
+    auto iterator = std::make_shared<SingleEntryIterator>(std::vector<int8_t>{0x01}, copyOutput(valueOutput), 0);
+    TestSnapshotResources resources;
+    resources.metaInfos = {makeKeyValueMeta("accState", "VALUE", &serializer)};
+    resources.iterator = iterator;
+
+    EXPECT_GT(saveAndGetPosition(adaptor, resources), 0U);
+    EXPECT_TRUE(iterator->closed);
+    EXPECT_TRUE(resources.requestedLogicalStateName.empty());
+}
+
+TEST_F(SavepointAdaptorExecuteSaveTest, GroupAggSaveRejectsMalformedAccumulator)
+{
+    omnistream::GroupAggSavepointAdaptor adaptor;
+    adaptor.prepareForSave({{"aggInfoList", {{"accTypes", {"BIGINT", "RAW('example.DataView', '')"}}}}});
+    auto iterator =
+        std::make_shared<SingleEntryIterator>(std::vector<int8_t>{0x01}, std::vector<int8_t>{0x01, 0x02, 0x03}, 0);
+    TestSnapshotResources resources;
+    resources.metaInfos = {makeKeyValueMeta("accState", "VALUE", LongSerializer::INSTANCE)};
+    resources.iterator = iterator;
+
+    EXPECT_THROW(saveAndGetPosition(adaptor, resources), std::exception);
+    EXPECT_TRUE(iterator->closed);
 }
 
 TEST_F(SavepointAdaptorExecuteSaveTest, StreamingJoinSaveExecutesConvertKVRowData)

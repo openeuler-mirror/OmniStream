@@ -6,6 +6,8 @@
 #include "test_utils/Mocks.h"
 #include "nlohmann/json.hpp"
 #include "runtime/executiongraph/StreamConfigPOD.h"
+#include "streaming/api/operators/KeyedProcessOperator.h"
+#include "table/runtime/operators/aggregate/GroupAggFunction.h"
 #include <unordered_map>
 
 class MockStreamOperatorFactory : public omnistream::StreamOperatorFactory {
@@ -66,4 +68,39 @@ TEST(StreamOperatorFactoryTest, CreateOperatorAndCollector_UnknownOperator)
 
     MockOutput output;
     EXPECT_EQ(MockStreamOperatorFactory::createOperatorAndCollector(id, description, &output), nullptr);
+}
+
+TEST(StreamOperatorFactoryTest, GroupAggConfiguresCompatibleSavepointInBothFactoryPaths)
+{
+    const std::string id = "org.apache.flink.streaming.api.operators.KeyedProcessOperator";
+    for (bool hasRaw : {false, true}) {
+        auto accTypes = nlohmann::json::array({"BIGINT"});
+        if (hasRaw) {
+            accTypes.push_back("RAW('example.DataView', '')");
+        }
+        const nlohmann::json description = {
+            {"processFunction", "GroupAggFunction"},
+            {"inputTypes", {"BIGINT"}},
+            {"outputTypes", {"BIGINT", "BIGINT"}},
+            {"grouping", {0}},
+            {"distinctInfos", nlohmann::json::array()},
+            {"aggInfoList", {{"indexOfCountStar", -1}, {"accTypes", accTypes}, {"aggValueTypes", {"BIGINT"}}}},
+        };
+        const auto expected =
+            hasRaw ? FlinkSavepointAdaptorType::GroupAggAdaptor : FlinkSavepointAdaptorType::OmniIsCompatible;
+        MockOutput output;
+        omnistream::OperatorConfig config(id, "GroupAggregate", {}, {}, description);
+        std::unique_ptr<StreamOperator> configOp(
+            MockStreamOperatorFactory::createOperatorAndCollector(config, &output));
+        std::unique_ptr<StreamOperator> podOp(
+            MockStreamOperatorFactory::createOperatorAndCollector(id, description.dump(), &output));
+        for (auto* op : {configOp.get(), podOp.get()}) {
+            ASSERT_NE(op, nullptr);
+            auto* aggOp = dynamic_cast<AbstractStreamOperator<RowData*>*>(op);
+            ASSERT_NE(aggOp, nullptr);
+            EXPECT_EQ(aggOp->getSavepointAdaptorInfo().type, expected);
+            EXPECT_TRUE(aggOp->getSavepointAdaptorInfo().reason.empty());
+            EXPECT_EQ(aggOp->getOperatorDescription(), description);
+        }
+    }
 }

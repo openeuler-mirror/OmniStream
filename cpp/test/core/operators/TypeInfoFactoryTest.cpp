@@ -3,6 +3,7 @@
 #include "table/types/logical/LogicalType.h"
 #include "typeinfo/StringTypeInfo.h"
 #include "core/typeutils/TypeSerializer.h"
+#include "core/typeutils/MapSerializer.h"
 #include "execution/Environment.h"
 #include "basictypes/String.h"
 #include "runtime/state/VoidNamespace.h"
@@ -357,4 +358,59 @@ TEST(TypeInfoFactoryTest, CreateTimerSerializerFallsBackOnEmptyClassNameTest)
 
     timer->putRefCount();
     typeInfo.reset();
+}
+
+TEST(TypeInfoFactoryTest, MapSerializerDescriptionsPreserveKeyAndValueSchema)
+{
+    const auto canonical = nlohmann::json::parse(R"({
+        "serializerName": "org.apache.flink.api.common.typeutils.base.MapSerializer",
+        "keySerializer": {
+            "serializerName": "org.apache.flink.api.common.typeutils.base.LongSerializer"
+        },
+        "valueSerializer": {
+            "serializerName": "org.apache.flink.api.common.typeutils.base.StringSerializer"
+        }
+    })");
+    auto legacy = canonical;
+    legacy["fieldSerializers"] = nlohmann::json::array({canonical["keySerializer"], canonical["valueSerializer"]});
+    legacy.erase("keySerializer");
+    legacy.erase("valueSerializer");
+    auto emptyChildren = legacy;
+    emptyChildren["keySerializer"] = nlohmann::json::object();
+    emptyChildren["valueSerializer"] = nullptr;
+
+    for (const auto& description : {canonical, legacy, emptyChildren}) {
+        std::unique_ptr<TypeInformation> typeInfo(TypeInfoFactory::createDataStreamTypeInfo(description));
+        ASSERT_NE(typeInfo, nullptr);
+        std::unique_ptr<TypeSerializer> serializer(typeInfo->createTypeSerializer());
+        auto* mapSerializer = dynamic_cast<MapSerializer*>(serializer.get());
+        ASSERT_NE(mapSerializer, nullptr);
+        const auto metadata = nlohmann::json::parse(mapSerializer->toJson());
+        EXPECT_EQ(
+            nlohmann::json::parse(metadata["keySerializer"].get<std::string>())["type"],
+            static_cast<int>(SerializerType::LONG));
+        EXPECT_EQ(
+            nlohmann::json::parse(metadata["valueSerializer"].get<std::string>())["type"],
+            static_cast<int>(SerializerType::STRING_T));
+    }
+}
+
+TEST(TypeInfoFactoryTest, MapSerializerRejectsDescriptionsWithoutBothChildSchemas)
+{
+    const auto missingChildren = nlohmann::json::parse(R"({
+        "serializerName": "org.apache.flink.api.common.typeutils.base.MapSerializer",
+        "clazz": "java.util.HashMap"
+    })");
+    auto incompleteLegacy = missingChildren;
+    incompleteLegacy["fieldSerializers"] =
+        nlohmann::json::array({{{"serializerName", "org.apache.flink.api.common.typeutils.base.LongSerializer"}}});
+    auto nullChildren = missingChildren;
+    nullChildren["keySerializer"] = nullptr;
+    nullChildren["valueSerializer"] = nullptr;
+
+    for (const auto& description : {missingChildren, incompleteLegacy, nullChildren}) {
+        EXPECT_THROW(
+            { std::unique_ptr<TypeInformation> typeInfo(TypeInfoFactory::createDataStreamTypeInfo(description)); },
+            std::runtime_error);
+    }
 }
