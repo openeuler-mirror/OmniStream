@@ -293,6 +293,12 @@ public:
                             // createOrUpdateInternalListState<VoidNamespace, int64_t>
                             delete reinterpret_cast<RocksdbStateTable<K, VoidNamespace, int64_t>*>(stateTablePtr);
                         }
+                    } else if (dataId == BackendDataType::ROW_BK) {
+                        if (nsId == BackendDataType::BIGINT_BK) {
+                            delete reinterpret_cast<RocksdbStateTable<K, int64_t, RowData*>*>(stateTablePtr);
+                        } else {
+                            delete reinterpret_cast<RocksdbStateTable<K, VoidNamespace, RowData*>*>(stateTablePtr);
+                        }
                     } else {
                         GErrorLog("Unhandled LIST state type in dispose: dataId=" + std::to_string((int)dataId));
                     }
@@ -382,7 +388,7 @@ private:
     template <typename N, typename UK, typename UV>
     RocksdbMapStateTable<K, N, UK, UV>* tryRegisterMapStateTable(
         TypeSerializer* namespaceSerializer, MapStateDescriptor<UK, UV>* stateDesc);
-    // pointer to StateTable<K, N, V>
+    // pointer to StateTable<K, N, V>, StateDescriptor, namespace BackendDataType
     emhash7::HashMap<std::string, std::tuple<uintptr_t, StateDescriptor*, BackendDataType>> registeredKvStates;
     // pointer to intervalKvState
     emhash7::HashMap<std::string, uintptr_t> createdKvState;
