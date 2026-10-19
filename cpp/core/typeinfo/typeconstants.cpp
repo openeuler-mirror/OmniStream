@@ -86,8 +86,7 @@ const char* TYPE_NAME_SORTED_VECTOR_LONG_CLASS_LINE =
     "com_huawei_omniruntime_flink_runtime_api_state_serializer_model_entity_SortedVectorLong";
 
 const char* TYPE_NAME_TIME_WINDOW = "TimeWindow";
-const char* TYPE_NAME_TIME_WINDOW_CLASS =
-    "com.huawei.omniruntime.flink.runtime.api.state.serializer.model.entity.TimeWindow";
-const char* TYPE_NAME_TIME_WINDOW_CLASS_LINE =
-    "com_huawei_omniruntime_flink_runtime_api_state_serializer_model_entity_TimeWindow";
+const char* TYPE_NAME_TIME_WINDOW_CLASS = "org.apache.flink.table.runtime.operators.window.TimeWindow";
+const char* TYPE_NAME_TIME_WINDOW_CLASS_LINE = "org_apache_flink_table_runtime_operators_window_TimeWindow";
+const char* TYPE_NAME_TIME_WINDOW_SERIALIZER = "org.apache.flink.table.runtime.operators.window.TimeWindow$Serializer";
 const char* TYPE_NAME_EXTERNAL_SERIALIZER = "org.apache.flink.table.runtime.typeutils.ExternalSerializer";
