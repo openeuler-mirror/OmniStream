@@ -751,7 +751,16 @@ protected:
         while (serializedData.Available() > 0) {
             void* resPtr = getStateSerializer()->deserialize(serializedData);
             if constexpr (std::is_pointer_v<S>) {
-                result->push_back((S)resPtr);
+                if constexpr (std::is_base_of_v<RowData, std::remove_pointer_t<S>>) {
+                    auto* br = dynamic_cast<BinaryRowData*>(static_cast<RowData*>(resPtr));
+                    if (br != nullptr) {
+                        result->push_back(static_cast<S>(br->copy()));
+                    } else {
+                        result->push_back((S)resPtr);
+                    }
+                } else {
+                    result->push_back((S)resPtr);
+                }
             } else {
                 if (resPtr == nullptr) {
                     result->push_back(std::numeric_limits<S>::max());
