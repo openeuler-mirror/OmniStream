@@ -41,7 +41,7 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 |项目| 版本                                                                                                                                                                                                                                                                                           | 说明                                                                                                                                                                |
 |--|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 |操作系统| [openEuler 22.03 LTS SP4](https://dl-cdn.openeuler.openatom.cn/openEuler-22.03-LTS-SP4/ISO/aarch64/openEuler-22.03-LTS-SP4-everything-debug-aarch64-dvd.iso)                                                                                                                                 | 无特殊要求。                                                                                                                                                            |
-|JDK| [毕昇JDK 17（建议使用毕昇JDK 17.0.18-b13）](https://mirrors.huaweicloud.com/kunpeng/archive/compiler/bisheng_jdk/bisheng-jdk-17.0.18-b13-linux-aarch64.tar.gz)                                                                                                                                                      | JDK需要部署到所有容器内。                                                                                                                                                    |
+|JDK| [毕昇JDK 17（建议使用毕昇JDK 17.0.18-b13）](https://mirrors.huaweicloud.com/kunpeng/archive/compiler/bisheng_jdk/bisheng-jdk-17.0.18-b13-linux-aarch64.tar.gz)                                                                                                                                                      | JDK（Java Development Kit，Java 开发工具包）需要部署到所有容器内。                                                                                                                                                    |
 |Flink| [1.16.3](https://archive.apache.org/dist/flink/flink-1.16.3/flink-1.16.3-bin-scala_2.12.tgz)<br>[1.17.1](https://archive.apache.org/dist/flink/flink-1.17.1/flink-1.17.1-bin-scala_2.12.tgz)<br>[1.20.0](https://archive.apache.org/dist/flink/flink-1.20.0/flink-1.20.0-bin-scala_2.12.tgz) | 部署指南请参见[《Flink 部署指南（CentOS&openEuler）》](https://www.hikunpeng.com/document/detail/zh/kunpengbds/ecosystemEnable/Flink/kunpengflink_04_0001.html)。Flink需要部署到所有容器内。 |
 |Docker| [19.03.15](https://www.hikunpeng.com/document/detail/zh/kunpengboostkithistory/251RC1/bds/kunpengbds_omniruntime_20_0911.html.)                                                                                                                                                      | 无特殊说明。                                                                                                                                                            |
 |Nexmark| [v0.2.0](https://www.hikunpeng.com/document/detail/zh/kunpengboostkithistory/251RC1/bds/kunpengbds_omniruntime_20_0914.html.html)                                                                                                                                                        | 请按照[官网说明](https://github.com/nexmark/nexmark)进行编译，Nexmark需要部署到所有容器内。                                                                                                                                |
@@ -63,10 +63,10 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 |名称| 包名                                        |发布类型|说明| 获取地址                                                                                                                                                                                                                                                               |
 |--|-------------------------------------------|--|--|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 |OmniStream压缩包| BoostKit-omniruntime-omnistream-{version}.zip |开源|OmniStream Flink Native化特性软件安装包。请从开源仓Releases页面获取最新发布版本的软件包，{version}为实际发布版本号。| [获取链接](https://gitcode.com/openeuler/OmniStream/releases) |
-|UDF翻译工具| UNT-1.0-35.noarch.rpm                     |开源|UDF翻译工具RPM包，安装后在/opt路径下新增UDF翻译工具。| [获取链接](https://eur.openeuler.openatom.cn/results/cutie-deng/UNT/openeuler-22.03_LTS_SP4-aarch64/00110412-UNT/UNT-1.0-35.noarch.rpm)                                                                                                                                |
-|AI4C| AI4C-1.0.4-8.aarch64.rpm                  |开源|支持编译器集成机器学习驱动的优化技术的框架。RPM包直接安装。| [获取链接](https://gitcode.com/boostkit/boostkit-bigdata/releases/download/25.1.RC1-OmniStream-release/AI4C-1.0.4-8.aarch64.rpm)                                                                                                                                   |
+|UDF翻译工具| UNT-1.0-35.noarch.rpm                     |开源|UDF（User-Defined Function，用户自定义函数）翻译工具RPM包，安装后在/opt路径下新增UDF翻译工具。| [获取链接](https://eur.openeuler.openatom.cn/results/cutie-deng/UNT/openeuler-22.03_LTS_SP4-aarch64/00110412-UNT/UNT-1.0-35.noarch.rpm)                                                                                                                                |
+|AI4C| AI4C-1.0.4-8.aarch64.rpm                  |开源|AL4C（AI for Compiler，AI辅助编译器）支持编译器集成机器学习驱动的优化技术的框架。RPM包直接安装。| [获取链接](https://gitcode.com/boostkit/boostkit-bigdata/releases/download/25.1.RC1-OmniStream-release/AI4C-1.0.4-8.aarch64.rpm)                                                                                                                                   |
 |KACC_JSON| BoostKit-kaccjson_1.1.0.zip               |闭源|用于UDF翻译中替换GSON的C++版实现，该ZIP包含适配层和KACC_JSON核心实现，内含若干头文件和静态库。<br>该文件从Dependency_library_OmniStream.zip解压获得。| [获取链接](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip)                                                                                                                                    |
-|KSL| BoostKit-ksl_2.5.1.zip                    |闭源|正则加速库，该zip包含ReplaceAll用于优化String基础库，内含头文件和1个静态库。| [获取链接](https://www.hikunpeng.com/boostkit/library/system?subtab=Hyperscan&version=2.5.1)                                                                                                                                                                           |
+|KSL| BoostKit-ksl_2.5.1.zip                    |闭源|KSL（Kunpeng System Library，鲲鹏系统库），该zip包含ReplaceAll用于优化String基础库，内含头文件和1个静态库。| [获取链接](https://www.hikunpeng.com/boostkit/library/system?subtab=Hyperscan&version=2.5.1)                                                                                                                                                                           |
 |依赖库| Dependency_library_Default_OmniStream.zip               |开源|OmniStream Flink Native化运行时所依赖的库文件。从开源仓Releases页面最新发布版本的Dependency_library_OmniStream.zip文件解压获得。| [获取链接](https://gitcode.com/openeuler/OmniStream/releases) |
 
 **软件安装包完整性校验<a name="section16501429204018"></a>**
@@ -170,7 +170,7 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
         yum -y install openssh-clients openssh-server passwd vim findutils net-tools libXext libXrender gcc cmake make gcc-c++ unzip wget libXtst
         ```
 
-    3. 生成RSA密钥。
+    3. 生成RSA（Rivest–Shamir–Adleman，RSA 公钥密码算法）密钥。
 
         ```bash
         ssh-keygen -A
@@ -786,6 +786,18 @@ rpm -ivh --nodeps AI4C-1.0.4-8.aarch64.rpm
         ```bash
         exit
         ```
+
+### 缩略语
+
+| 缩略语 | 英文全称 | 中文全称 |
+| --- | --- | --- |
+| JDK | Java Development Kit|Java开发工具包|
+| RSA | Rivest–Shamir–Adleman| RSA公钥密码算法 |
+| KSL |  Kunpeng System Library|鲲鹏系统库|
+| AI4C |AI for Compiler|AI辅助编译器|
+| UDF | User-Defined Function |用户自定义函数|
+
+### 修订记录
 
 | 文档版本 | 发布日期 | 修改说明 |
 | --- | --- | --- |
