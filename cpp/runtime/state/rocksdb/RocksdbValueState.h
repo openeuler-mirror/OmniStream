@@ -164,6 +164,12 @@ public:
         clearAll();
     }
 
+    bool contains(const K& key, const N& ns) const
+    {
+        KeyType lookupKey(key, ns);
+        return cache.find(&lookupKey) != cache.end();
+    }
+
     V get(const K& key, const N& ns) override
     {
         // use new operator to create falconKey and falconValue, so that their life circle are bind with falcon cache.
