@@ -12,6 +12,7 @@
 #define FLINK_TNEL_LISTSTATEDESCRIPTOR_H
 #include "StateDescriptor.h"
 #include "ListState.h"
+#include "core/typeutils/ListSerializer.h"
 
 /**
  * T: The type of the values that can be added to the list state.
@@ -22,7 +23,25 @@ public:
     ListStateDescriptor(std::string& name, TypeSerializer* serializer) : StateDescriptor(name, serializer)
     {
         backendDataId = serializer->getBackendId();
+        if (serializer->getBackendId() == BackendDataType::ROW_BK) {
+            listSerializer_ = new ListSerializer(serializer, /*ownsElementSerializer=*/false);
+        }
     };
+    ~ListStateDescriptor()
+    {
+        delete listSerializer_;
+    }
+    TypeSerializer* getStateSerializer() override
+    {
+        return listSerializer_ != nullptr ? listSerializer_ : StateDescriptor::getStateSerializer();
+    }
+    void SetStateSerializer(TypeSerializer* newStateSerializer) override
+    {
+        StateDescriptor::SetStateSerializer(newStateSerializer);
+        if (listSerializer_ != nullptr) {
+            listSerializer_->setElementSerializer(newStateSerializer);
+        }
+    }
     Type getType() override
     {
         return StateDescriptor::Type::LIST;
@@ -48,6 +67,7 @@ public:
 
 protected:
     BackendDataType backendDataId;
+    ListSerializer* listSerializer_ = nullptr;
 };
 
 using DataStreamListStateDescriptor = ListStateDescriptor<Object*>;

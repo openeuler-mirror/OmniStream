@@ -21,6 +21,7 @@
 #include "AbstractKeyedStateBackend.h"
 #include "InternalKeyContext.h"
 #include "core/typeutils/TypeSerializer.h"
+#include "core/typeutils/ListSerializer.h"
 #include "core/api/common/state/StateDescriptor.h"
 #include "core/api/common/state/ListStateDescriptor.h"
 #include "core/api/common/state/MapStateDescriptor.h"
@@ -660,6 +661,11 @@ RocksdbStateTable<K, N, S>* RocksdbKeyedStateBackend<K>::tryRegisterStateTable(
 {
     auto it = registeredKvStates.find(stateDesc->getName());
     TypeSerializer* newStateSerializer = stateDesc->getStateSerializer();
+    if (stateDesc->getType() == StateDescriptor::Type::LIST) {
+        if (auto* listSerializer = dynamic_cast<ListSerializer*>(newStateSerializer)) {
+            newStateSerializer = listSerializer->getElementSerializer();
+        }
+    }
     if (it != registeredKvStates.end()) {
         auto stateTable = reinterpret_cast<RocksdbStateTable<K, N, S>*>(std::get<0>(it->second)); // 这里转成Rocksdb
         std::unique_ptr<RegisteredKeyValueStateBackendMetaInfo> restoredKvMetaInfo = stateTable->getMetaInfo();
@@ -837,8 +843,13 @@ void RocksdbKeyedStateBackend<K>::registerKvStateInformation(
             rocksDbKvStateInfo->columnFamilyHandle_, rocksDbKvStateInfo->metaInfo_);
         kvStateInformation_->emplace(stateWithVb, newRocksDbKvStateInfo);
     } else {
+        // vb 伴生状态 meta 保持元素 serializer（RowDataSerializer），避免写入 ListSerializer。
+        TypeSerializer* vbStateSerializer = stateSerializer;
+        if (auto* listSerializer = dynamic_cast<ListSerializer*>(stateSerializer)) {
+            vbStateSerializer = listSerializer->getElementSerializer();
+        }
         auto metaInfo = std::make_shared<RegisteredKeyValueStateBackendMetaInfo>(
-            stateDesc->getType(), stateWithVb, namespaceSerializer, stateSerializer);
+            stateDesc->getType(), stateWithVb, namespaceSerializer, vbStateSerializer);
         auto rocksDbKvStateInfo = std::make_shared<RocksDbKvStateInfo>(nullptr, metaInfo);
         kvStateInformation_->emplace(stateWithVb, rocksDbKvStateInfo);
     }

@@ -215,6 +215,7 @@ private:
     /**
      * Deserializes a std::vector from checkpoint bytes using the ListDelimitedSerializer format.
      * Format: [elem_1][','][elem_2][',']...[elem_N]  (no size prefix, comma-separated)
+     * This is the unified savepoint value format Flink uses for ListState.
      * Mirrors HeapSingleStateIterator::serializeVector() and
      * HeapKeyedStateBackendBuilder::deserializeVector().
      */
@@ -222,7 +223,7 @@ private:
     static std::vector<V>* deserializeVector(TypeSerializer* elemSer, DataInputDeserializer& input)
     {
         auto* vec = new std::vector<V>();
-        while (input.Available() > 0) {
+        auto readElement = [&]() {
             if constexpr (std::is_same_v<V, Object*>) {
                 Object* buf = elemSer->GetBuffer();
                 elemSer->deserialize(buf, input);
@@ -236,6 +237,9 @@ private:
                 vec->push_back(*static_cast<V*>(raw));
                 delete static_cast<V*>(raw);
             }
+        };
+        while (input.Available() > 0) {
+            readElement();
             if (input.Available() > 0) {
                 input.readByte(); // consume ',' delimiter
             }
@@ -523,6 +527,20 @@ private:
                 auto* vecVal = deserializeVector<int64_t>(elemSer, valInput);
                 auto* table =
                     reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<int64_t>*>*>(stateTablePtr);
+                table->put(*static_cast<K*>(rawKey), keyGroupId, *static_cast<VoidNamespace*>(rawNs), vecVal);
+                delete static_cast<K*>(rawKey);
+                delete static_cast<VoidNamespace*>(rawNs);
+            } else if (nsBackendId == BackendDataType::BIGINT_BK && dataId == BackendDataType::ROW_BK) {
+                auto* vecVal = deserializeVector<RowData*>(elemSer, valInput);
+                auto* table =
+                    reinterpret_cast<CopyOnWriteStateTable<K, int64_t, std::vector<RowData*>*>*>(stateTablePtr);
+                table->put(*static_cast<K*>(rawKey), keyGroupId, *static_cast<int64_t*>(rawNs), vecVal);
+                delete static_cast<K*>(rawKey);
+                delete static_cast<int64_t*>(rawNs);
+            } else if (dataId == BackendDataType::ROW_BK) {
+                auto* vecVal = deserializeVector<RowData*>(elemSer, valInput);
+                auto* table =
+                    reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<RowData*>*>*>(stateTablePtr);
                 table->put(*static_cast<K*>(rawKey), keyGroupId, *static_cast<VoidNamespace*>(rawNs), vecVal);
                 delete static_cast<K*>(rawKey);
                 delete static_cast<VoidNamespace*>(rawNs);

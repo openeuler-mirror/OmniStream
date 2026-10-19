@@ -460,7 +460,7 @@ inline FlinkSavepointAdaptorType StreamingJoinSavepointUtil::getWindowJoinAdapto
         return FlinkSavepointAdaptorType::None;
     }
 
-    return FlinkSavepointAdaptorType::WindowJoinAdaptor;
+    return FlinkSavepointAdaptorType::OmniIsCompatible;
 }
 
 inline std::string StreamingJoinSavepointUtil::buildWindowJoinUnsupportedReason(const nlohmann::json& description)

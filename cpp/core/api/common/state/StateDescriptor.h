@@ -83,7 +83,7 @@ public:
     {
         return name;
     };
-    TypeSerializer* getStateSerializer()
+    virtual TypeSerializer* getStateSerializer()
     {
         return stateSerializer;
     }
@@ -91,7 +91,7 @@ public:
     {
         return typeInfo;
     }
-    void SetStateSerializer(TypeSerializer* newStateSerializer)
+    virtual void SetStateSerializer(TypeSerializer* newStateSerializer)
     {
         this->stateSerializer = newStateSerializer;
     }

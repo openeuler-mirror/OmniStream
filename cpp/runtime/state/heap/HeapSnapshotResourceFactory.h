@@ -261,10 +261,28 @@ private:
                         preparedData.stateIterators.push_back(
                             std::make_unique<HeapSingleStateIterator<K, VoidNamespace, std::vector<int64_t>*>>(
                                 table, kvStateId, preparedData.keyGroupPrefixBytes));
+                    } else if (nsBackendId == BackendDataType::BIGINT_BK && dataId == BackendDataType::ROW_BK) {
+                        auto* table =
+                            reinterpret_cast<CopyOnWriteStateTable<K, int64_t, std::vector<RowData*>*>*>(stateTablePtr);
+                        preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
+                        preparedData.stateIterators.push_back(
+                            std::make_unique<HeapSingleStateIterator<K, int64_t, std::vector<RowData*>*>>(
+                                table, kvStateId, preparedData.keyGroupPrefixBytes));
+                    } else if (dataId == BackendDataType::ROW_BK) {
+                        auto* table =
+                            reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<RowData*>*>*>(
+                                stateTablePtr);
+                        preparedData.metaInfoSnapshots.push_back(table->getMetaInfo()->snapshot());
+                        preparedData.stateIterators.push_back(
+                            std::make_unique<HeapSingleStateIterator<K, VoidNamespace, std::vector<RowData*>*>>(
+                                table, kvStateId, preparedData.keyGroupPrefixBytes));
                     } else {
-                        INFO_RELEASE(
+                        ERROR_RELEASE(
                             "Error:HeapSnapshotResourceFactory: unsupported LIST type "
                             << dataId << " for snapshot, skipping state=" << desc->getName());
+                        THROW_RUNTIME_ERROR(
+                            "HeapSnapshotResourceFactory: unsupported LIST type "
+                            << dataId << " for snapshot, state=" << desc->getName());
                     }
                 } else if (desc->getType() == StateDescriptor::Type::MAP) {
                     auto keyId = desc->getKeyDataId();

@@ -46,6 +46,11 @@ public:
         return elementSerializer;
     }
 
+    void setElementSerializer(TypeSerializer* newElementSerializer)
+    {
+        elementSerializer = newElementSerializer;
+    }
+
     void setSubBufferReusable(bool bufferReusable_) override;
 
     Object* GetBuffer() override;
