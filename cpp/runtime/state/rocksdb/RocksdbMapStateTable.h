@@ -359,26 +359,45 @@ public:
         }
     };
 
-    void putByBatch(const N& nameSpace, const K& key, const std::unordered_map<UK, UV>& dataToAdd)
+    // Current key is already set. Appends each user key into the caller's batch.
+    void putAllCurrentKey(
+        ROCKSDB_NAMESPACE::WriteBatch& putBatch, const N& nameSpace, const std::vector<std::pair<UK, UV>>& entries)
     {
-        keyContext->setCurrentKey(key);
-        ROCKSDB_NAMESPACE::WriteBatch putBatch;
-        for (auto& item : dataToAdd) {
-            UK userKey = item.first;
-            auto value = item.second;
-            // outputSerializer free need after Put called
+        for (const auto& item : entries) {
             DataOutputSerializer outputSerializer;
             OutputBufferStatus outputBufferStatus;
             outputSerializer.setBackendBuffer(&outputBufferStatus);
-            ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, (UK)userKey, nameSpace);
+            ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, item.first, nameSpace);
 
-            // valueOutputSerializer free need after Put called
             DataOutputSerializer valueOutputSerializer;
             OutputBufferStatus valueOutputBufferStatus;
             valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
-            ROCKSDB_NAMESPACE::Slice sliceValue = serializerValue(valueOutputSerializer, (UV)value);
+            ROCKSDB_NAMESPACE::Slice sliceValue = serializerValue(valueOutputSerializer, item.second);
             putBatch.Put(table, sliceKey, sliceValue);
         }
+    }
+
+    void writeBatch(ROCKSDB_NAMESPACE::WriteBatch& batch, bool memtableInsertHint, const char* action)
+    {
+        if (memtableInsertHint) {
+            writeOptions.memtable_insert_hint_per_batch = true;
+        }
+        auto ret = rocksDb->Write(writeOptions, &batch);
+        if (!ret.ok()) {
+            THROW_RUNTIME_ERROR("rocksdb map state table " << action << " failed, status is << " << ret.ToString());
+        }
+    }
+
+    void putByBatch(const N& nameSpace, const K& key, const std::unordered_map<UK, UV>& dataToAdd)
+    {
+        keyContext->setCurrentKey(key);
+        std::vector<std::pair<UK, UV>> entries;
+        entries.reserve(dataToAdd.size());
+        for (const auto& item : dataToAdd) {
+            entries.emplace_back(item.first, item.second);
+        }
+        ROCKSDB_NAMESPACE::WriteBatch putBatch;
+        putAllCurrentKey(putBatch, nameSpace, entries);
         auto ret = rocksDb->Write(writeOptions, &putBatch);
     }
 
@@ -387,24 +406,13 @@ public:
         ROCKSDB_NAMESPACE::WriteBatch putBatch;
         for (auto& item : dataToAdd) {
             K key = item.first;
-            auto userKeyValues = item.second;
             keyContext->setCurrentKey(key);
-            for (auto& item : userKeyValues) {
-                UK userKey = item.first;
-                auto value = item.second;
-                // outputSerializer free need after Put called
-                DataOutputSerializer outputSerializer;
-                OutputBufferStatus outputBufferStatus;
-                outputSerializer.setBackendBuffer(&outputBufferStatus);
-                ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, (UK)userKey, nameSpace);
-
-                // valueOutputSerializer free need after Put called
-                DataOutputSerializer valueOutputSerializer;
-                OutputBufferStatus valueOutputBufferStatus;
-                valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
-                ROCKSDB_NAMESPACE::Slice sliceValue = serializerValue(valueOutputSerializer, (UV)value);
-                putBatch.Put(table, sliceKey, sliceValue);
+            std::vector<std::pair<UK, UV>> entries;
+            entries.reserve(item.second.size());
+            for (const auto& userKeyValue : item.second) {
+                entries.emplace_back(userKeyValue.first, userKeyValue.second);
             }
+            putAllCurrentKey(putBatch, nameSpace, entries);
         }
         writeOptions.memtable_insert_hint_per_batch = true;
         auto ret = rocksDb->Write(writeOptions, &putBatch);
@@ -440,22 +448,12 @@ public:
     void putByBatch(const N& nameSpace, std::vector<std::shared_ptr<std::tuple<K, UK, UV>>>& dataToAdd)
     {
         ROCKSDB_NAMESPACE::WriteBatch putBatch;
+        std::vector<std::pair<UK, UV>> entries;
         for (auto& item : dataToAdd) {
-            K key = std::get<0>(*item);
-            UK ukey = std::get<1>(*item);
-            UV value = std::get<2>(*item);
-            keyContext->setCurrentKey(key);
-
-            DataOutputSerializer outputSerializer;
-            OutputBufferStatus outputBufferStatus;
-            outputSerializer.setBackendBuffer(&outputBufferStatus);
-            ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, ukey, nameSpace);
-
-            DataOutputSerializer valueOutputSerializer;
-            OutputBufferStatus valueOutputBufferStatus;
-            valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
-            ROCKSDB_NAMESPACE::Slice sliceValue = serializerValue(valueOutputSerializer, value);
-            putBatch.Put(table, sliceKey, sliceValue);
+            keyContext->setCurrentKey(std::get<0>(*item));
+            entries.clear();
+            entries.emplace_back(std::get<1>(*item), std::get<2>(*item));
+            putAllCurrentKey(putBatch, nameSpace, entries);
         }
         writeOptions.memtable_insert_hint_per_batch = true;
         auto ret = rocksDb->Write(writeOptions, &putBatch);
@@ -520,26 +518,12 @@ public:
     void putByBatch(const N& nameSpace, std::vector<std::tuple<K, UK, UV>>& dataToAdd)
     {
         ROCKSDB_NAMESPACE::WriteBatch putBatch;
-        DataOutputSerializer outputSerializer;
-        OutputBufferStatus outputBufferStatus;
-        outputSerializer.setBackendBuffer(&outputBufferStatus);
-
-        DataOutputSerializer valueOutputSerializer;
-        OutputBufferStatus valueOutputBufferStatus;
-        valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
-
+        std::vector<std::pair<UK, UV>> entries;
         for (auto& item : dataToAdd) {
-            K key = std::get<0>(item);
-            UK ukey = std::get<1>(item);
-            UV value = std::get<2>(item);
-            keyContext->setCurrentKey(key);
-
-            outputSerializer.clear();
-            ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, ukey, nameSpace);
-
-            valueOutputSerializer.clear();
-            ROCKSDB_NAMESPACE::Slice sliceValue = serializerValue(valueOutputSerializer, value);
-            putBatch.Put(table, sliceKey, sliceValue);
+            keyContext->setCurrentKey(std::get<0>(item));
+            entries.clear();
+            entries.emplace_back(std::get<1>(item), std::get<2>(item));
+            putAllCurrentKey(putBatch, nameSpace, entries);
         }
         writeOptions.memtable_insert_hint_per_batch = true;
         auto ret = rocksDb->Write(writeOptions, &putBatch);
@@ -559,21 +543,26 @@ public:
         }
     };
 
+    // Current key is already set. Appends each user key delete into the caller's batch.
+    void removeAllCurrentKey(
+        ROCKSDB_NAMESPACE::WriteBatch& deleteBatch, const N& nameSpace, const std::vector<UK>& userKeys)
+    {
+        for (const auto& userKey : userKeys) {
+            DataOutputSerializer outputSerializer;
+            OutputBufferStatus outputBufferStatus;
+            outputSerializer.setBackendBuffer(&outputBufferStatus);
+            ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, userKey, nameSpace);
+            deleteBatch.Delete(table, sliceKey);
+        }
+    }
+
     void removeByBatch(const N& nameSpace, std::unordered_map<K, std::unordered_set<UK>>& dataToRemove)
     {
         ROCKSDB_NAMESPACE::WriteBatch deleteBatch;
         for (auto& item : dataToRemove) {
-            K currentKey = item.first;
-            keyContext->setCurrentKey(currentKey);
-
-            for (auto& userKey : item.second) {
-                // outputSerializer free need after Delete called
-                DataOutputSerializer outputSerializer;
-                OutputBufferStatus outputBufferStatus;
-                outputSerializer.setBackendBuffer(&outputBufferStatus);
-                ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, userKey, nameSpace);
-                deleteBatch.Delete(table, sliceKey);
-            }
+            keyContext->setCurrentKey(item.first);
+            std::vector<UK> userKeys(item.second.begin(), item.second.end());
+            removeAllCurrentKey(deleteBatch, nameSpace, userKeys);
         }
         auto ret = rocksDb->Write(writeOptions, &deleteBatch);
     }

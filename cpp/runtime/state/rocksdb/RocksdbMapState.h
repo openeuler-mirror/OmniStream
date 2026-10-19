@@ -67,6 +67,9 @@ public:
         std::unordered_map<std::pair<K, XXH128_hash_t>, UV>& result);
 
     void put(const UK& userKey, const UV& userValue) override;
+    // Not virtual: one WriteBatch for the current key. Kept off the MapState vtable.
+    void putEntries(const std::vector<std::pair<UK, UV>>& entries);
+    void removeEntries(const std::vector<UK>& keys);
     void putByBatch(const K& key, const std::unordered_map<UK, UV>& dataToAdd);
     void putByBatch(std::unordered_map<K, std::unordered_map<UK, UV>>& dataToAdd);
     void putByBatch(std::unordered_map<K, std::vector<std::tuple<UK, UV>>>& dataToAdd);
@@ -261,6 +264,28 @@ template <typename K, typename N, typename UK, typename UV>
 void RocksdbMapState<K, N, UK, UV>::put(const UK& userKey, const UV& userValue)
 {
     stateTable->put(currentNamespace, userKey, userValue);
+}
+
+template <typename K, typename N, typename UK, typename UV>
+void RocksdbMapState<K, N, UK, UV>::putEntries(const std::vector<std::pair<UK, UV>>& entries)
+{
+    if (entries.empty()) {
+        return;
+    }
+    ROCKSDB_NAMESPACE::WriteBatch putBatch;
+    stateTable->putAllCurrentKey(putBatch, currentNamespace, entries);
+    stateTable->writeBatch(putBatch, true, "putAll");
+}
+
+template <typename K, typename N, typename UK, typename UV>
+void RocksdbMapState<K, N, UK, UV>::removeEntries(const std::vector<UK>& keys)
+{
+    if (keys.empty()) {
+        return;
+    }
+    ROCKSDB_NAMESPACE::WriteBatch deleteBatch;
+    stateTable->removeAllCurrentKey(deleteBatch, currentNamespace, keys);
+    stateTable->writeBatch(deleteBatch, false, "removeAll");
 }
 
 template <typename K, typename N, typename UK, typename UV>

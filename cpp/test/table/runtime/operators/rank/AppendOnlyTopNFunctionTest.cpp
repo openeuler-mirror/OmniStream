@@ -7,8 +7,12 @@
 #include "taskmanager/OmniRuntimeEnvironment.h"
 #include "api/common/TaskInfoImpl.h"
 #include "typeutils/RowDataSerializer.h"
+#include "table/typeutils/BinaryRowDataSerializer.h"
+#include "table/data/RowKind.h"
 #include "OmniOperatorJIT/core/test/util/test_util.h"
 #include <nlohmann/json.hpp>
+#include <fstream>
+#include <sstream>
 
 namespace omnistream {
 VectorBatch* createVectorBatchFromCSV(std::string filepath, int nrow, int ncol)
@@ -43,10 +47,72 @@ VectorBatch* createVectorBatchFromCSV(std::string filepath, int nrow, int ncol)
     file.close();
     return resultVB;
 }
+
+nlohmann::json makeRankConfig(bool outputRankNumber, bool generateUpdateBefore, int rankEnd)
+{
+    std::string outputTypes =
+        outputRankNumber ? R"("BIGINT","BIGINT","BIGINT","BIGINT")" : R"("BIGINT","BIGINT","BIGINT")";
+    std::string json =
+        std::string(R"({"originDescription":null,"inputTypes":["BIGINT","BIGINT","BIGINT"],"outputTypes":[)") +
+        outputTypes + R"(],"partitionKey":[0],"outputRankNumber":)" + (outputRankNumber ? "true" : "false") +
+        R"(,"rankRange":"rankStart=1, rankEnd=)" + std::to_string(rankEnd) + R"(","generateUpdateBefore":)" +
+        (generateUpdateBefore ? "true" : "false") +
+        R"(,"processFunction":"AppendOnlyTopNFunction","sortFieldIndices":[1],"sortAscendingOrders":[false],"sortNullsIsLast":[true]})";
+    return nlohmann::json::parse(json);
+}
+
+KeyedProcessOperator<RowData*, RowData*, RowData*>* openAppendOnlyTopN(
+    const nlohmann::json& rankConfig, BatchOutputTest* output)
+{
+    auto* topN = new AppendOnlyTopNFunction<RowData*>(rankConfig);
+    auto func = reinterpret_cast<KeyedProcessFunction<RowData*, RowData*, RowData*>*>(topN);
+    nlohmann::json newRankConfig = rankConfig;
+    auto* op = new KeyedProcessOperator(func, output, newRankConfig);
+    op->setup();
+    auto env2 = new omnistream::RuntimeEnvironmentV2();
+    auto taskInfo = new TaskInformationPOD();
+    taskInfo->setStateBackend("HashMapStateBackend");
+    {
+        auto configPOD = taskInfo->getStreamConfigPOD();
+        auto operatorDesc = configPOD.getOperatorDescription();
+        operatorDesc.setOperatorId("deadbeefdeadbeefdeadbeefdeadbeef");
+        configPOD.setOperatorDescription(operatorDesc);
+        taskInfo->setStreamConfigPOD(configPOD);
+    }
+    env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
+    env2->setTaskConfiguration(*taskInfo);
+    StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+    TypeSerializer* ser = new BinaryRowDataSerializer(1);
+    op->initializeState(initializer, ser);
+    op->open();
+    return op;
+}
+
+omnistream::VectorBatch* makeLongBatch(
+    const std::vector<int64_t>& col0, const std::vector<int64_t>& col1, const std::vector<int64_t>& col2)
+{
+    int rowCnt = static_cast<int>(col0.size());
+    auto* vb = new omnistream::VectorBatch(rowCnt);
+    vb->Append(omniruntime::TestUtil::CreateVector(rowCnt, const_cast<int64_t*>(col0.data())));
+    vb->Append(omniruntime::TestUtil::CreateVector(rowCnt, const_cast<int64_t*>(col1.data())));
+    vb->Append(omniruntime::TestUtil::CreateVector(rowCnt, const_cast<int64_t*>(col2.data())));
+    return vb;
+}
+
+void expectRowKinds(omnistream::VectorBatch* actual, const std::vector<RowKind>& expected)
+{
+    ASSERT_NE(actual, nullptr);
+    ASSERT_EQ(actual->GetRowCount(), static_cast<int32_t>(expected.size()));
+    for (size_t i = 0; i < expected.size(); ++i) {
+        EXPECT_EQ(actual->getRowKind(i), expected[i]) << "rowKind mismatch at " << i;
+    }
+}
+
 } // namespace omnistream
 
 TEST(AppendOnlyTopNFunctionTest, OneLongPartitionKeyOneLongSortKey)
 {
+    // State is Flink-aligned MapState<sortKey, List<RowData>> named data-state-with-append.
     // partition by field0, sort desceding by field 1
     std::string description = R"DELIM({"originDescription":null,
 "inputTypes":["BIGINT", "BIGINT", "BIGINT"],
@@ -81,11 +147,7 @@ TEST(AppendOnlyTopNFunctionTest, OneLongPartitionKeyOneLongSortKey)
     env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
     env2->setTaskConfiguration(*taskInfo);
     StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
-    std::vector<omnistream::RowField> typeInfo{
-        omnistream::RowField("col0", BasicLogicalType::BIGINT),
-        omnistream::RowField("col0", BasicLogicalType::BIGINT),
-        omnistream::RowField("col1", BasicLogicalType::BIGINT)};
-    TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, typeInfo));
+    TypeSerializer* ser = new BinaryRowDataSerializer(1);
     op->initializeState(initializer, ser);
     EXPECT_NO_THROW(op->open());
 
@@ -202,7 +264,10 @@ TEST(AppendOnlyTopNFunctionTest, Q19Top10)
     auto inputVB = createVectorBatchFromCSV("input/q19_input.csv", 150, 3);
     op->processBatch(new StreamRecord(inputVB));
     auto expectedVB = createVectorBatchFromCSV("input/q19_expected_output.csv", 511, 4);
+    ASSERT_NE(inputVB, nullptr);
+    ASSERT_NE(expectedVB, nullptr);
     bool matched = omniruntime::TestUtil::VecBatchMatch(output->getVectorBatch(), expectedVB);
+    EXPECT_EQ(matched, true);
 }
 
 TEST(AppendOnlyTopNFunctionTest, WithoutRowNumber)
@@ -252,5 +317,104 @@ TEST(AppendOnlyTopNFunctionTest, WithoutRowNumber)
     auto inputVB = createVectorBatchFromCSV("input/q19_input.csv", 150, 3);
     op->processBatch(new StreamRecord(inputVB));
     auto expectedVB = createVectorBatchFromCSV("input/without_rownumber.csv", 59, 3);
+    ASSERT_NE(inputVB, nullptr);
+    ASSERT_NE(expectedVB, nullptr);
     bool matched = omniruntime::TestUtil::VecBatchMatch(output->getVectorBatch(), expectedVB);
+    EXPECT_EQ(matched, true);
+}
+
+// Flink-aligned eviction: descending Top-2 without rank number emits DELETE for the dropped row.
+TEST(AppendOnlyTopNFunctionTest, EvictBeyondTopNWithoutRowNumber)
+{
+    auto rankConfig = omnistream::makeRankConfig(false, true, 2);
+    auto* output = new BatchOutputTest();
+    auto* op = omnistream::openAppendOnlyTopN(rankConfig, output);
+
+    // sort key is col1 DESC: 10, then 20, then 30 evicts 10.
+    auto* inputVB = omnistream::makeLongBatch({0, 0, 0}, {10, 20, 30}, {100, 200, 300});
+    op->processBatch(new StreamRecord(inputVB));
+
+    std::vector<int64_t> expected0 = {0, 0, 0, 0};
+    std::vector<int64_t> expected1 = {10, 20, 10, 30};
+    std::vector<int64_t> expected2 = {100, 200, 100, 300};
+    auto* expectedVB = omnistream::makeLongBatch(expected0, expected1, expected2);
+    auto* actual = output->getVectorBatch();
+    omnistream::expectRowKinds(actual, {RowKind::INSERT, RowKind::INSERT, RowKind::DELETE, RowKind::INSERT});
+    EXPECT_TRUE(omniruntime::TestUtil::VecBatchMatch(actual, expectedVB));
+}
+
+// Flink-aligned rank-number path: new higher sort key shifts previous ranks and drops the last.
+TEST(AppendOnlyTopNFunctionTest, EvictBeyondTopNWithRowNumber)
+{
+    auto rankConfig = omnistream::makeRankConfig(true, true, 2);
+    auto* output = new BatchOutputTest();
+    auto* op = omnistream::openAppendOnlyTopN(rankConfig, output);
+
+    auto* inputVB = omnistream::makeLongBatch({0, 0, 0}, {10, 20, 30}, {100, 200, 300});
+    op->processBatch(new StreamRecord(inputVB));
+
+    // +I 10 r1
+    // -U 10 r1, +U 20 r1, +I 10 r2
+    // -U 20 r1, +U 30 r1, -U 10 r2, +U 20 r2
+    std::vector<int64_t> expected0 = {0, 0, 0, 0, 0, 0, 0, 0};
+    std::vector<int64_t> expected1 = {10, 10, 20, 10, 20, 30, 10, 20};
+    std::vector<int64_t> expected2 = {100, 100, 200, 100, 200, 300, 100, 200};
+    std::vector<int64_t> expected3 = {1, 1, 1, 2, 1, 1, 2, 2};
+    auto* expectedVB = new omnistream::VectorBatch(8);
+    expectedVB->Append(omniruntime::TestUtil::CreateVector(8, expected0.data()));
+    expectedVB->Append(omniruntime::TestUtil::CreateVector(8, expected1.data()));
+    expectedVB->Append(omniruntime::TestUtil::CreateVector(8, expected2.data()));
+    expectedVB->Append(omniruntime::TestUtil::CreateVector(8, expected3.data()));
+
+    auto* actual = output->getVectorBatch();
+    omnistream::expectRowKinds(
+        actual,
+        {RowKind::INSERT,
+         RowKind::UPDATE_BEFORE,
+         RowKind::UPDATE_AFTER,
+         RowKind::INSERT,
+         RowKind::UPDATE_BEFORE,
+         RowKind::UPDATE_AFTER,
+         RowKind::UPDATE_BEFORE,
+         RowKind::UPDATE_AFTER});
+    EXPECT_TRUE(omniruntime::TestUtil::VecBatchMatch(actual, expectedVB));
+}
+
+// Sort keys below the current Top-N threshold are ignored and must not change the changelog.
+TEST(AppendOnlyTopNFunctionTest, IgnoreSortKeyOutsideTopN)
+{
+    auto rankConfig = omnistream::makeRankConfig(false, true, 2);
+    auto* output = new BatchOutputTest();
+    auto* op = omnistream::openAppendOnlyTopN(rankConfig, output);
+
+    auto* first = omnistream::makeLongBatch({0, 0}, {20, 30}, {200, 300});
+    op->processBatch(new StreamRecord(first));
+    auto* afterFirst = output->getVectorBatch();
+    ASSERT_NE(afterFirst, nullptr);
+    const int rowsAfterFirst = afterFirst->GetRowCount();
+    EXPECT_GT(rowsAfterFirst, 0);
+
+    auto* second = omnistream::makeLongBatch({0}, {10}, {100});
+    op->processBatch(new StreamRecord(second));
+
+    // An ignored key emits no batch, so the previous changelog stays in place.
+    auto* actual = output->getVectorBatch();
+    EXPECT_EQ(actual, afterFirst);
+    EXPECT_EQ(actual->GetRowCount(), rowsAfterFirst);
+}
+
+// Three rows share one sort key and each stays inside Top-N, so the changelog keeps all three inserts.
+TEST(AppendOnlyTopNFunctionTest, SameSortKeyInOneBatchKeepsAllInserts)
+{
+    auto rankConfig = omnistream::makeRankConfig(false, false, 10);
+    auto* output = new BatchOutputTest();
+    auto* op = omnistream::openAppendOnlyTopN(rankConfig, output);
+
+    auto* inputVB = omnistream::makeLongBatch({0, 0, 0}, {10, 10, 10}, {1, 2, 3});
+    op->processBatch(new StreamRecord(inputVB));
+
+    auto* expectedVB = omnistream::makeLongBatch({0, 0, 0}, {10, 10, 10}, {1, 2, 3});
+    auto* actual = output->getVectorBatch();
+    omnistream::expectRowKinds(actual, {RowKind::INSERT, RowKind::INSERT, RowKind::INSERT});
+    EXPECT_TRUE(omniruntime::TestUtil::VecBatchMatch(actual, expectedVB));
 }

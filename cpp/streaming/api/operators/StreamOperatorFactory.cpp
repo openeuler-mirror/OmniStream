@@ -421,7 +421,7 @@ StreamOperator* StreamOperatorFactory::CreateKeyedProcessOp(
         AbstractTopNFunction<RowData*>* func = new AppendOnlyTopNFunction<RowData*>(opDescriptionJSON);
         auto* op = new KeyedProcessOperator(func, chainOutput, opDescriptionJSON);
         op->setup(std::move(task));
-        op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::AppendOnlyTopNAdaptor);
+        op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
         op->setDescription(opDescriptionJSON);
         LOG("Operator KeyedProcessOperator address  " + std::to_string(reinterpret_cast<long>(op)));
         return static_cast<OneInputStreamOperator*>(op);
