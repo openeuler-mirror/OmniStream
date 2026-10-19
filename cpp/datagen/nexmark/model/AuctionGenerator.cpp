@@ -27,16 +27,18 @@ std::unique_ptr<Auction> AuctionGenerator::nextAuction(
     long category = GeneratorConfig::FIRST_CATEGORY_ID + random.nextInt(NUM_CATEGORIES);
     long initialBid = random.nextPrice();
     long expires = timestamp + nextAuctionLengthMs(eventsCountSoFar, random, timestamp, config);
-    StringsGenerator::fillWithRandomLower<true>(random, nameBuffer, 20);
-    StringsGenerator::fillWithRandomLower<true>(random, descBuffer, 100);
+    std::string name = StringsGenerator::nextString(random, 20);
+    std::string desc = StringsGenerator::nextString(random, 100);
     long reserve = initialBid + random.nextPrice();
-    int currentSize = 8 + 20 + 100 + 8 + 8 + 8 + 8 + 8;
+    int currentSize = 8 + static_cast<int>(name.size() + desc.size()) + 8 + 8 + 8 + 8 + 8;
     std::string_view extra =
         StringsGenerator::nextExtra(random, currentSize, config.getAvgAuctionByteSize(), extraBuffer);
+    name.copy(nameBuffer, name.size());
+    desc.copy(descBuffer, desc.size());
     return std::make_unique<Auction>(
         id,
-        std::string_view(nameBuffer, 20),
-        std::string_view(descBuffer, 100),
+        std::string_view(nameBuffer, name.size()),
+        std::string_view(descBuffer, desc.size()),
         initialBid,
         reserve,
         timestamp,

@@ -71,13 +71,15 @@ private:
         return CHANNEL_URL_CACHE[channelNumber];
     }
 
-    static inline uint32_t reverseInt(uint32_t n)
+    static inline int reverseInt(uint32_t n)
     {
         uint32_t result = 0;
         for (int i = 0; i < 32; i++) {
             result = (result << 1) | (n & 1);
+            n >>= 1;
         }
-        return result;
+        int reversed = static_cast<int>(result);
+        return reversed < 0 ? static_cast<int>(0u - result) : reversed;
     }
 };
 

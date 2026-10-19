@@ -24,6 +24,10 @@ public:
     EventDeserializer() = default;
     virtual ~EventDeserializer() = default;
     virtual StreamRecord* deserialize(std::unique_ptr<Event> event) = 0;
+    virtual StreamRecord* finish()
+    {
+        return nullptr;
+    }
 };
 
 class BatchEventDeserializer : public EventDeserializer {
@@ -37,6 +41,9 @@ public:
 
     // Deserialize an in coming event into batch
     StreamRecord* deserialize(std::unique_ptr<Event> event) override;
+
+    // Emit the rows already written when the generator is exhausted. Empty when the last batch was full.
+    StreamRecord* finish() override;
 
 private:
     void createNewEventBatch();

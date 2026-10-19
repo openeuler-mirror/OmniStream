@@ -19,11 +19,6 @@ public:
     PersonGenerator() : random(0)
     {
         emailBuffer = new char[17 + 1];
-        emailBuffer[13] = '.';
-        emailBuffer[14] = 'c';
-        emailBuffer[15] = 'o';
-        emailBuffer[16] = 'm';
-
         extraBuffer = new char[1024];
     }
     ~PersonGenerator()
@@ -86,10 +81,10 @@ private:
     /** Return a random email address. */
     inline std::string_view nextEmail()
     {
-        StringsGenerator::fillWithRandomLower<false>(random, emailBuffer, 13);
-        // restore the @
-        emailBuffer[7] = '@';
-        return std::string_view(emailBuffer, 17);
+        std::string email =
+            StringsGenerator::nextString(random, 7) + "@" + StringsGenerator::nextString(random, 5) + ".com";
+        email.copy(emailBuffer, email.size());
+        return std::string_view(emailBuffer, email.size());
     }
 
 private:

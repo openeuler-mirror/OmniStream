@@ -175,11 +175,12 @@ TEST(SourceTest, NexmarkCancelInterruptsEventRateWait)
     EXPECT_LT(cancelDuration, std::chrono::seconds(1));
 }
 
-TEST(SourceTest, NexmarkCheckpointCommitsOnlyCompleteBatches)
+TEST(SourceTest, NexmarkExhaustedGeneratorEmitsPartialBatch)
 {
     constexpr int batchSize = 10;
+    constexpr int maxEvents = 3;
     NexmarkConfiguration nexmarkConfig;
-    GeneratorConfig config{nexmarkConfig, 1740182400000, 0, 3, 0};
+    GeneratorConfig config{nexmarkConfig, 1740182400000, 0, maxEvents, 0};
     NexmarkSourceFunction<omnistream::VectorBatch> source{
         config, new BatchEventDeserializer(batchSize), TypeInfoFactory::createTypeInfo("String")};
     SetRuntimeContext(source);
@@ -197,8 +198,10 @@ TEST(SourceTest, NexmarkCheckpointCommitsOnlyCompleteBatches)
 
     auto values = GetNexmarkOffsetState(backend.get())->get();
     ASSERT_EQ(values->size(), 1);
-    EXPECT_EQ(values->at(0), 0);
-    EXPECT_EQ(sourceContext.getCollectCount(), 0);
+    EXPECT_EQ(values->at(0), maxEvents);
+    EXPECT_EQ(sourceContext.getCollectCount(), 1);
+    auto* output = reinterpret_cast<omnistream::VectorBatch*>(sourceContext.reUseRecord);
+    EXPECT_EQ(output->GetRowCount(), maxEvents);
 }
 
 TEST(SourceTest, NexmarkOpenPreservesRestoredGeneratorOffset)

@@ -135,6 +135,21 @@ public:
                 }
             }
         }
+        // A partial batch is emitted only after the generator is exhausted. Cancel leaves it uncommitted
+        // so checkpoint recovery can generate those events again.
+        if (isRunning.load() && !generator->hasNext()) {
+            auto tail = deserializer->finish();
+            if (tail != nullptr) {
+                std::lock_guard<std::recursive_mutex> checkpointLock(ctx->getCheckpointLock()->mutex);
+                if (isRunning.load()) {
+                    ctx->collect(tail->getValue());
+                    numCommittedEvents = generator->getEventsCountSoFar();
+                } else {
+                    delete static_cast<omnistream::VectorBatch*>(tail->getValue());
+                    tail->setValue(nullptr);
+                }
+            }
+        }
     }
 
     // Overriding cancel method.
