@@ -89,8 +89,15 @@ public:
             havePartition = true;
         }
         flushPendingState();
-        omnistream::VectorBatch* outputBatch = this->createOutputBatch();
-        this->collectOutputBatch(out, outputBatch);
+        // Skip an empty batch. createOutputBatch would build a 0-row rank vector and
+        // SetValues would call memcpy_s with destMax 0, which returns ERANGE.
+        if (this->hasOutputRows()) {
+            omnistream::VectorBatch* outputBatch = this->createOutputBatch();
+            this->collectOutputBatch(out, outputBatch);
+        } else {
+            // Not an error, just a notification.
+            INFO_RELEASE("AppendOnlyTopNFunction processBatch collected no rows");
+        }
     }
 
     ValueState<K>* getValueState() override

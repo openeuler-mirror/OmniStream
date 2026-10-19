@@ -389,12 +389,18 @@ TEST(AppendOnlyTopNFunctionTest, IgnoreSortKeyOutsideTopN)
 
     auto* first = omnistream::makeLongBatch({0, 0}, {20, 30}, {200, 300});
     op->processBatch(new StreamRecord(first));
+    auto* afterFirst = output->getVectorBatch();
+    ASSERT_NE(afterFirst, nullptr);
+    const int rowsAfterFirst = afterFirst->GetRowCount();
+    EXPECT_GT(rowsAfterFirst, 0);
+
     auto* second = omnistream::makeLongBatch({0}, {10}, {100});
     op->processBatch(new StreamRecord(second));
 
+    // An ignored key emits no batch, so the previous changelog stays in place.
     auto* actual = output->getVectorBatch();
-    ASSERT_NE(actual, nullptr);
-    EXPECT_EQ(actual->GetRowCount(), 0);
+    EXPECT_EQ(actual, afterFirst);
+    EXPECT_EQ(actual->GetRowCount(), rowsAfterFirst);
 }
 
 // Three rows share one sort key and each stays inside Top-N, so the changelog keeps all three inserts.
