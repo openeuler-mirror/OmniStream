@@ -321,6 +321,41 @@ public:
         }
     };
 
+    // Read/write the RocksDB value blob without TypeSerializer (key encoding unchanged).
+    // AppendOnlyTopNFunction uses this to splice row-list bytes (similar to MapState::getRawBytes per user key).
+    // For ordinary ValueState access, use get/put and deserialize via the serializer.
+    std::string getRaw(N& nameSpace)
+    {
+        DataOutputSerializer outputSerializer;
+        OutputBufferStatus outputBufferStatus;
+        outputSerializer.setBackendBuffer(&outputBufferStatus);
+        ROCKSDB_NAMESPACE::Slice sliceKey = GetKeyNameSpaceSlice(outputSerializer, nameSpace);
+
+        std::string valueInTable;
+        ROCKSDB_NAMESPACE::Status s = rocksDb->Get(readOptions, table, sliceKey, &valueInTable);
+        if (!s.ok() && valueInTable.length() != 0) {
+            THROW_RUNTIME_ERROR("rocksdb state table get raw failed, status is << " << s.ToString());
+        }
+        if (!s.ok()) {
+            return {};
+        }
+        return valueInTable;
+    }
+
+    // Raw write — same idea as getRaw. You pass the final bytes; they need to look like a normal put() value.
+    void putRaw(N& nameSpace, const uint8_t* data, int length)
+    {
+        DataOutputSerializer outputSerializer;
+        OutputBufferStatus outputBufferStatus;
+        outputSerializer.setBackendBuffer(&outputBufferStatus);
+        ROCKSDB_NAMESPACE::Slice sliceKey = GetKeyNameSpaceSlice(outputSerializer, nameSpace);
+        ROCKSDB_NAMESPACE::Slice sliceValue(reinterpret_cast<const char*>(data), static_cast<size_t>(length));
+        auto status = rocksDb->Put(writeOptions, table, sliceKey, sliceValue);
+        if (!status.ok()) {
+            THROW_RUNTIME_ERROR("rocksdb state table put raw failed, status is << " << status.ToString());
+        }
+    }
+
     void clear(N& nameSpace)
     {
         // 存入

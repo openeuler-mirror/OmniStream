@@ -66,41 +66,53 @@ public:
         return treeMap.find(sortKey) != treeMap.end();
     }
 
-    void removeAll(RowData* sortKey)
+    // Detach the sort key. Caller owns the returned list and frees its RowData.
+    std::vector<RowData*>* removeAll(RowData* sortKey)
     {
         auto it = treeMap.find(sortKey);
-        if (it != treeMap.end()) {
-            currentTopNum -= static_cast<int>(it->second->size());
-            treeMap.erase(sortKey);
+        if (it == treeMap.end()) {
+            return nullptr;
         }
+        auto* list = it->second;
+        if (list != nullptr) {
+            currentTopNum -= static_cast<int>(list->size());
+        }
+        treeMap.erase(it);
+        return list;
     }
 
-    RowData* removeLast()
+    // Pop the worst row. When that empties the sort-key list, *droppedKey is the
+    // sort key and the empty list is freed here. Caller owns the returned row.
+    RowData* removeLast(RowData** droppedKey)
     {
+        if (droppedKey != nullptr) {
+            *droppedKey = nullptr;
+        }
         if (treeMap.empty()) {
             return nullptr;
         }
 
         auto last = --treeMap.end();
-        auto collection = last->second;
-        RowData* lastElement = nullptr;
-
-        if (collection != nullptr && !collection->empty()) {
-            lastElement = collection->back();
-            collection->pop_back();
-            currentTopNum--;
-
-            if (collection->empty()) {
-                treeMap.erase(last->first);
+        auto* collection = last->second;
+        if (collection == nullptr || collection->empty()) {
+            if (droppedKey != nullptr) {
+                *droppedKey = last->first;
             }
-        } else {
-            if (!collection) {
-                return nullptr;
-            }
-            lastElement = getLastElement(*collection);
-            removeLast(collection, lastElement, last->first);
+            delete collection;
+            treeMap.erase(last);
+            return nullptr;
         }
 
+        RowData* lastElement = collection->back();
+        collection->pop_back();
+        currentTopNum--;
+        if (collection->empty()) {
+            if (droppedKey != nullptr) {
+                *droppedKey = last->first;
+            }
+            delete collection;
+            treeMap.erase(last);
+        }
         return lastElement;
     }
 

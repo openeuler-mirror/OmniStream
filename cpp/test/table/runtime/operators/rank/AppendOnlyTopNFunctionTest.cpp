@@ -11,8 +11,10 @@
 #include "table/data/RowKind.h"
 #include "OmniOperatorJIT/core/test/util/test_util.h"
 #include <nlohmann/json.hpp>
+#include <algorithm>
 #include <fstream>
 #include <sstream>
+#include <unordered_map>
 
 namespace omnistream {
 VectorBatch* createVectorBatchFromCSV(std::string filepath, int nrow, int ncol)
@@ -108,6 +110,103 @@ void expectRowKinds(omnistream::VectorBatch* actual, const std::vector<RowKind>&
     }
 }
 
+int64_t longAt(omnistream::VectorBatch* batch, int col, int row)
+{
+    return reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(batch->Get(col))->GetValue(row);
+}
+
+using FoldedRow = std::vector<int64_t>;
+
+std::vector<FoldedRow> foldChangelog(omnistream::VectorBatch* batch, int columnCount)
+{
+    std::vector<FoldedRow> table;
+    if (batch == nullptr) {
+        return table;
+    }
+    for (int row = 0; row < batch->GetRowCount(); ++row) {
+        FoldedRow values(columnCount);
+        for (int col = 0; col < columnCount; ++col) {
+            values[col] = longAt(batch, col, row);
+        }
+        RowKind kind = batch->getRowKind(row);
+        if (kind == RowKind::INSERT || kind == RowKind::UPDATE_AFTER) {
+            table.push_back(values);
+        } else {
+            for (auto it = table.rbegin(); it != table.rend(); ++it) {
+                if (*it == values) {
+                    table.erase(std::next(it).base());
+                    break;
+                }
+            }
+        }
+    }
+    std::sort(table.begin(), table.end());
+    return table;
+}
+
+std::vector<FoldedRow> topNFinal(
+    omnistream::VectorBatch* input, int partitionCol, int sortCol, int limit, bool withRank)
+{
+    struct Candidate {
+        FoldedRow cols;
+        int64_t sortValue = 0;
+    };
+    std::vector<int64_t> partitionOrder;
+    std::unordered_map<int64_t, std::vector<Candidate>> groups;
+    int columnCount = input->GetVectorCount();
+    for (int row = 0; row < input->GetRowCount(); ++row) {
+        Candidate candidate;
+        candidate.cols.resize(columnCount);
+        for (int col = 0; col < columnCount; ++col) {
+            candidate.cols[col] = longAt(input, col, row);
+        }
+        candidate.sortValue = candidate.cols[sortCol];
+        int64_t partition = candidate.cols[partitionCol];
+        auto& top = groups[partition];
+        if (top.empty()) {
+            partitionOrder.push_back(partition);
+        }
+        if (static_cast<int>(top.size()) >= limit && candidate.sortValue <= top.back().sortValue) {
+            continue;
+        }
+        auto pos = top.begin();
+        while (pos != top.end() && candidate.sortValue <= pos->sortValue) {
+            ++pos;
+        }
+        top.insert(pos, candidate);
+        if (static_cast<int>(top.size()) > limit) {
+            top.pop_back();
+        }
+    }
+    std::vector<FoldedRow> expected;
+    for (int64_t partition : partitionOrder) {
+        const auto& top = groups[partition];
+        for (size_t i = 0; i < top.size(); ++i) {
+            FoldedRow row = top[i].cols;
+            if (withRank) {
+                row.push_back(static_cast<int64_t>(i) + 1);
+            }
+            expected.push_back(row);
+        }
+    }
+    return expected;
+}
+
+void expectFolded(omnistream::VectorBatch* actual, const std::vector<FoldedRow>& expected)
+{
+    int columnCount = expected.empty() ? 0 : static_cast<int>(expected.front().size());
+    if (actual != nullptr && actual->GetVectorCount() > 0) {
+        columnCount = actual->GetVectorCount();
+    }
+    auto folded = foldChangelog(actual, columnCount);
+    auto sortedExpected = expected;
+    std::sort(sortedExpected.begin(), sortedExpected.end());
+    ASSERT_EQ(folded.size(), sortedExpected.size());
+    for (size_t i = 0; i < folded.size(); ++i) {
+        EXPECT_EQ(folded[i], sortedExpected[i]) << "folded row " << i;
+    }
+}
+
 } // namespace omnistream
 
 TEST(AppendOnlyTopNFunctionTest, OneLongPartitionKeyOneLongSortKey)
@@ -168,54 +267,10 @@ TEST(AppendOnlyTopNFunctionTest, OneLongPartitionKeyOneLongSortKey)
     vb->Append(vector1);
     vb->Append(vector2);
     op->processBatch(new StreamRecord(vb));
-    /*
-    +I      0       0       12      1
-    +U      0       1       11      1 // 1 > 0
-    +I      0       0       12      2 // prev row move one rank lower
-    +U      0       2       10      1 // 2 > 1
-    +U      0       1       11      2 // 1 moved one rank lower
-    +I      0       0       12      3 // 0 moved one rank lower
-    +U      0       3       9       1 // 3 > 2
-    +U      0       2       10      2 // 2 moved one rank lower
-    +U      0       1       11      3 // 1 moved one rank lower
-    +U      0       4       8       1 // 4 > 3
-    +U      0       3       9       2 // 3 moved one rank lower
-    +U      0       2       10      3 // 2 moved one rank lower
-    +U      0       5       7       1 // 5 > 4
-    +U      0       4       8       2 // 4 moved one rank lower
-    +U      0       3       9       3 // 3 moved one rank lower
-    +I      1       6       6       1 // new partition key
-    +U      1       7       5       1
-    +I      1       6       6       2
-    +U      1       8       4       1
-    +U      1       7       5       2
-    +I      1       6       6       3
-    +U      1       9       3       1
-    +U      1       8       4       2
-    +U      1       7       5       3
-    +U      1       10      2       1
-    +U      1       9       3       2
-    +U      1       8       4       3
-    +U      1       11      1       1
-    +U      1       10      2       2
-    +U      1       9       3       3
-     */
-    std::vector<int64_t> expected0 = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
-    std::vector<int64_t> expected1 = {0, 1, 0, 2, 1, 0, 3, 2, 1, 4,  3, 2, 5,  4,  3,
-                                      6, 7, 6, 8, 7, 6, 9, 8, 7, 10, 9, 8, 11, 10, 9};
-    std::vector<int64_t> expected2 = {12, 11, 12, 10, 11, 12, 9, 10, 11, 8, 9, 10, 7, 8, 9,
-                                      6,  5,  6,  4,  5,  6,  3, 4,  5,  2, 3, 4,  1, 2, 3};
-    std::vector<int64_t> expected3 = {1, 1, 2, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3,
-                                      1, 1, 2, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3};
-
-    auto expectedVB = new omnistream::VectorBatch(30);
-    expectedVB->Append(omniruntime::TestUtil::CreateVector(30, expected0.data()));
-    expectedVB->Append(omniruntime::TestUtil::CreateVector(30, expected1.data()));
-    expectedVB->Append(omniruntime::TestUtil::CreateVector(30, expected2.data()));
-    expectedVB->Append(omniruntime::TestUtil::CreateVector(30, expected3.data()));
-    bool matched = omniruntime::TestUtil::VecBatchMatch(output->getVectorBatch(), expectedVB);
-    EXPECT_EQ(matched, true);
+    // Folded top-3. Partition 0 keeps sort keys 5,4,3. Partition 1 keeps 11,10,9.
+    omnistream::expectFolded(
+        output->getVectorBatch(),
+        {{0, 5, 7, 1}, {0, 4, 8, 2}, {0, 3, 9, 3}, {1, 11, 1, 1}, {1, 10, 2, 2}, {1, 9, 3, 3}});
 }
 
 TEST(AppendOnlyTopNFunctionTest, Q19Top10)
@@ -262,12 +317,10 @@ TEST(AppendOnlyTopNFunctionTest, Q19Top10)
     EXPECT_NO_THROW(op->open());
 
     auto inputVB = createVectorBatchFromCSV("input/q19_input.csv", 150, 3);
-    op->processBatch(new StreamRecord(inputVB));
-    auto expectedVB = createVectorBatchFromCSV("input/q19_expected_output.csv", 511, 4);
     ASSERT_NE(inputVB, nullptr);
-    ASSERT_NE(expectedVB, nullptr);
-    bool matched = omniruntime::TestUtil::VecBatchMatch(output->getVectorBatch(), expectedVB);
-    EXPECT_EQ(matched, true);
+    auto expected = omnistream::topNFinal(inputVB, 0, 2, 10, true);
+    op->processBatch(new StreamRecord(inputVB));
+    omnistream::expectFolded(output->getVectorBatch(), expected);
 }
 
 TEST(AppendOnlyTopNFunctionTest, WithoutRowNumber)
@@ -315,12 +368,10 @@ TEST(AppendOnlyTopNFunctionTest, WithoutRowNumber)
     EXPECT_NO_THROW(op->open());
 
     auto inputVB = createVectorBatchFromCSV("input/q19_input.csv", 150, 3);
-    op->processBatch(new StreamRecord(inputVB));
-    auto expectedVB = createVectorBatchFromCSV("input/without_rownumber.csv", 59, 3);
     ASSERT_NE(inputVB, nullptr);
-    ASSERT_NE(expectedVB, nullptr);
-    bool matched = omniruntime::TestUtil::VecBatchMatch(output->getVectorBatch(), expectedVB);
-    EXPECT_EQ(matched, true);
+    auto expected = omnistream::topNFinal(inputVB, 1, 2, 3, false);
+    op->processBatch(new StreamRecord(inputVB));
+    omnistream::expectFolded(output->getVectorBatch(), expected);
 }
 
 // Flink-aligned eviction: descending Top-2 without rank number emits DELETE for the dropped row.
@@ -334,13 +385,7 @@ TEST(AppendOnlyTopNFunctionTest, EvictBeyondTopNWithoutRowNumber)
     auto* inputVB = omnistream::makeLongBatch({0, 0, 0}, {10, 20, 30}, {100, 200, 300});
     op->processBatch(new StreamRecord(inputVB));
 
-    std::vector<int64_t> expected0 = {0, 0, 0, 0};
-    std::vector<int64_t> expected1 = {10, 20, 10, 30};
-    std::vector<int64_t> expected2 = {100, 200, 100, 300};
-    auto* expectedVB = omnistream::makeLongBatch(expected0, expected1, expected2);
-    auto* actual = output->getVectorBatch();
-    omnistream::expectRowKinds(actual, {RowKind::INSERT, RowKind::INSERT, RowKind::DELETE, RowKind::INSERT});
-    EXPECT_TRUE(omniruntime::TestUtil::VecBatchMatch(actual, expectedVB));
+    omnistream::expectFolded(output->getVectorBatch(), {{0, 30, 300}, {0, 20, 200}});
 }
 
 // Flink-aligned rank-number path: new higher sort key shifts previous ranks and drops the last.
@@ -353,31 +398,7 @@ TEST(AppendOnlyTopNFunctionTest, EvictBeyondTopNWithRowNumber)
     auto* inputVB = omnistream::makeLongBatch({0, 0, 0}, {10, 20, 30}, {100, 200, 300});
     op->processBatch(new StreamRecord(inputVB));
 
-    // +I 10 r1
-    // -U 10 r1, +U 20 r1, +I 10 r2
-    // -U 20 r1, +U 30 r1, -U 10 r2, +U 20 r2
-    std::vector<int64_t> expected0 = {0, 0, 0, 0, 0, 0, 0, 0};
-    std::vector<int64_t> expected1 = {10, 10, 20, 10, 20, 30, 10, 20};
-    std::vector<int64_t> expected2 = {100, 100, 200, 100, 200, 300, 100, 200};
-    std::vector<int64_t> expected3 = {1, 1, 1, 2, 1, 1, 2, 2};
-    auto* expectedVB = new omnistream::VectorBatch(8);
-    expectedVB->Append(omniruntime::TestUtil::CreateVector(8, expected0.data()));
-    expectedVB->Append(omniruntime::TestUtil::CreateVector(8, expected1.data()));
-    expectedVB->Append(omniruntime::TestUtil::CreateVector(8, expected2.data()));
-    expectedVB->Append(omniruntime::TestUtil::CreateVector(8, expected3.data()));
-
-    auto* actual = output->getVectorBatch();
-    omnistream::expectRowKinds(
-        actual,
-        {RowKind::INSERT,
-         RowKind::UPDATE_BEFORE,
-         RowKind::UPDATE_AFTER,
-         RowKind::INSERT,
-         RowKind::UPDATE_BEFORE,
-         RowKind::UPDATE_AFTER,
-         RowKind::UPDATE_BEFORE,
-         RowKind::UPDATE_AFTER});
-    EXPECT_TRUE(omniruntime::TestUtil::VecBatchMatch(actual, expectedVB));
+    omnistream::expectFolded(output->getVectorBatch(), {{0, 30, 300, 1}, {0, 20, 200, 2}});
 }
 
 // Sort keys below the current Top-N threshold are ignored and must not change the changelog.

@@ -56,6 +56,8 @@ public:
     };
     V value() override;
     void update(const V& value, bool copyKey = false) override;
+    std::string readRawBytes();
+    void writeRawBytes(const uint8_t* data, int length);
 
     void setDefaultValue(V value)
     {
@@ -166,6 +168,10 @@ public:
 
     V get(const K& key, const N& ns) override
     {
+        // for state type ROW_LIST_BK: return deep copy for caller; cache keeps its own list (no Object* refcount).
+        if constexpr (std::is_same_v<V, std::vector<RowData*>*>) {
+            return getRowDataPointerList(key, ns);
+        }
         // use new operator to create falconKey and falconValue, so that their life circle are bind with falcon cache.
         // when remove elements from cache, e.g., using erase() or clear(), make sure delete operation is called.
         auto falconKey = new KeyType(key, ns);
@@ -328,6 +334,50 @@ public:
     }
 
 private:
+    V getRowDataPointerList(const K& key, const N& ns)
+    {
+        auto copyList = [](std::vector<RowData*>* src) -> std::vector<RowData*>* {
+            if (src == nullptr) {
+                return nullptr;
+            }
+            auto* out = new std::vector<RowData*>();
+            out->reserve(src->size());
+            for (RowData* row : *src) {
+                out->push_back(row == nullptr ? nullptr : row->copy());
+            }
+            return out;
+        };
+        auto deleteList = [](std::vector<RowData*>* src) {
+            if (src == nullptr) {
+                return;
+            }
+            for (RowData* row : *src) {
+                delete row;
+            }
+            delete src;
+        };
+        auto falconKey = new KeyType(key, ns);
+        auto it = cache.find(falconKey);
+        if (it != cache.end()) {
+            std::vector<RowData*>* owned = copyList(it->second->getValue());
+            delete falconKey;
+            return owned;
+        }
+        V value = valueState->getValue();
+        if (value == nullptr) {
+            delete falconKey;
+            return nullptr;
+        }
+        std::vector<RowData*>* owned = copyList(value);
+        auto falconValue = new ValType(value, false);
+        deleteList(value);
+        cache.emplace(falconKey, falconValue);
+        if (cache.size() > cacheSizeLimit) {
+            removeEldestState();
+        }
+        return owned;
+    }
+
     int cacheSizeLimit{}; // stateCache size limit, 0 means disable falcon cache, otherwise enable falcon cache
     RocksdbValueState<K, N, V>* valueState = {};
     std::unordered_map<KeyType*, ValType*> cache = {};
@@ -366,6 +416,18 @@ V RocksdbValueState<K, N, V>::getValue()
         // S can only be RowData*, cowMap<RowData*, int>*, or int-like types for now.
         return result == std::numeric_limits<V>::max() ? defaultValue : result;
     }
+}
+
+template <typename K, typename N, typename V>
+std::string RocksdbValueState<K, N, V>::readRawBytes()
+{
+    return stateTable->getRaw(currentNamespace);
+}
+
+template <typename K, typename N, typename V>
+void RocksdbValueState<K, N, V>::writeRawBytes(const uint8_t* data, int length)
+{
+    stateTable->putRaw(currentNamespace, data, length);
 }
 
 template <typename K, typename N, typename V>

@@ -192,6 +192,11 @@ public:
                     auto stateTable =
                         reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<long>*>*>(stateTablePtr);
                     delete stateTable;
+                } else if (dataId == BackendDataType::ROW_LIST_BK) {
+                    auto stateTable =
+                        reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<RowData*>*>*>(
+                            stateTablePtr);
+                    delete stateTable;
                 } else if (dataId == BackendDataType::EXTERNAL_BIGINT_BK) {
                     auto stateTable =
                         reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, int64_t>*>(stateTablePtr);
@@ -414,6 +419,8 @@ public:
                     // so its element count is now maintained incrementally (liveNumElements_) like
                     // MAP/LIST -- no CopyOnWriteStateMap walk. Still bucketed as VALUE.
                     out.value += incrementalTableSize<std::vector<long>*>(ptr);
+                } else if (dataId == BackendDataType::ROW_LIST_BK) {
+                    out.value += incrementalTableSize<std::vector<RowData*>*>(ptr);
                 }
             } else if (desc->getType() == StateDescriptor::Type::LIST) {
                 auto dataId = desc->getBackendId();
@@ -672,6 +679,9 @@ uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(
             return (uintptr_t)createOrUpdateInternalValueState<VoidNamespace, Object*>(namespaceSerializer, stateDesc);
         } else if (dataId == BackendDataType::SET_LONG) {
             return (uintptr_t)createOrUpdateInternalValueState<VoidNamespace, std::vector<long>*>(
+                namespaceSerializer, stateDesc);
+        } else if (dataId == BackendDataType::ROW_LIST_BK) {
+            return (uintptr_t)createOrUpdateInternalValueState<VoidNamespace, std::vector<RowData*>*>(
                 namespaceSerializer, stateDesc);
         } else if (dataId == BackendDataType::EXTERNAL_BIGINT_BK) {
             return (uintptr_t)createOrUpdateInternalValueState<VoidNamespace, int64_t>(namespaceSerializer, stateDesc);
