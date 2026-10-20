@@ -18,6 +18,7 @@
 #include "runtime/buffer/OriginalNetworkBufferRecycler.h"
 #include "runtime/partition/PartitionNotFoundException.h"
 #include "runtime/buffer/ReadOnlySlicedNetworkBuffer.h"
+#include "runtime/checkpoint/channel/CheckpointBufferUtils.h"
 #include "core/include/omni_const.h"
 namespace omnistream {
 LocalInputChannel::LocalInputChannel(
@@ -69,7 +70,7 @@ void LocalInputChannel::CheckpointStarted(
     if (channelStatePersister == nullptr) {
         SetChannelStateWriter(channelStateWriter);
     }
-    inflightBuffers_.clear();
+    ReleaseInflightBuffers(inflightBuffers_);
     channelStatePersister->StartPersisting(barrier.GetId(), knownBuffers);
 }
 
@@ -87,8 +88,10 @@ bool LocalInputChannel::IsNeedPersistence()
 
 void LocalInputChannel::AddInputData(long checkpointId, const omnistream::InputChannelInfo& info)
 {
-    channelStatePersister->AddInputData(inflightBuffers_, checkpointId, info);
-    inflightBuffers_.clear();
+    // The writer also recycles the transferred buffers if submission fails.
+    std::vector<Buffer*> buffers;
+    buffers.swap(inflightBuffers_);
+    channelStatePersister->AddInputData(std::move(buffers), checkpointId, info);
 }
 void LocalInputChannel::SetChannelStateWriter(std::shared_ptr<ChannelStateWriter> channelStateWriter)
 {
@@ -97,13 +100,23 @@ void LocalInputChannel::SetChannelStateWriter(std::shared_ptr<ChannelStateWriter
 
 void LocalInputChannel::CheckpointStopped(long checkpointId)
 {
+    isNeedPersistence_ = false;
+    startSize_ = 0;
+    ReleaseInflightBuffers(inflightBuffers_);
     if (!channelStatePersister) {
         INFO_RELEASE("LocalInputChannel::CheckpointStopped skipped because channelStatePersister is not initialized.");
         return;
     }
     channelStatePersister->StopPersisting(checkpointId);
-    inflightBuffers_.clear();
-    startSize_ = 0;
+}
+
+void LocalInputChannel::ReleaseInflightBuffers(std::vector<Buffer*>& buffers)
+{
+    // AddInputData removes transferred copies, so only channel-owned buffers remain here.
+    for (auto* buffer : buffers) {
+        ReleaseCheckpointBuffer(buffer);
+    }
+    buffers.clear();
 }
 
 void LocalInputChannel::requestSubpartition(int subpartitionIndex)
@@ -409,6 +422,9 @@ bool LocalInputChannel::isReleased()
 
 void LocalInputChannel::releaseAllResources()
 {
+    isNeedPersistence_ = false;
+    startSize_ = 0;
+    ReleaseInflightBuffers(inflightBuffers_);
     if (!isReleased_.load()) {
         isReleased_.store(true);
 

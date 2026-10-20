@@ -59,10 +59,12 @@ public:
 
     void SetPersistenceFlag(bool flag)
     {
+        std::lock_guard<std::recursive_mutex> lock(queueMutex);
         isNeedPersistence_ = flag;
     }
     bool IsNeedPersistence()
     {
+        std::lock_guard<std::recursive_mutex> lock(queueMutex);
         if (startSize_ != 0) {
             return outsize < startSize_;
         }

@@ -159,6 +159,10 @@ long OmniLocalInputChannel::GetRecycleBufferAddress()
 
 void OmniLocalInputChannel::releaseAllResources()
 {
+    std::lock_guard<std::recursive_mutex> lock(queueMutex);
+    isNeedPersistence_ = false;
+    startSize_ = 0;
+    ReleaseInflightBuffers(inflightBuffers_);
     originalNetworkBufferRecycler_->stop();
 }
 
@@ -185,7 +189,8 @@ void OmniLocalInputChannel::SetOmniLocalInputChannelBridge(std::shared_ptr<OmniL
 void OmniLocalInputChannel::CheckpointStarted(
     const CheckpointBarrier& barrier, std::shared_ptr<ChannelStateWriter> channelStateWriter)
 {
-    inflightBuffers_.clear();
+    std::lock_guard<std::recursive_mutex> lock(queueMutex);
+    ReleaseInflightBuffers(inflightBuffers_);
     std::vector<Buffer*> knownBuffers;
     if (IsNeedPersistence()) {
         knownBuffers = GetInflightBuffersUnsafe(barrier.GetId());
@@ -198,21 +203,25 @@ void OmniLocalInputChannel::CheckpointStarted(
 
 void OmniLocalInputChannel::CheckpointStopped(long checkpointId)
 {
+    std::lock_guard<std::recursive_mutex> lock(queueMutex);
+    isNeedPersistence_ = false;
     startSize_ = 0;
+    ReleaseInflightBuffers(inflightBuffers_);
     if (!channelStatePersister) {
         LOG("OmniLocalInputChannel::CheckpointStopped skipped because channelStatePersister is not initialized, "
             "checkpointId="
             << checkpointId);
-        inflightBuffers_.clear();
         return;
     }
     channelStatePersister->StopPersisting(checkpointId);
-    inflightBuffers_.clear();
 }
 void OmniLocalInputChannel::AddInputData(long checkpointId, const omnistream::InputChannelInfo& info)
 {
-    channelStatePersister->AddInputData(inflightBuffers_, checkpointId, info);
-    inflightBuffers_.clear();
+    std::lock_guard<std::recursive_mutex> lock(queueMutex);
+    // The writer also recycles the transferred buffers if submission fails.
+    std::vector<Buffer*> buffers;
+    buffers.swap(inflightBuffers_);
+    channelStatePersister->AddInputData(std::move(buffers), checkpointId, info);
 }
 
 std::vector<Buffer*> OmniLocalInputChannel::GetInflightBuffersUnsafe(long checkpointId)
