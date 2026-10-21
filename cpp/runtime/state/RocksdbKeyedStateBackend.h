@@ -493,6 +493,12 @@ void RocksdbKeyedStateBackend<K>::flushFalconCacheBeforeCheckpoint()
                 state->stateCache->flush();
                 state->stateCache->clearAll();
             }
+        } else if (dataId == BackendDataType::ROW_LIST_BK) {
+            auto* state = reinterpret_cast<RocksdbValueState<K, VoidNamespace, std::vector<RowData*>*>*>(entry.second);
+            if (state != nullptr && state->stateCache != nullptr) {
+                state->stateCache->flush();
+                state->stateCache->clearAll();
+            }
         } else {
             NOT_IMPL_EXCEPTION;
         }
@@ -593,6 +599,9 @@ uintptr_t RocksdbKeyedStateBackend<K>::GetValueState(TypeSerializer* namespaceSe
         return (uintptr_t)createOrUpdateInternalValueState<VoidNamespace, Object*>(namespaceSerializer, stateDesc);
     } else if (dataId == BackendDataType::SET_LONG) {
         return (uintptr_t)createOrUpdateInternalValueState<VoidNamespace, std::vector<long>*>(
+            namespaceSerializer, stateDesc);
+    } else if (dataId == BackendDataType::ROW_LIST_BK) {
+        return (uintptr_t)createOrUpdateInternalValueState<VoidNamespace, std::vector<RowData*>*>(
             namespaceSerializer, stateDesc);
     } else if (dataId == BackendDataType::EXTERNAL_BIGINT_BK) {
         return (uintptr_t)createOrUpdateInternalValueState<VoidNamespace, int64_t>(namespaceSerializer, stateDesc);
