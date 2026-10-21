@@ -93,6 +93,8 @@ protected:
     void sendTaskEvent(std::shared_ptr<TaskEvent> event) override;
 
 protected:
+    static void ReleaseInflightBuffers(std::vector<Buffer*>& buffers);
+
     std::recursive_mutex requestLock;
     std::shared_ptr<ResultPartitionManager> partitionManager;
     //  std::shared_ptr<TaskEventPublisher> taskEventPublisher;
