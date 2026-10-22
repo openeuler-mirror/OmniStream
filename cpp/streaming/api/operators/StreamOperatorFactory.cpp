@@ -37,6 +37,7 @@
 #include "streaming/api/functions/sink/filesystem/PartitionCommitter.h"
 #include "runtime/operators/join/lookup/LookupJoinRunner.h"
 #include "table/runtime/operators/source/InputFormatSourceFunction.h"
+#include "table/runtime/operators/source/ValuesSourceFunction.h"
 #include "table/runtime/operators/source/csv/CsvInputFormat.h"
 #include "runtime/operators/window/LocalSlicingWindowAggOperator.h"
 #include "streaming/runtime/tasks/ChainingOutput.h"
@@ -555,6 +556,15 @@ StreamOperator* StreamOperatorFactory::CreateSourceOp(
             auto* source = new StreamSource<omnistream::VectorBatch>(func, chainOutput, false);
             source->setup(std::move(task));
             // SP-INTEROP: StreamSource 无 managed keyed state，Omni 原生格式即为 Flink 兼容。
+            source->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
+            return static_cast<StreamOperator*>(source);
+        } else if (format == "values") {
+            auto* func = new ValuesSourceFunction(opDescriptionJSON);
+            auto* source = new StreamSource<omnistream::VectorBatch>(func, chainOutput, false);
+            source->setup(std::move(task));
+            source->setDescription(opDescriptionJSON);
+            // SP-INTEROP: VALUES 源与 csv/nexmark 源一致，无 managed keyed state，
+            // Omni 原生格式即为 Flink 兼容。
             source->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
             return static_cast<StreamOperator*>(source);
         } else if (format == "nexmark") {
