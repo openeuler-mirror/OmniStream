@@ -119,6 +119,7 @@ public:
         std::string cfName,
         std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>* kvStateInformation);
     std::shared_ptr<std::string> getRawBytes(UK& uk);
+    void putRaw(UK& uk, const uint8_t* data, int length);
 
     void setMaxParallelism(const int32_t maxParallelism)
     {
@@ -146,11 +147,10 @@ void RocksdbMapState<K, N, UK, UV>::clear()
     if (batchSizeObj != nullptr) {
         delete batchSizeObj;
     }
+    // getWriteOptions() returns the table member, not a heap object.
+    std::shared_ptr<rocksdb::WriteOptions> writeOptions(stateTable->getWriteOptions(), [](rocksdb::WriteOptions*) {});
     RocksDBWriteBatchWrapper rocksDBWriteBatchWrapper(
-        stateTable->getRocksDB(),
-        std::shared_ptr<rocksdb::WriteOptions>(stateTable->getWriteOptions()),
-        500,
-        batchSize);
+        stateTable->getRocksDB(), std::move(writeOptions), 500, batchSize);
     DataOutputSerializer outputSerializer;
     OutputBufferStatus outputBufferStatus;
     outputSerializer.setBackendBuffer(&outputBufferStatus);
@@ -233,6 +233,12 @@ template <typename K, typename N, typename UK, typename UV>
 std::shared_ptr<std::string> RocksdbMapState<K, N, UK, UV>::getRawBytes(UK& uk)
 {
     return stateTable->getRawBytes(currentNamespace, uk);
+}
+
+template <typename K, typename N, typename UK, typename UV>
+void RocksdbMapState<K, N, UK, UV>::putRaw(UK& uk, const uint8_t* data, int length)
+{
+    stateTable->putRaw(currentNamespace, uk, data, length);
 }
 
 template <typename K, typename N, typename UK, typename UV>

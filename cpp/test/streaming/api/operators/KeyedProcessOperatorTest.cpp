@@ -409,17 +409,13 @@ TEST(KeyedProcessOperatorTest, Appened)
     keyedProcessOperator.processBatch(record);
     auto outputvb = output->getVectorBatch();
 
-    /*
-     * 2,5,6
-     * 3,144,14
-     * 4,4,4
-     * 5,6,9
-     */
-    int rowCnt2 = 10;
-    std::vector<long> expectedcol0 = {1, 1, 1, 1, 1, 1, 1, 1, 1, 5};
-    std::vector<long> expectedcol1 = {5, 5, 144, 5, 5, 14, 5, 24, 14, 6};
-    std::vector<long> expectedcol2 = {6, 7, 14, 6, 7, 45, 6, 4, 45, 9};
-    std::vector<long> expectedcol3 = {1, 2, 1, 2, 3, 2, 3, 2, 3, 1};
+    // One batch emits the final Top-3. Partition 1 keeps sort keys 144, 24, 14.
+    // The two sort-key 5 rows fall out. Partition 5 keeps its only row.
+    int rowCnt2 = 4;
+    std::vector<long> expectedcol0 = {1, 1, 1, 5};
+    std::vector<long> expectedcol1 = {144, 24, 14, 6};
+    std::vector<long> expectedcol2 = {14, 4, 45, 9};
+    std::vector<long> expectedcol3 = {1, 2, 3, 1};
     omnistream::VectorBatch* expectedvb = new omnistream::VectorBatch(rowCnt2);
     expectedvb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt2, expectedcol0.data()));
     expectedvb->Append(omniruntime::TestUtil::CreateVector<int64_t>(rowCnt2, expectedcol1.data()));
