@@ -42,16 +42,6 @@ public:
             if (value != nullptr) {
                 this->value = new std::vector<long>(*value); // deep copy value using new
             }
-        } else if constexpr (std::is_same_v<V, std::vector<RowData*>*>) {
-            if (value != nullptr) {
-                this->value = new std::vector<RowData*>();
-                this->value->reserve(value->size());
-                for (RowData* row : *value) {
-                    this->value->push_back(row == nullptr ? nullptr : row->copy());
-                }
-            } else {
-                this->value = nullptr;
-            }
         } else {
             this->value = value; // int32_t and int64_t type do not need deepcopy
         }
@@ -97,14 +87,6 @@ public:
             }
         } else if constexpr (std::is_same_v<V, std::vector<long>*>) {
             if (value != nullptr) {
-                delete value;
-                value = nullptr;
-            }
-        } else if constexpr (std::is_same_v<V, std::vector<RowData*>*>) {
-            if (value != nullptr) {
-                for (RowData* row : *value) {
-                    delete row;
-                }
                 delete value;
                 value = nullptr;
             }

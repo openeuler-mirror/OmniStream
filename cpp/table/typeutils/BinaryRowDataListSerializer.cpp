@@ -10,9 +10,6 @@
  */
 
 #include "BinaryRowDataListSerializer.h"
-
-#include <stdexcept>
-
 #include "core/memory/DataInputDeserializer.h"
 
 void BinaryRowDataListSerializer::serialize(void* row, DataOutputSerializer& target)
@@ -34,39 +31,6 @@ void* BinaryRowDataListSerializer::deserialize(DataInputView& source)
         result->push_back(resPtr->copy());
     }
     return result;
-}
-
-void BinaryRowDataListSerializer::indexSerializedRows(
-    const uint8_t* data, int length, std::vector<SerializedRowSpan>& spans)
-{
-    DataInputDeserializer input(data, length, 0);
-    int count = input.readInt();
-    if (count < 0) {
-        throw std::runtime_error("BinaryRowDataListSerializer row count is negative");
-    }
-    spans.resize(static_cast<size_t>(count));
-    for (int i = 0; i < count; ++i) {
-        int start = static_cast<int>(input.getPosition());
-        int payload = input.readInt();
-        if (payload < 0 || static_cast<int64_t>(input.getPosition()) + payload > length) {
-            throw std::runtime_error("BinaryRowDataListSerializer row payload is out of range");
-        }
-        input.setPosition(input.getPosition() + static_cast<size_t>(payload));
-        spans[i].offset = start;
-        spans[i].bytes = static_cast<int>(input.getPosition()) - start;
-    }
-}
-
-RowData* BinaryRowDataListSerializer::copySerializedRow(const uint8_t* data, const SerializedRowSpan& span)
-{
-    DataInputDeserializer input(data + span.offset, span.bytes, 0);
-    auto* reused = reinterpret_cast<RowData*>(binaryRowDataSerializer->deserialize(input));
-    return reused->copy();
-}
-
-void BinaryRowDataListSerializer::appendSerializedRow(RowData* row, DataOutputSerializer& target)
-{
-    binaryRowDataSerializer->serialize(row, target);
 }
 
 const char* BinaryRowDataListSerializer::getName() const
