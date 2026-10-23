@@ -61,7 +61,7 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 |名称| 包名                                        |发布类型|说明| 获取地址                                                                                                                                                                                                                                                               |
 |--|-------------------------------------------|--|--|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 |OmniStream压缩包| BoostKit-omniruntime-omnistream-{version}.zip |开源|OmniStream Flink Native化特性软件安装包。请从开源仓Releases页面获取最新发布版本的软件包，{version}为实际发布版本号。| [获取链接](https://gitcode.com/openeuler/OmniStream/releases) |
-|UDF翻译工具| UNT-1.0-35.noarch.rpm                     |开源|UDF翻译工具RPM包，安装后在/opt路径下新增UDF翻译工具。| [获取链接](https://eur.openeuler.openatom.cn/results/cutie-deng/UNT/openeuler-22.03_LTS_SP4-aarch64/00110412-UNT/UNT-1.0-35.noarch.rpm)                                                                                                                                |
+|UDF翻译工具| UNT-1.0-37.noarch.rpm                     |开源|UDF翻译工具RPM包，安装后在/opt路径下新增UDF翻译工具。| [获取链接](https://eur.openeuler.openatom.cn/results/cutie-deng/UNT/openeuler-22.03_LTS_SP4-aarch64/00113849-UNT/UNT-1.0-37.noarch.rpm)                                                                                                                                |
 |AI4C| AI4C-1.0.4-8.aarch64.rpm                  |开源|支持编译器集成机器学习驱动的优化技术的框架。RPM包直接安装。| [获取链接](https://gitcode.com/boostkit/boostkit-bigdata/releases/download/25.1.RC1-OmniStream-release/AI4C-1.0.4-8.aarch64.rpm)                                                                                                                                   |
 |KACC_JSON| BoostKit-kaccjson_1.1.0.zip               |闭源|用于UDF翻译中替换GSON的C++版实现，该ZIP包含适配层和KACC_JSON核心实现，内含若干头文件和静态库。<br>该文件从Dependency_library_OmniStream.zip解压获得。| [获取链接](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip)                                                                                                                                    |
 |KSL| BoostKit-ksl_2.5.1.zip                    |闭源|正则加速库，该zip包含ReplaceAll用于优化String基础库，内含头文件和1个静态库。| [获取链接](https://www.hikunpeng.com/boostkit/library/system?subtab=Hyperscan&version=2.5.1)                                                                                                                                                                           |
@@ -562,7 +562,7 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
 2. 在容器flink\_jm\_8c32g中安装该RPM包，安装路径默认为`/opt`。
 
     ```bash
-    rpm -ivh UNT-1.0-35.noarch.rpm
+    rpm -ivh UNT-1.0-37.noarch.rpm
     ```
 
     命令执行完成后会自动创建`/opt/udf-trans-opt`目录。
