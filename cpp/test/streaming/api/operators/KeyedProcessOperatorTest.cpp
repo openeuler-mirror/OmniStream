@@ -409,7 +409,8 @@ TEST(KeyedProcessOperatorTest, Appened)
     keyedProcessOperator.processBatch(record);
     auto outputvb = output->getVectorBatch();
 
-    // One batch flushes the final top-3. Partition 1 keeps 144, 24, 14; partition 5 keeps rank 1.
+    // One batch emits the final Top-3. Partition 1 keeps sort keys 144, 24, 14.
+    // The two sort-key 5 rows fall out. Partition 5 keeps its only row.
     int rowCnt2 = 4;
     std::vector<long> expectedcol0 = {1, 1, 1, 5};
     std::vector<long> expectedcol1 = {144, 24, 14, 6};

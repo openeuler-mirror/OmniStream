@@ -15,6 +15,25 @@
 
 #include "core/memory/DataInputDeserializer.h"
 
+BinaryRowDataListSerializer::BinaryRowDataListSerializer(int numFields, TypeSerializer* elementSerializer)
+    : binaryRowDataSerializer(new BinaryRowDataSerializer(numFields)),
+      elementSerializer(elementSerializer)
+{
+}
+
+BinaryRowDataListSerializer::~BinaryRowDataListSerializer()
+{
+    delete binaryRowDataSerializer;
+    delete elementSerializer;
+}
+
+std::string BinaryRowDataListSerializer::toJson()
+{
+    TypeSerializer* nested = elementSerializer != nullptr ? elementSerializer : binaryRowDataSerializer;
+    SerializerJsonInfo typeJson = {SerializerType::LIST, "", nullptr, nested};
+    return typeJson.toJson();
+}
+
 void BinaryRowDataListSerializer::serialize(void* row, DataOutputSerializer& target)
 {
     LOG(">>>>");

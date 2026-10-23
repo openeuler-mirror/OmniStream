@@ -707,17 +707,6 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
                 static_cast<std::vector<long>*>(rawVal));
             delete static_cast<K*>(rawKey);
             delete static_cast<VoidNamespace*>(rawNs);
-        } else if (dataId == BackendDataType::ROW_LIST_BK) {
-            void* rawVal = info.valueSerializer->deserialize(valInput);
-            auto* table =
-                reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<RowData*>*>*>(stateTablePtr);
-            table->put(
-                *static_cast<K*>(rawKey),
-                keyGroupId,
-                *static_cast<VoidNamespace*>(rawNs),
-                static_cast<std::vector<RowData*>*>(rawVal));
-            delete static_cast<K*>(rawKey);
-            delete static_cast<VoidNamespace*>(rawNs);
         } else {
             INFO_RELEASE("Error:HeapKeyedStateBackendBuilder: unsupported VALUE restore type " << dataId);
             delete static_cast<K*>(rawKey);

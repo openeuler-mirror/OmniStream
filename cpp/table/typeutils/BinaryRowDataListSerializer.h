@@ -24,13 +24,13 @@ struct SerializedRowSpan {
 
 class BinaryRowDataListSerializer : public TypeSerializerSingleton {
 public:
-    BinaryRowDataListSerializer()
-    {
-    }
+    // elementSerializer is only used for checkpoint metadata. Wire format stays
+    // length-prefixed binary rows. The caller transfers ownership.
+    explicit BinaryRowDataListSerializer(int numFields = 1, TypeSerializer* elementSerializer = nullptr);
 
-    ~BinaryRowDataListSerializer()
-    {
-    }
+    ~BinaryRowDataListSerializer() override;
+
+    std::string toJson() override;
 
     // void * BinaryRowData
     void* deserialize(DataInputView& source) override;
@@ -53,7 +53,8 @@ public:
     };
 
 private:
-    BinaryRowDataSerializer* binaryRowDataSerializer = new BinaryRowDataSerializer(1);
+    BinaryRowDataSerializer* binaryRowDataSerializer;
+    TypeSerializer* elementSerializer;
 };
 
 #endif // OMNISTREAM_BINARYROWDATALISTSERIALIZER_H

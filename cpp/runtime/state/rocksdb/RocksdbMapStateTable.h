@@ -224,6 +224,19 @@ public:
         return std::make_shared<std::string>(pinSlice.data(), pinSlice.size());
     };
 
+    void putRaw(const N& nameSpace, UK& userKey, const uint8_t* data, int length)
+    {
+        DataOutputSerializer outputSerializer;
+        OutputBufferStatus outputBufferStatus;
+        outputSerializer.setBackendBuffer(&outputBufferStatus);
+        ROCKSDB_NAMESPACE::Slice sliceKey = serializerKeyAndUserKey(outputSerializer, userKey, nameSpace);
+        ROCKSDB_NAMESPACE::Slice sliceValue(reinterpret_cast<const char*>(data), static_cast<size_t>(length));
+        auto s = rocksDb->Put(writeOptions, table, sliceKey, sliceValue);
+        if (!s.ok()) {
+            THROW_RUNTIME_ERROR("rocksdb map state table put raw failed, status is << " << s.ToString());
+        }
+    }
+
     void GetByBatch(
         const N& nameSpace,
         std::unordered_map<K, std::unordered_set<XXH128_hash_t>>& dataToGet,

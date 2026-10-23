@@ -12,28 +12,30 @@
 #ifndef OMNISTREAM_APPENDONLYTOPNFUNCTION_H
 #define OMNISTREAM_APPENDONLYTOPNFUNCTION_H
 
+#include <algorithm>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 #include "AbstractTopNFunction.h"
-#include "core/api/common/state/ValueState.h"
-#include "core/api/common/state/ValueStateDescriptor.h"
-#include "core/memory/DataOutputSerializer.h"
+#include "core/api/common/state/MapState.h"
+#include "core/api/common/state/MapStateDescriptor.h"
 #include "runtime/state/VoidNamespace.h"
-#include "runtime/state/rocksdb/RocksdbValueState.h"
 #include "streaming/api/operators/StreamingRuntimeContext.h"
+#include "table/data/binary/BinaryRowData.h"
 #include "table/runtime/keyselector/KeySelector.h"
+#include "table/types/logical/RowType.h"
 #include "table/typeutils/BinaryRowDataListSerializer.h"
-#include "table/typeutils/SortedVectorLong.h"
+#include "table/typeutils/RowDataSerializer.h"
 
-// One ordered top-N list per partition key.
-// A batch keeps every touched partition in memory and talks to the state backend at
-// batch end. The first touch of a partition reads sort keys only. A row that loses
-// does not deserialize the row list and does not write it back. A partition whose
-// top-N changes is written once: only moved rows are deserialized, and unchanged row
-// bytes are copied through. Nothing is kept for the next batch.
+// One top-N per partition key. The only persisted state is Flink's
+// data-state-with-append: MapState<sortKey RowData, List<input RowData>>.
+// Rows that share a sort key stay in one list, in insertion order. Sort keys are
+// ordered by the rank comparator. A batch keeps touched partitions in memory.
+// The first touch reads that map. A partition whose membership does not change
+// is not written. A changed partition puts each changed sort key and removes
+// sort keys that fell out of the top-N. Nothing is kept for the next batch.
 template <typename K>
 class AppendOnlyTopNFunction : public AbstractTopNFunction<K> {
 public:
@@ -50,12 +52,17 @@ public:
 
     void open(const Configuration& context) override
     {
-        rowListSerializer = new BinaryRowDataListSerializer();
-        auto* desc = new ValueStateDescriptor<std::vector<RowData*>*>("data-state-with-append", rowListSerializer);
-        auto* sortDesc = new ValueStateDescriptor<std::vector<long>*>("sort-key-state", SortedVectorLong::INSTANCE);
+        int inputArity = static_cast<int>(this->inputRowType->size());
+        std::vector<std::string> sortTypeNames{(*this->inputTypeNames)[this->sortKeyIndices[0]]};
+        omnistream::RowType sortKeyType(false, sortTypeNames);
+        auto* sortKeySer = new RowDataSerializer(&sortKeyType);
+        omnistream::RowType inputType(false, *this->inputTypeNames);
+        auto* rowListSerializer = new BinaryRowDataListSerializer(inputArity, new RowDataSerializer(&inputType));
+        auto* desc = new MapStateDescriptor<RowData*, std::vector<RowData*>*>(
+            "data-state-with-append", sortKeySer, rowListSerializer);
+        desc->setKeyValueBackendTypeId(BackendDataType::ROW_BK, BackendDataType::ROW_LIST_BK);
         auto* runtimeContext = static_cast<StreamingRuntimeContext<K>*>(this->getRuntimeContext());
-        dataState = runtimeContext->template getState<std::vector<RowData*>*>(desc);
-        sortState = runtimeContext->template getState<std::vector<long>*>(sortDesc);
+        dataState = runtimeContext->template getMapState<RowData*, std::vector<RowData*>*>(desc);
         stateType_ = runtimeContext->getStateType();
         omnistream::checkStateType(stateType_, "AppendOnlyTopNFunction");
     }
@@ -82,14 +89,15 @@ public:
             auto [it, created] = partitionWork.try_emplace(partitionKey);
             if (created) {
                 ctx.setCurrentKey(partitionKey);
-                loadSortKeys(it->second);
+                loadPartition(it->second);
                 it->second.key = partitionKey;
                 touched.push_back(partitionKey);
             }
             considerRow(batch, i, it->second);
         }
-        for (const K& partitionKey : touched) {
-            flushPartition(batch, ctx, partitionWork.find(partitionKey)->second, outputs, deleteAfterOutput);
+        flushPartition(batch, ctx, touched, partitionWork, outputs, deleteAfterOutput);
+        if (rocksBackend()) {
+            dataState->clearEntriesCache();
         }
 
         if (!outputs.empty()) {
@@ -117,10 +125,20 @@ private:
         int64_t sortValue = 0;
         bool fromBatch = false;
         int32_t batchRow = -1;
-        int stateIndex = -1;
+        int groupIndex = -1;
+        int indexInGroup = -1;
         RowData* stateRow = nullptr;
         int oldRank = 0;
         int64_t timestamp = 0;
+    };
+
+    struct LoadedGroup {
+        bool sortNull = false;
+        int64_t sortValue = 0;
+        RowData* sortKey = nullptr;
+        std::vector<RowData*>* rows = nullptr;
+        int rowCount = 0;
+        bool kept = false;
     };
 
     struct OutRow {
@@ -137,13 +155,12 @@ private:
         K key{};
         std::vector<WorkItem> rows;
         std::vector<WorkItem> evicted;
+        std::vector<LoadedGroup> loadedGroups;
         int loadedCount = 0;
         bool hadState = false;
     };
 
-    ValueState<std::vector<RowData*>*>* dataState = nullptr;
-    ValueState<std::vector<long>*>* sortState = nullptr;
-    BinaryRowDataListSerializer* rowListSerializer = nullptr;
+    MapState<RowData*, std::vector<RowData*>*>* dataState = nullptr;
     omnistream::StateType stateType_ = omnistream::StateType::UNKNOWN;
     KeySelector<K> partitionKeySelector;
 
@@ -222,50 +239,106 @@ private:
         value = column->GetValue(row);
     }
 
-    using RocksRowState = RocksdbValueState<K, VoidNamespace, std::vector<RowData*>*>;
-
     bool rocksBackend() const
     {
         return stateType_ == omnistream::StateType::ROCKSDB;
     }
 
-    RocksRowState* rocksRows()
+    RowData* makeSortKey(bool isNull, int64_t value) const
     {
-        auto* state = dynamic_cast<RocksRowState*>(dataState);
-        if (state == nullptr) {
-            throw std::runtime_error("AppendOnlyTopNFunction RocksDB row state is missing");
+        auto* row = BinaryRowData::createBinaryRowDataWithMem(1);
+        if (isNull) {
+            row->setNullAt(0);
+        } else {
+            row->setLong(0, value);
         }
-        return state;
+        return row;
     }
 
-    void loadSortKeys(PartitionWork& active)
+    void readSortKey(RowData* key, bool& isNull, int64_t& value) const
     {
-        std::vector<long>* keys = sortState->value();
-        if (keys == nullptr) {
+        if (key == nullptr) {
+            throw std::runtime_error("AppendOnlyTopNFunction sort key is missing");
+        }
+        isNull = key->isNullAt(0);
+        value = isNull ? 0 : *key->getLong(0);
+    }
+
+    bool sameSortKey(bool leftNull, int64_t left, bool rightNull, int64_t right) const
+    {
+        if (leftNull || rightNull) {
+            return leftNull && rightNull;
+        }
+        return left == right;
+    }
+
+    void fillFromGroups(PartitionWork& active)
+    {
+        int count = 0;
+        for (const LoadedGroup& group : active.loadedGroups) {
+            count += group.rowCount;
+        }
+        active.hadState = count > 0;
+        active.loadedCount = count;
+        active.rows.reserve(static_cast<size_t>(count));
+        int rank = 1;
+        for (int groupIndex = 0; groupIndex < static_cast<int>(active.loadedGroups.size()); ++groupIndex) {
+            LoadedGroup& group = active.loadedGroups[static_cast<size_t>(groupIndex)];
+            for (int indexInGroup = 0; indexInGroup < group.rowCount; ++indexInGroup) {
+                WorkItem item;
+                item.sortNull = group.sortNull;
+                item.sortValue = group.sortValue;
+                item.groupIndex = groupIndex;
+                item.indexInGroup = indexInGroup;
+                item.stateRow = (*group.rows)[static_cast<size_t>(indexInGroup)];
+                item.oldRank = rank++;
+                active.rows.push_back(item);
+            }
+        }
+    }
+
+    void sortLoadedGroups(PartitionWork& active)
+    {
+        std::stable_sort(
+            active.loadedGroups.begin(),
+            active.loadedGroups.end(),
+            [&](const LoadedGroup& left, const LoadedGroup& right) {
+                return strictlyBetter(left.sortNull, left.sortValue, right.sortNull, right.sortValue);
+            });
+    }
+
+    void loadPartition(PartitionWork& active)
+    {
+        emhash7::HashMap<RowData*, std::vector<RowData*>*>* encoded = dataState->entries();
+        if (encoded == nullptr || encoded->empty()) {
             active.hadState = false;
             active.loadedCount = 0;
             return;
         }
-        if ((keys->size() % 2) != 0) {
-            if (rocksBackend()) {
-                delete keys;
+        active.loadedGroups.reserve(encoded->size());
+        for (const auto& entry : *encoded) {
+            LoadedGroup group;
+            group.sortKey = entry.first;
+            group.rows = entry.second;
+            if (group.sortKey == nullptr || group.rows == nullptr) {
+                throw std::runtime_error("AppendOnlyTopNFunction data-state-with-append is malformed");
             }
-            throw std::runtime_error("AppendOnlyTopNFunction sort key state is malformed");
+            readSortKey(group.sortKey, group.sortNull, group.sortValue);
+            group.rowCount = static_cast<int>(group.rows->size());
+            active.loadedGroups.push_back(group);
         }
-        active.hadState = true;
-        active.loadedCount = static_cast<int>(keys->size() / 2);
-        active.rows.reserve(static_cast<size_t>(active.loadedCount));
-        for (int i = 0; i < active.loadedCount; ++i) {
-            WorkItem item;
-            item.sortNull = (*keys)[static_cast<size_t>(i) * 2] != 0;
-            item.sortValue = (*keys)[static_cast<size_t>(i) * 2 + 1];
-            item.stateIndex = i;
-            item.oldRank = i + 1;
-            active.rows.push_back(item);
+        sortLoadedGroups(active);
+        fillFromGroups(active);
+    }
+
+    LoadedGroup* findLoaded(PartitionWork& active, bool sortNull, int64_t sortValue)
+    {
+        for (LoadedGroup& group : active.loadedGroups) {
+            if (sameSortKey(group.sortNull, group.sortValue, sortNull, sortValue)) {
+                return &group;
+            }
         }
-        if (rocksBackend()) {
-            delete keys;
-        }
+        return nullptr;
     }
 
     bool membershipChanged(const PartitionWork& active) const
@@ -281,121 +354,107 @@ private:
         return false;
     }
 
-    bool rowMustBeRead(const WorkItem& item, int newRank) const
+    // RocksDB entries() returns copies. HashMap entries() returns the live map.
+    void releaseLoadedCopies(PartitionWork& active, std::vector<RowData*>& deleteAfterOutput)
     {
-        bool nowVisible = newRank >= this->rankStart && newRank <= this->rankEnd;
-        bool wasVisible = item.oldRank >= this->rankStart && item.oldRank <= this->rankEnd;
-        if (wasVisible && nowVisible && item.oldRank != newRank) {
-            return true;
+        if (!rocksBackend()) {
+            return;
         }
-        if (wasVisible && !nowVisible) {
-            return true;
-        }
-        return !wasVisible && nowVisible;
-    }
-
-    void bindHeapRows(PartitionWork& active)
-    {
-        std::vector<RowData*>* list = dataState->value();
-        int listSize = list == nullptr ? 0 : static_cast<int>(list->size());
-        if (listSize != active.loadedCount) {
-            throw std::runtime_error("AppendOnlyTopNFunction row list does not match sort keys");
-        }
-        auto rowAt = [&](int index) -> RowData* { return (*list)[static_cast<size_t>(index)]; };
-        for (WorkItem& dropped : active.evicted) {
-            dropped.stateRow = rowAt(dropped.stateIndex);
-        }
-        for (WorkItem& item : active.rows) {
-            if (!item.fromBatch) {
-                item.stateRow = rowAt(item.stateIndex);
+        for (LoadedGroup& group : active.loadedGroups) {
+            if (group.rows != nullptr) {
+                for (RowData* row : *group.rows) {
+                    if (row != nullptr) {
+                        deleteAfterOutput.push_back(row);
+                    }
+                }
+                delete group.rows;
+                group.rows = nullptr;
             }
+            // The entries cache owns these sort keys and deletes them when the cache is cleared.
+            group.sortKey = nullptr;
         }
     }
 
-    void bindRocksRows(PartitionWork& active, const std::string& raw, const std::vector<SerializedRowSpan>& spans)
+    void writeFlinkState(omnistream::VectorBatch* batch, PartitionWork& active)
     {
-        if (static_cast<int>(spans.size()) != active.loadedCount) {
-            throw std::runtime_error("AppendOnlyTopNFunction row bytes do not match sort keys");
-        }
-        const auto* bytes = reinterpret_cast<const uint8_t*>(raw.data());
-        auto materialize = [&](WorkItem& item) {
-            item.stateRow = rowListSerializer->copySerializedRow(bytes, spans[static_cast<size_t>(item.stateIndex)]);
+        struct FinalGroup {
+            bool sortNull = false;
+            int64_t sortValue = 0;
+            RowData* sortKey = nullptr;
+            bool keyCreated = false;
+            bool changed = false;
+            LoadedGroup* previous = nullptr;
+            std::vector<RowData*>* list = nullptr;
+            std::vector<RowData*> extracted;
         };
-        for (WorkItem& dropped : active.evicted) {
-            if (dropped.oldRank >= this->rankStart && dropped.oldRank <= this->rankEnd) {
-                materialize(dropped);
-            }
-        }
-        for (size_t i = 0; i < active.rows.size(); ++i) {
-            WorkItem& item = active.rows[i];
-            if (!item.fromBatch && rowMustBeRead(item, static_cast<int>(i) + 1)) {
-                materialize(item);
-            }
-        }
-    }
 
-    void writeSortKeys(const PartitionWork& active)
-    {
-        auto* encoded = new std::vector<long>();
-        encoded->reserve(active.rows.size() * 2);
+        std::vector<FinalGroup> groups;
         for (const WorkItem& item : active.rows) {
-            encoded->push_back(item.sortNull ? 1L : 0L);
-            encoded->push_back(item.sortValue);
-        }
-        sortState->update(encoded, false);
-        if (rocksBackend()) {
-            delete encoded;
-        }
-    }
-
-    void writeHeapRows(omnistream::VectorBatch* batch, PartitionWork& active, std::vector<RowData*>& deleteAfterOutput)
-    {
-        auto* stored = new std::vector<RowData*>();
-        stored->reserve(active.rows.size());
-        for (const WorkItem& item : active.rows) {
-            if (item.fromBatch) {
-                stored->push_back(batch->extractRowData(item.batchRow));
-            } else {
-                stored->push_back(item.stateRow);
+            if (groups.empty() ||
+                !sameSortKey(groups.back().sortNull, groups.back().sortValue, item.sortNull, item.sortValue)) {
+                FinalGroup group;
+                group.sortNull = item.sortNull;
+                group.sortValue = item.sortValue;
+                group.previous = findLoaded(active, item.sortNull, item.sortValue);
+                group.sortKey = group.previous == nullptr ? nullptr : group.previous->sortKey;
+                group.list = new std::vector<RowData*>();
+                groups.push_back(std::move(group));
             }
-        }
-        dataState->update(stored, false);
-        for (const WorkItem& dropped : active.evicted) {
-            if (dropped.stateRow != nullptr) {
-                deleteAfterOutput.push_back(dropped.stateRow);
-            }
-        }
-    }
-
-    void writeRocksRows(
-        omnistream::VectorBatch* batch,
-        PartitionWork& active,
-        const std::string& raw,
-        const std::vector<SerializedRowSpan>& spans,
-        std::vector<RowData*>& deleteAfterOutput)
-    {
-        DataOutputSerializer output;
-        output.writeInt(static_cast<uint32_t>(active.rows.size()));
-        const auto* bytes = reinterpret_cast<const uint8_t*>(raw.data());
-        for (const WorkItem& item : active.rows) {
+            FinalGroup& group = groups.back();
             if (item.fromBatch) {
                 RowData* materialized = batch->extractRowData(item.batchRow);
-                rowListSerializer->appendSerializedRow(materialized, output);
-                delete materialized;
+                group.list->push_back(materialized);
+                group.extracted.push_back(materialized);
+                group.changed = true;
             } else {
-                const SerializedRowSpan& span = spans[static_cast<size_t>(item.stateIndex)];
-                output.write(const_cast<uint8_t*>(bytes), static_cast<int>(raw.size()), span.offset, span.bytes);
+                group.list->push_back(item.stateRow);
             }
         }
-        rocksRows()->writeRawBytes(output.getData(), output.length());
-        for (const WorkItem& dropped : active.evicted) {
-            if (dropped.stateRow != nullptr) {
-                deleteAfterOutput.push_back(dropped.stateRow);
+
+        for (FinalGroup& group : groups) {
+            if (group.previous != nullptr) {
+                group.previous->kept = true;
+                if (group.previous->rows == nullptr || group.list->size() != group.previous->rows->size()) {
+                    group.changed = true;
+                }
+            }
+            if (!group.changed) {
+                delete group.list;
+                group.list = nullptr;
+                continue;
+            }
+            if (group.sortKey == nullptr) {
+                group.sortKey = makeSortKey(group.sortNull, group.sortValue);
+                group.keyCreated = true;
+            }
+            dataState->put(group.sortKey, group.list);
+            if (rocksBackend()) {
+                for (RowData* row : group.extracted) {
+                    delete row;
+                }
+                delete group.list;
+                group.list = nullptr;
+                if (group.keyCreated) {
+                    delete group.sortKey;
+                    group.sortKey = nullptr;
+                }
+            } else if (
+                group.previous != nullptr && group.previous->rows != nullptr && group.previous->rows != group.list) {
+                delete group.previous->rows;
+                group.previous->rows = nullptr;
             }
         }
-        for (const WorkItem& item : active.rows) {
-            if (!item.fromBatch && item.stateRow != nullptr) {
-                deleteAfterOutput.push_back(item.stateRow);
+
+        for (LoadedGroup& previous : active.loadedGroups) {
+            if (previous.kept) {
+                continue;
+            }
+            dataState->remove(previous.sortKey);
+            if (!rocksBackend()) {
+                delete previous.rows;
+                previous.rows = nullptr;
+                delete previous.sortKey;
+                previous.sortKey = nullptr;
             }
         }
     }
@@ -434,31 +493,33 @@ private:
     void flushPartition(
         omnistream::VectorBatch* batch,
         typename KeyedProcessFunction<K, RowData*, RowData*>::Context& ctx,
+        const std::vector<K>& touched,
+        std::unordered_map<K, PartitionWork, PartitionKeyHash, PartitionKeyEq>& partitionWork,
+        std::vector<OutRow>& outputs,
+        std::vector<RowData*>& deleteAfterOutput)
+    {
+        for (const K& partitionKey : touched) {
+            flushOnePartition(batch, ctx, partitionWork.find(partitionKey)->second, outputs, deleteAfterOutput);
+        }
+    }
+
+    void flushOnePartition(
+        omnistream::VectorBatch* batch,
+        typename KeyedProcessFunction<K, RowData*, RowData*>::Context& ctx,
         PartitionWork& active,
         std::vector<OutRow>& outputs,
         std::vector<RowData*>& deleteAfterOutput)
     {
         ctx.setCurrentKey(active.key);
         if (!membershipChanged(active)) {
+            releaseLoadedCopies(active, deleteAfterOutput);
             active.rows.clear();
             active.evicted.clear();
+            active.loadedGroups.clear();
             active.hadState = false;
             active.loadedCount = 0;
             active.open = false;
             return;
-        }
-
-        std::string rawRows;
-        std::vector<SerializedRowSpan> spans;
-        if (rocksBackend()) {
-            rawRows = rocksRows()->readRawBytes();
-            if (!rawRows.empty()) {
-                rowListSerializer->indexSerializedRows(
-                    reinterpret_cast<const uint8_t*>(rawRows.data()), static_cast<int>(rawRows.size()), spans);
-            }
-            bindRocksRows(active, rawRows, spans);
-        } else {
-            bindHeapRows(active);
         }
 
         for (const WorkItem& dropped : active.evicted) {
@@ -489,15 +550,20 @@ private:
             }
         }
 
+        writeFlinkState(batch, active);
         if (rocksBackend()) {
-            writeRocksRows(batch, active, rawRows, spans, deleteAfterOutput);
+            releaseLoadedCopies(active, deleteAfterOutput);
         } else {
-            writeHeapRows(batch, active, deleteAfterOutput);
+            for (const WorkItem& dropped : active.evicted) {
+                if (dropped.stateRow != nullptr) {
+                    deleteAfterOutput.push_back(dropped.stateRow);
+                }
+            }
         }
-        writeSortKeys(active);
 
         active.rows.clear();
         active.evicted.clear();
+        active.loadedGroups.clear();
         active.hadState = false;
         active.loadedCount = 0;
         active.open = false;
