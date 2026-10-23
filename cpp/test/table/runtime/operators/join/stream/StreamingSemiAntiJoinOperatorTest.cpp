@@ -13,8 +13,15 @@
 
 #include <gtest/gtest.h>
 #include <memory>
+#include <tuple>
 #include "table/runtime/operators/join/stream/StreamingSemiAntiJoinOperator.h"
+#include "core/api/common/state/MapState.h"
+#include "core/api/common/state/MapStateDescriptor.h"
+#include "core/typeutils/JoinTupleSerializer.h"
 #include "runtime/taskmanager/OmniRuntimeEnvironment.h"
+#include "table/data/binary/BinaryRowData.h"
+#include "table/typeutils/InternalTypeInfo.h"
+#include "table/types/logical/RowType.h"
 #include "test/core/operators/OutputTest.h"
 #include "core/typeutils/LongSerializer.h"
 
@@ -183,6 +190,63 @@ TEST(StreamingSemiAntiJoinOperatorTest, AntiEmitOnLeftAndRetractOnRightLateMatch
     EXPECT_TRUE(colEqualsInt64(out->getAll()[1]->Get(0), {1}));
     EXPECT_TRUE(colEqualsInt64(out->getAll()[1]->Get(1), {10}));
     EXPECT_EQ(out->getAll()[1]->getRowKind(0), RowKind::DELETE);
+
+    op->close();
+    delete op;
+    delete out;
+}
+
+// Semi/Anti with no unique key: left-records is MapState<RowData, Tuple2<count, associations>>
+// and right-records is MapState<RowData, Integer>, same as Flink StreamingSemiAntiJoinOperator.
+TEST(StreamingSemiAntiJoinOperatorTest, NoUniqueKeyDataStateMatchesFlinkMapLayout)
+{
+    auto* out = new OutputTestVectorBatch();
+    auto* op = makeOp(semiDesc, out);
+
+    op->processBatch1(new StreamRecord(getLeftBatch()));
+    op->setCurrentKey(1L);
+
+    auto* leftType =
+        InternalTypeInfo::ofRowType(new omnistream::RowType(true, std::vector<std::string>{"BIGINT", "BIGINT"}));
+    auto* leftDescriptor = new MapStateDescriptor<std::shared_ptr<RowData>, std::tuple<int32_t, int32_t>>(
+        "left-records", leftType->createTypeSerializer(), new JoinTupleSerializer());
+    leftDescriptor->setKeyValueBackendTypeId(BackendDataType::SHARED_ROW_BK, BackendDataType::TUPLE_INT32_INT32);
+    auto* leftState =
+        op->getRuntimeContext()->template getMapState<std::shared_ptr<RowData>, std::tuple<int32_t, int32_t>>(
+            leftDescriptor);
+    auto* leftEntries = leftState->entries();
+    ASSERT_NE(leftEntries, nullptr);
+    ASSERT_EQ(leftEntries->size(), 1u);
+    for (const auto& entry : *leftEntries) {
+        EXPECT_EQ(*entry.first->getLong(0), 1);
+        EXPECT_EQ(*entry.first->getLong(1), 10);
+        EXPECT_EQ(std::get<0>(entry.second), 1);
+        EXPECT_EQ(std::get<1>(entry.second), 0);
+    }
+
+    op->processBatch2(new StreamRecord(getRightBatch(1)));
+    op->setCurrentKey(1L);
+    leftEntries = leftState->entries();
+    ASSERT_NE(leftEntries, nullptr);
+    ASSERT_EQ(leftEntries->size(), 1u);
+    for (const auto& entry : *leftEntries) {
+        EXPECT_EQ(std::get<0>(entry.second), 1);
+        EXPECT_EQ(std::get<1>(entry.second), 1);
+    }
+
+    auto* rightType = InternalTypeInfo::ofRowType(new omnistream::RowType(true, std::vector<std::string>{"BIGINT"}));
+    auto* rightDescriptor = new MapStateDescriptor<std::shared_ptr<RowData>, int32_t>(
+        "right-records", rightType->createTypeSerializer(), new IntSerializer());
+    rightDescriptor->setKeyValueBackendTypeId(BackendDataType::SHARED_ROW_BK, BackendDataType::INT_BK);
+    auto* rightState =
+        op->getRuntimeContext()->template getMapState<std::shared_ptr<RowData>, int32_t>(rightDescriptor);
+    auto* rightEntries = rightState->entries();
+    ASSERT_NE(rightEntries, nullptr);
+    ASSERT_EQ(rightEntries->size(), 1u);
+    for (const auto& entry : *rightEntries) {
+        EXPECT_EQ(*entry.first->getLong(0), 1);
+        EXPECT_EQ(entry.second, 1);
+    }
 
     op->close();
     delete op;

@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <memory>
 #include <stdexcept>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -21,6 +22,8 @@
 
 #include "core/typeutils/LongSerializer.h"
 #include "runtime/state/DefaultKeyedStateStore.h"
+#include "runtime/state/VoidNamespace.h"
+#include "runtime/state/heap/CopyOnWriteStateTable.h"
 #include "runtime/state/HeapKeyedStateBackend.h"
 #include "runtime/state/InternalKeyContextImpl.h"
 #include "runtime/state/KeyGroupRange.h"
@@ -145,6 +148,39 @@ TEST_F(OuterJoinRecordStateViewsTest, UsesDefaultAssociationCountAndRecreatesExp
 
     view->updateNumOfAssociations(makeRecord(20), 5);
     EXPECT_EQ(collectRecordsAndAssociations(*view), (std::vector<std::pair<long, int32_t>>{{10, -1}, {20, 5}}));
+}
+
+// Flink outer InputSideHasNoUniqueKey: MapState<RowData, Tuple2<Integer, Integer>>.
+// Tuple2 is (number of copies, number of associations). Left outer and Semi/Anti
+// both store the outer side under this layout. The inner side stays a count map.
+TEST_F(OuterJoinRecordStateViewsTest, NoUniqueKeyMapMatchesFlinkOuterTupleState)
+{
+    auto view = OuterJoinRecordStateViews::create<long>(runtimeContext_, "left-records", recordType_);
+    view->addRecord(makeRecord(10), 0);
+    view->addRecord(makeRecord(10), 1);
+    view->addRecord(makeRecord(20), 0);
+
+    using OuterMap = emhash7::HashMap<std::shared_ptr<RowData>, std::tuple<int32_t, int32_t>>;
+    auto* table = reinterpret_cast<CopyOnWriteStateTable<long, VoidNamespace, OuterMap*>*>(
+        backend_->getStateTablePtr("left-records"));
+    auto* entries = table->get(VoidNamespace());
+    ASSERT_NE(entries, nullptr);
+    EXPECT_EQ(entries->size(), 2u);
+
+    auto ten = entries->find(makeRecord(10));
+    auto twenty = entries->find(makeRecord(20));
+    ASSERT_NE(ten, entries->end());
+    ASSERT_NE(twenty, entries->end());
+    EXPECT_EQ(std::get<0>(ten->second), 2);
+    EXPECT_EQ(std::get<1>(ten->second), 1);
+    EXPECT_EQ(std::get<0>(twenty->second), 1);
+    EXPECT_EQ(std::get<1>(twenty->second), 0);
+
+    view->retractRecord(makeRecord(10));
+    ten = entries->find(makeRecord(10));
+    ASSERT_NE(ten, entries->end());
+    EXPECT_EQ(std::get<0>(ten->second), 1);
+    EXPECT_EQ(std::get<1>(ten->second), 1);
 }
 } // namespace
 } // namespace omnistream

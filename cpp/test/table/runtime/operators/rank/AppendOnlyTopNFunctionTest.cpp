@@ -1,5 +1,10 @@
 #include <gtest/gtest.h>
+#include <map>
 #include "table/runtime/operators/rank/AppendOnlyTopNFunction.h"
+#include "runtime/state/VoidNamespace.h"
+#include "runtime/state/heap/CopyOnWriteStateTable.h"
+#include "runtime/state/HeapKeyedStateBackend.h"
+#include "table/data/binary/BinaryRowData.h"
 #include "table/data/vectorbatch/VectorBatch.h"
 #include "streaming/api/functions/KeyedProcessFunction.h"
 #include "api/operators/KeyedProcessOperator.h"
@@ -111,4 +116,47 @@ TEST(AppendOnlyTopNFunctionTest, SameSortKeyInOneBatchKeepsAllInserts)
     auto* actual = output->getVectorBatch();
     omnistream::expectRowKinds(actual, {RowKind::INSERT, RowKind::INSERT, RowKind::INSERT});
     EXPECT_TRUE(omniruntime::TestUtil::VecBatchMatch(actual, expectedVB));
+}
+
+// Flink AppendOnlyTopN data-state-with-append is MapState<sortKey, List<input row>>.
+// Only sort keys inside the rank range are stored, and equal sort keys share one list.
+TEST(AppendOnlyTopNFunctionTest, DataStateWithAppendMatchesFlinkSortKeyMap)
+{
+    auto rankConfig = omnistream::makeRankConfig(false, false, 10);
+    auto* output = new BatchOutputTest();
+    auto* op = omnistream::openAppendOnlyTopN(rankConfig, output);
+
+    auto* inputVB = omnistream::makeLongBatch({0, 0, 0}, {30, 20, 20}, {300, 200, 201});
+    op->processBatch(new StreamRecord(inputVB));
+    EXPECT_TRUE(true);
+
+    auto* partitionKey = BinaryRowData::createBinaryRowDataWithMem(1);
+    int64_t partitionValue = 0;
+    partitionKey->setLong(0, partitionValue);
+    op->setCurrentKey(partitionKey);
+
+    auto* heap = dynamic_cast<HeapKeyedStateBackend<RowData*>*>(op->getKeyedStateBackend());
+    ASSERT_NE(heap, nullptr);
+    using RankMap = emhash7::HashMap<RowData*, std::vector<RowData*>*>;
+    auto* table = reinterpret_cast<CopyOnWriteStateTable<RowData*, VoidNamespace, RankMap*>*>(
+        heap->getStateTablePtr("data-state-with-append"));
+    auto* entries = table->get(VoidNamespace());
+    ASSERT_NE(entries, nullptr);
+
+    std::map<int64_t, std::vector<int64_t>> payloadBySortKey;
+    for (const auto& entry : *entries) {
+        ASSERT_NE(entry.first, nullptr);
+        ASSERT_FALSE(entry.first->isNullAt(0));
+        ASSERT_NE(entry.second, nullptr);
+        std::vector<int64_t> payloads;
+        for (RowData* row : *entry.second) {
+            ASSERT_NE(row, nullptr);
+            EXPECT_EQ(*row->getLong(1), *entry.first->getLong(0));
+            payloads.push_back(*row->getLong(2));
+        }
+        payloadBySortKey.emplace(*entry.first->getLong(0), payloads);
+    }
+    EXPECT_EQ(payloadBySortKey.size(), 2u);
+    EXPECT_EQ(payloadBySortKey[30], std::vector<int64_t>{300});
+    EXPECT_EQ(payloadBySortKey[20], (std::vector<int64_t>{200, 201}));
 }

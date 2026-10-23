@@ -12,6 +12,7 @@
 #include "table/runtime/operators/join/stream/state/JoinRecordStateViews.h"
 
 #include <algorithm>
+#include <map>
 #include <memory>
 #include <stdexcept>
 #include <vector>
@@ -20,6 +21,8 @@
 
 #include "core/typeutils/LongSerializer.h"
 #include "runtime/state/DefaultKeyedStateStore.h"
+#include "runtime/state/VoidNamespace.h"
+#include "runtime/state/heap/CopyOnWriteStateTable.h"
 #include "runtime/state/HeapKeyedStateBackend.h"
 #include "runtime/state/InternalKeyContextImpl.h"
 #include "runtime/state/KeyGroupRange.h"
@@ -135,6 +138,53 @@ TEST_F(JoinRecordStateViewsTest, IsolatesRecordsByCurrentJoinKey)
 
     keyContext_->setCurrentKey(1L);
     EXPECT_EQ(collectRecords(*view), (std::vector<long>{10}));
+}
+
+// Flink InputSideHasNoUniqueKey stores MapState<RowData, Integer>.
+// The user key is the record and the value is how many copies sit under the join key.
+TEST_F(JoinRecordStateViewsTest, NoUniqueKeyMapMatchesFlinkCountState)
+{
+    auto left = JoinRecordStateViews::create<long>(runtimeContext_, "left-records", recordType_);
+    left->addRecord(makeRecord(10));
+    left->addRecord(makeRecord(10));
+    left->addRecord(makeRecord(20));
+
+    using CountMap = emhash7::HashMap<std::shared_ptr<RowData>, int32_t>;
+    auto* table = reinterpret_cast<CopyOnWriteStateTable<long, VoidNamespace, CountMap*>*>(
+        backend_->getStateTablePtr("left-records"));
+    auto* entries = table->get(VoidNamespace());
+    ASSERT_NE(entries, nullptr);
+    EXPECT_EQ(entries->size(), 2u);
+
+    std::map<long, int32_t> counts;
+    for (const auto& entry : *entries) {
+        counts[*entry.first->getLong(0)] = entry.second;
+    }
+    EXPECT_EQ(counts[10], 2);
+    EXPECT_EQ(counts[20], 1);
+
+    left->retractRecord(makeRecord(10));
+    counts.clear();
+    for (const auto& entry : *entries) {
+        counts[*entry.first->getLong(0)] = entry.second;
+    }
+    EXPECT_EQ(counts[10], 1);
+    EXPECT_EQ(counts[20], 1);
+}
+
+TEST_F(JoinRecordStateViewsTest, RightRecordsUseTheSameCountMap)
+{
+    auto right = JoinRecordStateViews::create<long>(runtimeContext_, "right-records", recordType_);
+    right->addRecord(makeRecord(10));
+
+    using CountMap = emhash7::HashMap<std::shared_ptr<RowData>, int32_t>;
+    auto* table = reinterpret_cast<CopyOnWriteStateTable<long, VoidNamespace, CountMap*>*>(
+        backend_->getStateTablePtr("right-records"));
+    auto* entries = table->get(VoidNamespace());
+    ASSERT_NE(entries, nullptr);
+    ASSERT_EQ(entries->size(), 1u);
+    EXPECT_EQ(*entries->begin()->first->getLong(0), 10);
+    EXPECT_EQ(entries->begin()->second, 1);
 }
 } // namespace
 } // namespace omnistream

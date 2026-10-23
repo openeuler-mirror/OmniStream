@@ -12,6 +12,7 @@
 #pragma once
 
 #include <emhash7.hpp>
+#include <xxhash.h>
 #include <map>
 #include "common.h"
 #include <vector>
@@ -157,6 +158,19 @@ public:
                     auto stateTable = reinterpret_cast<
                         CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<RowData*, std::vector<RowData*>*>*>*>(
                         stateTablePtr);
+                    delete stateTable;
+                } else if (keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT64) {
+                    auto stateTable = reinterpret_cast<CopyOnWriteStateTable<
+                        K,
+                        VoidNamespace,
+                        emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int64_t>>*>*>(stateTablePtr);
+                    delete stateTable;
+                } else if (
+                    keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT32_INT64) {
+                    auto stateTable = reinterpret_cast<CopyOnWriteStateTable<
+                        K,
+                        VoidNamespace,
+                        emhash7::HashMap<XXH128_hash_t, std::tuple<int32_t, int32_t, int64_t>>*>*>(stateTablePtr);
                     delete stateTable;
                 } else if (keyId == BackendDataType::TIME_WINDOW_BK && valueId == BackendDataType::TIME_WINDOW_BK) {
                     auto stateTable = reinterpret_cast<
@@ -487,6 +501,14 @@ uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(
         } else if (keyId == BackendDataType::ROW_BK && valueId == BackendDataType::ROW_LIST_BK) {
             return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, RowData*, std::vector<RowData*>*>(
                 namespaceSerializer, stateDesc);
+        } else if (keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT64) {
+            return (uintptr_t)
+                createOrUpdateInternalMapState<VoidNamespace, XXH128_hash_t, std::tuple<int32_t, int64_t>>(
+                    namespaceSerializer, stateDesc);
+        } else if (keyId == BackendDataType::XXHASH128_BK && valueId == BackendDataType::TUPLE_INT32_INT32_INT64) {
+            return (uintptr_t)
+                createOrUpdateInternalMapState<VoidNamespace, XXH128_hash_t, std::tuple<int32_t, int32_t, int64_t>>(
+                    namespaceSerializer, stateDesc);
         } else if (keyId == BackendDataType::VARCHAR_BK && valueId == BackendDataType::OBJECT_BK) {
             return (uintptr_t)createOrUpdateInternalMapState<VoidNamespace, Object*, Object*>(
                 namespaceSerializer, stateDesc);

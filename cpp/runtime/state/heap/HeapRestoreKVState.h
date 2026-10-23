@@ -368,6 +368,27 @@ void HeapRestoreKVState<K>::writeMapEntry(const std::vector<int8_t>& keyBytes, B
             table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), kvMap);
         }
         (*kvMap)[std::move(uk)] = *uvPtr;
+    } else if (mapKeyId == BackendDataType::XXHASH128_BK && mapValId == BackendDataType::TUPLE_INT32_INT64) {
+        using UK = XXH128_hash_t;
+        using UV = std::tuple<int32_t, int64_t>;
+        auto* table = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, emhash7::HashMap<UK, UV>*>*>(
+            stateInfo_.mainTablePtr);
+
+        std::unique_ptr<UK> ukPtr(static_cast<UK*>(mapKeySer->deserialize(keyInput)));
+        UK uk = *ukPtr;
+        if (isMapValNull) {
+            ERROR_RELEASE(
+                "HeapRestoreKVState: unexpected null MAP value for non-pointer type '" << stateInfo_.stateName << "'");
+            throw std::runtime_error(
+                "HeapRestoreKVState: unexpected null MAP value for non-pointer type '" + stateInfo_.stateName + "'");
+        }
+        std::unique_ptr<UV> uvPtr(static_cast<UV*>(mapValSer->deserialize(valInput)));
+        auto* kvMap = table->get(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs));
+        if (kvMap == nullptr) {
+            kvMap = new emhash7::HashMap<UK, UV>();
+            table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), kvMap);
+        }
+        (*kvMap)[std::move(uk)] = *uvPtr;
     } else if (mapKeyId == BackendDataType::XXHASH128_BK && mapValId == BackendDataType::TUPLE_INT32_INT32_INT64) {
         using UK = XXH128_hash_t;
         using UV = std::tuple<int32_t, int32_t, int64_t>;
