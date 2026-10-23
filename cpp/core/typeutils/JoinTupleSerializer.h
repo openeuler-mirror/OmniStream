@@ -45,7 +45,7 @@ public:
 
     BackendDataType getBackendId() const override
     {
-        return BackendDataType::TUPLE_INT32_INT64;
+        return BackendDataType::TUPLE_INT32_INT32;
     };
 
     std::string toJson() override

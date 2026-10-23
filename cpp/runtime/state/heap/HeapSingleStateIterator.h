@@ -603,6 +603,11 @@ private:
                 mapKeySer->serialize(const_cast<Object*>(pair.first), outputSerializer);
             } else if constexpr (std::is_pointer_v<UK>) {
                 mapKeySer->serialize(const_cast<UK>(pair.first), outputSerializer);
+            } else if constexpr (is_shared_ptr_v<UK>) {
+                if (!pair.first) {
+                    THROW_LOGIC_EXCEPTION("Heap snapshot cannot serialize a null shared_ptr map key");
+                }
+                mapKeySer->serialize(pair.first.get(), outputSerializer);
             } else {
                 UK mk = pair.first;
                 mapKeySer->serialize(&mk, outputSerializer);

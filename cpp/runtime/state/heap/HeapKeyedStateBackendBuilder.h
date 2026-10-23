@@ -29,8 +29,6 @@
 #include "core/typeutils/TypeSerializer.h"
 #include "core/typeutils/MapSerializer.h"
 #include "core/typeutils/ListSerializer.h"
-#include "core/typeutils/XxH128_hashSerializer.h"
-#include "core/typeutils/JoinTupleSerializer.h"
 #include "core/api/common/state/RestoreStateDescriptor.h"
 #include "core/memory/DataInputDeserializer.h"
 #include "core/utils/key_type_traits.h"
@@ -235,6 +233,20 @@ private:
         } else if constexpr (std::is_pointer_v<UK>) {
             UK raw = static_cast<UK>(mapKeySer->deserialize(keyInput));
             uk = copyRestoredPointerForState<UK>(raw);
+        } else if constexpr (is_shared_ptr_v<UK>) {
+            using BaseType = unwrap_shared_ptr_t<UK>;
+            auto* keyBuffer = static_cast<BaseType*>(mapKeySer->deserialize(keyInput));
+            if (keyBuffer == nullptr) {
+                throw std::runtime_error("HeapKeyedStateBackendBuilder: deserialized null shared row map key");
+            }
+            if constexpr (std::is_same_v<BaseType, RowData>) {
+                uk = std::shared_ptr<RowData>(static_cast<RowData*>(keyBuffer)->copy());
+                if (!mapKeySer->isReusable()) {
+                    delete keyBuffer;
+                }
+            } else {
+                NOT_IMPL_EXCEPTION;
+            }
         } else {
             void* raw = mapKeySer->deserialize(keyInput);
             uk = *static_cast<UK*>(raw);
@@ -734,8 +746,14 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
         } else if (mapKeyId == BackendDataType::ROW_BK && mapValId == BackendDataType::INT_BK) {
             addMapEntryToStateTable<RowData*, int32_t>(
                 backend, info, keyGroupId, rawKey, rawNs, mapKeySer, mapValSer, keyInput, valInput);
+        } else if (mapKeyId == BackendDataType::SHARED_ROW_BK && mapValId == BackendDataType::INT_BK) {
+            addMapEntryToStateTable<std::shared_ptr<RowData>, int32_t>(
+                backend, info, keyGroupId, rawKey, rawNs, mapKeySer, mapValSer, keyInput, valInput);
         } else if (mapKeyId == BackendDataType::ROW_BK && mapValId == BackendDataType::ROW_BK) {
             addMapEntryToStateTable<RowData*, RowData*>(
+                backend, info, keyGroupId, rawKey, rawNs, mapKeySer, mapValSer, keyInput, valInput);
+        } else if (mapKeyId == BackendDataType::SHARED_ROW_BK && mapValId == BackendDataType::TUPLE_INT32_INT32) {
+            addMapEntryToStateTable<std::shared_ptr<RowData>, std::tuple<int32_t, int32_t>>(
                 backend, info, keyGroupId, rawKey, rawNs, mapKeySer, mapValSer, keyInput, valInput);
         } else if (mapKeyId == BackendDataType::XXHASH128_BK && mapValId == BackendDataType::TUPLE_INT32_INT64) {
             addMapEntryToStateTable<XXH128_hash_t, std::tuple<int32_t, int64_t>>(

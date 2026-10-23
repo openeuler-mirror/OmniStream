@@ -12,61 +12,59 @@
 #ifndef OMNISTREAM_APPENDONLYTOPNFUNCTION_H
 #define OMNISTREAM_APPENDONLYTOPNFUNCTION_H
 
-#include <vector>
-#include <unordered_set>
+#include <algorithm>
+#include <stdexcept>
+#include <string>
 #include <unordered_map>
-#include <utility>
+#include <vector>
 
-#include "table/data/RowData.h"
-#include "table/runtime/keyselector/KeySelector.h"
-#include "core/api/common/state/MapState.h"
-#include "streaming/api/operators/StreamingRuntimeContext.h"
 #include "AbstractTopNFunction.h"
-#include "table/typeutils/SortedVectorLong.h"
-#include "core/api/common/state/ValueState.h"
-#include "SetTopNBuffer.h"
-#include <string_view>
-#include "table/data/util/VectorBatchUtil.h"
-#include "TopNDataComparator.h"
-#include "runtime/state/rocksdb/RocksdbValueState.h"
-#include "runtime/state/KeyGroupRangeAssignment.h"
+#include "core/api/common/state/MapState.h"
+#include "core/api/common/state/MapStateDescriptor.h"
+#include "runtime/state/VoidNamespace.h"
+#include "streaming/api/operators/StreamingRuntimeContext.h"
+#include "table/data/binary/BinaryRowData.h"
+#include "table/runtime/keyselector/KeySelector.h"
+#include "table/types/logical/RowType.h"
+#include "table/typeutils/BinaryRowDataListSerializer.h"
+#include "table/typeutils/RowDataSerializer.h"
 
-// return true if the second row should be taken comparing with the first row
-
-template <typename K> // here K is partitionKey, sortKey will use RowData*
+// One top-N per partition key. The only persisted state is Flink's
+// data-state-with-append: MapState<sortKey RowData, List<input RowData>>.
+// Rows that share a sort key stay in one list, in insertion order. Sort keys are
+// ordered by the rank comparator. A batch keeps touched partitions in memory.
+// The first touch reads that map. A partition whose membership does not change
+// is not written. A changed partition puts each changed sort key and removes
+// sort keys that fell out of the top-N. Nothing is kept for the next batch.
+template <typename K>
 class AppendOnlyTopNFunction : public AbstractTopNFunction<K> {
 public:
-    using Cmp = TopNDataComparator<K>;
-    using BufferT = SetTopNBuffer<Cmp>;
-
     explicit AppendOnlyTopNFunction(const nlohmann::json& rankConfig)
         : AbstractTopNFunction<K>(rankConfig),
-          topNState(nullptr),
-          buffer(nullptr),
-          partitionKeySelector(this->partitionKeyTypeIds, this->partitionKeyIndices),
-          sortKeySelector(this->sortKeyTypeIds, this->sortKeyIndices)
+          partitionKeySelector(this->partitionKeyTypeIds, this->partitionKeyIndices)
     {
-        if (this->sortKeyTypeIds.size() > 1 || this->sortKeyTypeIds[0] != OMNI_LONG || this->sortOrder[0]) {
+        if (this->sortKeyTypeIds.size() != 1 || this->sortKeyTypeIds[0] != OMNI_LONG || this->sortOrder[0]) {
             NOT_IMPL_EXCEPTION;
         }
-        partitionKeyToTopNbufferMap.init(16);
     }
 
     ~AppendOnlyTopNFunction() = default;
 
     void open(const Configuration& context) override
     {
-        std::string topNStateName = "data-state-with-append";
-        TypeSerializer* topNSerializer = new SortedVectorLong();
-        // Uses int64_t as the template type but not omnistream::ComboId to keep compatibility with existing code.
-        auto* topNStateDesc = new ValueStateDescriptor<std::vector<int64_t>*>(topNStateName, topNSerializer);
-        this->topNState = static_cast<StreamingRuntimeContext<K>*>(this->getRuntimeContext())
-                              ->template getState<std::vector<int64_t>*>(topNStateDesc);
-
+        int inputArity = static_cast<int>(this->inputRowType->size());
+        std::vector<std::string> sortTypeNames{(*this->inputTypeNames)[this->sortKeyIndices[0]]};
+        omnistream::RowType sortKeyType(false, sortTypeNames);
+        auto* sortKeySer = new RowDataSerializer(&sortKeyType);
+        omnistream::RowType inputType(false, *this->inputTypeNames);
+        auto* rowListSerializer = new BinaryRowDataListSerializer(inputArity, new RowDataSerializer(&inputType));
+        auto* desc = new MapStateDescriptor<RowData*, std::vector<RowData*>*>(
+            "data-state-with-append", sortKeySer, rowListSerializer);
+        desc->setKeyValueBackendTypeId(BackendDataType::ROW_BK, BackendDataType::ROW_LIST_BK);
         auto* runtimeContext = static_cast<StreamingRuntimeContext<K>*>(this->getRuntimeContext());
+        dataState = runtimeContext->template getMapState<RowData*, std::vector<RowData*>*>(desc);
         stateType_ = runtimeContext->getStateType();
         omnistream::checkStateType(stateType_, "AppendOnlyTopNFunction");
-        maxParallelism_ = runtimeContext->getMaxNumberOfSubtasks();
     }
 
     void processBatch(
@@ -75,418 +73,657 @@ public:
         TimestampedCollector& out) override
     {
         auto inputBatchGuard = std::unique_ptr<omnistream::VectorBatch>(inputBatch);
-        int topN = this->getDefaultTopNSize();
         this->initRankEnd(nullptr);
-        int rowCnt = inputBatchGuard->GetRowCount();
+        omnistream::VectorBatch* batch = inputBatchGuard.get();
+        int rowCnt = batch->GetRowCount();
 
-        for (int i = 0; i < rowCnt; i++) {
-            auto key = partitionKeySelector.getKey(inputBatchGuard.get(), i);
-            reuseKeys_.push_back(key);
+        std::vector<OutRow> outputs;
+        std::vector<RowData*> deleteAfterOutput;
+        std::unordered_map<int64_t, RowData*> retainedKeys;
+        std::unordered_map<K, PartitionWork, PartitionKeyHash, PartitionKeyEq> partitionWork;
+        std::vector<K> touched;
 
-            auto keyGroup = KeyGroupRangeAssignment<K>::assignToKeyGroup(key, maxParallelism_);
-            auto& oldRowIds = reuseOldRowIdsByKeyGroup_[keyGroup];
-            auto newRowId = static_cast<int32_t>(oldRowIds.size());
-            auto comboId = VectorBatchUtil::getComboId(keyGroup, topNState->getNextSequenceNumber(keyGroup), newRowId);
-            reuseComboIds_.push_back(comboId);
-
-            oldRowIds.push_back(i);
-        }
-
-        bool shouldSplitVectorBatch =
-            reuseOldRowIdsByKeyGroup_.size() > 1 ||
-            (reuseOldRowIdsByKeyGroup_.size() == 1 && reuseOldRowIdsByKeyGroup_.begin()->second.size() != rowCnt);
-
-        for (auto& [keyGroup, oldRowIds] : reuseOldRowIdsByKeyGroup_) {
-            omnistream::VectorBatch* splitBatch = nullptr;
-            if (shouldSplitVectorBatch) {
-                splitBatch = VectorBatchUtil::buildNewVectorBatchByRowIds(inputBatchGuard.get(), oldRowIds);
-            } else {
-                splitBatch = inputBatchGuard.get();
+        for (int i = 0; i < rowCnt; ++i) {
+            K rawKey = partitionKeySelector.getKey(batch, i);
+            K partitionKey = retainKey(rawKey, retainedKeys);
+            auto [it, created] = partitionWork.try_emplace(partitionKey);
+            if (created) {
+                ctx.setCurrentKey(partitionKey);
+                loadPartition(it->second);
+                it->second.key = partitionKey;
+                touched.push_back(partitionKey);
             }
-            auto sequenceNumber = topNState->getNextSequenceNumber(keyGroup);
-            auto vectorBatchId = VectorBatchUtil::getVectorBatchId(keyGroup, sequenceNumber);
-            reuseVectorBatchByKeyGroup_[keyGroup] = splitBatch;
-            this->vectorBatchCacheMap.emplace(vectorBatchId, splitBatch);
+            considerRow(batch, i, it->second);
         }
-        topNState->addVectorBatches(reuseVectorBatchByKeyGroup_);
-
-        std::unordered_set<K> changedKeysInThisBatch;
-        for (int i = 0; i < rowCnt; i++) {
-            auto& partitionKey = reuseKeys_[i];
-            // auto sortKey = sortKeySelector.getKey(inputBatch, i);
-            ctx.setCurrentKey(partitionKey);
-            // Get existing rows for this partition key
-            // buffer = initHeapStates(sortKey, partitionKey);
-            buffer = initSetTopNBufferState(partitionKey);
-
-            auto currentComId = reuseComboIds_[i];
-
-            // check whether the sortKey is in the topN range
-            if (this->addCurrentToTargetBuffer(currentComId, topN, buffer)) {
-                changedKeysInThisBatch.insert(partitionKey);
-                if (this->outputRankNumber || this->hasOffset()) {
-                    // the without-number-algorithm can't handle topN with offset,
-                    // so use the with-number-algorithm to handle offset
-                    processElementWithRowNumber2(currentComId, &out);
-                } else {
-                    processElementWithoutRowNumber2(currentComId, &out);
-                }
-            }
+        flushPartition(batch, ctx, touched, partitionWork, outputs, deleteAfterOutput);
+        if (rocksBackend()) {
+            dataState->clearEntriesCache();
         }
 
-        if (this->collectedIds.size() > 0) {
-            omnistream::VectorBatch* outputBatch = generateOutputVectorBatch(inputBatchGuard.get());
-            this->collectOutputBatch(out, outputBatch);
+        if (!outputs.empty()) {
+            this->collectOutputBatch(out, buildOutput(outputs));
+        } else {
+            INFO_RELEASE("AppendOnlyTopNFunction processBatch collected no rows");
         }
 
-        std::unordered_map<K, std::vector<int64_t>*> rocksDBBatchUpdateMap;
-
-        if (changedKeysInThisBatch.size() > 0) {
-            for (auto key : changedKeysInThisBatch) {
-                BufferT* changedBuffer = partitionKeyToTopNbufferMap[key];
-                auto* updatedTopNState = changedBuffer->ToPlainVector();
-
-                if (stateType_ == omnistream::StateType::ROCKSDB) {
-                    rocksDBBatchUpdateMap.emplace(key, updatedTopNState);
-                } else {
-                    ctx.setCurrentKey(key);
-                    auto v = topNState->value();
-                    if (v != nullptr) {
-                        delete v;
-                    }
-                    topNState->update(updatedTopNState);
-                }
-            }
-        }
-
-        if (!shouldSplitVectorBatch) {
-            inputBatchGuard.release();
-        }
-
-        if (stateType_ == omnistream::StateType::ROCKSDB) {
-            if (rocksDBBatchUpdateMap.size() > 0) {
-                updateRockDBTopNStateByBatch(rocksDBBatchUpdateMap);
-            }
-
-            for (auto it : rocksDBBatchUpdateMap) {
-                delete it.second;
-            }
-        }
-        Cleanup();
-    }
-
-    void Cleanup()
-    {
-        reuseVectorBatchByKeyGroup_.clear();
-        reuseOldRowIdsByKeyGroup_.clear();
-        reuseKeys_.clear();
-        reuseComboIds_.clear();
-
-        collectedIds.clear();
-        collectedRanks.clear();
-        this->collectedRowKinds.clear();
-
-        for (auto row : rowToDel) {
+        for (RowData* row : deleteAfterOutput) {
             delete row;
         }
-        rowToDel.clear();
-
-        for (auto it : this->vectorBatchCacheMap) {
-            if (stateType_ != omnistream::StateType::HEAP) {
-                delete it.second;
-            }
-        }
-        this->vectorBatchCacheMap.clear();
-
-        // clear buffer map
-        for (auto& pair : partitionKeyToTopNbufferMap) {
+        for (auto& pair : retainedKeys) {
             delete pair.second;
-            if constexpr (std::is_same<K, RowData*>::value) {
-                delete pair.first;
-            }
         }
-        partitionKeyToTopNbufferMap.clear();
-        buffer = nullptr;
-    }
-
-    void updateRockDBTopNStateByBatch(std::unordered_map<K, std::vector<int64_t>*>& rocksDBBatchUpdateMap)
-    {
-        auto* rockdbTopNState = static_cast<RocksdbValueState<K, VoidNamespace, std::vector<int64_t>*>*>(topNState);
-        rockdbTopNState->updateByBatch(rocksDBBatchUpdateMap);
-    }
-
-    bool addCurrentToTargetBuffer(ComboId currentComId, long topN, BufferT* buffer)
-    {
-        if (buffer->GetSize() < topN) {
-            return buffer->AddElement(static_cast<int64_t>(currentComId));
-        } else {
-            auto smallestComId = static_cast<ComboId>(buffer->GetSmallestElement());
-            auto prowId = VectorBatchUtil::getRowId(smallestComId);
-            auto crowId = VectorBatchUtil::getRowId(currentComId);
-
-            bool inRange = CompareRowData(GetVectorBatch(currentComId), crowId, GetVectorBatch(smallestComId), prowId);
-            if (inRange) {
-                if (this->generateUpdateBefore) {
-                    if (this->outputRankNumber || this->hasOffset()) {
-                        collectedIds.push_back(smallestComId);
-                        collectedRanks.push_back(topN);
-                        this->collectedRowKinds.push_back(RowKind::UPDATE_BEFORE);
-                    } else {
-                        collectedIds.push_back(smallestComId);
-                        collectedRanks.push_back(-1);
-                        this->collectedRowKinds.push_back(RowKind::DELETE);
-                    }
-                }
-                buffer->RemoveSmallestElement();
-                return buffer->AddElement(currentComId);
-            } else {
-                return false;
-            }
-        }
-    }
-
-    omnistream::VectorBatch* GetVectorBatch(ComboId comboId, omnistream::VectorBatch* defaultVB = nullptr)
-    {
-        auto keyGroup = VectorBatchUtil::getKeyGroup(comboId);
-        auto sequenceNumber = VectorBatchUtil::getSequenceNumber(comboId);
-        auto vectorBatchId = VectorBatchUtil::getVectorBatchId(keyGroup, sequenceNumber);
-        auto it = vectorBatchCacheMap.find(vectorBatchId);
-        if (it != vectorBatchCacheMap.end()) {
-            return it->second;
-        } else {
-            omnistream::VectorBatch* vb = topNState->getVectorBatch(keyGroup, sequenceNumber);
-            if (vb == nullptr) {
-                GErrorLog("Error: cannot find vector batch for comboId " + std::to_string(comboId));
-                return nullptr;
-            }
-            vectorBatchCacheMap.emplace(vectorBatchId, vb);
-            return vb;
-        }
-    }
-
-    bool CompareRowData(omnistream::VectorBatch* vb1, int rowId1, omnistream::VectorBatch* vb2, int rowId2)
-    {
-        for (size_t i = 0; i < this->sortKeyTypeIds.size(); i++) {
-            int sortIndex = this->sortKeyIndices[i];
-            auto col1 = vb1->Get(sortIndex);
-            auto col2 = vb2->Get(sortIndex);
-            // only support LONG now
-            long val1 = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(col1)->GetValue(rowId1);
-            long val2 = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(col2)->GetValue(rowId2);
-            if (val1 < val2) {
-                return this->sortOrder[i]; // ascending
-            } else if (val1 > val2) {
-                return !this->sortOrder[i]; // descending
-            }
-        }
-        // return this->sortOrder[0];
-        return false; // equal
-    }
-
-    omnistream::VectorBatch* generateOutputVectorBatch(omnistream::VectorBatch* inputVB)
-    {
-        int rowCount = collectedIds.size();
-
-        omnistream::VectorBatch* outVB = new omnistream::VectorBatch(rowCount);
-        initOutputVector(outVB, inputVB, rowCount);
-        for (size_t i = 0; i < collectedIds.size(); i++) {
-            auto comboId = collectedIds[i];
-            CopyTargetVectorBatchToOut(outVB, comboId, i);
-        }
-        if (this->outputRankNumber) {
-            auto rankVec = new omniruntime::vec::Vector<int64_t>(rowCount);
-            rankVec->SetValues(0, collectedRanks.data(), rowCount);
-            outVB->Append(rankVec);
-        }
-        outVB->setRowKinds(0, this->collectedRowKinds.data(), rowCount);
-        return outVB;
-    }
-
-    void initOutputVector(omnistream::VectorBatch* out, omnistream::VectorBatch* inputVB, int rowCount)
-    {
-        if (rowCount <= 0) {
-            return;
-        }
-        for (int col = 0; col < inputVB->GetVectorCount(); col++) {
-            auto dataType = inputVB->Get(col)->GetTypeId();
-            if (dataType == omniruntime::type::DataTypeId::OMNI_INT) {
-                auto newVec = new omniruntime::vec::Vector<int32_t>(rowCount);
-                out->Append(newVec);
-            } else if (
-                dataType == omniruntime::type::DataTypeId::OMNI_LONG ||
-                dataType == omniruntime::type::DataTypeId::OMNI_TIMESTAMP ||
-                dataType == omniruntime::type::DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE) {
-                auto newVec = new omniruntime::vec::Vector<int64_t>(rowCount);
-                out->Append(newVec);
-            } else if (dataType == omniruntime::type::DataTypeId::OMNI_DOUBLE) {
-                auto newVec = new omniruntime::vec::Vector<double>(rowCount);
-                out->Append(newVec);
-            } else if (dataType == omniruntime::type::DataTypeId::OMNI_BOOLEAN) {
-                auto newVec = new omniruntime::vec::Vector<bool>(rowCount);
-                out->Append(newVec);
-            } else if (
-                dataType == omniruntime::type::DataTypeId::OMNI_CHAR ||
-                dataType == omniruntime::type::DataTypeId::OMNI_VARCHAR) {
-                auto newVec = std::make_unique<
-                    omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>>(rowCount);
-                out->Append(newVec.release());
-            } else {
-                throw std::runtime_error("Unsupported column type in inputRow");
-            }
-        }
-    }
-
-    void CopyTargetVectorBatchToOut(omnistream::VectorBatch* outputVB, ComboId comboID, int rowIndex)
-    {
-        LOG("comboID is, " << comboID);
-        int rowId = VectorBatchUtil::getRowId(comboID);
-        auto batch = GetVectorBatch(comboID);
-        // set timestamp
-        outputVB->setTimestamp(rowIndex, batch->getTimestamp(rowId));
-        int colCount = batch->GetVectorCount();
-        for (int col = 0; col < colCount; col++) {
-            auto dataType = batch->Get(col)->GetTypeId();
-            if (dataType == omniruntime::type::DataTypeId::OMNI_INT) {
-                auto val = reinterpret_cast<omniruntime::vec::Vector<int32_t>*>(batch->Get(col))->GetValue(rowId);
-                reinterpret_cast<omniruntime::vec::Vector<int32_t>*>(outputVB->Get(col))->SetValue(rowIndex, val);
-            } else if (dataType == omniruntime::type::DataTypeId::OMNI_LONG) {
-                auto val = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(batch->Get(col))->GetValue(rowId);
-                reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(outputVB->Get(col))->SetValue(rowIndex, val);
-            } else if (
-                dataType == omniruntime::type::DataTypeId::OMNI_CHAR ||
-                dataType == omniruntime::type::DataTypeId::OMNI_VARCHAR) {
-                if (batch->Get(col)->GetEncoding() == omniruntime::vec::OMNI_FLAT) {
-                    auto casted =
-                        reinterpret_cast<
-                            omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(
-                            batch->Get(col))
-                            ->GetValue(rowId);
-                    reinterpret_cast<
-                        omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(
-                        outputVB->Get(col))
-                        ->SetValue(rowIndex, casted); // issue here
-                } else {
-                    // DICTIONARY
-                    auto casted = reinterpret_cast<omniruntime::vec::Vector<omniruntime::vec::DictionaryContainer<
-                        std::string_view,
-                        omniruntime::vec::LargeStringContainer>>*>(batch->Get(col))
-                                      ->GetValue(rowId);
-                    reinterpret_cast<
-                        omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>*>(
-                        outputVB->Get(col))
-                        ->SetValue(rowIndex, casted); // issue here
-                }
-            }
-        }
-    }
-
-    void processElement(
-        RowData& input,
-        typename KeyedProcessFunction<RowData*, RowData*, RowData*>::Context& ctx,
-        TimestampedCollector& out)
-    {
-        NOT_IMPL_EXCEPTION;
     }
 
     ValueState<K>* getValueState() override
     {
-        // throw std::runtime_error("AppendOnlyTOpNFunction does not use value state!");
         return nullptr;
     }
 
 private:
-    static const int64_t serialVersionUID = -4708453213104128011LL;
-    // a map state stores mapping from sort key to records list which is in topN
-    // ValueState<RowData*>* vectorBatchState;
-    // Uses int64_t as the template type but not omnistream::ComboId to keep compatibility with existing code.
-    ValueState<std::vector<int64_t>*>* topNState;
-    BufferT* buffer;
-    // the kvSortedMap stores mapping from partition key to it's buffer
-    emhash7::HashMap<K, BufferT*> partitionKeyToTopNbufferMap;
-    // emhash7::HashMap<BufferT*,int> bufferVectorBatchSequenceMap;
-    volatile int vectorBatchSequence = 0; // should be recoverable from state under rockdbbackend
+    struct WorkItem {
+        bool sortNull = false;
+        int64_t sortValue = 0;
+        bool fromBatch = false;
+        int32_t batchRow = -1;
+        int groupIndex = -1;
+        int indexInGroup = -1;
+        RowData* stateRow = nullptr;
+        int oldRank = 0;
+        int64_t timestamp = 0;
+    };
 
+    struct LoadedGroup {
+        bool sortNull = false;
+        int64_t sortValue = 0;
+        RowData* sortKey = nullptr;
+        std::vector<RowData*>* rows = nullptr;
+        int rowCount = 0;
+        bool kept = false;
+    };
+
+    struct OutRow {
+        omnistream::VectorBatch* batch = nullptr;
+        int32_t batchRow = -1;
+        RowData* stateRow = nullptr;
+        int64_t rank = 0;
+        int64_t timestamp = 0;
+        RowKind kind = RowKind::INSERT;
+    };
+
+    struct PartitionWork {
+        bool open = false;
+        K key{};
+        std::vector<WorkItem> rows;
+        std::vector<WorkItem> evicted;
+        std::vector<LoadedGroup> loadedGroups;
+        int loadedCount = 0;
+        bool hadState = false;
+    };
+
+    MapState<RowData*, std::vector<RowData*>*>* dataState = nullptr;
+    omnistream::StateType stateType_ = omnistream::StateType::UNKNOWN;
     KeySelector<K> partitionKeySelector;
-    KeySelector<RowData*> sortKeySelector;
-    std::vector<RowData*> rowToDel;
-    omnistream::StateType stateType_ = omnistream::StateType::HEAP;
-    int32_t maxParallelism_ = 0;
-    std::unordered_map<int32_t, omnistream::VectorBatch*> reuseVectorBatchByKeyGroup_{};
-    std::unordered_map<int32_t, std::vector<int32_t>> reuseOldRowIdsByKeyGroup_{};
-    std::vector<K> reuseKeys_{};
-    std::vector<ComboId> reuseComboIds_{};
-    std::unordered_map<VectorBatchId, omnistream::VectorBatch*> vectorBatchCacheMap;
-    std::vector<ComboId> collectedIds;
-    std::vector<int64_t> collectedRanks;
 
-    BufferT* initSetTopNBufferState(K& currentKey)
+    static bool samePartition(const K& left, const K& right)
     {
-        BufferT*& topBuffer = partitionKeyToTopNbufferMap[currentKey];
-
-        if (!topBuffer) {
-            topBuffer = new BufferT(Cmp{this}); // Create a new instance if not found
-            // Get list of rows that belongs to this partition && this sortKey
-            auto listOfRows = topNState->value();
-            if (listOfRows) {
-                topBuffer->LoadFromPlainVector(*listOfRows);
-                if (stateType_ == omnistream::StateType::ROCKSDB) {
-                    delete listOfRows;
-                }
-            }
+        if constexpr (std::is_same<K, RowData*>::value) {
+            return left != nullptr && right != nullptr && *left->getLong(0) == *right->getLong(0);
         } else {
-            this->hitCount++;
-            if constexpr (std::is_same<K, RowData*>::value) {
-                rowToDel.push_back(currentKey);
-            }
+            return left == right;
         }
-        return topBuffer;
     }
 
-    void processElementWithRowNumber2(int64_t currentComId, TimestampedCollector* out)
+    struct PartitionKeyHash {
+        size_t operator()(const K& key) const
+        {
+            if constexpr (std::is_same<K, RowData*>::value) {
+                return key == nullptr ? 0 : std::hash<int64_t>{}(*key->getLong(0));
+            } else {
+                return std::hash<K>{}(key);
+            }
+        }
+    };
+
+    struct PartitionKeyEq {
+        bool operator()(const K& left, const K& right) const
+        {
+            return samePartition(left, right);
+        }
+    };
+
+    K retainKey(K key, std::unordered_map<int64_t, RowData*>& retainedKeys)
     {
-        // find current comid position in buffer, and the record behind it should be updated with rank number
-        //  Create an iterator over buffer entries.
-        auto iterator = buffer->begin();
-        long currentRank = 0L;
-        bool findTarget = false;
-        auto current = currentComId;
-        auto previous = current;
-        // Iterate while iterator is valid and isInRankEnd(currentRank)
-        for (iterator = buffer->begin(); iterator != buffer->end(); iterator++) {
-            auto record = *iterator;
-            if (currentComId == record) {
-                findTarget = true;
-                currentRank++;
+        if constexpr (std::is_same<K, RowData*>::value) {
+            int64_t id = *key->getLong(0);
+            auto found = retainedKeys.find(id);
+            if (found != retainedKeys.end()) {
+                delete key;
+                return found->second;
+            }
+            retainedKeys.emplace(id, key);
+            return key;
+        } else {
+            return key;
+        }
+    }
+
+    bool nullsLast() const
+    {
+        return this->sortNullsIsLast.empty() || this->sortNullsIsLast[0];
+    }
+
+    // Single long sort key, descending. Equal keys keep insertion order.
+    bool strictlyBetter(bool candNull, int64_t cand, bool otherNull, int64_t other) const
+    {
+        if (candNull && otherNull) {
+            return false;
+        }
+        if (candNull) {
+            return !nullsLast();
+        }
+        if (otherNull) {
+            return nullsLast();
+        }
+        return cand > other;
+    }
+
+    void readBatchSort(omnistream::VectorBatch* batch, int row, bool& isNull, int64_t& value) const
+    {
+        auto* column = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(batch->Get(this->sortKeyIndices[0]));
+        if (column->IsNull(row)) {
+            isNull = true;
+            value = 0;
+            return;
+        }
+        isNull = false;
+        value = column->GetValue(row);
+    }
+
+    bool rocksBackend() const
+    {
+        return stateType_ == omnistream::StateType::ROCKSDB;
+    }
+
+    RowData* makeSortKey(bool isNull, int64_t value) const
+    {
+        auto* row = BinaryRowData::createBinaryRowDataWithMem(1);
+        if (isNull) {
+            row->setNullAt(0);
+        } else {
+            row->setLong(0, value);
+        }
+        return row;
+    }
+
+    void readSortKey(RowData* key, bool& isNull, int64_t& value) const
+    {
+        if (key == nullptr) {
+            throw std::runtime_error("AppendOnlyTopNFunction sort key is missing");
+        }
+        isNull = key->isNullAt(0);
+        value = isNull ? 0 : *key->getLong(0);
+    }
+
+    bool sameSortKey(bool leftNull, int64_t left, bool rightNull, int64_t right) const
+    {
+        if (leftNull || rightNull) {
+            return leftNull && rightNull;
+        }
+        return left == right;
+    }
+
+    void fillFromGroups(PartitionWork& active)
+    {
+        int count = 0;
+        for (const LoadedGroup& group : active.loadedGroups) {
+            count += group.rowCount;
+        }
+        active.hadState = count > 0;
+        active.loadedCount = count;
+        active.rows.reserve(static_cast<size_t>(count));
+        int rank = 1;
+        for (int groupIndex = 0; groupIndex < static_cast<int>(active.loadedGroups.size()); ++groupIndex) {
+            LoadedGroup& group = active.loadedGroups[static_cast<size_t>(groupIndex)];
+            for (int indexInGroup = 0; indexInGroup < group.rowCount; ++indexInGroup) {
+                WorkItem item;
+                item.sortNull = group.sortNull;
+                item.sortValue = group.sortValue;
+                item.groupIndex = groupIndex;
+                item.indexInGroup = indexInGroup;
+                item.stateRow = (*group.rows)[static_cast<size_t>(indexInGroup)];
+                item.oldRank = rank++;
+                active.rows.push_back(item);
+            }
+        }
+    }
+
+    void sortLoadedGroups(PartitionWork& active)
+    {
+        std::stable_sort(
+            active.loadedGroups.begin(),
+            active.loadedGroups.end(),
+            [&](const LoadedGroup& left, const LoadedGroup& right) {
+                return strictlyBetter(left.sortNull, left.sortValue, right.sortNull, right.sortValue);
+            });
+    }
+
+    void loadPartition(PartitionWork& active)
+    {
+        emhash7::HashMap<RowData*, std::vector<RowData*>*>* encoded = dataState->entries();
+        if (encoded == nullptr || encoded->empty()) {
+            active.hadState = false;
+            active.loadedCount = 0;
+            return;
+        }
+        active.loadedGroups.reserve(encoded->size());
+        for (const auto& entry : *encoded) {
+            LoadedGroup group;
+            group.sortKey = entry.first;
+            group.rows = entry.second;
+            if (group.sortKey == nullptr || group.rows == nullptr) {
+                throw std::runtime_error("AppendOnlyTopNFunction data-state-with-append is malformed");
+            }
+            readSortKey(group.sortKey, group.sortNull, group.sortValue);
+            group.rowCount = static_cast<int>(group.rows->size());
+            active.loadedGroups.push_back(group);
+        }
+        sortLoadedGroups(active);
+        fillFromGroups(active);
+    }
+
+    LoadedGroup* findLoaded(PartitionWork& active, bool sortNull, int64_t sortValue)
+    {
+        for (LoadedGroup& group : active.loadedGroups) {
+            if (sameSortKey(group.sortNull, group.sortValue, sortNull, sortValue)) {
+                return &group;
+            }
+        }
+        return nullptr;
+    }
+
+    bool membershipChanged(const PartitionWork& active) const
+    {
+        if (!active.evicted.empty()) {
+            return true;
+        }
+        for (const WorkItem& item : active.rows) {
+            if (item.fromBatch) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // RocksDB entries() returns copies. HashMap entries() returns the live map.
+    void releaseLoadedCopies(PartitionWork& active, std::vector<RowData*>& deleteAfterOutput)
+    {
+        if (!rocksBackend()) {
+            return;
+        }
+        for (LoadedGroup& group : active.loadedGroups) {
+            if (group.rows != nullptr) {
+                for (RowData* row : *group.rows) {
+                    if (row != nullptr) {
+                        deleteAfterOutput.push_back(row);
+                    }
+                }
+                delete group.rows;
+                group.rows = nullptr;
+            }
+            // The entries cache owns these sort keys and deletes them when the cache is cleared.
+            group.sortKey = nullptr;
+        }
+    }
+
+    void writeFlinkState(omnistream::VectorBatch* batch, PartitionWork& active)
+    {
+        struct FinalGroup {
+            bool sortNull = false;
+            int64_t sortValue = 0;
+            RowData* sortKey = nullptr;
+            bool keyCreated = false;
+            bool changed = false;
+            LoadedGroup* previous = nullptr;
+            std::vector<RowData*>* list = nullptr;
+            std::vector<RowData*> extracted;
+        };
+
+        std::vector<FinalGroup> groups;
+        for (const WorkItem& item : active.rows) {
+            if (groups.empty() ||
+                !sameSortKey(groups.back().sortNull, groups.back().sortValue, item.sortNull, item.sortValue)) {
+                FinalGroup group;
+                group.sortNull = item.sortNull;
+                group.sortValue = item.sortValue;
+                group.previous = findLoaded(active, item.sortNull, item.sortValue);
+                group.sortKey = group.previous == nullptr ? nullptr : group.previous->sortKey;
+                group.list = new std::vector<RowData*>();
+                groups.push_back(std::move(group));
+            }
+            FinalGroup& group = groups.back();
+            if (item.fromBatch) {
+                RowData* materialized = batch->extractRowData(item.batchRow);
+                group.list->push_back(materialized);
+                group.extracted.push_back(materialized);
+                group.changed = true;
+            } else {
+                group.list->push_back(item.stateRow);
+            }
+        }
+
+        for (FinalGroup& group : groups) {
+            if (group.previous != nullptr) {
+                group.previous->kept = true;
+                if (group.previous->rows == nullptr || group.list->size() != group.previous->rows->size()) {
+                    group.changed = true;
+                }
+            }
+            if (!group.changed) {
+                delete group.list;
+                group.list = nullptr;
                 continue;
             }
-            if (findTarget) {
-                previous = record;
-                if (this->generateUpdateBefore) {
-                    collectedIds.push_back(previous);
-                    collectedRanks.push_back(currentRank);
-                    this->collectedRowKinds.push_back(RowKind::UPDATE_BEFORE);
+            if (group.sortKey == nullptr) {
+                group.sortKey = makeSortKey(group.sortNull, group.sortValue);
+                group.keyCreated = true;
+            }
+            dataState->put(group.sortKey, group.list);
+            if (rocksBackend()) {
+                for (RowData* row : group.extracted) {
+                    delete row;
                 }
-                collectedIds.push_back(current);
-                collectedRanks.push_back(currentRank);
-                this->collectedRowKinds.push_back(RowKind::UPDATE_AFTER);
-                current = previous;
-                currentRank++;
-            } else {
-                currentRank++;
+                delete group.list;
+                group.list = nullptr;
+                if (group.keyCreated) {
+                    delete group.sortKey;
+                    group.sortKey = nullptr;
+                }
+            } else if (
+                group.previous != nullptr && group.previous->rows != nullptr && group.previous->rows != group.list) {
+                delete group.previous->rows;
+                group.previous->rows = nullptr;
             }
         }
-        if (this->isInRankEnd(currentRank)) {
-            collectedIds.push_back(current);
-            this->collectedRowKinds.push_back(RowKind::INSERT);
-            collectedRanks.push_back(currentRank);
+
+        for (LoadedGroup& previous : active.loadedGroups) {
+            if (previous.kept) {
+                continue;
+            }
+            dataState->remove(previous.sortKey);
+            if (!rocksBackend()) {
+                delete previous.rows;
+                previous.rows = nullptr;
+                delete previous.sortKey;
+                previous.sortKey = nullptr;
+            }
         }
     }
 
-    void processElementWithoutRowNumber2(int64_t currentComId, TimestampedCollector* out)
+    void considerRow(omnistream::VectorBatch* batch, int row, PartitionWork& active)
     {
-        collectedIds.push_back(currentComId);
-        this->collectedRowKinds.push_back(RowKind::INSERT);
+        WorkItem item;
+        item.fromBatch = true;
+        item.batchRow = row;
+        item.timestamp = batch->getTimestamp(row);
+        readBatchSort(batch, row, item.sortNull, item.sortValue);
+
+        const int limit = static_cast<int>(this->rankEnd);
+        if (static_cast<int>(active.rows.size()) >= limit) {
+            const WorkItem& worst = active.rows.back();
+            if (!strictlyBetter(item.sortNull, item.sortValue, worst.sortNull, worst.sortValue)) {
+                return;
+            }
+        }
+
+        auto pos = active.rows.begin();
+        while (
+            pos != active.rows.end() && !strictlyBetter(item.sortNull, item.sortValue, pos->sortNull, pos->sortValue)) {
+            ++pos;
+        }
+        active.rows.insert(pos, item);
+        if (static_cast<int>(active.rows.size()) > limit) {
+            WorkItem dropped = active.rows.back();
+            active.rows.pop_back();
+            if (!dropped.fromBatch) {
+                active.evicted.push_back(dropped);
+            }
+        }
+    }
+
+    void flushPartition(
+        omnistream::VectorBatch* batch,
+        typename KeyedProcessFunction<K, RowData*, RowData*>::Context& ctx,
+        const std::vector<K>& touched,
+        std::unordered_map<K, PartitionWork, PartitionKeyHash, PartitionKeyEq>& partitionWork,
+        std::vector<OutRow>& outputs,
+        std::vector<RowData*>& deleteAfterOutput)
+    {
+        for (const K& partitionKey : touched) {
+            flushOnePartition(batch, ctx, partitionWork.find(partitionKey)->second, outputs, deleteAfterOutput);
+        }
+    }
+
+    void flushOnePartition(
+        omnistream::VectorBatch* batch,
+        typename KeyedProcessFunction<K, RowData*, RowData*>::Context& ctx,
+        PartitionWork& active,
+        std::vector<OutRow>& outputs,
+        std::vector<RowData*>& deleteAfterOutput)
+    {
+        ctx.setCurrentKey(active.key);
+        if (!membershipChanged(active)) {
+            releaseLoadedCopies(active, deleteAfterOutput);
+            active.rows.clear();
+            active.evicted.clear();
+            active.loadedGroups.clear();
+            active.hadState = false;
+            active.loadedCount = 0;
+            active.open = false;
+            return;
+        }
+
+        for (const WorkItem& dropped : active.evicted) {
+            if (dropped.oldRank >= this->rankStart && dropped.oldRank <= this->rankEnd) {
+                appendRetract(outputs, dropped);
+            }
+        }
+
+        for (size_t i = 0; i < active.rows.size(); ++i) {
+            int rank = static_cast<int>(i) + 1;
+            const WorkItem& item = active.rows[i];
+            bool nowVisible = rank >= this->rankStart && rank <= this->rankEnd;
+            bool wasVisible = item.oldRank >= this->rankStart && item.oldRank <= this->rankEnd;
+            if (item.fromBatch) {
+                if (nowVisible) {
+                    appendEmit(outputs, batch, item, rank, RowKind::INSERT);
+                }
+                continue;
+            }
+            if (wasVisible && nowVisible && item.oldRank != rank) {
+                appendRetract(outputs, item);
+                RowKind kind = this->generateUpdateBefore ? RowKind::UPDATE_AFTER : RowKind::INSERT;
+                appendEmit(outputs, batch, item, rank, kind);
+            } else if (wasVisible && !nowVisible) {
+                appendRetract(outputs, item);
+            } else if (!wasVisible && nowVisible) {
+                appendEmit(outputs, batch, item, rank, RowKind::INSERT);
+            }
+        }
+
+        writeFlinkState(batch, active);
+        if (rocksBackend()) {
+            releaseLoadedCopies(active, deleteAfterOutput);
+        } else {
+            for (const WorkItem& dropped : active.evicted) {
+                if (dropped.stateRow != nullptr) {
+                    deleteAfterOutput.push_back(dropped.stateRow);
+                }
+            }
+        }
+
+        active.rows.clear();
+        active.evicted.clear();
+        active.loadedGroups.clear();
+        active.hadState = false;
+        active.loadedCount = 0;
+        active.open = false;
+    }
+
+    void appendRetract(std::vector<OutRow>& outputs, const WorkItem& item)
+    {
+        OutRow row;
+        row.stateRow = item.stateRow;
+        row.rank = item.oldRank;
+        row.timestamp = item.timestamp;
+        row.kind = this->generateUpdateBefore ? RowKind::UPDATE_BEFORE : RowKind::DELETE;
+        outputs.push_back(row);
+    }
+
+    void appendEmit(
+        std::vector<OutRow>& outputs, omnistream::VectorBatch* batch, const WorkItem& item, int rank, RowKind kind)
+    {
+        OutRow row;
+        if (item.fromBatch) {
+            row.batch = batch;
+            row.batchRow = item.batchRow;
+            row.timestamp = item.timestamp;
+        } else {
+            row.stateRow = item.stateRow;
+            row.timestamp = item.timestamp;
+        }
+        row.rank = rank;
+        row.kind = kind;
+        outputs.push_back(row);
+    }
+
+    omnistream::VectorBatch* buildOutput(const std::vector<OutRow>& outputs)
+    {
+        int numRows = static_cast<int>(outputs.size());
+        int numColumns = static_cast<int>(this->inputRowType->size());
+        auto* outputBatch = new omnistream::VectorBatch(numRows);
+        for (int col = 0; col < numColumns; ++col) {
+            outputBatch->Append(copyColumn(col, outputs));
+        }
+        if (this->outputRankNumber) {
+            auto* rankVec = new omniruntime::vec::Vector<int64_t>(numRows);
+            for (int i = 0; i < numRows; ++i) {
+                rankVec->SetValue(i, outputs[i].rank);
+            }
+            outputBatch->Append(rankVec);
+        }
+        std::vector<int64_t> timestamps(numRows);
+        std::vector<RowKind> kinds(numRows);
+        for (int i = 0; i < numRows; ++i) {
+            timestamps[i] = outputs[i].timestamp;
+            kinds[i] = outputs[i].kind;
+        }
+        outputBatch->setTimestamps(0, timestamps.data(), numRows);
+        outputBatch->setRowKinds(0, kinds.data(), numRows);
+        return outputBatch;
+    }
+
+    omniruntime::vec::BaseVector* copyColumn(int col, const std::vector<OutRow>& outputs)
+    {
+        int numRows = static_cast<int>(outputs.size());
+        switch (this->inputRowType->at(col)) {
+            case DataTypeId::OMNI_LONG:
+            case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+            case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+            case DataTypeId::OMNI_TIMESTAMP: return copyLongColumn(col, outputs, numRows);
+            case DataTypeId::OMNI_INT: return copyIntColumn(col, outputs, numRows);
+            case DataTypeId::OMNI_BOOLEAN: return copyBoolColumn(col, outputs, numRows);
+            case DataTypeId::OMNI_VARCHAR: return copyVarcharColumn(col, outputs, numRows);
+            default: throw std::runtime_error("Unsupported column type in AppendOnlyTopNFunction");
+        }
+    }
+
+    omniruntime::vec::Vector<int64_t>* copyLongColumn(int col, const std::vector<OutRow>& outputs, int numRows)
+    {
+        auto* vector = new omniruntime::vec::Vector<int64_t>(numRows);
+        for (int i = 0; i < numRows; ++i) {
+            if (outputs[i].batch != nullptr) {
+                auto* src = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(outputs[i].batch->Get(col));
+                if (src->IsNull(outputs[i].batchRow)) {
+                    vector->SetNull(i);
+                } else {
+                    vector->SetValue(i, src->GetValue(outputs[i].batchRow));
+                }
+            } else if (outputs[i].stateRow->isNullAt(col)) {
+                vector->SetNull(i);
+            } else {
+                vector->SetValue(i, *outputs[i].stateRow->getLong(col));
+            }
+        }
+        return vector;
+    }
+
+    omniruntime::vec::Vector<int32_t>* copyIntColumn(int col, const std::vector<OutRow>& outputs, int numRows)
+    {
+        auto* vector = new omniruntime::vec::Vector<int32_t>(numRows);
+        for (int i = 0; i < numRows; ++i) {
+            if (outputs[i].batch != nullptr) {
+                auto* src = reinterpret_cast<omniruntime::vec::Vector<int32_t>*>(outputs[i].batch->Get(col));
+                if (src->IsNull(outputs[i].batchRow)) {
+                    vector->SetNull(i);
+                } else {
+                    vector->SetValue(i, src->GetValue(outputs[i].batchRow));
+                }
+            } else if (outputs[i].stateRow->isNullAt(col)) {
+                vector->SetNull(i);
+            } else {
+                vector->SetValue(i, *outputs[i].stateRow->getInt(col));
+            }
+        }
+        return vector;
+    }
+
+    omniruntime::vec::Vector<bool>* copyBoolColumn(int col, const std::vector<OutRow>& outputs, int numRows)
+    {
+        auto* vector = new omniruntime::vec::Vector<bool>(numRows);
+        for (int i = 0; i < numRows; ++i) {
+            if (outputs[i].batch != nullptr) {
+                auto* src = reinterpret_cast<omniruntime::vec::Vector<bool>*>(outputs[i].batch->Get(col));
+                if (src->IsNull(outputs[i].batchRow)) {
+                    vector->SetNull(i);
+                } else {
+                    vector->SetValue(i, src->GetValue(outputs[i].batchRow));
+                }
+            } else if (outputs[i].stateRow->isNullAt(col)) {
+                vector->SetNull(i);
+            } else {
+                vector->SetValue(i, *outputs[i].stateRow->getBool(col));
+            }
+        }
+        return vector;
+    }
+
+    omniruntime::vec::BaseVector* copyVarcharColumn(int col, const std::vector<OutRow>& outputs, int numRows)
+    {
+        using VarcharVector = omniruntime::vec::Vector<omniruntime::vec::LargeStringContainer<std::string_view>>;
+        auto* vector = new VarcharVector(numRows);
+        for (int i = 0; i < numRows; ++i) {
+            std::string value;
+            bool isNull = false;
+            if (outputs[i].batch != nullptr) {
+                auto* src = reinterpret_cast<VarcharVector*>(outputs[i].batch->Get(col));
+                if (src->IsNull(outputs[i].batchRow)) {
+                    isNull = true;
+                } else {
+                    value = std::string(src->GetValue(outputs[i].batchRow));
+                }
+            } else if (outputs[i].stateRow->isNullAt(col)) {
+                isNull = true;
+            } else {
+                value = std::string(outputs[i].stateRow->getStringView(col));
+            }
+            if (isNull) {
+                vector->SetNull(i);
+            } else {
+                omniruntime::vec::VectorHelper::VectorSetValue<DataTypeId::OMNI_VARCHAR>(vector, i, (void*)&value);
+            }
+        }
+        return vector;
     }
 };
 
-#endif
+#endif // OMNISTREAM_APPENDONLYTOPNFUNCTION_H

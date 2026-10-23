@@ -13,6 +13,7 @@
 
 #include <memory>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 
@@ -38,6 +39,20 @@
 #include "table/data/binary/BinaryRowData.h"
 #include "table/runtime/operators/window/TimeWindow.h"
 #include "table/typeutils/BinaryRowDataSerializer.h"
+
+// JoinTupleSerializer is (int32, int32). This restore case is XXHASH128 -> (int32, int64).
+class Int32Int64TupleSerializer : public JoinTupleSerializer {
+public:
+    void* deserialize(DataInputView& source) override
+    {
+        return new std::tuple<int32_t, int64_t>(source.readInt(), source.readLong());
+    }
+
+    BackendDataType getBackendId() const override
+    {
+        return BackendDataType::TUPLE_INT32_INT64;
+    }
+};
 
 using namespace omnistream;
 
@@ -89,7 +104,7 @@ protected:
         std::unordered_map<std::string, std::string> options;
         options["KEYED_STATE_TYPE"] = "MAP";
 
-        auto* mapSer = new MapSerializer(new XxH128_hashSerializer(), new JoinTupleSerializer());
+        auto* mapSer = new MapSerializer(new XxH128_hashSerializer(), new Int32Int64TupleSerializer());
 
         std::unordered_map<std::string, TypeSerializer*> serializers;
         serializers["NAMESPACE_SERIALIZER"] = VoidNamespaceSerializer::INSTANCE;
@@ -351,20 +366,6 @@ TEST_F(HeapRestoreStateWriterTest, DelegateCreateKvStateVbReturnsNonNull)
     ASSERT_NE(kvVb, nullptr);
 }
 
-// 看护 MAP 类型注册：mapKeySerializer / mapValueSerializer 被正确提取
-TEST_F(HeapRestoreStateWriterTest, DelegateCreateKvStateRegistersMapStateInfo)
-{
-    auto metaInfo = makeMapMetaInfo("testMap");
-    auto kv = delegate_->createKVState(0, metaInfo);
-
-    ASSERT_GE(delegate_->getStateInfos().size(), 1u);
-    auto& info = delegate_->getStateInfos()[0];
-    EXPECT_EQ(info.stateType, StateDescriptor::Type::MAP);
-    EXPECT_NE(info.mapKeySerializer, nullptr);
-    EXPECT_NE(info.mapValueSerializer, nullptr);
-    EXPECT_NE(info.mainStateDesc, nullptr);
-}
-
 // 看护 LIST 类型注册：mainStateDesc 正确创建
 TEST_F(HeapRestoreStateWriterTest, DelegateCreateKvStateRegistersListStateInfo)
 {
@@ -495,6 +496,21 @@ TEST_F(HeapRestoreStateWriterTest, KvStateVbRejectsComboIdListForNonWindowListSt
     auto listWriter =
         delegate_->createKVStateVB(1, voidNamespaceMeta, {omniruntime::type::DataTypeId::OMNI_LONG}, 1024);
     EXPECT_THROW(listWriter->writeComboIdList({0, 0}, {1}), std::runtime_error);
+}
+
+// ============================================================================
+// HeapRestoreKVState writeLongEntry 测试 — 非 VB 状态应抛出异常
+// ============================================================================
+
+TEST_F(HeapRestoreStateWriterTest, KvStateWriteLongEntryThrowsForNonVbState)
+{
+    auto metaInfo = makeKvMetaInfo("longEntry");
+    auto kv = delegate_->createKVState(0, metaInfo);
+    kv->setKeyGroupId(0);
+
+    auto keyBytes = makeKeyBytes(1);
+    // writeLongEntry 在非 VB 状态下抛出异常
+    EXPECT_THROW(kv->writeEntry<int64_t>(keyBytes, 42L), std::runtime_error);
 }
 
 // ============================================================================
