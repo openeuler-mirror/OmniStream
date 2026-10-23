@@ -48,6 +48,7 @@
 #include "table/runtime/operators/rank/FastTop1Function.h"
 #include "table/runtime/operators/join/window/InnerJoinOperator.h"
 #include "runtime/operators/window/AggregateWindowOperator.h"
+#include "runtime/operators/window/tvf/WindowTableFunctionOperator.h"
 #include "datagen/meituan/JoinSource.h"
 #include "datagen/meituan/MTFilterFunc.h"
 #include "connector/kafka/source/KafkaSource.h"
@@ -207,6 +208,14 @@ StreamOperator* StreamOperatorFactory::createOperatorAndCollector(
         configureSavepoint(op, "GroupWindowAgg", description, WindowAggSavepointCompatibility::forGroup(description));
         LOG("Operator AggregateWindowOperator address " + std::to_string(reinterpret_cast<long>(op)));
         return static_cast<OneInputStreamOperator*>(op);
+    } else if (opConfig.getUniqueName() == OPERATOR_NAME_WINDOW_TABLE_FUNCTION) {
+        const auto description = opConfig.getDescription();
+        auto* op = new WindowTableFunctionOperator(description, chainOutput);
+        op->setup();
+        op->setDescription(description);
+        op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
+        LOG("Operator WindowTableFunctionOperator address " + std::to_string(reinterpret_cast<long>(op)));
+        return static_cast<OneInputStreamOperator*>(op);
     } else if (uniqueName == OPERATOR_NAME_WINDOW_INNER_JOIN) {
         auto op =
             new InnerJoinOperator<std::shared_ptr<RowData>>(opConfig.getDescription(), chainOutput, nullptr, nullptr);
@@ -272,6 +281,8 @@ StreamOperator* StreamOperatorFactory::createOperatorAndCollector(
         return CreateConstraintEnforcerOp(opDesc, chainOutput, task);
     } else if (operatorID == OPERATOR_NAME_WINDOW_INNER_JOIN) {
         return CreateWindowInnerJoinOp(opDesc, chainOutput, task);
+    } else if (operatorID == OPERATOR_NAME_WINDOW_TABLE_FUNCTION) {
+        return CreateWindowTableFunctionOp(opDesc, chainOutput, task);
     } else if (operatorID == datastream::OPERATOR_NAME_FLATMAP) {
         return CreateFlatMapOp(opDesc, chainOutput);
     } else if (operatorID == datastream::OPERATOR_NAME_MAP) {
@@ -688,6 +699,22 @@ StreamOperator* StreamOperatorFactory::CreateWindowInnerJoinOp(
     }
     LOG("Operator WindowJoinOperator address " + std::to_string(reinterpret_cast<long>(op)));
     return static_cast<TwoInputStreamOperator*>(op);
+}
+
+StreamOperator* StreamOperatorFactory::CreateWindowTableFunctionOp(
+    OperatorPOD& opConfig, WatermarkGaugeExposingOutput* chainOutput, std::shared_ptr<omnistream::OmniStreamTask> task)
+{
+    auto description = opConfig.getDescription();
+    nlohmann::json opDescriptionJSON = nlohmann::json::parse(description);
+    auto* op = new WindowTableFunctionOperator(opDescriptionJSON, chainOutput);
+    // WindowTableFunction is stateless. Processing time (if any) is served by this service.
+    auto* processingTimeService = task->createProcessingTimeService();
+    op->setProcessingTimeService(processingTimeService);
+    op->setup(std::move(task));
+    op->setDescription(opDescriptionJSON);
+    op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
+    LOG("Operator WindowTableFunctionOperator address " + std::to_string(reinterpret_cast<long>(op)));
+    return static_cast<OneInputStreamOperator*>(op);
 }
 
 StreamOperator* StreamOperatorFactory::CreateMapOp(
