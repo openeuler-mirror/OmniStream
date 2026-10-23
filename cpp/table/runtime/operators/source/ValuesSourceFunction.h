@@ -67,6 +67,8 @@ private:
 
     omnistream::VectorBatch* nextRecord();
 
+    static bool IsSupportedType(omniruntime::type::DataTypeId typeId);
+
     nlohmann::json tuples_;
     std::vector<omniruntime::type::DataTypeId> fieldTypes_;
     std::vector<int32_t> precisions_;

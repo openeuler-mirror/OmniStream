@@ -274,7 +274,97 @@ TEST(ValuesSourceFunctionTest, ConvertDecimalPrecisionBoundary)
 
     nlohmann::json overflow = nlohmann::json::array();
     overflow.push_back(nlohmann::json::array({"123456789.12"}));
-    EXPECT_THROW(ValuesSourceFunction::convert(overflow, typeIds, precisions, scales), std::out_of_range);
+    auto* overflowBatch = ValuesSourceFunction::convert(overflow, typeIds, precisions, scales);
+    ASSERT_NE(overflowBatch, nullptr);
+    // Aligns with Flink DecimalData.fromBigDecimal: a precision overflow produces a
+    // null value instead of raising an exception.
+    EXPECT_TRUE(reinterpret_cast<omniruntime::vec::Vector<long>*>(overflowBatch->Get(0))->IsNull(0));
+    delete overflowBatch;
+}
+
+TEST(ValuesSourceFunctionTest, ConvertDecimalHalfUpRounding)
+{
+    const std::vector<std::string> types = {"DECIMAL(10,2)"};
+    auto typeIds = ToTypeIds(types);
+    auto precisions = ToPrecisions(types);
+    auto scales = ToScales(types);
+
+    nlohmann::json roundUp = nlohmann::json::array();
+    roundUp.push_back(nlohmann::json::array({"12.345"}));
+    auto* roundUpBatch = ValuesSourceFunction::convert(roundUp, typeIds, precisions, scales);
+    ASSERT_NE(roundUpBatch, nullptr);
+    EXPECT_EQ(reinterpret_cast<omniruntime::vec::Vector<long>*>(roundUpBatch->Get(0))->GetValue(0), 1235L);
+    delete roundUpBatch;
+
+    nlohmann::json roundDown = nlohmann::json::array();
+    roundDown.push_back(nlohmann::json::array({"12.344"}));
+    auto* roundDownBatch = ValuesSourceFunction::convert(roundDown, typeIds, precisions, scales);
+    ASSERT_NE(roundDownBatch, nullptr);
+    EXPECT_EQ(reinterpret_cast<omniruntime::vec::Vector<long>*>(roundDownBatch->Get(0))->GetValue(0), 1234L);
+    delete roundDownBatch;
+
+    nlohmann::json negative = nlohmann::json::array();
+    negative.push_back(nlohmann::json::array({"-12.345"}));
+    auto* negativeBatch = ValuesSourceFunction::convert(negative, typeIds, precisions, scales);
+    ASSERT_NE(negativeBatch, nullptr);
+    EXPECT_EQ(reinterpret_cast<omniruntime::vec::Vector<long>*>(negativeBatch->Get(0))->GetValue(0), -1235L);
+    delete negativeBatch;
+
+    nlohmann::json carry = nlohmann::json::array();
+    carry.push_back(nlohmann::json::array({"99.995"}));
+    auto* carryBatch = ValuesSourceFunction::convert(carry, typeIds, precisions, scales);
+    ASSERT_NE(carryBatch, nullptr);
+    EXPECT_EQ(reinterpret_cast<omniruntime::vec::Vector<long>*>(carryBatch->Get(0))->GetValue(0), 10000L);
+    delete carryBatch;
+}
+
+TEST(ValuesSourceFunctionTest, ConvertDecimal128HalfUpRounding)
+{
+    const std::vector<std::string> types = {"DECIMAL(20,5)"};
+    auto typeIds = ToTypeIds(types);
+    auto precisions = ToPrecisions(types);
+    auto scales = ToScales(types);
+
+    nlohmann::json roundUp = nlohmann::json::array();
+    roundUp.push_back(nlohmann::json::array({"123456789012345.123456"}));
+    auto* batch = ValuesSourceFunction::convert(roundUp, typeIds, precisions, scales);
+    ASSERT_NE(batch, nullptr);
+    EXPECT_EQ(reinterpret_cast<omniruntime::vec::Vector<Decimal128>*>(batch->Get(0))->GetValue(0),
+              Decimal128("12345678901234512346"));
+    delete batch;
+}
+
+TEST(ValuesSourceFunctionTest, ConvertDecimalRoundingOverflowBecomesNull)
+{
+    const std::vector<std::string> types = {"DECIMAL(10,2)"};
+    auto typeIds = ToTypeIds(types);
+    auto precisions = ToPrecisions(types);
+    auto scales = ToScales(types);
+
+    nlohmann::json overflow = nlohmann::json::array();
+    overflow.push_back(nlohmann::json::array({"99999999.995"}));
+    auto* batch = ValuesSourceFunction::convert(overflow, typeIds, precisions, scales);
+    ASSERT_NE(batch, nullptr);
+    EXPECT_TRUE(reinterpret_cast<omniruntime::vec::Vector<long>*>(batch->Get(0))->IsNull(0));
+    delete batch;
+}
+
+TEST(ValuesSourceFunctionTest, ConstructorRejectsUnsupportedMappableType)
+{
+    const std::vector<std::string> unsupportedTypes = {
+        "SMALLINT", "TINYINT", "FLOAT", "BYTES", "BINARY(10)", "VARBINARY(10)",
+        "ARRAY<INT>", "MAP<STRING, BIGINT>", "MULTISET<STRING>", "ROW<myField INT>",
+        "RAW('class', 'snapshot')", "SYMBOL('class')", "INTERVAL DAY(6)", "INTERVAL YEAR(4)",
+        "TIMESTAMP(9) WITH TIME ZONE"};
+    for (const auto& type : unsupportedTypes) {
+        nlohmann::json config;
+        config["format"] = "values";
+        config["tuples"] = nlohmann::json::array({nlohmann::json::array({"x"})});
+        config["outputTypes"] = nlohmann::json::array({type});
+        config["outputNames"] = nlohmann::json::array({"a"});
+        config["batch"] = true;
+        EXPECT_THROW(ValuesSourceFunction{config}, std::runtime_error) << "unsupported type: " << type;
+    }
 }
 
 TEST(ValuesSourceFunctionTest, ConvertInvalidLiteralsThrow)

@@ -11,6 +11,8 @@
 
 #include "ValuesSourceFunction.h"
 
+#include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -18,6 +20,7 @@
 #include "OmniOperatorJIT/core/src/type/TimestampConversion.h"
 #include "OmniOperatorJIT/core/src/type/decimal128.h"
 #include "table/data/TimestampData.h"
+#include "types/logical/LogicTypeUtils.h"
 
 using namespace omniruntime::type;
 
@@ -26,22 +29,37 @@ namespace omnistream {
 namespace {
 
 // Aligns with Flink DecimalData.fromBigDecimal: significant digits of the unscaled
-// integer must be <= precision (0 has precision 1). Throws out_of_range on overflow.
-void EnsureDecimalPrecision(const std::string& unscaledAbs, int32_t precision)
+// integer must be <= precision (0 has precision 1). A precision overflow produces
+// a null value instead of raising an error.
+bool IsPrecisionWithinLimit(const std::string& unscaledAbs, int32_t precision)
 {
     if (unscaledAbs.empty()) {
         throw std::invalid_argument("empty unscaled decimal");
     }
     if (precision <= 0) {
-        return;
+        return true;
     }
     size_t start = 0;
     while (start + 1 < unscaledAbs.size() && unscaledAbs[start] == '0') {
         ++start;
     }
-    if (static_cast<int32_t>(unscaledAbs.size() - start) > precision) {
-        throw std::out_of_range("decimal precision overflow");
+    return static_cast<int32_t>(unscaledAbs.size() - start) <= precision;
+}
+
+// Increments a decimal digit string by one, propagating the carry and prepending
+// a '1' when every digit is '9'.
+void IncrementUnscaled(std::string& digits)
+{
+    size_t index = digits.size();
+    while (index > 0) {
+        --index;
+        if (digits[index] != '9') {
+            ++digits[index];
+            return;
+        }
+        digits[index] = '0';
     }
+    digits.insert(digits.begin(), '1');
 }
 
 std::string BuildUnscaledAbs(const std::string& value, int32_t scale, bool& negative)
@@ -62,23 +80,37 @@ std::string BuildUnscaledAbs(const std::string& value, int32_t scale, bool& nega
         intPart = valueStr;
         fracPart = "";
     }
-    if (static_cast<int32_t>(fracPart.length()) < scale) {
-        fracPart += std::string(scale - fracPart.length(), '0');
-    } else if (static_cast<int32_t>(fracPart.length()) > scale) {
-        fracPart = fracPart.substr(0, scale);
+    // Round the literal to the target scale with half-up rounding, matching
+    // Flink DecimalData.fromBigDecimal(bd, precision, scale) which uses
+    // bd.setScale(scale, RoundingMode.HALF_UP).
+    bool roundUp = false;
+    std::string keptFrac;
+    if (static_cast<int32_t>(fracPart.length()) > scale) {
+        roundUp = fracPart[scale] >= '5';
+        keptFrac = fracPart.substr(0, scale);
+    } else {
+        keptFrac = fracPart;
     }
-    std::string unscaledAbs = intPart + fracPart;
+    if (static_cast<int32_t>(keptFrac.length()) < scale) {
+        keptFrac += std::string(scale - keptFrac.length(), '0');
+    }
+    std::string unscaledAbs = intPart + keptFrac;
+    if (roundUp) {
+        IncrementUnscaled(unscaledAbs);
+    }
     if (unscaledAbs.empty()) {
         throw std::invalid_argument("invalid decimal literal: " + value);
     }
     return unscaledAbs;
 }
 
-long ParseDecimal64ToUnscaledLong(const std::string& value, int32_t precision, int32_t scale)
+std::optional<long> ParseDecimal64ToUnscaledLong(const std::string& value, int32_t precision, int32_t scale)
 {
     bool negative = false;
     std::string unscaledAbs = BuildUnscaledAbs(value, scale, negative);
-    EnsureDecimalPrecision(unscaledAbs, precision);
+    if (!IsPrecisionWithinLimit(unscaledAbs, precision)) {
+        return std::nullopt;
+    }
     long unscaledValue = std::stol(unscaledAbs);
     if (negative) {
         unscaledValue = -unscaledValue;
@@ -86,15 +118,30 @@ long ParseDecimal64ToUnscaledLong(const std::string& value, int32_t precision, i
     return unscaledValue;
 }
 
-Decimal128 ParseDecimal128ToValue(const std::string& value, int32_t precision, int32_t scale)
+std::optional<Decimal128> ParseDecimal128ToValue(const std::string& value, int32_t precision, int32_t scale)
 {
     bool negative = false;
     std::string unscaledAbs = BuildUnscaledAbs(value, scale, negative);
-    EnsureDecimalPrecision(unscaledAbs, precision);
+    if (!IsPrecisionWithinLimit(unscaledAbs, precision)) {
+        return std::nullopt;
+    }
     if (negative) {
         unscaledAbs = "-" + unscaledAbs;
     }
     return Decimal128(std::string_view(unscaledAbs));
+}
+
+// Some Flink type strings map to a native type that would silently store a value
+// of the wrong kind (FLOAT -> OMNI_INT) or be treated as VARCHAR (BYTES / BINARY /
+// VARBINARY). Reject them up-front so failures surface at operator construction
+// instead of while running.
+void RejectMisMappedType(const std::string& typeStr)
+{
+    std::string base = LogicTypeUtils::stripFlinkTypeExtras(typeStr);
+    if (base == "FLOAT" || base == "BYTES" || LogicTypeUtils::startsWith(base, "BINARY") ||
+        LogicTypeUtils::startsWith(base, "VARBINARY")) {
+        throw std::runtime_error("unsupported VALUES output type for OmniStream native: " + typeStr);
+    }
 }
 
 std::string CellToString(const nlohmann::json& cell)
@@ -127,10 +174,36 @@ ValuesSourceFunction::ValuesSourceFunction(const nlohmann::json& config)
         if (typeId == DataTypeId::OMNI_INVALID) {
             throw std::runtime_error("unsupported VALUES output type: " + typeStr);
         }
+        RejectMisMappedType(typeStr);
+        if (!IsSupportedType(typeId)) {
+            throw std::runtime_error("unsupported VALUES output type for OmniStream native: " + typeStr);
+        }
         fieldTypes_.push_back(typeId);
         auto [precision, scale] = LogicalType::parseDecimalPrecisionScale(typeStr);
         precisions_.push_back(precision);
         scales_.push_back(scale);
+    }
+}
+
+bool ValuesSourceFunction::IsSupportedType(DataTypeId typeId)
+{
+    switch (typeId) {
+        case DataTypeId::OMNI_BOOLEAN:
+        case DataTypeId::OMNI_INT:
+        case DataTypeId::OMNI_DATE32:
+        case DataTypeId::OMNI_LONG:
+        case DataTypeId::OMNI_DOUBLE:
+        case DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE:
+        case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
+        case DataTypeId::OMNI_TIMESTAMP:
+        case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+        case DataTypeId::OMNI_CHAR:
+        case DataTypeId::OMNI_VARCHAR:
+        case DataTypeId::OMNI_DECIMAL64:
+        case DataTypeId::OMNI_DECIMAL128:
+            return true;
+        default:
+            return false;
     }
 }
 
@@ -184,7 +257,8 @@ omnistream::VectorBatch* ValuesSourceFunction::convert(
     }
     size_t rowCount = tuples.size();
     size_t colCount = fieldTypes.size();
-    auto* vectorBatch = omnistream::VectorBatch::CreateVectorBatch(static_cast<int>(rowCount), fieldTypes);
+    std::unique_ptr<omnistream::VectorBatch> vectorBatch(
+        omnistream::VectorBatch::CreateVectorBatch(static_cast<int>(rowCount), fieldTypes));
     for (size_t i = 0; i < colCount; ++i) {
         if (fieldTypes[i] == DataTypeId::OMNI_DECIMAL64) {
             int32_t precision = precisions[i] > 0 ? precisions[i] : DECIMAL64_DEFAULT_PRECISION;
@@ -268,16 +342,23 @@ omnistream::VectorBatch* ValuesSourceFunction::convert(
                 }
                 case DataTypeId::OMNI_DECIMAL64: {
                     int32_t precision = precisions[colIndex] > 0 ? precisions[colIndex] : DECIMAL64_DEFAULT_PRECISION;
-                    vectorBatch->SetValueAt(
-                        static_cast<int>(colIndex),
-                        static_cast<int>(rowIndex),
-                        ParseDecimal64ToUnscaledLong(value, precision, scales[colIndex]));
+                    auto unscaled = ParseDecimal64ToUnscaledLong(value, precision, scales[colIndex]);
+                    if (unscaled.has_value()) {
+                        vectorBatch->SetValueAt(static_cast<int>(colIndex), static_cast<int>(rowIndex), *unscaled);
+                    } else {
+                        vectorBatch->Get(static_cast<int>(colIndex))->SetNull(static_cast<int32_t>(rowIndex));
+                    }
                     break;
                 }
                 case DataTypeId::OMNI_DECIMAL128: {
                     int32_t precision = precisions[colIndex] > 0 ? precisions[colIndex] : DECIMAL128_DEFAULT_PRECISION;
-                    Decimal128 decimalValue = ParseDecimal128ToValue(value, precision, scales[colIndex]);
-                    vectorBatch->SetValueAt(static_cast<int>(colIndex), static_cast<int>(rowIndex), decimalValue);
+                    auto decimalValue = ParseDecimal128ToValue(value, precision, scales[colIndex]);
+                    if (decimalValue.has_value()) {
+                        vectorBatch->SetValueAt(
+                            static_cast<int>(colIndex), static_cast<int>(rowIndex), *decimalValue);
+                    } else {
+                        vectorBatch->Get(static_cast<int>(colIndex))->SetNull(static_cast<int32_t>(rowIndex));
+                    }
                     break;
                 }
                 default:
@@ -285,7 +366,7 @@ omnistream::VectorBatch* ValuesSourceFunction::convert(
             }
         }
     }
-    return vectorBatch;
+    return vectorBatch.release();
 }
 
 } // namespace omnistream
