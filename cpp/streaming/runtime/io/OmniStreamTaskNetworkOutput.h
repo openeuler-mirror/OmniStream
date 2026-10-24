@@ -18,19 +18,32 @@
 #include "streaming/api/operators/Input.h"
 #include "runtime/metrics/Counter.h"
 #include "runtime/metrics/SimpleCounter.h"
+#include "table/utils/VectorBatchSerializationUtils.h"
+#include "table/data/binary/BinaryRowData.h"
 
 namespace omnistream {
 class OmniStreamTaskNetworkOutput : public OmniPushingAsyncDataInput::OmniDataOutput {
 public:
     explicit OmniStreamTaskNetworkOutput(
-        OneInputStreamOperator* operator_, std::shared_ptr<omnistream::SimpleCounter>& numRecordsIn);
+        OneInputStreamOperator* operator_,
+        std::shared_ptr<omnistream::SimpleCounter>& numRecordsIn,
+        std::shared_ptr<omnistream::SimpleCounter>& numBytesIn);
 
     void emitRecord(StreamRecord* streamRecord) override
     {
         LOG(">>>> OmniStreamTaskNetworkOutput.emitRecord");
         if (numRecordsIn != nullptr) {
             // here the value of streamRecord is not vectorBatch always
-            // numRecordsIn->Inc(reinterpret_cast<omnistream::VectorBatch*>(streamRecord->getValue())->GetRowCount());
+            numRecordsIn->Inc(reinterpret_cast<omnistream::VectorBatch*>(streamRecord->getValue())->GetRowCount());
+        }
+        if (numBytesIn != nullptr) {
+            if (taskType == 1) {
+                numBytesIn->Inc(
+                    VectorBatchSerializationUtils::calculateVectorBatchSerializableSize(
+                        reinterpret_cast<omnistream::VectorBatch*>(streamRecord->getValue())));
+            } else if (taskType == 2) {
+                numBytesIn->Inc(reinterpret_cast<BinaryRowData*>(streamRecord->getValue())->getSizeInBytes());
+            }
         }
         // later add condition
 
@@ -67,6 +80,7 @@ public:
 private:
     OneInputStreamOperator* operator_;
     std::shared_ptr<omnistream::SimpleCounter> numRecordsIn;
+    std::shared_ptr<omnistream::SimpleCounter> numBytesIn;
     int taskType;
 };
 } // namespace omnistream

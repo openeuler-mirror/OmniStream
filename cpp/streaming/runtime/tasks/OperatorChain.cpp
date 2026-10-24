@@ -14,6 +14,7 @@
 #include <atomic>
 #include <streaming/api/operators/StreamOperatorFactory.h>
 #include "ChainingOutput.h"
+#include "streaming/api/operators/CountingOutput.h"
 #include "DataStreamChainingOutput.h"
 #include <typeinfo/TypeInfoFactory.h>
 #include "core/typeutils/LongSerializer.h"
@@ -103,6 +104,37 @@ const omnistream::StreamConfigPOD* FindStreamConfigByOperatorId(
     }
     return nullptr;
 }
+
+WatermarkGaugeExposingOutput* WrapWithBytesCountingOutput(
+    WatermarkGaugeExposingOutput* output,
+    const std::shared_ptr<omnistream::OmniStreamTask>& streamTask,
+    omnistream::OperatorPOD& opDesc)
+{
+    if (output == nullptr || streamTask == nullptr || streamTask->env() == nullptr) {
+        return output;
+    }
+    auto metricGroup = streamTask->env()->taskMetricGroup();
+    if (metricGroup == nullptr) {
+        return output;
+    }
+    return new BytesCountingOutput(output, metricGroup, opDesc);
+}
+
+WatermarkGaugeExposingOutput* WrapWithRecordsCountingOutput(
+    WatermarkGaugeExposingOutput* output,
+    const std::shared_ptr<omnistream::OmniStreamTask>& streamTask,
+    omnistream::OperatorPOD& opDesc)
+{
+    if (output == nullptr || streamTask == nullptr || streamTask->env() == nullptr) {
+        return output;
+    }
+    auto metricGroup = streamTask->env()->taskMetricGroup();
+    if (metricGroup == nullptr) {
+        return output;
+    }
+    return new CountingOutput(output, metricGroup, opDesc);
+}
+
 } // namespace
 
 namespace omnistream {
@@ -139,9 +171,8 @@ WatermarkGaugeExposingOutput* OperatorChainV2::createOperatorChain(
 
     auto operatorWrapper = new StreamOperatorWrapper(chainedOperator, false);
     allOperatorWrappers.emplace_back(operatorWrapper);
-    auto laseDec = operatorConfig[1].getOperatorDescription();
     // wrapOperatorIntoOutput hands back a raw new; the chain owns it for its own lifetime.
-    auto* chainedOutput = wrapOperatorIntoOutput(chainedOperator, laseDec);
+    auto* chainedOutput = wrapOperatorIntoOutput(chainedOperator, opDesc);
     ownedOutputs_.push_back(chainedOutput);
     return chainedOutput;
 }
@@ -192,17 +223,21 @@ WatermarkGaugeExposingOutput* OperatorChainV2::createOutputCollector(
         allOutputs.emplace_back(output);
     }
 
+    WatermarkGaugeExposingOutput* result;
     if (allOutputs.size() == 1) {
-        return allOutputs[0];
+        result = allOutputs[0];
     } else {
         if (streamTask->getTaskType() == 1) {
-            return new VectorBatchCopyingBroadcastingOutputCollector(allOutputs);
+            result = new VectorBatchCopyingBroadcastingOutputCollector(allOutputs);
         } else if (streamTask->getTaskType() == 2) {
-            return new datastream::CopyingBroadcastingOutputCollector(allOutputs);
+            result = new datastream::CopyingBroadcastingOutputCollector(allOutputs);
         } else {
             THROW_LOGIC_EXCEPTION("not support task type: " + std::to_string(streamTask->getTaskType()));
         }
     }
+    auto opDesc = operatorConfig.getOperatorDescription();
+    result = WrapWithBytesCountingOutput(result, streamTask, opDesc);
+    return WrapWithRecordsCountingOutput(result, streamTask, opDesc);
 }
 
 WatermarkGaugeExposingOutput* OperatorChainV2::createDataStreamOutputCollector(

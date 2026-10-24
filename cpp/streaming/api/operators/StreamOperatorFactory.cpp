@@ -475,6 +475,7 @@ StreamOperator* StreamOperatorFactory::CreateSinkOp(
     auto* op = new SinkOperator(opDescriptionJSON);
     // SP-INTEROP: SinkOperator 无 managed keyed state，Omni 原生格式即为 Flink 兼容。
     op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
+    op->setup(std::move(task));
     return static_cast<OneInputStreamOperator*>(op);
 }
 
