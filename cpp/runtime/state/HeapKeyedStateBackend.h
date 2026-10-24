@@ -239,8 +239,8 @@ public:
             delete desc;
         }
 
-        for (State* state : createdStateObjects_) {
-            delete state;
+        for (const auto& pair : createdKvState) {
+            delete reinterpret_cast<State*>(pair.second);
         }
     };
 
