@@ -91,6 +91,11 @@ public:
         running_.exchange(true);
     }
 
+    ~OmniAbstractStreamTaskNetworkInput() override
+    {
+        OmniAbstractStreamTaskNetworkInput::close();
+    }
+
     DataInputStatus emitNext(OmniPushingAsyncDataInput::OmniDataOutput* output) override
     {
         // temp fix for taskType, will be removed in the future (taskType should not be set in Runtime)
@@ -613,7 +618,16 @@ public:
 
     void close() override
     {
-        running_.exchange(false);
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            running_.exchange(false);
+        }
+        cv_.notify_all();
+        if (timer_thread_.joinable()) {
+            INFO_RELEASE("OmniAbstractStreamTaskNetworkInput timer join begin " << this);
+            timer_thread_.join();
+            INFO_RELEASE("OmniAbstractStreamTaskNetworkInput timer join end " << this);
+        }
         INFO_RELEASE("OmniAbstractStreamTaskNetworkInput received numberOfRow: " << numberOfRow);
     }
 
