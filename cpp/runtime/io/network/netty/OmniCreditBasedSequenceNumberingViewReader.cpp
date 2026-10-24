@@ -300,7 +300,7 @@ void OmniCreditBasedSequenceNumberingViewReader::SerializeVectorBatchBuffer(Vect
     // std::shared_ptr<NettyBufferInfo> bufferInfo = nullptr;
 
     if (!currentInUseNettyMemorySegment) {
-        currentInUseNettyMemorySegment = RequestNettyBuffer(bufferSize);
+        currentInUseNettyMemorySegment = localNettyBufferPool_->requestBufferBlocking();
     }
     std::shared_ptr<NettyBufferInfo> bufferInfo = std::make_shared<NettyBufferInfo>(currentInUseNettyMemorySegment);
     std::shared_ptr<DeepCopiedObjectBufferRecycler> objectBufferRecycler =
@@ -375,7 +375,7 @@ void OmniCreditBasedSequenceNumberingViewReader::ResumeConsumption()
 std::shared_ptr<NettyBufferInfo> OmniCreditBasedSequenceNumberingViewReader::CreateNettyBufferInfo()
 {
     {
-        auto nettyMemorySegment = RequestNettyBuffer(bufferSize);
+        auto nettyMemorySegment = localNettyBufferPool_->requestBufferBlocking();
         currentInUseNettyMemorySegment = nettyMemorySegment;
         auto bufferInfo = std::make_shared<NettyBufferInfo>(currentInUseNettyMemorySegment);
         return bufferInfo;
