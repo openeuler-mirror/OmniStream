@@ -11,65 +11,36 @@
 
 #pragma once
 
-#include <vector>
-#include <fstream>
+#include <cstdint>
+#include <memory>
 #include <unordered_map>
-#include <set>
-#include <limits>
+#include <vector>
 
 #include <nlohmann/json.hpp>
-#include "table/data/RowData.h"
-#include "table/data/JoinedRowData.h"
-#include "core/api/common/state/ValueState.h"
+
+#include "core/api/common/state/State.h"
 #include "streaming/api/functions/KeyedProcessFunction.h"
+#include "core/api/common/state/ValueState.h"
 #include "streaming/api/operators/StreamingRuntimeContext.h"
 #include "streaming/api/operators/TimestampedCollector.h"
+#include "table/data/JoinedRowData.h"
+#include "table/data/RowData.h"
+#include "table/data/vectorbatch/VectorBatch.h"
 #include "table/runtime/keyselector/KeySelector.h"
-#include "table/data/util/VectorBatchUtil.h"
 
 class RowTimeDeduplicateFunction
     : public KeyedProcessFunction<RowData*, omnistream::VectorBatch*, omnistream::VectorBatch*> {
 public:
-    explicit RowTimeDeduplicateFunction(const nlohmann::json& config)
-    {
-        generateUpdateBefore_ = config["generateUpdateBefore"];
-        generateInsert_ = config["generateInsert"];
-        rowtimeIndex_ = config["rowtimeIndex"];
-        keepLastRow_ = config["keepLastRow"];
-        keyIndex = config["grouping"].get<std::vector<int32_t>>();
-        inputTypes = config["inputTypes"].get<std::vector<std::string>>();
-        keyedTypes = getKeyedTypes(keyIndex, config["inputTypes"]);
-        groupByKeySelector = new KeySelector<RowData*>(keyedTypes, keyIndex);
-    };
+    explicit RowTimeDeduplicateFunction(const nlohmann::json& config);
+    ~RowTimeDeduplicateFunction() override = default;
 
-public:
     void processBatch(omnistream::VectorBatch* inputVB, Context& ctx, TimestampedCollector& out) override;
-    void initOutputVector(omnistream::VectorBatch* out, omnistream::VectorBatch* inputVB, int rowCount);
-
-    // void buildOutput();
-    // unordered_map<RowData *, long> getUpdateState(
-    //     omnistream::VectorBatch *inputVB, Context &ctx, const int rowCount, int& resultCount);
-    // void addToOutVectorBatch(
-    //     omnistream::VectorBatch *inputVB, omnistream::VectorBatch *outVB, long comboID, int rowIndex);
-
     void open(const Configuration&) override;
+
     static std::vector<std::int32_t> getKeyedTypes(
-        const std::vector<int32_t> keyedIndex, const std::vector<std::string> inputTypes);
+        const std::vector<int32_t>& keyedIndex, const std::vector<std::string>& inputTypes);
 
-    unordered_map<RowData*, int32_t> GetNeededUpdateRecord(omnistream::VectorBatch* inputVB);
-    bool CompareRecord(
-        int preRowId, int currentRowId, omnistream::VectorBatch* previousVB, omnistream::VectorBatch* currentVB);
-
-    omnistream::VectorBatch* ProcessUpdateRecord(omnistream::VectorBatch* inputVB, Context& ctx);
-
-    omnistream::VectorBatch* GetVectorBatchByComboId(ComboId comboId);
-
-    void CopyTargetVectorBatchToOut(omnistream::VectorBatch* outputVB, ComboId comboId, int rowIndex);
-    void UpdateStateBackend(std::vector<std::tuple<ComboId, ComboId, RowData*>>& updateRecords, Context& ctx);
-
-    void freeDelBatch();
-
-    void processElement(omnistream::VectorBatch* input, Context* ctx, TimestampedCollector* out) override
+    void processElement(omnistream::VectorBatch*, Context*, TimestampedCollector*) override
     {
         NOT_IMPL_EXCEPTION;
     }
@@ -81,34 +52,49 @@ public:
 
     ValueState<RowData*>* getValueState() override
     {
-        return nullptr;
+        return recordState_;
     }
 
 private:
-    nlohmann::json description;
-    std::vector<std::string> inputTypes;
+    struct BatchCandidates {
+        std::unordered_map<RowData*, int32_t> rowIds;
+        std::vector<std::unique_ptr<RowData>> ownedKeys;
+    };
 
-    bool generateUpdateBefore_;
-    bool generateInsert_;
-    int rowtimeIndex_;
-    bool keepLastRow_;
+    struct PendingUpdate {
+        // key borrows from BatchCandidates::ownedKeys until updateState returns.
+        RowData* key = nullptr;
+        RowData* previousRow = nullptr;
+        // RocksDB without cache returns a newly deserialized row to the caller.
+        // Heap and RocksDB cache values remain owned by their respective backends.
+        std::unique_ptr<RowData> ownedPreviousRow;
+        // The selected row remains locally owned until Heap state accepts ownership;
+        // RocksDB serializes/deep-copies it and leaves ownership here.
+        std::unique_ptr<RowData> currentRow;
+        bool isInsert = false;
+    };
 
-    std::vector<int32_t> keyIndex; // key index
+    BatchCandidates selectBatchCandidates(omnistream::VectorBatch* inputVB);
+    bool shouldReplace(RowData* previousRow, omnistream::VectorBatch* currentVB, int32_t currentRowId) const;
+    omnistream::VectorBatch* buildOutputBatch(
+        const std::vector<RowData*>& rows,
+        const std::vector<RowKind>& rowKinds,
+        const std::vector<int64_t>& timestamps) const;
+    void updateState(std::vector<PendingUpdate>& updates, Context& ctx);
 
-    // stores the selected row comboId for each key
-    // Uses int64_t as the template type but not omnistream::ComboId to keep compatibility with existing code.
-    ValueState<int64_t>* recordStateVB = nullptr;
+    std::vector<std::string> inputTypes_;
+    std::vector<int32_t> inputTypeIds_;
+    std::vector<int32_t> keyIndices_;
+    std::vector<int32_t> keyedTypes_;
 
-    KeySelector<RowData*>* groupByKeySelector;
-    std::vector<int32_t> keyedTypes;
+    bool generateUpdateBefore_ = false;
+    bool generateInsert_ = false;
+    int32_t rowtimeIndex_ = -1;
+    bool keepLastRow_ = false;
 
-    // omnistream::VectorBatch *res = nullptr;
-    std::set<omnistream::VectorBatch*> delVb;
-    std::unordered_map<VectorBatchId, omnistream::VectorBatch*> vectorBatchCacheMap;
-    omnistream::StateType stateType_ = omnistream::StateType::HEAP;
-    int32_t maxParallelism_ = 0;
-    std::unordered_map<int32_t, omnistream::VectorBatch*> reuseVectorBatchByKeyGroup_{};
-    std::unordered_map<int32_t, std::vector<int32_t>> reuseOldRowIdsByKeyGroup_{};
-    std::vector<RowData*> reuseKeys_{};
-    std::vector<ComboId> reuseComboIds_{};
+    // Non-owning: RuntimeContext owns the concrete ValueState instance.
+    ValueState<RowData*>* recordState_ = nullptr;
+    std::unique_ptr<KeySelector<RowData*>> groupByKeySelector_;
+    omnistream::StateType backendType_ = omnistream::StateType::HEAP;
+    bool rocksdbCacheEnabled_ = false;
 };
