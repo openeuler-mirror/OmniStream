@@ -92,6 +92,7 @@ public:
         for (const auto& pair : registeredKvStates) {
             StateDescriptor* desc = std::get<1>(pair.second);
             uintptr_t stateTablePtr = std::get<0>(pair.second);
+            BackendDataType nsId = std::get<2>(pair.second);
             if (isVectorBatchSideTableName(pair.first)) {
                 auto* stateTable =
                     reinterpret_cast<CopyOnWriteStateTable<uint32_t, VoidNamespace, omnistream::VectorBatch*>*>(
@@ -204,9 +205,13 @@ public:
                         reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, int64_t>*>(stateTablePtr);
                     delete stateTable;
                 } else if (dataId == BackendDataType::ROW_BK) {
-                    auto stateTable =
-                        reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, RowData*>*>(stateTablePtr);
-                    delete stateTable;
+                    if (nsId == BackendDataType::BIGINT_BK) {
+                        delete reinterpret_cast<CopyOnWriteStateTable<K, int64_t, RowData*>*>(stateTablePtr);
+                    } else if (nsId == BackendDataType::TIME_WINDOW_BK) {
+                        delete reinterpret_cast<CopyOnWriteStateTable<K, TimeWindow, RowData*>*>(stateTablePtr);
+                    } else {
+                        delete reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, RowData*>*>(stateTablePtr);
+                    }
                 } else if (dataId == BackendDataType::SET_LONG) {
                     auto stateTable =
                         reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<long>*>*>(stateTablePtr);
@@ -224,9 +229,21 @@ public:
                     "~HeapKeyedStateBackend(), desc->getType():"
                     << static_cast<int>(desc->getType()) << ", desc->getBackendId():" << static_cast<int>(dataId));
                 if (dataId == BackendDataType::BIGINT_BK) {
-                    auto stateTable = reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<int64_t>*>*>(
-                        stateTablePtr);
-                    delete stateTable;
+                    if (nsId == BackendDataType::BIGINT_BK) {
+                        delete reinterpret_cast<CopyOnWriteStateTable<K, int64_t, std::vector<int64_t>*>*>(
+                            stateTablePtr);
+                    } else {
+                        delete reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<int64_t>*>*>(
+                            stateTablePtr);
+                    }
+                } else if (dataId == BackendDataType::ROW_BK) {
+                    if (nsId == BackendDataType::BIGINT_BK) {
+                        delete reinterpret_cast<CopyOnWriteStateTable<K, int64_t, std::vector<RowData*>*>*>(
+                            stateTablePtr);
+                    } else {
+                        delete reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<RowData*>*>*>(
+                            stateTablePtr);
+                    }
                 } else {
                     NOT_IMPL_EXCEPTION;
                 }
@@ -563,6 +580,13 @@ uintptr_t HeapKeyedStateBackend<K>::createOrUpdateInternalState(
             namespaceSerializer->getBackendId() == BackendDataType::VOID_NAMESPACE_BK &&
             dataId == BackendDataType::BIGINT_BK) {
             return (uintptr_t)createOrUpdateInternalListState<VoidNamespace, int64_t>(namespaceSerializer, stateDesc);
+        } else if (
+            namespaceSerializer->getBackendId() == BackendDataType::BIGINT_BK && dataId == BackendDataType::ROW_BK) {
+            return (uintptr_t)createOrUpdateInternalListState<int64_t, RowData*>(namespaceSerializer, stateDesc);
+        } else if (
+            namespaceSerializer->getBackendId() == BackendDataType::VOID_NAMESPACE_BK &&
+            dataId == BackendDataType::ROW_BK) {
+            return (uintptr_t)createOrUpdateInternalListState<VoidNamespace, RowData*>(namespaceSerializer, stateDesc);
         } else {
             NOT_IMPL_EXCEPTION;
         }

@@ -556,6 +556,15 @@ uintptr_t BssKeyedStateBackend<K>::GetListState(TypeSerializer* namespaceSeriali
         namespaceSerializer->getBackendId() == BackendDataType::VOID_NAMESPACE_BK &&
         dataId == BackendDataType::BIGINT_BK) {
         return (uintptr_t)createOrUpdateInternalListState<VoidNamespace, int64_t>(namespaceSerializer, stateDesc);
+
+    } else if (namespaceSerializer->getBackendId() == BackendDataType::BIGINT_BK && dataId == BackendDataType::ROW_BK) {
+        // This has not yet been tested with BackendDataType::ROW_BK
+        return (uintptr_t)createOrUpdateInternalListState<int64_t, RowData*>(namespaceSerializer, stateDesc);
+    } else if (
+        namespaceSerializer->getBackendId() == BackendDataType::VOID_NAMESPACE_BK &&
+        dataId == BackendDataType::ROW_BK) {
+        // This has not yet been tested with BackendDataType::ROW_BK
+        return (uintptr_t)createOrUpdateInternalListState<VoidNamespace, RowData*>(namespaceSerializer, stateDesc);
     } else {
         bss_adapter::ThrowWithLog<std::logic_error>("OmniStateStore ListState backend types are not supported");
     }
