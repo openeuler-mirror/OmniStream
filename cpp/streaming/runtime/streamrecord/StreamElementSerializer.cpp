@@ -13,6 +13,7 @@
 #include "StreamRecord.h"
 #include "basictypes/Tuple2.h"
 #include "StreamElementSerializer.h"
+#include "runtime/watermark/WatermarkStatus.h"
 
 namespace omnistream::datastream {
 StreamElementSerializer::StreamElementSerializer(TypeSerializer* typeSerializer) : typeSerializer_(typeSerializer)
@@ -73,7 +74,11 @@ void* StreamElementSerializer::deserialize(DataInputView& source)
         reUsableWatermark_->setTag(StreamElementTag::TAG_WATERMARK);
         return reUsableWatermark_;
     } else if (tag == static_cast<int>(StreamElementTag::TAG_STREAM_STATUS)) {
-        return new Watermark(source.readInt());
+        int status = source.readInt();
+        if (status != WatermarkStatus::idleStatus && status != WatermarkStatus::activeStatus) {
+            THROW_LOGIC_EXCEPTION("Invalid watermark status");
+        }
+        return status == WatermarkStatus::idleStatus ? WatermarkStatus::idle() : WatermarkStatus::active();
     } else {
         THROW_LOGIC_EXCEPTION("Corrupt stream, found tag:" + std::to_string(tag));
     }
@@ -103,6 +108,9 @@ void StreamElementSerializer::serialize(Object* input, DataOutputSerializer& tar
         target.write(static_cast<uint8_t>(StreamElementTag::TAG_WATERMARK));
         auto* asWatermark = static_cast<Watermark*>(element);
         target.writeLong(asWatermark->getTimestamp());
+    } else if (element->getTag() == StreamElementTag::TAG_STREAM_STATUS) {
+        target.write(static_cast<uint8_t>(StreamElementTag::TAG_STREAM_STATUS));
+        target.writeInt(static_cast<WatermarkStatus*>(element)->GetStatus());
     } else {
         std::cout << "type name: " << typeSerializer_->getName() << std::endl;
         THROW_LOGIC_EXCEPTION(

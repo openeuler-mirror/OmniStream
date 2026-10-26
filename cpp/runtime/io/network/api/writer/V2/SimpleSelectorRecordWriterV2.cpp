@@ -110,5 +110,21 @@ void SimpleSelectorRecordWriterV2::broadcastEmit(Watermark* watermark)
         auto* new_wm = new Watermark(*watermark);
         this->targetPartitionWriter_->emitRecord(reinterpret_cast<void*>(new_wm), i);
     }
+    if (flushAlways) {
+        targetPartitionWriter_->flushAll();
+    }
+}
+void SimpleSelectorRecordWriterV2::broadcastEmit(WatermarkStatus* status)
+{
+    if (taskType == 2) {
+        serializationDelegate->setInstance(status);
+        status->setValue(serializeRecord(serializer, serializationDelegate));
+    }
+    for (int i = 0; i < numberOfChannels; ++i) {
+        targetPartitionWriter_->emitRecord(new WatermarkStatus(*status), i);
+    }
+    if (flushAlways) {
+        targetPartitionWriter_->flushAll();
+    }
 }
 } // namespace omnistream

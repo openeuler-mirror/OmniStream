@@ -26,7 +26,8 @@ public:
         TimestampAssigner* timestampAssigner,
         std::shared_ptr<WatermarkGeneratorSupplier> watermarksFactory,
         ProcessingTimeService* timeService,
-        long periodicWatermarkInterval);
+        long periodicWatermarkInterval,
+        int64_t idleTimeoutMillis = 0);
 
     class IdlenessManager {
     public:
@@ -139,6 +140,9 @@ public:
         SplitLocalOutputs(SplitLocalOutputs&&) = default;
         SplitLocalOutputs& operator=(SplitLocalOutputs&&) = default;
 
+        ProcessingTimeService* timeService = nullptr;
+        int64_t idleTimeoutMillis = 0;
+
         SourceOutputWithWatermarks* CreateOutputForSplit(const std::string& splitId)
         {
             auto it = localOutputs.find(splitId);
@@ -155,6 +159,7 @@ public:
             auto localOutput = SourceOutputWithWatermarks::createWithSeparateOutputs(
                 recordOutput, onEventOutput, periodicOutput, timestampAssigner, watermarks, periodicWatermarkInterval_);
 
+            localOutput->ConfigureIdleness(timeService, idleTimeoutMillis);
             localOutputs.emplace(splitId, localOutput);
             return localOutput;
         }
@@ -263,6 +268,7 @@ private:
     TimestampAssigner* timestampAssigner = nullptr;
     std::shared_ptr<WatermarkGeneratorSupplier> watermarksFactory;
     ProcessingTimeService* timeService = nullptr;
+    int64_t idleTimeoutMillis_;
     long periodicWatermarkInterval;
 
     std::weak_ptr<ScheduledFutureTask> periodicEmitHandle;

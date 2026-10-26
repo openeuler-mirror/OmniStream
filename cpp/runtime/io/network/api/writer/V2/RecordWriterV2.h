@@ -12,6 +12,7 @@
 #include <partition/ResultPartitionWriter.h>
 #include "streaming/api/watermark/Watermark.h"
 #include "streaming/runtime/streamrecord/StreamRecord.h"
+#include "runtime/watermark/WatermarkStatus.h"
 
 #include "OutputFlusher.h" // Assuming this defines OutputFlusher
 
@@ -41,6 +42,10 @@ public:
 
     virtual void emit(StreamRecord* record) = 0;
     virtual void broadcastEmit(Watermark* watermark) = 0;
+    virtual void broadcastEmit(WatermarkStatus* status)
+    {
+        NOT_IMPL_EXCEPTION;
+    }
     virtual void flushAll()
     {
         LOG_TRACE(">>>>");

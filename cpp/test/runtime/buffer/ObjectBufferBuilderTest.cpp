@@ -20,7 +20,7 @@ TEST(ObjectBufferBuilderTest, AppendSerializedObjectSegmentReleasesWrittenObject
     int32_t elementNum = 2;
     int8_t watermarkTag = static_cast<int8_t>(StreamElementTag::TAG_WATERMARK);
     long timestamp = 123;
-    int8_t unsupportedTag = static_cast<int8_t>(StreamElementTag::TAG_STREAM_STATUS);
+    int8_t unsupportedTag = static_cast<int8_t>(StreamElementTag::TAG_RECORD_ATTRIBUTES);
     std::vector<uint8_t> serialized(
         sizeof(elementNum) + sizeof(watermarkTag) + sizeof(timestamp) + sizeof(unsupportedTag));
     uint8_t* cursor = serialized.data();
@@ -37,7 +37,7 @@ TEST(ObjectBufferBuilderTest, AppendSerializedObjectSegmentReleasesWrittenObject
             serialized.data(), static_cast<int>(serialized.size()), &target, 1, 2);
         FAIL() << "Expected unsupported StreamElement tag to throw";
     } catch (const std::runtime_error& error) {
-        EXPECT_STREQ(error.what(), "ObjectSegment channel-state deserialization does not support StreamElement tag 4");
+        EXPECT_STREQ(error.what(), "ObjectSegment channel-state deserialization does not support StreamElement tag 5");
     }
     EXPECT_EQ(target.getObject(0), &existing);
     EXPECT_EQ(target.getObject(1), nullptr);
@@ -216,4 +216,37 @@ TEST(ObjectBufferBuilderTest, BufferConsumerDataIdentical)
         EXPECT_EQ(record, objects[i]);
     }
     delete readBuffer;
+}
+
+TEST(ObjectBufferBuilderTest, RestoreAndCloneWatermarkStatuses)
+{
+    int32_t count = 2;
+    std::vector<uint8_t> bytes(sizeof(count) + 2 * (sizeof(int8_t) + sizeof(int32_t)));
+    auto* cursor = bytes.data();
+    std::memcpy(cursor, &count, sizeof(count));
+    cursor += sizeof(count);
+    for (int32_t status : {WatermarkStatus::idleStatus, WatermarkStatus::activeStatus}) {
+        int8_t tag = static_cast<int8_t>(StreamElementTag::TAG_STREAM_STATUS);
+        std::memcpy(cursor, &tag, sizeof(tag));
+        cursor += sizeof(tag);
+        std::memcpy(cursor, &status, sizeof(status));
+        cursor += sizeof(status);
+    }
+    ObjectSegment target(2);
+    auto result =
+        ObjectSegmentChannelStateSerde::AppendSerializedObjectSegment(bytes.data(), bytes.size(), &target, 0, 2);
+    EXPECT_EQ(result.elementsWritten, 2);
+    EXPECT_EQ(result.bytesConsumed, bytes.size());
+    ASSERT_TRUE(static_cast<WatermarkStatus*>(target.getObject(0))->IsIdle());
+    ASSERT_TRUE(static_cast<WatermarkStatus*>(target.getObject(1))->IsActive());
+    ObjectSegment cloned(2);
+    cloned.put(0, &target, 0, 2);
+    for (int i = 0; i < 2; ++i) {
+        auto* status = target.getObject(i);
+        auto* copy = cloned.getObject(i);
+        ASSERT_NE(copy, status);
+        EXPECT_EQ(static_cast<WatermarkStatus*>(copy)->GetStatus(), static_cast<WatermarkStatus*>(status)->GetStatus());
+        delete status;
+    }
+    cloned.ReleaseObjects();
 }

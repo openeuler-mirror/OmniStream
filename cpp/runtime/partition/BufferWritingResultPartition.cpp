@@ -294,6 +294,7 @@ BufferBuilder* BufferWritingResultPartition::appendUnicastDataForNewRecord(void*
                     break;
                 }
                 case StreamElementTag::TAG_WATERMARK: bytes = sizeof(int64_t); break;
+                case StreamElementTag::TAG_STREAM_STATUS: bytes = sizeof(int32_t); break;
                 default:
                     throw std::runtime_error(
                         "Unsupported stream element tag....... from appendUnicastDataForNewRecord");

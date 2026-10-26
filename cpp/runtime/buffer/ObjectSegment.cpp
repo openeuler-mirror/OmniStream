@@ -71,6 +71,9 @@ void ObjectSegment::reset()
 
 int64_t ObjectSegment::calculateStoredObjectSizeInBytes(const StreamElement* record)
 {
+    if (record->getTag() == StreamElementTag::TAG_STREAM_STATUS) {
+        return sizeof(int32_t);
+    }
     // A watermark is not a StreamRecord and its getValue() is not a VectorBatch, so it must be
     // handled before the cast below. It carries only a timestamp, so account a fixed size for it.
     if (record->getTag() == StreamElementTag::TAG_WATERMARK) {

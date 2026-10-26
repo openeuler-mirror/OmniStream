@@ -142,6 +142,16 @@ public:
 
     void processElement2(StreamRecord* element) override {};
 
+    void processWatermarkStatus1(WatermarkStatus* status) override
+    {
+        AbstractStreamOperator<KeyType>::processWatermarkStatus1(status);
+    }
+
+    void processWatermarkStatus2(WatermarkStatus* status) override
+    {
+        AbstractStreamOperator<KeyType>::processWatermarkStatus2(status);
+    }
+
     void ProcessWatermark1(Watermark* watermark) override
     {
         if (this->combinedWatermark->UpdateWatermark(0, watermark->getTimestamp())) {

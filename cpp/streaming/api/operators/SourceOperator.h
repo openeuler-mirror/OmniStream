@@ -94,6 +94,7 @@ public:
           isDataStream(!opDescriptionJSON["batch"]),
           operatingMode(OperatingMode::OUTPUT_NOT_INITIALIZED)
     {
+        idleTimeoutMillis_ = opDescriptionJSON.value("idleTimeout", int64_t{0});
         readerFactory = [source](SourceReaderContext* context) { return source->createReader(context); };
         std::string strategy = opDescriptionJSON["watermarkStrategy"];
         if (strategy == "no") {
@@ -186,6 +187,7 @@ public:
     void open() override
     {
         initReader();
+        watermarkStrategy->idleTimeoutMillis = idleTimeoutMillis_;
         if (emitProgressiveWatermarks) {
             eventTimeLogic = TimestampsAndWatermarks::CreateProgressiveEventTimeLogic(
                 watermarkStrategy, getProcessingTimeService(), getRuntimeContext()->getAutoWatermarkInterval());
@@ -459,6 +461,7 @@ private:
     OperatingMode operatingMode;
     std::vector<SplitT*> outputPendingSplits;
     std::unordered_set<std::string> registeredSplitIds_;
+    int64_t idleTimeoutMillis_ = 0;
     std::shared_ptr<WatermarkStrategy> watermarkStrategy;
     long currentMaxDesiredWatermark;
     std::shared_ptr<omnistream::CompletableFuture> finished;

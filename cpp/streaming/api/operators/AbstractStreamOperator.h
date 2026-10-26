@@ -179,6 +179,16 @@ public:
         output->emitWatermarkStatus(watermarkStatus);
     }
 
+    void processWatermarkStatus1(WatermarkStatus* watermarkStatus)
+    {
+        processWatermarkStatus(watermarkStatus, 0);
+    }
+
+    void processWatermarkStatus2(WatermarkStatus* watermarkStatus)
+    {
+        processWatermarkStatus(watermarkStatus, 1);
+    }
+
     void setProcessingTimeService(ProcessingTimeService* service)
     {
         processingTimeService = service;
@@ -238,6 +248,18 @@ protected:
     omnistream::IndexedCombinedWatermarkStatus* combinedWatermark = nullptr;
 
 private:
+    void processWatermarkStatus(WatermarkStatus* watermarkStatus, int index)
+    {
+        bool wasIdle = combinedWatermark->IsIdle();
+        if (combinedWatermark->UpdateStatus(index, watermarkStatus->IsIdle())) {
+            Watermark watermark(combinedWatermark->GetCombinedWatermark());
+            this->ProcessWatermark(&watermark);
+        }
+        if (wasIdle != combinedWatermark->IsIdle()) {
+            output->emitWatermarkStatus(watermarkStatus);
+        }
+    }
+
     ProcessingTimeService* processingTimeService = nullptr;
     FlinkSavepointAdaptorInfo flinkSavepointAdaptorInfo_{
         FlinkSavepointAdaptorType::None, "No compatible savepoint adaptor has been assigned"};

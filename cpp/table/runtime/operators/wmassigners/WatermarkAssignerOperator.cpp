@@ -22,7 +22,7 @@ WatermarkAssignerOperator::WatermarkAssignerOperator(
       idleTimeout_(idleTimeout)
 {
     setOutput(output);
-    currentStatus = new WatermarkStatus(WatermarkStatus::activeStatus);
+    currentStatus = WatermarkStatus::active();
     lastWatermark_ = 0 - outOfOrderT;
     setProcessingTimeService(processingTimeService);
 }
@@ -39,9 +39,9 @@ void WatermarkAssignerOperator::processBatch(StreamRecord* element)
 void WatermarkAssignerOperator::processBatchWatermark(StreamRecord* input)
 {
     auto record = std::unique_ptr<StreamRecord>(input);
-    if (idleTimeout_ > 0 && currentStatus->Equals(WatermarkStatus::idleStatus)) {
-        emitWatermarkStatus(new WatermarkStatus(WatermarkStatus::activeStatus));
+    if (idleTimeout_ > 0) {
         lastRecordTime_ = getProcessingTimeService()->getCurrentProcessingTime();
+        emitWatermarkStatus(WatermarkStatus::active());
     }
 
     auto batch =
@@ -77,6 +77,10 @@ void WatermarkAssignerOperator::processBatchWatermark(StreamRecord* input)
 
 void WatermarkAssignerOperator::processBatchSimple(StreamRecord* element)
 {
+    if (idleTimeout_ > 0) {
+        lastRecordTime_ = getProcessingTimeService()->getCurrentProcessingTime();
+        emitWatermarkStatus(WatermarkStatus::active());
+    }
     omnistream::VectorBatch* batch = reinterpret_cast<omnistream::VectorBatch*>(element->getValue());
     int64_t currentWatermarkMax = 0;
     auto timeColumn = reinterpret_cast<omniruntime::vec::Vector<int64_t>*>(batch->Get(rowtimeIndex_));
@@ -101,9 +105,9 @@ void WatermarkAssignerOperator::setSplitWaterMark(bool doSplitWaterMark)
 void WatermarkAssignerOperator::processElement(StreamRecord* element)
 {
     LOG("WaterMark process element");
-    if (idleTimeout_ > 0 && currentStatus->Equals(WatermarkStatus::idleStatus)) {
-        emitWatermarkStatus(new WatermarkStatus(WatermarkStatus::activeStatus));
+    if (idleTimeout_ > 0) {
         lastRecordTime_ = getProcessingTimeService()->getCurrentProcessingTime();
+        emitWatermarkStatus(WatermarkStatus::active());
     }
 
     BinaryRowData* row = reinterpret_cast<BinaryRowData*>(element->getValue());
@@ -132,18 +136,21 @@ void WatermarkAssignerOperator::advanceWatermark()
 
 void WatermarkAssignerOperator::emitWatermarkStatus(WatermarkStatus* watermarkStatus)
 {
-    currentStatus = watermarkStatus;
-    output->emitWatermarkStatus(watermarkStatus);
+    auto* status = watermarkStatus->IsIdle() ? WatermarkStatus::idle() : WatermarkStatus::active();
+    if (!currentStatus->Equals(status)) {
+        currentStatus = status;
+        output->emitWatermarkStatus(status);
+    }
 }
 
 void WatermarkAssignerOperator::OnProcessingTime(int64_t timestamp)
 {
     advanceWatermark();
 
-    if (idleTimeout_ > 0 && currentStatus->Equals(WatermarkStatus::idleStatus)) {
+    if (idleTimeout_ > 0 && currentStatus->IsActive()) {
         const long currentTime = getProcessingTimeService()->getCurrentProcessingTime();
-        if (currentTime - lastRecordTime_ > idleTimeout_) {
-            emitWatermarkStatus(new WatermarkStatus(WatermarkStatus::activeStatus));
+        if (currentTime - lastRecordTime_ >= idleTimeout_) {
+            emitWatermarkStatus(WatermarkStatus::idle());
         }
     }
 
@@ -175,7 +182,7 @@ void WatermarkAssignerOperator::ProcessWatermark(Watermark* mark)
     if (mark->getTimestamp() == INT64_MAX && currentWatermark_ != INT64_MAX) {
         if (idleTimeout_ > 0 && currentStatus->Equals(WatermarkStatus::idleStatus)) {
             // mark the channel active
-            emitWatermarkStatus(new WatermarkStatus(WatermarkStatus::activeStatus));
+            emitWatermarkStatus(WatermarkStatus::active());
         }
         currentWatermark_ = INT64_MAX;
         output->emitWatermark(mark);

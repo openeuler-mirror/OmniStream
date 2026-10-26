@@ -216,6 +216,11 @@ private:
         void emitWatermarkStatus(WatermarkStatus* watermarkStatus) override
         {
             LOG(">>>> OmniStreamTaskNetworkOutput.emitWatermarkStatus");
+            if (inputIndex == 0) {
+                streamOperator->processWatermarkStatus1(watermarkStatus);
+            } else {
+                streamOperator->processWatermarkStatus2(watermarkStatus);
+            }
         }
 
         ~OmniStreamTaskNetworkOutPut() override = default;

@@ -35,6 +35,7 @@ public:
     ByteBuffer* serializeRecord(DataOutputSerializer* serializer, IOReadableWritable* record);
 
     void broadcastEmit(Watermark* watermark) override;
+    void broadcastEmit(WatermarkStatus* status) override;
 
 protected:
     void emit(StreamRecord* record, int targetSubpartition) override;

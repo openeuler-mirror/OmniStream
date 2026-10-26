@@ -48,6 +48,11 @@ public:
             combinedWatermarkStatus.Remove(watermark);
             delete watermark;
             watermarkPerOutputId.erase(it);
+            if (watermarkPerOutputId.empty()) {
+                underlyingOutput->MarkIdle();
+            } else {
+                UpdateCombinedWatermark();
+            }
             return true;
         }
         return false;
@@ -84,11 +89,16 @@ private:
 
     void UpdateCombinedWatermark()
     {
+        if (watermarkPerOutputId.empty()) {
+            return;
+        }
         if (combinedWatermarkStatus.UpdateCombinedWatermark()) {
             auto watermark = Watermark(combinedWatermarkStatus.GetCombinedWatermark());
             underlyingOutput->emitWatermark(&watermark);
         } else if (combinedWatermarkStatus.IsIdle()) {
             underlyingOutput->MarkIdle();
+        } else {
+            underlyingOutput->MarkActive();
         }
     }
 

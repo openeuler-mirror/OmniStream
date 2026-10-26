@@ -41,6 +41,49 @@ std::string testDescriptionEqui = R"delimiter({
 using namespace omnistream;
 nlohmann::json parsedJsonEqui = nlohmann::json::parse(testDescriptionEqui);
 
+namespace {
+class IdleWindowJoinOutput : public OutputTestVectorBatch {
+public:
+    std::vector<int> statuses;
+    void emitWatermarkStatus(WatermarkStatus* status) override
+    {
+        statuses.push_back(status->GetStatus());
+    }
+};
+
+class IdleWindowJoinOperator : public InnerJoinOperator<int64_t> {
+public:
+    explicit IdleWindowJoinOperator(Output* output)
+        : InnerJoinOperator<int64_t>(parsedJsonEqui, output, new LongSerializer(), new LongSerializer())
+    {
+        collector = static_cast<TimestampedCollector*>(this->output);
+        combinedWatermark = new omnistream::IndexedCombinedWatermarkStatus(2);
+    }
+};
+} // namespace
+
+TEST(WindowJoinOperatorTest, IdleInputAdvancesCombinedWatermarkAndResumes)
+{
+    IdleWindowJoinOutput output;
+    IdleWindowJoinOperator op(&output);
+    TwoInputStreamOperator* input = &op;
+    Watermark left(100);
+    input->ProcessWatermark1(&left);
+    EXPECT_EQ(output.getWatermark()->getTimestamp(), INT64_MIN);
+    input->processWatermarkStatus2(WatermarkStatus::idle());
+    EXPECT_EQ(output.getWatermark()->getTimestamp(), 100);
+    EXPECT_TRUE(output.statuses.empty());
+    input->processWatermarkStatus1(WatermarkStatus::idle());
+    ASSERT_EQ(output.statuses.size(), 1);
+    EXPECT_EQ(output.statuses.back(), WatermarkStatus::idleStatus);
+    input->processWatermarkStatus2(WatermarkStatus::active());
+    ASSERT_EQ(output.statuses.size(), 2);
+    EXPECT_EQ(output.statuses.back(), WatermarkStatus::activeStatus);
+    Watermark right(200);
+    input->ProcessWatermark2(&right);
+    EXPECT_EQ(output.getWatermark()->getTimestamp(), 200);
+}
+
 template <typename T>
 bool compareCol(omniruntime::vec::BaseVector* col1, omniruntime::vec::BaseVector* col2)
 {

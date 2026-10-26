@@ -78,10 +78,10 @@ public:
             } else if (channelStatuses_[channelIndex].watermark == lastOutputWatermark_) {
                 findAndOutputNewMinWatermarkAcrossAlignedChannels(output);
             }
-        } else if (isWatermarkStatusActive && !channelStatuses_[channelIndex].watermarkStatus->IsIdle()) {
+        } else if (isWatermarkStatusActive && channelStatuses_[channelIndex].watermarkStatus->IsIdle()) {
             channelStatuses_[channelIndex].watermarkStatus = WatermarkStatus::active();
 
-            if (channelStatuses_[channelIndex].watermark == lastOutputWatermark_) {
+            if (channelStatuses_[channelIndex].watermark >= lastOutputWatermark_) {
                 channelStatuses_[channelIndex].isWatermarkAligned = true;
             }
 

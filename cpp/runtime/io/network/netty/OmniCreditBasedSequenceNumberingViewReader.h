@@ -62,7 +62,7 @@ public:
     bool SerializeVectorBatch(VectorBatch* vectorBatch, std::shared_ptr<NettyBufferInfo>& bufferInfo);
     void DoSerializeVectorBatch(VectorBatch* vectorBatch, int vectorSize, std::shared_ptr<NettyBufferInfo>& bufferInfo);
     void AddNettyBufferInfoToQueue(std::shared_ptr<NettyBufferInfo>& bufferInfo);
-    bool DoSerializeWaterMark(long timestamp, std::shared_ptr<NettyBufferInfo> bufferInfo);
+    bool DoSerializeWaterMark(long timestamp, std::shared_ptr<NettyBufferInfo> bufferInfo, bool isStatus = false);
     void SerializeBufferAndBacklog(VectorBatchBuffer* vectorBatchBuffer);
     void SerializeEvent(VectorBatchBuffer* vectorBatchBuffer);
     void SerializeVectorBatchBuffer(VectorBatchBuffer* vectorBatchBuffer);

@@ -16,11 +16,13 @@ ProgressiveTimestampsAndWatermarks::ProgressiveTimestampsAndWatermarks(
     TimestampAssigner* timestampAssigner,
     std::shared_ptr<WatermarkGeneratorSupplier> watermarksFactory,
     ProcessingTimeService* timeService,
-    long periodicWatermarkInterval)
+    long periodicWatermarkInterval,
+    int64_t idleTimeoutMillis)
     : timestampAssigner(timestampAssigner),
       watermarksFactory(watermarksFactory),
       timeService(timeService),
-      periodicWatermarkInterval(periodicWatermarkInterval)
+      periodicWatermarkInterval(periodicWatermarkInterval),
+      idleTimeoutMillis_(idleTimeoutMillis)
 {
 }
 
@@ -59,6 +61,9 @@ ReaderOutput* ProgressiveTimestampsAndWatermarks::CreateMainOutput(
         watermarkGenerator,
         currentPerSplitOutputs,
         periodicWatermarkInterval);
+    currentPerSplitOutputs->timeService = timeService;
+    currentPerSplitOutputs->idleTimeoutMillis = idleTimeoutMillis_;
+    currentMainOutput->ConfigureIdleness(timeService, idleTimeoutMillis_);
     return currentMainOutput;
 }
 

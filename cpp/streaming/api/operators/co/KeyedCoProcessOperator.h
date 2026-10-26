@@ -138,6 +138,16 @@ public:
         this->isStream = isStream;
     }
 
+    void processWatermarkStatus1(WatermarkStatus* status) override
+    {
+        AbstractStreamOperator<OUT>::processWatermarkStatus1(status);
+    }
+
+    void processWatermarkStatus2(WatermarkStatus* status) override
+    {
+        AbstractStreamOperator<OUT>::processWatermarkStatus2(status);
+    }
+
     void loadUdf(const nlohmann::json& config)
     {
         std::string udfSoPath = config["udf_so"];

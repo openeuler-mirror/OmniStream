@@ -111,7 +111,10 @@ public:
     void onProcessingTime(TimerHeapInternalTimer<K, W>* timer) override;
     void PrepareSnapshotPreBarrier(long checkpointId) override;
     Output* getOutput();
-    void processWatermarkStatus(WatermarkStatus* watermarkStatus) override {};
+    void processWatermarkStatus(WatermarkStatus* watermarkStatus) override
+    {
+        output->emitWatermarkStatus(watermarkStatus);
+    }
     void onTimer(TimerHeapInternalTimer<K, W>* timer);
 
 private:
