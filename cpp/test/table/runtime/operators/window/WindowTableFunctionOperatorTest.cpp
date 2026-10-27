@@ -24,7 +24,6 @@
 #include "streaming/runtime/streamrecord/StreamRecord.h"
 #include "streaming/runtime/tasks/ProcessingTimeService.h"
 #include "table/data/RowKind.h"
-#include "table/data/binary/BinaryRowData.h"
 #include "table/data/vectorbatch/VectorBatch.h"
 #include "table/runtime/operators/TableOperatorConstants.h"
 #include "table/runtime/operators/window/tvf/WindowTableFunctionOperator.h"
@@ -608,29 +607,6 @@ TEST_P(WindowTableFunctionOperatorTest, RowKindIsPreservedInOutput)
             << "RowKind not preserved at index " << i;
         EXPECT_EQ(allRows[i].rowTime, static_cast<int64_t>(20L + i));
     }
-
-    for (auto* out : handle.output->outputs) {
-        delete out;
-    }
-    DestroyTestOperator(handle);
-}
-
-TEST_P(WindowTableFunctionOperatorTest, ProcessElementSingleRowPath)
-{
-    auto desc = MakeTumbleDescription("event", 2, shiftTimeZone(), MakeEventTimeOutputTypes());
-    TestOperator handle = CreateTestOperator(desc);
-    ASSERT_NE(handle.op, nullptr);
-
-    BinaryRowData* row = BinaryRowData::createBinaryRowDataWithMem(3);
-    row->setStringView(0, "key5");
-    row->setInt(1, 42);
-    row->setTimestamp(2, TimestampData::fromEpochMillis(50L), 3);
-    row->setRowKind(RowKind::INSERT);
-    handle.op->processElement(new StreamRecord(row));
-
-    std::vector<OutputRow> expected = {
-        {"key5", 42, 50L, LocalMills(0L), LocalMills(3000L), 2999L}};
-    ExpectOutputRowsEqual(ReadOutputRows(handle.output->outputs), expected, "processElement single row");
 
     for (auto* out : handle.output->outputs) {
         delete out;

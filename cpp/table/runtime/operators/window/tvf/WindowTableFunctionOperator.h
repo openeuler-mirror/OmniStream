@@ -20,7 +20,6 @@
 #include "streaming/api/operators/OneInputStreamOperator.h"
 #include "streaming/api/operators/TimestampedCollector.h"
 #include "streaming/api/watermark/Watermark.h"
-#include "table/data/RowData.h"
 #include "table/data/vectorbatch/VectorBatch.h"
 #include "table/runtime/operators/window/TimeWindow.h"
 #include "table/runtime/operators/window/assigners/WindowAssigner.h"
@@ -50,7 +49,10 @@ public:
 
     void processBatch(StreamRecord* input) override;
 
-    void processElement(StreamRecord* element) override;
+    void processElement(StreamRecord* element) override
+    {
+        NOT_IMPL_EXCEPTION;
+    };
 
     void ProcessWatermark(Watermark* mark) override;
 
@@ -67,8 +69,6 @@ private:
 
     omnistream::VectorBatch* buildOutputBatch(
         omnistream::VectorBatch* inputBatch, const std::vector<std::vector<TimeWindow>>& windowsByRow);
-
-    omnistream::VectorBatch* buildSingleRowBatch(const RowData* row);
 
     nlohmann::json description_;
     std::vector<std::string> inputTypeStrs_;

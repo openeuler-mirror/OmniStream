@@ -109,18 +109,6 @@ void WindowTableFunctionOperator::processBatch(StreamRecord* input)
     processBatchInternal(batch.get());
 }
 
-void WindowTableFunctionOperator::processElement(StreamRecord* element)
-{
-    auto record = std::unique_ptr<StreamRecord>(element);
-    auto row = std::unique_ptr<RowData>(reinterpret_cast<RowData*>(record->getValue()));
-    if (row == nullptr) {
-        return;
-    }
-    omnistream::VectorBatch* singleRowBatch = buildSingleRowBatch(row.get());
-    processBatchInternal(singleRowBatch);
-    delete singleRowBatch;
-}
-
 void WindowTableFunctionOperator::processBatchInternal(omnistream::VectorBatch* batch)
 {
     if (batch == nullptr) {
@@ -204,74 +192,6 @@ omnistream::VectorBatch* WindowTableFunctionOperator::buildOutputBatch(
     outputBatch->Append(windowEndVec);
     outputBatch->Append(windowTimeVec);
     return outputBatch;
-}
-
-omnistream::VectorBatch* WindowTableFunctionOperator::buildSingleRowBatch(const RowData* row)
-{
-    auto* batch = new omnistream::VectorBatch(1);
-    const int32_t colCount = static_cast<int32_t>(inputTypeStrs_.size());
-    for (int32_t i = 0; i < colCount; ++i) {
-        const DataTypeId typeId = LogicalType::flinkTypeToOmniTypeId(inputTypeStrs_[i]);
-        if (row->isNullAt(i)) {
-            auto* nullVec = omniruntime::vec::VectorHelper::CreateFlatVector(typeId, 1);
-            nullVec->SetNull(0);
-            batch->Append(nullVec);
-            continue;
-        }
-        switch (typeId) {
-            case DataTypeId::OMNI_LONG: {
-                auto* vec = new omniruntime::vec::Vector<int64_t>(1, typeId);
-                vec->SetValue(0, *row->getLong(i));
-                batch->Append(vec);
-                break;
-            }
-            case DataTypeId::OMNI_TIMESTAMP:
-            case DataTypeId::OMNI_TIMESTAMP_WITHOUT_TIME_ZONE:
-            case DataTypeId::OMNI_TIMESTAMP_WITH_TIME_ZONE:
-            case DataTypeId::OMNI_TIMESTAMP_WITH_LOCAL_TIME_ZONE: {
-                auto* vec = new omniruntime::vec::Vector<int64_t>(1, typeId);
-                vec->SetValue(0, row->getTimestamp(i).getMillisecond());
-                batch->Append(vec);
-                break;
-            }
-            case DataTypeId::OMNI_INT:
-            case DataTypeId::OMNI_DATE32:
-            case DataTypeId::OMNI_TIME_WITHOUT_TIME_ZONE: {
-                auto* vec = new omniruntime::vec::Vector<int32_t>(1, typeId);
-                vec->SetValue(0, *row->getInt(i));
-                batch->Append(vec);
-                break;
-            }
-            case DataTypeId::OMNI_BOOLEAN: {
-                auto* vec = new omniruntime::vec::Vector<bool>(1, typeId);
-                vec->SetValue(0, *row->getBool(i));
-                batch->Append(vec);
-                break;
-            }
-            case DataTypeId::OMNI_DOUBLE: {
-                auto* vec = new omniruntime::vec::Vector<double>(1, typeId);
-                vec->SetValue(0, *row->getDouble(i));
-                batch->Append(vec);
-                break;
-            }
-            case DataTypeId::OMNI_VARCHAR:
-            case DataTypeId::OMNI_CHAR: {
-                auto* vec = new omniruntime::vec::Vector<
-                    omniruntime::vec::LargeStringContainer<std::string_view>>(
-                    1, omniruntime::vec::INITIAL_STRING_SIZE, typeId);
-                vec->SetValue(0, row->getStringView(i));
-                batch->Append(vec);
-                break;
-            }
-            default: {
-                delete batch;
-                THROW_LOGIC_EXCEPTION(
-                    "Unsupported column type in WindowTableFunction single-row path: " << static_cast<int>(typeId));
-            }
-        }
-    }
-    batch->setRowKind(0, row->getRowKind());
-    return batch;
 }
 
 void WindowTableFunctionOperator::ProcessWatermark(Watermark* mark)
