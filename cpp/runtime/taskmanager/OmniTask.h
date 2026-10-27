@@ -82,6 +82,7 @@ public:
     void DoRunInvoke(long streamTaskAddress);
 
     void cancel();
+    void closeRocksDBSharedResources();
     ExecutionState getExecutionState();
     void setupPartitionsAndGates(
         std::vector<std::shared_ptr<ResultPartitionWriter>>& producedPartitions,

@@ -65,6 +65,7 @@ public:
 
     void close() override
     {
+        AbstractUdfStreamOperator<F, K>::close();
     }
 
     JoinedRowData* getResultRow()

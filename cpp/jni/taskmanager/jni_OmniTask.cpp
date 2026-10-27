@@ -251,3 +251,17 @@ Java_com_huawei_omniruntime_flink_runtime_io_network_partition_RemoteDataFetcher
         std::static_pointer_cast<RemoteDataFetcherBridgeImpl>(bridgeBase);
     remote->SetJavaRemoteDataFetcher(env, thiz);
 }
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_huawei_omniruntime_flink_runtime_taskmanager_OmniTask_closeNativeRocksDBSharedResources(
+    JNIEnv* env, jobject, jlong nativeTask)
+{
+    try {
+        reinterpret_cast<omnistream::OmniTask*>(nativeTask)->closeRocksDBSharedResources();
+    } catch (const std::exception& e) {
+        env->ThrowNew(env->FindClass("java/lang/IllegalStateException"), e.what());
+    } catch (...) {
+        env->ThrowNew(
+            env->FindClass("java/lang/IllegalStateException"), "Unable to close native RocksDB shared resources");
+    }
+}

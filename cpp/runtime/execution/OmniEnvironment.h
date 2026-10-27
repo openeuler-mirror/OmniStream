@@ -18,11 +18,22 @@
 #include <executiongraph/TaskInformationPOD.h>
 #include <executiongraph/JobInformationPOD.h>
 
+class RocksDBSharedResources;
+
 namespace omnistream {
 class TaskMetricGroup;
 
 class EnvironmentV2 {
 public:
+    virtual std::shared_ptr<RocksDBSharedResources> getRocksDBSharedResources() const
+    {
+        return nullptr;
+    }
+    virtual void setRocksDBSharedResources(std::shared_ptr<RocksDBSharedResources> resources)
+    {
+        NOT_IMPL_EXCEPTION;
+    }
+
     virtual std::shared_ptr<TaskStateManager> getTaskStateManager() = 0;
     virtual const TaskInformationPOD& taskConfiguration() const = 0;
     virtual const JobInformationPOD& jobConfiguration() const = 0;

@@ -36,7 +36,8 @@ public:
         std::shared_ptr<TaskStateManagerBridge> stateBridge,
         std::shared_ptr<OmniTaskBridge> omni_task_bridge,
         std::shared_ptr<TaskOperatorEventGatewayBridge> taskOperatorEventGatewayBridge,
-        std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge);
+        std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge,
+        std::shared_ptr<RocksDBSharedResources> rocksDBSharedResources = nullptr);
     OmniTask* submitTaskWithCK(
         JobInformationPOD& jobInfo,
         TaskInformationPOD& taskInfo,

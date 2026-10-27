@@ -31,12 +31,13 @@ OmniTask* OmniTaskExecutor::submitTask(
     std::shared_ptr<TaskStateManagerBridge> stateBridge,
     std::shared_ptr<OmniTaskBridge> omni_task_bridge,
     std::shared_ptr<TaskOperatorEventGatewayBridge> TaskOperatorEventGatewayBridge,
-    std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge)
+    std::shared_ptr<RemoteDataFetcherBridge> remoteDataFetcherBridge,
+    std::shared_ptr<RocksDBSharedResources> rocksDBSharedResources)
 {
     std::string jobInformation;
     std::string taskInformation;
     auto shuffleEnv = this->taskManagerServices_->getShuffleEnvironment();
-    return new OmniTask(
+    auto* task = new OmniTask(
         jobInfo,
         taskInfo,
         tdd,
@@ -45,6 +46,8 @@ OmniTask* OmniTaskExecutor::submitTask(
         omni_task_bridge,
         TaskOperatorEventGatewayBridge,
         remoteDataFetcherBridge);
+    task->getRuntimeEnv()->setRocksDBSharedResources(std::move(rocksDBSharedResources));
+    return task;
 }
 
 OmniTask* OmniTaskExecutor::submitTaskWithCK(

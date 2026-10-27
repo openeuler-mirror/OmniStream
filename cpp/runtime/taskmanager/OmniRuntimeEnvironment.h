@@ -97,6 +97,16 @@ public:
         return omniShuffleEnvironment_;
     }
 
+    std::shared_ptr<RocksDBSharedResources> getRocksDBSharedResources() const override
+    {
+        return rocksDBSharedResources_;
+    }
+
+    void setRocksDBSharedResources(std::shared_ptr<RocksDBSharedResources> resources) override
+    {
+        rocksDBSharedResources_ = std::move(resources);
+    }
+
     const TaskInformationPOD& taskConfiguration() const override
     {
         return taskConfiguration_;
@@ -202,6 +212,7 @@ public:
 
 private:
     std::shared_ptr<ShuffleEnvironment> omniShuffleEnvironment_;
+    std::shared_ptr<RocksDBSharedResources> rocksDBSharedResources_;
     TaskInformationPOD taskConfiguration_;
     JobInformationPOD jobConfiguration_;
     TaskPlainInfoPOD taskPlainInfoPod_;

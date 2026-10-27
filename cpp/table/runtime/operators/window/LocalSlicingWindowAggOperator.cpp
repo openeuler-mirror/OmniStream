@@ -90,6 +90,7 @@ void LocalSlicingWindowAggOperator::close()
         delete func;
     }
     delete clock;
+    AbstractStreamOperator<long>::close();
 }
 
 const char* LocalSlicingWindowAggOperator::getName()

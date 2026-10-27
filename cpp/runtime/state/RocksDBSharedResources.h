@@ -10,6 +10,12 @@
  */
 #pragma once
 
+#include <cstdint>
+#include <memory>
+#include "rocksdb/cache.h"
+#include "rocksdb/advanced_cache.h"
+#include "rocksdb/write_buffer_manager.h"
+
 class RocksDBSharedResources final {
 public:
     RocksDBSharedResources(
@@ -37,6 +43,11 @@ public:
     int64_t getWriteBufferManagerCapacity()
     {
         return writeBufferManagerCapacity_;
+    }
+
+    bool isUsingPartitionedIndexFilters() const
+    {
+        return usingPartitionedIndexFilters_;
     }
 
 private:

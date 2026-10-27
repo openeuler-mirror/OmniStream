@@ -22,37 +22,6 @@ public:
     RocksDBMemoryControllerUtils& operator=(const RocksDBMemoryControllerUtils&) = delete;
 
     static std::shared_ptr<RocksDBSharedResources> allocateRocksDBSharedResources(
-        const omnistream::TaskInformationPOD& taskInfo)
-    {
-        if (taskInfo.getCacheAddr() != 0 && taskInfo.getWriteBufferManagerAddr() != 0) {
-            INFO_RELEASE("CacheAddr and WriteBufferManagerAddr are not 0, RocksDBSharedResources is created in JAVA.");
-            std::shared_ptr<rocksdb::Cache> cachePtr(
-                reinterpret_cast<rocksdb::Cache*>(taskInfo.getCacheAddr()), [](rocksdb::Cache*) {});
-            std::shared_ptr<rocksdb::WriteBufferManager> writeBufferManagerPtr(
-                reinterpret_cast<rocksdb::WriteBufferManager*>(taskInfo.getWriteBufferManagerAddr()),
-                [](rocksdb::WriteBufferManager*) {});
-            auto writeBufferManagerCapacity = RocksDBMemoryControllerUtils::calculateWriteBufferManagerCapacity(
-                taskInfo.getStateBackendManagedMemorySize(),
-                taskInfo.getRocksDBMemoryConfiguration().getWriteBufferRatio());
-
-            return std::make_shared<RocksDBSharedResources>(
-                cachePtr,
-                writeBufferManagerPtr,
-                writeBufferManagerCapacity,
-                taskInfo.getRocksDBMemoryConfiguration().isUsingPartitionedIndexFilters());
-        } else {
-            auto stateBackendManagedMemorySize = taskInfo.getStateBackendManagedMemorySize();
-            auto writeBufferRatio = taskInfo.getRocksDBMemoryConfiguration().getWriteBufferRatio();
-            auto highPriorityPoolRatio = taskInfo.getRocksDBMemoryConfiguration().getHighPriorityPoolRatio();
-            auto usingPartitionedIndexFilters =
-                taskInfo.getRocksDBMemoryConfiguration().isUsingPartitionedIndexFilters();
-
-            return allocateRocksDBSharedResources(
-                stateBackendManagedMemorySize, writeBufferRatio, highPriorityPoolRatio, usingPartitionedIndexFilters);
-        }
-    }
-
-    static std::shared_ptr<RocksDBSharedResources> allocateRocksDBSharedResources(
         uint64_t totalMemorySize,
         double writeBufferRatio,
         double highPriorityPoolRatio,

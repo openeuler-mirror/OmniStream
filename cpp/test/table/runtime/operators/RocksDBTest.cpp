@@ -40,6 +40,11 @@ std::string getRocksDbPath()
     return kDBPath + std::to_string(nano_seconds) + "_";
 }
 
+ColumnFamilyOptions createTestColumnFamilyOptions(const std::string&)
+{
+    return ColumnFamilyOptions();
+}
+
 TEST(RocksDBTest, BasicTest)
 {
     // restore rocksdb tmp Directory
@@ -501,7 +506,8 @@ TEST(RocksDBTest, ListStateVectorBatchTest)
     std::cout << (int)s.code() << std::endl;
     assert(s.ok());
     auto kvStateInformation = new std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>();
-    rocksdbListState->createTable(rocksDb, "ListStateVectorBatchTest", kvStateInformation);
+    rocksdbListState->createTable(
+        rocksDb, "ListStateVectorBatchTest", kvStateInformation, createTestColumnFamilyOptions);
     rocksdbListState->setCurrentNamespace(1000);
 
     // add VectorBatch
@@ -577,7 +583,7 @@ TEST(RocksDBTest, MapStateVectorBatchTest)
     Status status = DB::Open(options, getRocksDbPath() + testInfo->name(), &rocksDb);
     ASSERT_TRUE(status.ok());
     auto* kvStateInformation = new std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>();
-    rocksdbMapState.createTable(rocksDb, "MapStateVectorBatchTest", kvStateInformation);
+    rocksdbMapState.createTable(rocksDb, "MapStateVectorBatchTest", kvStateInformation, createTestColumnFamilyOptions);
 
     auto* vectorBatch = new omnistream::VectorBatch(1);
     auto* values = new omniruntime::vec::Vector<int64_t>(1);
@@ -638,7 +644,7 @@ TEST(RocksDBTest, ValueStateTest)
     std::cout << (int)s.code() << std::endl;
     assert(s.ok());
     auto kvStateInformation = new std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>();
-    rocksdbValueState->createTable(rocksDb, "ValueStateTest", kvStateInformation);
+    rocksdbValueState->createTable(rocksDb, "ValueStateTest", kvStateInformation, createTestColumnFamilyOptions);
     // Test: Add a BinaryRowData to the ValueState
     BinaryRowData* value = BinaryRowData::createBinaryRowDataWithMem(3);
     value->setLong(0, 100);
@@ -706,7 +712,7 @@ TEST(RocksDBTest, ListStateTest)
     std::cout << (int)s.code() << std::endl;
     assert(s.ok());
     auto kvStateInformation = new std::unordered_map<std::string, std::shared_ptr<RocksDbKvStateInfo>>();
-    rocksdbListState->createTable(rocksDb, "ListStateTest", kvStateInformation);
+    rocksdbListState->createTable(rocksDb, "ListStateTest", kvStateInformation, createTestColumnFamilyOptions);
     rocksdbListState->setCurrentNamespace(1000);
     // Test: Add a value to the list
     rocksdbListState->add(10);

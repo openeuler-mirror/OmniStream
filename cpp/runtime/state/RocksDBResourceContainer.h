@@ -49,8 +49,26 @@ public:
     {
         auto columnFamilyOptions = createBaseCommonColumnOptions();
         ROCKSDB_NAMESPACE::BlockBasedTableOptions blockBasedTableOptions;
+        if (!sharedResources_) {
+            throw std::logic_error("Missing Omni RocksDB shared resources");
+        }
         blockBasedTableOptions.block_cache = sharedResources_->getCache();
+        blockBasedTableOptions.cache_index_and_filter_blocks = true;
+        blockBasedTableOptions.cache_index_and_filter_blocks_with_high_priority = true;
+        blockBasedTableOptions.pin_l0_filter_and_index_blocks_in_cache = true;
+        INFO_RELEASE(
+            "RocksDB shared block cache options: cacheIndexAndFilterBlocks="
+            << blockBasedTableOptions.cache_index_and_filter_blocks << ", cacheIndexAndFilterBlocksWithHighPriority="
+            << blockBasedTableOptions.cache_index_and_filter_blocks_with_high_priority
+            << ", pinL0FilterAndIndexBlocksInCache=" << blockBasedTableOptions.pin_l0_filter_and_index_blocks_in_cache
+            << ", blockCache=" << blockBasedTableOptions.block_cache.get());
         DefaultConfigurableOptionsFactory::createColumnOptions(*columnFamilyOptions, blockBasedTableOptions);
+        if (sharedResources_->isUsingPartitionedIndexFilters() && blockBasedTableOptions.filter_policy) {
+            blockBasedTableOptions.index_type = rocksdb::BlockBasedTableOptions::kTwoLevelIndexSearch;
+            blockBasedTableOptions.partition_filters = true;
+            blockBasedTableOptions.pin_top_level_index_and_filter = true;
+            columnFamilyOptions->table_factory.reset(rocksdb::NewBlockBasedTableFactory(blockBasedTableOptions));
+        }
         return columnFamilyOptions;
     }
 
