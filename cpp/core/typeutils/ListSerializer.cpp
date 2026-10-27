@@ -10,7 +10,12 @@
  */
 
 #include "ListSerializer.h"
+
+#include <vector>
+
 #include "basictypes/java_util_List.h"
+#include "table/data/RowData.h"
+#include "table/typeutils/RowDataSerializer.h"
 
 ListSerializer::ListSerializer(TypeSerializer* elementSerializer, bool ownsElementSerializer)
     : elementSerializer(elementSerializer),
@@ -18,6 +23,38 @@ ListSerializer::ListSerializer(TypeSerializer* elementSerializer, bool ownsEleme
 {
     setSubBufferReusable(false);
     reuseBuffer = new ArrayList();
+}
+
+void ListSerializer::serialize(void* record, DataOutputSerializer& target)
+{
+    auto* rowSerializer = dynamic_cast<RowDataSerializer*>(elementSerializer);
+    if (rowSerializer == nullptr) {
+        NOT_IMPL_EXCEPTION;
+    }
+    if (record == nullptr) {
+        return;
+    }
+    auto* rows = static_cast<std::vector<RowData*>*>(record);
+    target.writeInt(static_cast<int>(rows->size()));
+    for (RowData* row : *rows) {
+        rowSerializer->serialize(row, target);
+    }
+}
+
+void* ListSerializer::deserialize(DataInputView& source)
+{
+    auto* rowSerializer = dynamic_cast<RowDataSerializer*>(elementSerializer);
+    if (rowSerializer == nullptr) {
+        NOT_IMPL_EXCEPTION;
+    }
+    int size = source.readInt();
+    auto* result = new std::vector<RowData*>();
+    result->reserve(static_cast<size_t>(size));
+    for (int i = 0; i < size; ++i) {
+        auto* row = static_cast<RowData*>(rowSerializer->deserialize(source));
+        result->push_back(row->copy());
+    }
+    return result;
 }
 
 void ListSerializer::deserialize(Object* buffer, DataInputView& source)

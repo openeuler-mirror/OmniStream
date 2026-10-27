@@ -26,7 +26,7 @@
 #include "table/data/binary/BinaryRowData.h"
 #include "table/runtime/keyselector/KeySelector.h"
 #include "table/types/logical/RowType.h"
-#include "table/typeutils/BinaryRowDataListSerializer.h"
+#include "core/typeutils/ListSerializer.h"
 #include "table/typeutils/RowDataSerializer.h"
 
 // One top-N per partition key. The only persisted state is Flink's
@@ -52,12 +52,11 @@ public:
 
     void open(const Configuration& context) override
     {
-        int inputArity = static_cast<int>(this->inputRowType->size());
         std::vector<std::string> sortTypeNames{(*this->inputTypeNames)[this->sortKeyIndices[0]]};
         omnistream::RowType sortKeyType(false, sortTypeNames);
         auto* sortKeySer = new RowDataSerializer(&sortKeyType);
         omnistream::RowType inputType(false, *this->inputTypeNames);
-        auto* rowListSerializer = new BinaryRowDataListSerializer(inputArity, new RowDataSerializer(&inputType));
+        auto* rowListSerializer = new ListSerializer(new RowDataSerializer(&inputType));
         auto* desc = new MapStateDescriptor<RowData*, std::vector<RowData*>*>(
             "data-state-with-append", sortKeySer, rowListSerializer);
         desc->setKeyValueBackendTypeId(BackendDataType::ROW_BK, BackendDataType::ROW_LIST_BK);
