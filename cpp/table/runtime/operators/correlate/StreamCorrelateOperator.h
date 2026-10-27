@@ -82,6 +82,7 @@ public:
 
 private:
     void parseDescription(const nlohmann::json& desc);
+    void clearArgumentExpressions();
 
     // Extract a varchar string_view from a flat or dictionary-encoded vector
     static std::string_view extractVarchar(omniruntime::vec::BaseVector* vec, int row);

@@ -118,29 +118,30 @@ StreamCorrelateOperator::StreamCorrelateOperator(const nlohmann::json& descripti
 
 StreamCorrelateOperator::~StreamCorrelateOperator()
 {
-    if (!argExprs_.empty()) {
-        omniruntime::expressions::Expr::DeleteExprs(argExprs_);
-        argExprs_.clear();
-    }
-    delete argEvaluator_;
+    clearArgumentExpressions();
     delete timestampedCollector_;
+}
+
+void StreamCorrelateOperator::clearArgumentExpressions()
+{
+    if (argEvaluator_ != nullptr) {
+        // ExpressionEvaluator owns and deletes the expression pointers passed to it.
+        delete argEvaluator_;
+        argEvaluator_ = nullptr;
+    } else if (!argExprs_.empty()) {
+        // Expressions parsed before the evaluator was created are still ours.
+        omniruntime::expressions::Expr::DeleteExprs(argExprs_);
+    }
+    argExprs_.clear();
 }
 
 void StreamCorrelateOperator::open()
 {
+    clearArgumentExpressions();
     parseDescription(description_);
 
     // Build expression evaluator only for non-recognized expressions (EVALUATOR mode)
     if (hasFunctionArgs_ && argEvalMode_ == ArgEvalMode::EVALUATOR) {
-        // Clear any previously parsed expressions (in case open() is called multiple times)
-        if (!argExprs_.empty()) {
-            omniruntime::expressions::Expr::DeleteExprs(argExprs_);
-            argExprs_.clear();
-        }
-        if (argEvaluator_ != nullptr) {
-            delete argEvaluator_;
-            argEvaluator_ = nullptr;
-        }
         INFO_RELEASE(
             "StreamCorrelateOperator::open building expression evaluator, "
             << functionArgsJson_.size() << " expressions, " << argInputTypes_.GetSize() << " input types");
@@ -150,8 +151,7 @@ void StreamCorrelateOperator::open()
                 "StreamCorrelateOperator::open parsing functionArg[" << i << "]: " << functionArgsJson_[i].dump());
             auto expr = parser.ParseJSON(functionArgsJson_[i]);
             if (expr == nullptr) {
-                omniruntime::expressions::Expr::DeleteExprs(argExprs_);
-                argExprs_.clear();
+                clearArgumentExpressions();
                 THROW_LOGIC_EXCEPTION(
                     "StreamCorrelateOperator: failed to parse functionArgs expression: " + functionArgsJson_[i].dump());
             }
