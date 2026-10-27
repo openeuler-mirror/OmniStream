@@ -346,7 +346,6 @@ void StreamCorrelateOperator::evaluateUdtfRows(
         }
         argVec = argEvalBatch->Get(0);
         if (argVec == nullptr) {
-
             delete argEvalBatch;
             return;
         }
