@@ -11,6 +11,7 @@
 
 #include "ValuesSourceFunction.h"
 
+#include <charconv>
 #include <memory>
 #include <optional>
 #include <stdexcept>
@@ -62,13 +63,89 @@ void IncrementUnscaled(std::string& digits)
     digits.insert(digits.begin(), '1');
 }
 
+// Returns true when the string is non-empty and contains only '0'..'9'.
+bool IsDigitsOnly(const std::string_view digits)
+{
+    if (digits.empty()) {
+        return false;
+    }
+    for (const char c : digits) {
+        if (c < '0' || c > '9') {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Expands a non-negative decimal literal given in plain or scientific ('e'/'E')
+// notation into canonical plain notation (digits with at most one '.'), e.g.
+// "1.0E-7" -> "0.00000010", "1E+2" -> "100". Returns an empty string when the
+// literal is not a valid decimal number.
+std::string NormalizeDecimalLiteral(const std::string& value)
+{
+    std::string mantissa = value;
+    int64_t exponent = 0;
+    const size_t ePos = value.find_first_of("eE");
+    if (ePos != std::string::npos) {
+        mantissa = value.substr(0, ePos);
+        const std::string expStr = value.substr(ePos + 1);
+        size_t idx = 0;
+        if (idx < expStr.size() && (expStr[idx] == '+' || expStr[idx] == '-')) {
+            ++idx;
+        }
+        if (idx >= expStr.size() || !IsDigitsOnly(std::string_view(expStr).substr(idx))) {
+            return "";
+        }
+        try {
+            exponent = std::stoll(expStr);
+        } catch (...) {
+            return "";
+        }
+        if (exponent > 10000 || exponent < -10000) {
+            return "";
+        }
+    }
+    if (mantissa.find('.') != std::string::npos && mantissa.find('.', mantissa.find('.') + 1) != std::string::npos) {
+        return "";
+    }
+    const size_t dotPos = mantissa.find('.');
+    const std::string intPart = dotPos == std::string::npos ? mantissa : mantissa.substr(0, dotPos);
+    const std::string fracPart = dotPos == std::string::npos ? "" : mantissa.substr(dotPos + 1);
+    if (!IsDigitsOnly(intPart) || (!fracPart.empty() && !IsDigitsOnly(fracPart))) {
+        return "";
+    }
+    const std::string integerPart = intPart.empty() ? "0" : intPart;
+    if (exponent >= 0) {
+        const size_t e = static_cast<size_t>(exponent);
+        if (fracPart.size() > e) {
+            return integerPart + fracPart.substr(0, e) + "." + fracPart.substr(e);
+        }
+        return integerPart + fracPart + std::string(e - fracPart.size(), '0');
+    }
+    const size_t k = static_cast<size_t>(-exponent);
+    if (integerPart.size() > k) {
+        return integerPart.substr(0, integerPart.size() - k) + "." + integerPart.substr(integerPart.size() - k) +
+               fracPart;
+    }
+    return "0." + std::string(k - integerPart.size(), '0') + integerPart + fracPart;
+}
+
 std::string BuildUnscaledAbs(const std::string& value, int32_t scale, bool& negative)
 {
+    if (scale < 0) {
+        throw std::invalid_argument("invalid decimal scale for literal: " + value);
+    }
     std::string valueStr = value;
     negative = false;
     if (!valueStr.empty() && valueStr[0] == '-') {
         negative = true;
         valueStr = valueStr.substr(1);
+    } else if (!valueStr.empty() && valueStr[0] == '+') {
+        valueStr = valueStr.substr(1);
+    }
+    valueStr = NormalizeDecimalLiteral(valueStr);
+    if (valueStr.empty()) {
+        throw std::invalid_argument("invalid decimal literal: " + value);
     }
     std::string intPart;
     std::string fracPart;
@@ -79,6 +156,9 @@ std::string BuildUnscaledAbs(const std::string& value, int32_t scale, bool& nega
     } else {
         intPart = valueStr;
         fracPart = "";
+    }
+    if (!IsDigitsOnly(intPart) || (!fracPart.empty() && !IsDigitsOnly(fracPart))) {
+        throw std::invalid_argument("invalid decimal literal: " + value);
     }
     // Round the literal to the target scale with half-up rounding, matching
     // Flink DecimalData.fromBigDecimal(bd, precision, scale) which uses
@@ -111,7 +191,16 @@ std::optional<long> ParseDecimal64ToUnscaledLong(const std::string& value, int32
     if (!IsPrecisionWithinLimit(unscaledAbs, precision)) {
         return std::nullopt;
     }
-    long unscaledValue = std::stol(unscaledAbs);
+    long unscaledValue = 0;
+    const char* begin = unscaledAbs.data();
+    const char* end = begin + unscaledAbs.size();
+    const auto [ptr, ec] = std::from_chars(begin, end, unscaledValue);
+    if (ec == std::errc::result_out_of_range) {
+        return std::nullopt;
+    }
+    if (ec != std::errc{} || ptr != end) {
+        throw std::invalid_argument("invalid decimal literal: " + value);
+    }
     if (negative) {
         unscaledValue = -unscaledValue;
     }
@@ -124,6 +213,9 @@ std::optional<Decimal128> ParseDecimal128ToValue(const std::string& value, int32
     std::string unscaledAbs = BuildUnscaledAbs(value, scale, negative);
     if (!IsPrecisionWithinLimit(unscaledAbs, precision)) {
         return std::nullopt;
+    }
+    if (!IsDigitsOnly(unscaledAbs)) {
+        throw std::invalid_argument("invalid decimal literal: " + value);
     }
     if (negative) {
         unscaledAbs = "-" + unscaledAbs;

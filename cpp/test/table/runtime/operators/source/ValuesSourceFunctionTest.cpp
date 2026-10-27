@@ -334,6 +334,79 @@ TEST(ValuesSourceFunctionTest, ConvertDecimal128HalfUpRounding)
     delete batch;
 }
 
+TEST(ValuesSourceFunctionTest, ConvertDecimalScientificNotation)
+{
+    nlohmann::json tuples = nlohmann::json::array();
+    tuples.push_back(nlohmann::json::array({"1.0E-7", "1E+2", "1.23E+3", "1.235E+1", "-1.0E-7", "+1E+2"}));
+
+    const std::vector<std::string> types = {"DECIMAL(10,7)", "DECIMAL(10,2)", "DECIMAL(10,2)", "DECIMAL(10,1)",
+                                            "DECIMAL(10,7)", "DECIMAL(10,2)"};
+    auto typeIds = ToTypeIds(types);
+    auto precisions = ToPrecisions(types);
+    auto scales = ToScales(types);
+
+    auto* batch = ValuesSourceFunction::convert(tuples, typeIds, precisions, scales);
+    ASSERT_NE(batch, nullptr);
+    EXPECT_EQ(batch->GetRowCount(), 1);
+    EXPECT_EQ(reinterpret_cast<omniruntime::vec::Vector<long>*>(batch->Get(0))->GetValue(0), 1L);
+    EXPECT_EQ(reinterpret_cast<omniruntime::vec::Vector<long>*>(batch->Get(1))->GetValue(0), 10000L);
+    EXPECT_EQ(reinterpret_cast<omniruntime::vec::Vector<long>*>(batch->Get(2))->GetValue(0), 123000L);
+    EXPECT_EQ(reinterpret_cast<omniruntime::vec::Vector<long>*>(batch->Get(3))->GetValue(0), 124L);
+    EXPECT_EQ(reinterpret_cast<omniruntime::vec::Vector<long>*>(batch->Get(4))->GetValue(0), -1L);
+    EXPECT_EQ(reinterpret_cast<omniruntime::vec::Vector<long>*>(batch->Get(5))->GetValue(0), 10000L);
+    delete batch;
+}
+
+TEST(ValuesSourceFunctionTest, ConvertDecimal128ScientificNotation)
+{
+    nlohmann::json tuples = nlohmann::json::array();
+    tuples.push_back(nlohmann::json::array({"1.0E-7", "1.235E+1"}));
+
+    const std::vector<std::string> types = {"DECIMAL(20,7)", "DECIMAL(20,1)"};
+    auto typeIds = ToTypeIds(types);
+    auto precisions = ToPrecisions(types);
+    auto scales = ToScales(types);
+
+    auto* batch = ValuesSourceFunction::convert(tuples, typeIds, precisions, scales);
+    ASSERT_NE(batch, nullptr);
+    EXPECT_EQ(reinterpret_cast<omniruntime::vec::Vector<Decimal128>*>(batch->Get(0))->GetValue(0),
+              Decimal128("1"));
+    EXPECT_EQ(reinterpret_cast<omniruntime::vec::Vector<Decimal128>*>(batch->Get(1))->GetValue(0),
+              Decimal128("124"));
+    delete batch;
+}
+
+TEST(ValuesSourceFunctionTest, ConvertScientificNotationJsonNumberCell)
+{
+    nlohmann::json tuples = nlohmann::json::array();
+    tuples.push_back(nlohmann::json::array({0.0000001}));
+
+    auto typeIds = ToTypeIds({"DECIMAL(10,7)"});
+    auto precisions = ToPrecisions({"DECIMAL(10,7)"});
+    auto scales = ToScales({"DECIMAL(10,7)"});
+
+    auto* batch = ValuesSourceFunction::convert(tuples, typeIds, precisions, scales);
+    ASSERT_NE(batch, nullptr);
+    EXPECT_EQ(reinterpret_cast<omniruntime::vec::Vector<long>*>(batch->Get(0))->GetValue(0), 1L);
+    delete batch;
+}
+
+TEST(ValuesSourceFunctionTest, ConvertMalformedDecimalLiteralsThrow)
+{
+    const std::vector<std::string> types = {"DECIMAL(10,2)"};
+    auto typeIds = ToTypeIds(types);
+    auto precisions = ToPrecisions(types);
+    auto scales = ToScales(types);
+
+    const std::vector<std::string> malformed = {"1.2.3", "abc", "1.0E", "1e+"};
+    for (const auto& literal : malformed) {
+        nlohmann::json tuples = nlohmann::json::array();
+        tuples.push_back(nlohmann::json::array({literal}));
+        EXPECT_THROW(ValuesSourceFunction::convert(tuples, typeIds, precisions, scales), std::invalid_argument)
+            << "malformed literal: " << literal;
+    }
+}
+
 TEST(ValuesSourceFunctionTest, ConvertDecimalRoundingOverflowBecomesNull)
 {
     const std::vector<std::string> types = {"DECIMAL(10,2)"};

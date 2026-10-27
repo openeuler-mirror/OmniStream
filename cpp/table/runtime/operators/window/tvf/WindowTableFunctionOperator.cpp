@@ -112,11 +112,11 @@ void WindowTableFunctionOperator::processBatch(StreamRecord* input)
 void WindowTableFunctionOperator::processElement(StreamRecord* element)
 {
     auto record = std::unique_ptr<StreamRecord>(element);
-    auto row = reinterpret_cast<RowData*>(record->getValue());
+    auto row = std::unique_ptr<RowData>(reinterpret_cast<RowData*>(record->getValue()));
     if (row == nullptr) {
         return;
     }
-    omnistream::VectorBatch* singleRowBatch = buildSingleRowBatch(row);
+    omnistream::VectorBatch* singleRowBatch = buildSingleRowBatch(row.get());
     processBatchInternal(singleRowBatch);
     delete singleRowBatch;
 }

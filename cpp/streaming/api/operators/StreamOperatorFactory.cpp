@@ -211,6 +211,10 @@ StreamOperator* StreamOperatorFactory::createOperatorAndCollector(
     } else if (opConfig.getUniqueName() == OPERATOR_NAME_WINDOW_TABLE_FUNCTION) {
         const auto description = opConfig.getDescription();
         auto* op = new WindowTableFunctionOperator(description, chainOutput);
+        // WindowTableFunction supports processing-time windows, which need a
+        // ProcessingTimeService. This overload has no task to provide one, so fall
+        // back to a standalone service (same as the no-task kafka source branch).
+        op->setProcessingTimeService(new SystemProcessingTimeService());
         op->setup();
         op->setDescription(description);
         op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
