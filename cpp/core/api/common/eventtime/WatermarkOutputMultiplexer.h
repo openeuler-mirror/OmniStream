@@ -28,12 +28,7 @@ public:
     {
     }
 
-    ~WatermarkOutputMultiplexer()
-    {
-        for (auto& pair : watermarkPerOutputId) {
-            delete pair.second;
-        }
-    }
+    ~WatermarkOutputMultiplexer() = default;
 
     void RegisterNewOutput(const std::string& id)
     {
@@ -83,6 +78,7 @@ public:
 
 private:
     WatermarkOutput* underlyingOutput;
+    // Non-owning index; combinedWatermarkStatus deletes the registered states.
     std::unordered_map<std::string, omnistream::PartialWatermark*> watermarkPerOutputId;
     omnistream::CombinedWatermarkStatus combinedWatermarkStatus;
 
