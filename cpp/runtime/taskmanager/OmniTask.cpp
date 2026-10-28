@@ -28,6 +28,7 @@
 #include "runtime/io/network/netty/GlobalNettyBufferPool.h"
 #include "runtime/partition/PartitionNotFoundException.h"
 #include "streaming/runtime/tasks/SubtaskCheckpointCoordinatorImpl.h"
+#include "core/utils/exception/ScopeGuard.h"
 
 namespace omnistream {
 OmniTask::OmniTask(
@@ -351,9 +352,20 @@ void OmniTask::DoRunInvoke(long streamTaskAddress)
         sleep(5);
     }
 
+    // RAII clean up logic
+    ScopeGuard cleanUpGuard([this]() {
+        INFO_RELEASE("OmniTask::DoRunInvoke ending, start to clean up, task name: " << taskNameWithSubtask_);
+        if (invokable_ != nullptr) {
+            invokable_->cleanup();
+        }
+        this->ReleaseResources();
+        if (originalNetworkBufferRecycler_ != nullptr) {
+            originalNetworkBufferRecycler_->stop();
+        }
+    });
+
     try {
-        INFO_RELEASE("OmniTask::DoRunInvoke welcome to native");
-        LOG_INFO_IMP("Invokable Invoke");
+        INFO_RELEASE("OmniTask::DoRunInvoke welcome to native, task name : " << taskNameWithSubtask_);
         this->invokable_->invoke();
     } catch (const PartitionNotFoundException& e) {
         THROW_LOGIC_EXCEPTION("PartitionNotFoundException during invoke: " << e.what());
@@ -376,15 +388,7 @@ void OmniTask::DoRunInvoke(long streamTaskAddress)
             LOG_INFO_IMP("Error: partitionWriter is null");
         }
     }
-
-    LOG_INFO_IMP("[TaskState][End]  Task Name : [" << taskNameWithSubtask_ << "]");
-
-    INFO_RELEASE(" doRun ending: " << taskNameWithSubtask_);
-
-    LOG_INFO_IMP("Invokable Invoke");
-    this->invokable_->cleanup();
-    this->ReleaseResources();
-    originalNetworkBufferRecycler_->stop();
+    INFO_RELEASE("OmniTask::DoRunInvoke ending, task name: " << taskNameWithSubtask_);
 }
 
 void OmniTask::setupPartitionsAndGates(
