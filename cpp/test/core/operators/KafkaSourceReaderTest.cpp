@@ -48,7 +48,72 @@ public:
     {
     }
 };
+
+class QueueNotifyingSplitReader : public SplitReader<RdKafka::Message, KafkaPartitionSplit> {
+public:
+    QueueNotifyingSplitReader(FutureCompletingBlockingQueue<RdKafka::Message>* queue, bool& closed)
+        : queue(queue),
+          closed(closed)
+    {
+    }
+
+    RecordsWithSplitIds<RdKafka::Message>* fetch() override
+    {
+        return nullptr;
+    }
+
+    void handleSplitsChanges(const std::vector<KafkaPartitionSplit*>&) override
+    {
+    }
+
+    void wakeUp() override
+    {
+    }
+
+    void close() override
+    {
+        // Fetcher shutdown must finish while its queue is still alive.
+        queue->getAvailabilityFuture()->complete();
+        closed = true;
+    }
+
+private:
+    FutureCompletingBlockingQueue<RdKafka::Message>* queue;
+    bool& closed;
+};
 } // namespace
+
+class KafkaSourceReaderLifecycleTest : public ::testing::TestWithParam<bool> {};
+
+TEST_P(KafkaSourceReaderLifecycleTest, JoinsFetcherBeforeDestroyingQueue)
+{
+    bool splitReaderClosed = false;
+    auto* queue = new FutureCompletingBlockingQueue<RdKafka::Message>(0);
+    auto availabilityFuture = queue->getAvailabilityFuture();
+    std::function<SplitReader<RdKafka::Message, KafkaPartitionSplit>*()> supplier = [&]() {
+        return new QueueNotifyingSplitReader(queue, splitReaderClosed);
+    };
+    auto* manager = new KafkaSourceFetcherManager(queue, supplier);
+    auto reader = std::make_unique<KafkaSourceReader>(
+        queue,
+        manager,
+        new MockRecordEmitter(),
+        std::unordered_map<std::string, std::string>{},
+        new SourceReaderContext(0),
+        false);
+    manager->startFetcher(manager->createSplitFetcher());
+
+    if (GetParam()) {
+        reader->close();
+    }
+    reader.reset();
+
+    // Joining the worker also synchronizes its write to splitReaderClosed.
+    EXPECT_TRUE(splitReaderClosed);
+    EXPECT_TRUE(availabilityFuture->isDone());
+}
+
+INSTANTIATE_TEST_SUITE_P(WithAndWithoutExplicitClose, KafkaSourceReaderLifecycleTest, ::testing::Bool());
 
 class KafkaSourceReaderConfigTest : public ::testing::Test {
 protected:

@@ -135,7 +135,9 @@ public:
             errorHandler(exceptionPtr);
         }
         LOG("Split fetcher " + std::to_string(id) + " exited");
-        shutdownHook();
+        // The hook may delete this fetcher, so keep the callable alive until it returns.
+        auto onShutdown = shutdownHook;
+        onShutdown();
     }
 
     void runOnce()

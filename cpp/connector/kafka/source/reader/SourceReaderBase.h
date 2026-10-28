@@ -52,8 +52,9 @@ public:
 
     virtual ~SourceReaderBase()
     {
-        delete elementsQueue;
+        // Join fetchers before releasing the queue they still use during shutdown.
         delete splitFetcherManager;
+        delete elementsQueue;
         delete recordEmitter;
         delete context;
         for (auto& item : splitStates) {
