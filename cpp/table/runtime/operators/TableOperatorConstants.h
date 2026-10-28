@@ -57,5 +57,6 @@ constexpr std::string_view OPERATOR_NAME_PARTITION_COMMITTER =
     "org.apache.flink.connector.file.table.stream.PartitionCommitter";
 constexpr std::string_view OPERATOR_NAME_KEYED_CO_PROCESS =
     "org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator";
+constexpr std::string_view OPERATOR_NAME_STREAM_CORRELATE = "StreamExecCorrelate";
 } // namespace omnistream
 #endif // FLINK_TNEL_TABLEOPERATORCONSTANTS_H
