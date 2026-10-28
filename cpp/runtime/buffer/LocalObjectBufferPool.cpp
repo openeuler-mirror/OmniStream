@@ -786,7 +786,12 @@ bool LocalObjectBufferPool::chargeMemory(int targetChannel, uint64_t bytes)
         if (requestMemory(bytes)) {
             allocMemoryStatue = true;
         } else if (!isRequestedSizeReached()) {
-            if (requestMemoryFromGlobal(bytes)) {
+            // The local cache is already charged to the global pool. Consume it
+            // and request only the shortfall, otherwise cached free bytes can
+            // make a single batch permanently impossible to admit.
+            const uint64_t missingBytes = bytes - availableMemory;
+            if (requestMemoryFromGlobal(missingBytes)) {
+                availableMemory = 0;
                 usedMemory += bytes;
                 // acquiredFromGlobal = true;
                 allocMemoryStatue = true;
