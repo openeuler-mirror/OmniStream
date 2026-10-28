@@ -30,18 +30,38 @@ namespace {
 
 class TestCounter : public Counter {
 public:
-    void Inc() override {}
-    void Inc(long) override {}
-    void Dec() override {}
-    void Dec(long) override {}
-    long GetCount() override { return 0; }
-    MetricType GetMetricType() const override { return MetricType::COUNTER; }
+    void Inc() override
+    {
+    }
+    void Inc(long) override
+    {
+    }
+    void Dec() override
+    {
+    }
+    void Dec(long) override
+    {
+    }
+    long GetCount() override
+    {
+        return 0;
+    }
+    MetricType GetMetricType() const override
+    {
+        return MetricType::COUNTER;
+    }
 };
 
 class TestRuntimeEvent : public RuntimeEvent {
 public:
-    int GetEventClassID() override { return 1001; }
-    std::string GetEventClassName() override { return "TestRuntimeEvent"; }
+    int GetEventClassID() override
+    {
+        return 1001;
+    }
+    std::string GetEventClassName() override
+    {
+        return "TestRuntimeEvent";
+    }
 };
 
 class TestInputChannel : public InputChannel {
@@ -58,21 +78,56 @@ public:
     {
     }
 
-    void resumeConsumption() override {}
-    void TimeOutResumeConsumption() override {}
-    void acknowledgeAllRecordsProcessed() override {}
-    void requestSubpartition(int) override {}
-    std::optional<BufferAndAvailability> getNextBuffer() override { return std::nullopt; }
-    void sendTaskEvent(std::shared_ptr<TaskEvent>) override {}
-    bool isReleased() override { return false; }
-    void releaseAllResources() override {}
-    void announceBufferSize(int) override {}
-    int getBuffersInUseCount() override { return 0; }
-    void SetChannelStateWriter(std::shared_ptr<ChannelStateWriter>) override {}
-    void SetPersistenceFlag(bool) override {}
-    bool IsNeedPersistence() override { return false; }
-    void AddInputData(long, const InputChannelInfo&) override {}
-    std::string toString() override { return "TestInputChannel"; }
+    void resumeConsumption() override
+    {
+    }
+    void TimeOutResumeConsumption() override
+    {
+    }
+    void acknowledgeAllRecordsProcessed() override
+    {
+    }
+    void requestSubpartition(int) override
+    {
+    }
+    std::optional<BufferAndAvailability> getNextBuffer() override
+    {
+        return std::nullopt;
+    }
+    void sendTaskEvent(std::shared_ptr<TaskEvent>) override
+    {
+    }
+    bool isReleased() override
+    {
+        return false;
+    }
+    void releaseAllResources() override
+    {
+    }
+    void announceBufferSize(int) override
+    {
+    }
+    int getBuffersInUseCount() override
+    {
+        return 0;
+    }
+    void SetChannelStateWriter(std::shared_ptr<ChannelStateWriter>) override
+    {
+    }
+    void SetPersistenceFlag(bool) override
+    {
+    }
+    bool IsNeedPersistence() override
+    {
+        return false;
+    }
+    void AddInputData(long, const InputChannelInfo&) override
+    {
+    }
+    std::string toString() override
+    {
+        return "TestInputChannel";
+    }
 };
 
 class TestIndexedInputGate : public IndexedInputGate {
@@ -80,17 +135,18 @@ public:
     TestIndexedInputGate(int gateIndex, int numChannels)
         : gateIndex_(gateIndex),
           numChannels_(numChannels),
-          backingGate_(std::make_shared<SingleInputGate>(
-              "union-test",
-              gateIndex,
-              IntermediateDataSetIDPOD(),
-              0,
-              0,
-              numChannels,
-              nullptr,
-              std::function<std::shared_ptr<BufferPool>()>(),
-              nullptr,
-              1024)),
+          backingGate_(
+              std::make_shared<SingleInputGate>(
+                  "union-test",
+                  gateIndex,
+                  IntermediateDataSetIDPOD(),
+                  0,
+                  0,
+                  numChannels,
+                  nullptr,
+                  std::function<std::shared_ptr<BufferPool>()>(),
+                  nullptr,
+                  1024)),
           stateConsumedFuture_(std::make_shared<CompletableFutureV2<void>>()),
           channelsWithEndOfPartition_(numChannels, false),
           channelsWithEndOfData_(numChannels, false)
@@ -101,8 +157,14 @@ public:
         }
     }
 
-    int GetGateIndex() override { return gateIndex_; }
-    int GetNumberOfInputChannels() override { return numChannels_; }
+    int GetGateIndex() override
+    {
+        return gateIndex_;
+    }
+    int GetNumberOfInputChannels() override
+    {
+        return numChannels_;
+    }
 
     std::vector<InputChannelInfo> getUnfinishedChannels() override
     {
@@ -115,19 +177,36 @@ public:
         return infos;
     }
 
-    int getBuffersInUseCount() override { return 0; }
-    void announceBufferSize(int) override {}
+    int getBuffersInUseCount() override
+    {
+        return 0;
+    }
+    void announceBufferSize(int) override
+    {
+    }
 
     std::shared_ptr<InputChannel> getChannel(int channelIndex) override
     {
         return channels_.at(channelIndex);
     }
 
-    bool IsFinished() override { return isFinished_; }
-    bool HasReceivedEndOfData() override { return hasReceivedEndOfData_; }
+    bool IsFinished() override
+    {
+        return isFinished_;
+    }
+    bool HasReceivedEndOfData() override
+    {
+        return hasReceivedEndOfData_;
+    }
 
-    BufferOrEvent* GetNext() override { return pollInternal(); }
-    BufferOrEvent* PollNext() override { return pollInternal(); }
+    BufferOrEvent* GetNext() override
+    {
+        return pollInternal();
+    }
+    BufferOrEvent* PollNext() override
+    {
+        return pollInternal();
+    }
 
     void sendTaskEvent(const std::shared_ptr<TaskEvent>& event) override
     {
@@ -145,7 +224,9 @@ public:
         acknowledgedInfos_.push_back(channelInfo);
     }
 
-    void setup() override {}
+    void setup() override
+    {
+    }
 
     void RequestPartitions() override
     {
@@ -190,11 +271,26 @@ public:
         signalDataAvailable();
     }
 
-    int requestPartitionsCalls() const { return requestPartitionsCalls_; }
-    int finishReadRecoveredStateCalls() const { return finishReadRecoveredStateCalls_; }
-    int taskEventCalls() const { return taskEventCalls_; }
-    const std::vector<InputChannelInfo>& resumedInfos() const { return resumedInfos_; }
-    const std::vector<InputChannelInfo>& acknowledgedInfos() const { return acknowledgedInfos_; }
+    int requestPartitionsCalls() const
+    {
+        return requestPartitionsCalls_;
+    }
+    int finishReadRecoveredStateCalls() const
+    {
+        return finishReadRecoveredStateCalls_;
+    }
+    int taskEventCalls() const
+    {
+        return taskEventCalls_;
+    }
+    const std::vector<InputChannelInfo>& resumedInfos() const
+    {
+        return resumedInfos_;
+    }
+    const std::vector<InputChannelInfo>& acknowledgedInfos() const
+    {
+        return acknowledgedInfos_;
+    }
 
 private:
     enum class EventKind {
@@ -236,36 +332,21 @@ private:
         switch (nextEvent.kind) {
             case EventKind::USER:
                 return new BufferOrEvent(
-                    std::make_shared<TestRuntimeEvent>(),
-                    false,
-                    channelInfo,
-                    moreAvailable,
-                    0,
-                    false);
+                    std::make_shared<TestRuntimeEvent>(), false, channelInfo, moreAvailable, 0, false);
             case EventKind::END_OF_DATA:
                 channelsWithEndOfData_[nextEvent.channelIndex] = true;
                 hasReceivedEndOfData_ = std::all_of(
                     channelsWithEndOfData_.begin(), channelsWithEndOfData_.end(), [](bool done) { return done; });
                 return new BufferOrEvent(
-                    std::make_shared<EndOfData>(StopMode::DRAIN),
-                    false,
-                    channelInfo,
-                    moreAvailable,
-                    0,
-                    false);
+                    std::make_shared<EndOfData>(StopMode::DRAIN), false, channelInfo, moreAvailable, 0, false);
             case EventKind::END_OF_PARTITION:
                 channelsWithEndOfPartition_[nextEvent.channelIndex] = true;
-                isFinished_ = std::all_of(
-                    channelsWithEndOfPartition_.begin(),
-                    channelsWithEndOfPartition_.end(),
-                    [](bool done) { return done; });
+                isFinished_ =
+                    std::all_of(channelsWithEndOfPartition_.begin(), channelsWithEndOfPartition_.end(), [](bool done) {
+                        return done;
+                    });
                 return new BufferOrEvent(
-                    EndOfPartitionEvent::getInstance(),
-                    false,
-                    channelInfo,
-                    moreAvailable,
-                    0,
-                    false);
+                    EndOfPartitionEvent::getInstance(), false, channelInfo, moreAvailable, 0, false);
         }
 
         return nullptr;
@@ -380,4 +461,4 @@ TEST(UnionInputGateTest, EmptyPollResetsAvailability)
     EXPECT_FALSE(unionGate.GetAvailableFuture()->isDone());
 }
 
-}  // namespace
+} // namespace

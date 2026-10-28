@@ -53,7 +53,9 @@ public:
     void AddInputData(long checkpointId, const omnistream::InputChannelInfo& info);
     virtual int getBuffersInUseCount() = 0;
     virtual void announceBufferSize(int bufferSize) = 0;
-    virtual void triggerDebloating() {}
+    virtual void triggerDebloating()
+    {
+    }
 
     std::string toString() override
     {

@@ -64,15 +64,9 @@ private:
     std::optional<std::shared_ptr<IndexedInputGate>> getInputGate(
         bool blocking, std::unique_lock<std::recursive_mutex>& lock);
     std::optional<GateWithData> waitAndGetNextData(bool blocking);
-    GateWithData processBufferOrEvent(
-        const std::shared_ptr<IndexedInputGate>& inputGate,
-        BufferOrEvent* bufferOrEvent);
-    void handleEndOfPartitionEvent(
-        BufferOrEvent* bufferOrEvent,
-        const std::shared_ptr<IndexedInputGate>& inputGate);
-    void handleEndOfUserDataEvent(
-        BufferOrEvent* bufferOrEvent,
-        const std::shared_ptr<IndexedInputGate>& inputGate);
+    GateWithData processBufferOrEvent(const std::shared_ptr<IndexedInputGate>& inputGate, BufferOrEvent* bufferOrEvent);
+    void handleEndOfPartitionEvent(BufferOrEvent* bufferOrEvent, const std::shared_ptr<IndexedInputGate>& inputGate);
+    void handleEndOfUserDataEvent(BufferOrEvent* bufferOrEvent, const std::shared_ptr<IndexedInputGate>& inputGate);
     void markAvailable();
 
     std::unordered_map<int, std::shared_ptr<IndexedInputGate>> inputGatesByGateIndex;
@@ -87,6 +81,6 @@ private:
     std::condition_variable_any inputGatesWithDataCondition;
 };
 
-}  // namespace omnistream
+} // namespace omnistream
 
-#endif  // OMNISTREAM_UNIONINPUTGATE_H
+#endif // OMNISTREAM_UNIONINPUTGATE_H

@@ -28,7 +28,7 @@ namespace {
 constexpr int SQL_TASK_TYPE = 1;
 constexpr const char* OMNI_SQL_UNION_ALL_INPUT = "omni.sql.union-all.input";
 constexpr const char* TRUE_VALUE = "true";
-}
+} // namespace
 
 // temporary set parameter type is int
 OmniPushingAsyncDataInput::OmniDataOutput* OmniOneInputStreamTask::createDataOutput(
@@ -198,8 +198,7 @@ bool OmniOneInputStreamTask::ShouldUseUnionInputGate(int taskType, size_t inputG
     return taskType == SQL_TASK_TYPE && inputGateCount > 1 && hasUnionAllInput;
 }
 
-long OmniOneInputStreamTask::GetChannelDeserializerId(
-    const InputChannelInfo& channelInfo, bool useUnionAllChannelId)
+long OmniOneInputStreamTask::GetChannelDeserializerId(const InputChannelInfo& channelInfo, bool useUnionAllChannelId)
 {
     return useUnionAllChannelId ? channelInfo.getComplexId() : static_cast<long>(channelInfo.getInputChannelIdx());
 }

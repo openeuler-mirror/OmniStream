@@ -3,9 +3,8 @@
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
  *          http://license.coscl.org.cn/MulanPSL2
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
- * See the Mulan PSL v2 for more details.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * NON-INFRINGEMENT, MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. See the Mulan PSL v2 for more details.
  */
 
 #include "UnionInputGate.h"
@@ -21,11 +20,10 @@ namespace omnistream {
 
 class QueueInputGateRunnable : public Runnable {
 public:
-    QueueInputGateRunnable(
-        UnionInputGate* owner,
-        std::shared_ptr<IndexedInputGate> inputGate,
-        bool priority)
-        : owner_(owner), inputGate_(std::move(inputGate)), priority_(priority)
+    QueueInputGateRunnable(UnionInputGate* owner, std::shared_ptr<IndexedInputGate> inputGate, bool priority)
+        : owner_(owner),
+          inputGate_(std::move(inputGate)),
+          priority_(priority)
     {
     }
 
@@ -251,7 +249,8 @@ void UnionInputGate::queueInputGate(const std::shared_ptr<IndexedInputGate>& inp
     class GateNotificationHelper {
     public:
         GateNotificationHelper(UnionInputGate* inputGate, std::condition_variable_any& condition)
-            : inputGate_(inputGate), condition_(&condition)
+            : inputGate_(inputGate),
+              condition_(&condition)
         {
         }
 
@@ -313,8 +312,7 @@ void UnionInputGate::queueInputGate(const std::shared_ptr<IndexedInputGate>& inp
 }
 
 std::optional<std::shared_ptr<IndexedInputGate>> UnionInputGate::getInputGate(
-    bool blocking,
-    std::unique_lock<std::recursive_mutex>& lock)
+    bool blocking, std::unique_lock<std::recursive_mutex>& lock)
 {
     while (inputGatesWithData.isEmpty()) {
         if (inputGatesWithRemainingData.empty()) {
@@ -322,9 +320,8 @@ std::optional<std::shared_ptr<IndexedInputGate>> UnionInputGate::getInputGate(
         }
 
         if (blocking) {
-            inputGatesWithDataCondition.wait(lock, [this] {
-                return !inputGatesWithData.isEmpty() || inputGatesWithRemainingData.empty();
-            });
+            inputGatesWithDataCondition.wait(
+                lock, [this] { return !inputGatesWithData.isEmpty() || inputGatesWithRemainingData.empty(); });
         } else {
             availabilityHelper.resetUnavailable();
             return std::nullopt;
@@ -357,8 +354,7 @@ std::optional<UnionInputGate::GateWithData> UnionInputGate::waitAndGetNextData(b
 }
 
 UnionInputGate::GateWithData UnionInputGate::processBufferOrEvent(
-    const std::shared_ptr<IndexedInputGate>& inputGate,
-    BufferOrEvent* bufferOrEvent)
+    const std::shared_ptr<IndexedInputGate>& inputGate, BufferOrEvent* bufferOrEvent)
 {
     if (bufferOrEvent->moreAvailable()) {
         inputGatesWithData.add(inputGate, bufferOrEvent->morePriorityEvents(), false);
@@ -375,16 +371,11 @@ UnionInputGate::GateWithData UnionInputGate::processBufferOrEvent(
         priorityAvailabilityHelper.resetUnavailable();
     }
 
-    return GateWithData {
-        inputGate,
-        bufferOrEvent,
-        !inputGatesWithData.isEmpty(),
-        morePriorityEvents};
+    return GateWithData{inputGate, bufferOrEvent, !inputGatesWithData.isEmpty(), morePriorityEvents};
 }
 
 void UnionInputGate::handleEndOfPartitionEvent(
-    BufferOrEvent* bufferOrEvent,
-    const std::shared_ptr<IndexedInputGate>& inputGate)
+    BufferOrEvent* bufferOrEvent, const std::shared_ptr<IndexedInputGate>& inputGate)
 {
     if (!bufferOrEvent->isEvent()) {
         return;
@@ -408,8 +399,7 @@ void UnionInputGate::handleEndOfPartitionEvent(
 }
 
 void UnionInputGate::handleEndOfUserDataEvent(
-    BufferOrEvent* bufferOrEvent,
-    const std::shared_ptr<IndexedInputGate>& inputGate)
+    BufferOrEvent* bufferOrEvent, const std::shared_ptr<IndexedInputGate>& inputGate)
 {
     if (!bufferOrEvent->isEvent()) {
         return;
@@ -433,4 +423,4 @@ void UnionInputGate::markAvailable()
     inputGatesWithDataCondition.notify_all();
 }
 
-}  // namespace omnistream
+} // namespace omnistream

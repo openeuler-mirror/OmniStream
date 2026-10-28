@@ -53,7 +53,8 @@ TEST_F(OmniTwoInputStreamTaskTest, DISABLED_InitDistributesGatesAndInitializesPr
     //    ASSERT_NE(task->GetInputProcessor(), nullptr);
 }
 
-TEST(OmniOneInputStreamTaskUnionAllTest, UsesUnionInputGateOnlyForSqlMultipleInputs) {
+TEST(OmniOneInputStreamTaskUnionAllTest, UsesUnionInputGateOnlyForSqlMultipleInputs)
+{
     EXPECT_FALSE(OmniOneInputStreamTask::ShouldUseUnionInputGate(1, 0, true));
     EXPECT_FALSE(OmniOneInputStreamTask::ShouldUseUnionInputGate(1, 1, true));
     EXPECT_FALSE(OmniOneInputStreamTask::ShouldUseUnionInputGate(1, 2, false));
@@ -63,10 +64,11 @@ TEST(OmniOneInputStreamTaskUnionAllTest, UsesUnionInputGateOnlyForSqlMultipleInp
     EXPECT_FALSE(OmniOneInputStreamTask::ShouldUseUnionInputGate(2, 2, true));
 }
 
-TEST(OmniOneInputStreamTaskUnionAllTest, KeepsLegacyChannelIdsWhenUnionAllIsDisabled) {
+TEST(OmniOneInputStreamTaskUnionAllTest, KeepsLegacyChannelIdsWhenUnionAllIsDisabled)
+{
     InputChannelInfo shiftedGateChannel(5, 7);
 
     EXPECT_EQ(OmniOneInputStreamTask::GetChannelDeserializerId(shiftedGateChannel, false), 7);
-    EXPECT_EQ(OmniOneInputStreamTask::GetChannelDeserializerId(shiftedGateChannel, true),
-              shiftedGateChannel.getComplexId());
+    EXPECT_EQ(
+        OmniOneInputStreamTask::GetChannelDeserializerId(shiftedGateChannel, true), shiftedGateChannel.getComplexId());
 }
