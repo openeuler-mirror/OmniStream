@@ -21,8 +21,15 @@
 #include "streaming/runtime/io/StreamTaskNetworkOutput.h"
 #include "streaming/runtime/io/OmniStreamOneInputProcessor.h"
 #include "../../io/OmniStreamTaskNetworkOutput.h"
+#include "partition/consumer/UnionInputGate.h"
 
 namespace omnistream {
+namespace {
+constexpr int SQL_TASK_TYPE = 1;
+constexpr const char* OMNI_SQL_UNION_ALL_INPUT = "omni.sql.union-all.input";
+constexpr const char* TRUE_VALUE = "true";
+} // namespace
+
 // temporary set parameter type is int
 OmniPushingAsyncDataInput::OmniDataOutput* OmniOneInputStreamTask::createDataOutput(
     std::shared_ptr<omnistream::SimpleCounter>& numRecordsIn)
@@ -173,9 +180,33 @@ std::shared_ptr<CheckpointedInputGate> OmniOneInputStreamTask::CreateCheckpointe
         alignedCheckpointTimeoutMillis,
         checkpointExecutionConfig.getCheckpointAfterTasksFinishEnabled());
 
+    if (ShouldUseUnionInputGate(taskType, checkpointableInputs.size(), HasUnionAllInput())) {
+        auto unionGate = std::make_shared<UnionInputGate>(checkpointableInputs);
+        // The union gate reports one INNER_RECOVER after all physical channels recover.
+        numberOfInnerRecover = 1;
+        return std::make_shared<CheckpointedInputGate>(unionGate, checkpointBarrierHandler, mainMailboxExecutor_);
+    }
+
     auto checkpointedInputGates = InputProcessorUtil::CreateCheckpointedMultipleInputGate(
         mainMailboxExecutor_, {checkpointableInputs}, checkpointBarrierHandler);
 
     return checkpointedInputGates[0];
+}
+
+bool OmniOneInputStreamTask::ShouldUseUnionInputGate(int taskType, size_t inputGateCount, bool hasUnionAllInput)
+{
+    return taskType == SQL_TASK_TYPE && inputGateCount > 1 && hasUnionAllInput;
+}
+
+long OmniOneInputStreamTask::GetChannelDeserializerId(const InputChannelInfo& channelInfo, bool useUnionAllChannelId)
+{
+    return useUnionAllChannelId ? channelInfo.getComplexId() : static_cast<long>(channelInfo.getInputChannelIdx());
+}
+
+bool OmniOneInputStreamTask::HasUnionAllInput() const
+{
+    const auto omniConf = taskConfiguration_.getStreamConfigPOD().getOmniConf();
+    const auto it = omniConf.find(OMNI_SQL_UNION_ALL_INPUT);
+    return it != omniConf.end() && it->second == TRUE_VALUE;
 }
 } // namespace omnistream

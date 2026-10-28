@@ -13,6 +13,7 @@
 #define OMNISTREAM_OMNIABSTRACTSTREAMTASKNETWORKINPUT_H
 
 #include <utility>
+#include <unordered_map>
 #include <runtime/io/network/api/serialization/RecordDeserializer.h>
 #include <runtime/io/network/api/serialization/SpillingAdaptiveSpanningRecordDeserializer.h>
 #include <runtime/plugable/DeserializationDelegate.h>
@@ -62,6 +63,7 @@ public:
         rowCount = 0;
         maxRowCount = 1000;
         timeout = 1000;
+        initializeLogicalChannelIndexMap();
         running_.exchange(true);
     }
 
@@ -85,6 +87,7 @@ public:
         deserializationDelegate_ = std::make_unique<NonReusingDeserializationDelegate>(
             new datastream::StreamElementSerializer(inputSerializer));
         recordDeserializers = getRecordDeserializers(channelInfos);
+        initializeLogicalChannelIndexMap();
         rowCount = 0;
         maxRowCount = 1000;
         timeout = 1000;
@@ -159,6 +162,23 @@ public:
         return recordDeserializers;
     }
 
+    void initializeLogicalChannelIndexMap()
+    {
+        const auto channelInfos = inputGate->GetChannelInfos();
+        for (size_t i = 0; i < channelInfos.size(); ++i) {
+            logicalChannelIndexByComplexId[channelInfos[i].getComplexId()] = static_cast<int>(i);
+        }
+    }
+
+    int getLogicalChannelIndex(const InputChannelInfo& channelInfo) const
+    {
+        const auto it = logicalChannelIndexByComplexId.find(channelInfo.getComplexId());
+        if (it == logicalChannelIndexByComplexId.end()) {
+            THROW_RUNTIME_ERROR("ChannelInfo not found in logicalChannelIndexByComplexId");
+        }
+        return it->second;
+    }
+
     virtual RecordDeserializer* getActiveSerializer(long channelInfo)
     {
         auto it = recordDeserializers->find(channelInfo);
@@ -212,20 +232,20 @@ public:
                     if (objectBufferRecycler == nullptr) {
                         auto watermark = std::unique_ptr<Watermark>(reinterpret_cast<Watermark*>(object));
                         statusWatermarkValve_.inputWatermark(
-                            watermark.get(), lastChannel_.getInputChannelIdx(), output);
+                            watermark.get(), getLogicalChannelIndex(lastChannel_), output);
                     } else {
                         statusWatermarkValve_.inputWatermark(
-                            reinterpret_cast<Watermark*>(object), lastChannel_.getInputChannelIdx(), output);
+                            reinterpret_cast<Watermark*>(object), getLogicalChannelIndex(lastChannel_), output);
                     }
                 } else if (object->getTag() == StreamElementTag::TAG_STREAM_STATUS) {
                     if (objectBufferRecycler == nullptr) {
                         auto watermarkstatus =
                             std::unique_ptr<WatermarkStatus>(reinterpret_cast<WatermarkStatus*>(object));
                         statusWatermarkValve_.inputWatermarkStatus(
-                            watermarkstatus.get(), lastChannel_.getInputChannelIdx(), output);
+                            watermarkstatus.get(), getLogicalChannelIndex(lastChannel_), output);
                     } else {
                         statusWatermarkValve_.inputWatermarkStatus(
-                            reinterpret_cast<WatermarkStatus*>(object), lastChannel_.getInputChannelIdx(), output);
+                            reinterpret_cast<WatermarkStatus*>(object), getLogicalChannelIndex(lastChannel_), output);
                     }
                 } else {
                     if (objectBufferRecycler == nullptr) {
@@ -732,6 +752,7 @@ protected:
 
 protected:
     std::unique_ptr<std::unordered_map<long, std::unique_ptr<RecordDeserializer>>> recordDeserializers;
+    std::unordered_map<long, int> logicalChannelIndexByComplexId;
     // for troubleshooting
     int NullValueCount = 0;
     bool isLastValueNull = false;
