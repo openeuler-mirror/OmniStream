@@ -73,13 +73,79 @@ public:
     void close() override
     {
         // Fetcher shutdown must finish while its queue is still alive.
-        queue->getAvailabilityFuture()->complete();
+        // Use the queue API: after enqueue, its future is the AVAILABLE marker,
+        // which must not be assumed to be a dereferenceable future here.
+        queue->notifyAvailable();
         closed = true;
     }
 
 private:
     FutureCompletingBlockingQueue<RdKafka::Message>* queue;
     bool& closed;
+};
+
+class TrackedRecords : public RecordsWithSplitIds<RdKafka::Message> {
+public:
+    explicit TrackedRecords(int& liveBatches) : liveBatches(liveBatches)
+    {
+        ++liveBatches;
+    }
+    ~TrackedRecords() override
+    {
+        --liveBatches;
+    }
+    std::string nextSplit() override
+    {
+        return "";
+    }
+    const RdKafka::Message* nextRecordFromSplit() override
+    {
+        return nullptr;
+    }
+    const std::vector<RdKafka::Message*>& getRecordsFromSplit() override
+    {
+        return records;
+    }
+    size_t getSplitStoppingOffset() override
+    {
+        return 0;
+    }
+    std::set<std::string>& finishedSplits() override
+    {
+        return finished;
+    }
+
+private:
+    int& liveBatches;
+    std::vector<RdKafka::Message*> records;
+    std::set<std::string> finished;
+};
+
+class BatchTrackingSplitReader : public QueueNotifyingSplitReader {
+public:
+    BatchTrackingSplitReader(FutureCompletingBlockingQueue<RdKafka::Message>* queue, bool& closed, int& liveBatches)
+        : QueueNotifyingSplitReader(queue, closed),
+          queue(queue),
+          liveBatches(liveBatches)
+    {
+    }
+
+    ~BatchTrackingSplitReader() override
+    {
+        // A real consumer can block here while messages retain broker references.
+        EXPECT_EQ(liveBatches, 0);
+    }
+
+    RecordsWithSplitIds<RdKafka::Message>* fetch() override
+    {
+        // Make a full-queue put return false, leaving this batch in FetchTask.
+        queue->wakeUpPuttingThread(0);
+        return new TrackedRecords(liveBatches);
+    }
+
+private:
+    FutureCompletingBlockingQueue<RdKafka::Message>* queue;
+    int& liveBatches;
 };
 } // namespace
 
@@ -114,6 +180,42 @@ TEST_P(KafkaSourceReaderLifecycleTest, JoinsFetcherBeforeDestroyingQueue)
 }
 
 INSTANTIATE_TEST_SUITE_P(WithAndWithoutExplicitClose, KafkaSourceReaderLifecycleTest, ::testing::Bool());
+
+TEST_P(KafkaSourceReaderLifecycleTest, ReleasesQueuedAndInterruptedBatchesBeforeConsumer)
+{
+    bool splitReaderClosed = false;
+    int liveBatches = 0;
+    auto* queue = new FutureCompletingBlockingQueue<RdKafka::Message>(0, 1);
+    BatchTrackingSplitReader* splitReader = nullptr;
+    std::function<SplitReader<RdKafka::Message, KafkaPartitionSplit>*()> supplier = [&]() {
+        splitReader = new BatchTrackingSplitReader(queue, splitReaderClosed, liveBatches);
+        return splitReader;
+    };
+    auto* manager = new KafkaSourceFetcherManager(queue, supplier);
+    auto reader = std::make_unique<KafkaSourceReader>(
+        queue,
+        manager,
+        new MockRecordEmitter(),
+        std::unordered_map<std::string, std::string>{},
+        new SourceReaderContext(0),
+        false);
+    auto* fetcher = manager->createSplitFetcher();
+    ASSERT_TRUE(queue->put(0, new TrackedRecords(liveBatches)));
+    {
+        FetchTask<RdKafka::Message, KafkaPartitionSplit> task(
+            splitReader, queue, [](const std::set<std::string>&) {}, 0);
+        task.fetch();
+        EXPECT_EQ(liveBatches, 2);
+    }
+    EXPECT_EQ(liveBatches, 1);
+    // Exercise both an unstarted fetcher and one retired by its shutdown hook.
+    if (GetParam()) {
+        fetcher->shutdown();
+        manager->startFetcher(fetcher);
+    }
+    reader.reset();
+    EXPECT_EQ(liveBatches, 0);
+}
 
 class KafkaSourceReaderConfigTest : public ::testing::Test {
 protected:

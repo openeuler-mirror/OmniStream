@@ -72,8 +72,8 @@ void SinkWriterOperator::close()
     committableSerializer = nullptr;
     delete kafkaSink;
     kafkaSink = nullptr;
-    // todo 补全close逻辑
-    // AbstractStreamOperator<void*>::close();
+
+    AbstractStreamOperator<void*>::close();
     INFO_RELEASE("savepoint: SinkWriterOperator close END");
 }
 

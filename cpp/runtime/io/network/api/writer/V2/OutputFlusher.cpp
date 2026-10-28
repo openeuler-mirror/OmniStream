@@ -22,13 +22,11 @@ OutputFlusher::~OutputFlusher()
 {
     INFO_RELEASE("~OutputFlusher for " << taskName);
     terminate();
-    if (thread.joinable()) {
-        thread.join();
-    }
 }
 
 void OutputFlusher::terminate()
 {
+    std::lock_guard<std::mutex> lock(lifecycleMutex);
     // INFO_RELEASE, not LOG_INFO_IMP: that macro is disabled in this build, which is why the
     // terminate/terminated messages were invisible while diagnosing the thread leak.
     INFO_RELEASE("OutputFlusher::terminate entered for " << taskName);
@@ -41,6 +39,7 @@ void OutputFlusher::terminate()
 
 void OutputFlusher::start()
 {
+    std::lock_guard<std::mutex> lock(lifecycleMutex);
     if (thread.joinable()) {
         throw std::runtime_error("OutputFlusher already started.");
     }

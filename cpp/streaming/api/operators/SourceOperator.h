@@ -258,8 +258,7 @@ public:
         if (sourceReader != nullptr) {
             sourceReader->close();
         }
-        // TODO 当前执行sp后 停止作业会卡在每个算子的状态后端dispose方法，先保证功能可用，后续优化卡住逻辑
-        // AbstractStreamOperator<void*>::close();
+        AbstractStreamOperator<void*>::close();
     }
 
     DataInputStatus emitNext(OmniDataOutputPtr output)

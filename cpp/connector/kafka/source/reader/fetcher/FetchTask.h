@@ -43,6 +43,11 @@ public:
     {
     }
 
+    ~FetchTask() override
+    {
+        delete lastRecords;
+    }
+
     bool Run() override
     {
         if (unlikely(not binded)) {

@@ -216,8 +216,7 @@ public:
         if (committer != nullptr) {
             committer->Close();
         }
-        // todo 补全close逻辑
-        //  AbstractStreamOperator<void*>::close();
+        AbstractStreamOperator<void*>::close();
     }
 
     void OnProcessingTime(int64_t timestamp) override

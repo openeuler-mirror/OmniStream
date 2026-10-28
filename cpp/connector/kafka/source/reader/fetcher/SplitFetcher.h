@@ -114,6 +114,9 @@ public:
 
     ~SplitFetcher()
     {
+        // Release an interrupted fetch batch before its consumer is destroyed.
+        runningTask.reset();
+        fetchTask.reset();
         delete splitReader;
     }
 
@@ -135,7 +138,7 @@ public:
             errorHandler(exceptionPtr);
         }
         LOG("Split fetcher " + std::to_string(id) + " exited");
-        // The hook may delete this fetcher, so keep the callable alive until it returns.
+        // Keep the callable alive until the shutdown hook returns.
         auto onShutdown = shutdownHook;
         onShutdown();
     }
