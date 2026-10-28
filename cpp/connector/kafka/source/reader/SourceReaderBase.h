@@ -52,6 +52,9 @@ public:
 
     virtual ~SourceReaderBase()
     {
+        // This batch is no longer in the queue, but still holds Kafka references.
+        delete currentFetch;
+        currentFetch = nullptr;
         // Join fetchers before releasing the queue they still use during shutdown.
         delete splitFetcherManager;
         delete elementsQueue;

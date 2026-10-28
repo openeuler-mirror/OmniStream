@@ -67,9 +67,13 @@ public:
                 t.join();
             }
         }
-        for (auto [fetcherId, fetcher] : fetchers) {
-            delete fetcher;
+        // Queued messages can retain broker references. Release them before
+        // destroying the consumers, whose destructors join broker threads.
+        while (auto* records = elementsQueue->poll()) {
+            delete records;
         }
+        fetchers.clear();
+        ownedFetchers.clear();
     }
 
     // 抽象方法，派生类需要实现
@@ -93,11 +97,12 @@ public:
         auto fetcher =
             new SplitFetcher<E, SplitT>(fetcherId, elementsQueue, splitReader, errorHandler, [this, fetcherId]() {
                 std::lock_guard<std::mutex> lock(fetchersMutex);
-                auto fetcher = fetchers[fetcherId];
-                delete fetcher;
                 fetchers.erase(fetcherId);
                 elementsQueue->notifyAvailable();
             });
+        // The worker only unregisters itself. Keep its consumer alive until
+        // all workers have stopped and their outstanding messages are freed.
+        ownedFetchers.emplace_back(fetcher);
         fetchers[fetcherId] = fetcher;
         return fetcher;
     }
@@ -160,6 +165,7 @@ private:
     std::exception_ptr uncaughtFetcherException;
     std::mutex exceptionMutex;
     std::vector<std::thread> executorThreads;
+    std::vector<std::unique_ptr<SplitFetcher<E, SplitT>>> ownedFetchers;
     std::atomic<bool> closed{false};
     std::mutex fetchersMutex;
 };
