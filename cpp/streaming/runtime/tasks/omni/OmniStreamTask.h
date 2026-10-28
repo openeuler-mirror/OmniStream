@@ -173,9 +173,6 @@ public:
 protected:
     std::shared_ptr<RuntimeEnvironmentV2> env_;
     std::vector<OperatorConfig> operatorChainConfig_;
-
-    // operator chain
-    std::unique_ptr<OperatorChainV2> operatorChain;
     std::shared_ptr<RecordWriterDelegateV2> recordWriter_;
     StreamOperator* mainOperator_ = nullptr;
     OmniStreamInputProcessor* inputProcessor_ = nullptr;
@@ -201,6 +198,9 @@ protected:
     std::unique_ptr<MailboxProcessor>
         mailboxProcessor_; // MailBox 的核心处理线程，MailboxDefaultAction 是其默认的 action 实现
     std::shared_ptr<MailboxExecutor> mainMailboxExecutor_; // 它负责向 MailBox 提交 task 任务
+
+    // operator chain
+    std::unique_ptr<OperatorChainV2> operatorChain;
     std::shared_ptr<runtime::TimerService> timerService;
     std::shared_ptr<runtime::TimerService> systemTimerService;
 
