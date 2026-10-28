@@ -64,7 +64,7 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 |--|-------------------------------------------|--|--|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 |OmniStream压缩包| BoostKit-omniruntime-omnistream-{version}.zip |开源|OmniStream Flink Native化特性软件安装包。请从开源仓Releases页面获取最新发布版本的软件包，{version}为实际发布版本号。| [获取链接](https://gitcode.com/openeuler/OmniStream/releases) |
 |UDF翻译工具| UNT-1.0-35.noarch.rpm                     |开源|UDF（User-Defined Function，用户自定义函数）翻译工具RPM包，安装后在/opt路径下新增UDF翻译工具。| [获取链接](https://eur.openeuler.openatom.cn/results/cutie-deng/UNT/openeuler-22.03_LTS_SP4-aarch64/00110412-UNT/UNT-1.0-35.noarch.rpm)                                                                                                                                |
-|AI4C| AI4C-1.0.4-8.aarch64.rpm                  |开源|AL4C（AI for Compiler，AI辅助编译器）支持编译器集成机器学习驱动的优化技术的框架。RPM包直接安装。| [获取链接](https://gitcode.com/boostkit/boostkit-bigdata/releases/download/25.1.RC1-OmniStream-release/AI4C-1.0.4-8.aarch64.rpm)                                                                                                                                   |
+|AI4C| AI4C-1.0.4-8.aarch64.rpm                  |开源|AI4C（AI for Compiler，AI辅助编译器）支持编译器集成机器学习驱动的优化技术的框架。RPM包直接安装。| [获取链接](https://gitcode.com/boostkit/boostkit-bigdata/releases/download/25.1.RC1-OmniStream-release/AI4C-1.0.4-8.aarch64.rpm)                                                                                                                                   |
 |KACC_JSON| BoostKit-kaccjson_1.1.0.zip               |闭源|用于UDF翻译中替换GSON的C++版实现，该ZIP包含适配层和KACC_JSON核心实现，内含若干头文件和静态库。<br>该文件从Dependency_library_OmniStream.zip解压获得。| [获取链接](https://gitcode.com/openeuler/OmniStream/releases/download/tag_BoostKit_26.0.RC1.B031_001/Dependency_library_OmniStream.zip)                                                                                                                                    |
 |KSL| BoostKit-ksl_2.5.1.zip                    |闭源|KSL（Kunpeng System Library，鲲鹏系统库），该zip包含ReplaceAll用于优化String基础库，内含头文件和1个静态库。| [获取链接](https://www.hikunpeng.com/boostkit/library/system?subtab=Hyperscan&version=2.5.1)                                                                                                                                                                           |
 |依赖库| Dependency_library_Default_OmniStream.zip               |开源|OmniStream Flink Native化运行时所依赖的库文件。从开源仓Releases页面最新发布版本的Dependency_library_OmniStream.zip文件解压获得。| [获取链接](https://gitcode.com/openeuler/OmniStream/releases) |
@@ -77,7 +77,7 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 
 ### 前提条件
 
-在校验发布包完整性之前，需要准备如下文件：
+在校验发布包完整性之前，需要准备如下文件。
 
 - zip压缩包文件：BoostKit-omniruntime-omnistream-1.3.0.zip。
 
@@ -85,15 +85,15 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
 
 ### 操作指导
 
-文件完整性校验操作步骤如下：
+文件完整性校验操作步骤如下。
 
-1. 计算文件的sha256校验值。linux执行命令如下：
+1. 计算文件的sha256校验值。linux执行命令如下。
 
     ```sh
     sha256sum BoostKit-omniruntime-omnistream-1.3.0.zip
     ```
 
-   windows执行命令如下：
+   windows执行命令如下。
 
     ```sh
     certutil -hashfile BoostKit-omniruntime-omnistream-1.3.0.zip SHA256
@@ -273,7 +273,7 @@ OmniStream Flink Native化采用单机容器化部署方案，使用Docker容器
         vi /usr/local/flink/conf/workers
         ```
 
-    5. 按`i`进入编辑模式，将workers内容修改为flink\_tm1\_8c32g、flink\_tm2\_8c32g容器的容器ID，例如（2个Docker容器，每个Docker 4个Task Manager配置）：
+    5. 按`i`进入编辑模式，将workers内容修改为flink\_tm1\_8c32g、flink\_tm2\_8c32g容器的容器ID，例如（2个Docker容器，每个Docker 4个Task Manager配置）。
 
         ```bash
         c3ddf10d0353
@@ -556,7 +556,7 @@ rpm -ivh yaml-cpp-0.6.3-2.oe2203sp4.aarch64.rpm
 
     3. 按`Esc`键，输入 **:wq!**，按`Enter`保存并退出编辑。
 
-### 安装UDF翻译工具<a name="ZH-CN_TOPIC_0000002517504824"></a>
+### 安装UDF翻译工具（可选）<a name="ZH-CN_TOPIC_0000002517504824"></a>
 
 **安装UDF翻译工具RPM包<a name="section5466185845817"></a>**
 

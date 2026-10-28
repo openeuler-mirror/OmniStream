@@ -15,10 +15,10 @@
 
 |项目| 版本                                                                                                                                                           |
 |--|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|操作系统| [openEuler 22.03 LTS SP4](https://dl-cdn.openeuler.openatom.cn/openEuler-22.03-LTS-SP4/ISO/aarch64/openEuler-22.03-LTS-SP4-everything-debug-aarch64-dvd.iso) |
-|JDK| [毕昇JDK 17（建议使用毕昇JDK 17.0.18-b13）](https://mirrors.huaweicloud.com/kunpeng/archive/compiler/bisheng_jdk/bisheng-jdk-17.0.18-b13-linux-aarch64.tar.gz)         |
-|Flink| [1.16.3](https://archive.apache.org/dist/flink/flink-1.16.3/flink-1.16.3-bin-scala_2.12.tgz)                                                                 |
-|Docker| [19.03.15](https://www.hikunpeng.com/document/detail/zh/kunpengboostkithistory/251RC1/bds/kunpengbds_omniruntime_20_0911.html)                               |
+|操作系统| openEuler 22.03 LTS SP4 |
+|JDK| 毕昇JDK 17（建议使用毕昇JDK 17.0.18-b13）        |
+|Flink| 1.16.3                                     |
+|Docker| 19.03.15          |
 |Nexmark| v0.3.0                                                                                                                                                       |
 
 ### 硬件版本配套说明
@@ -45,16 +45,16 @@
 
 V1.4.0补充了checkpoint/savepoint的支持。
 
-**新增特性**
+#### 新增特性
 
 - 支持checkpoint/savepoint。
 - SQL场景下，支持Join/Deduplicate/Rank算子通过canonical格式的savepoint与Flink进行作业切换。
 
-**修改特性**
+#### 修改特性
 
 无
 
-**删除特性**
+#### 删除特性
 
 无
 
@@ -72,17 +72,17 @@ V1.4.0补充了checkpoint/savepoint的支持。
 
 V1.3.0扩展了SQL场景下的算子、内置函数和数据类型支持，并支持Calc算子注册UDF函数。
 
-**新增特性**
+#### 新增特性
 
 - Calc算子支持UDF函数注册，Calc算子支持JSON_VALUE、JSON_QUERY、COALESCE、PROCTIME_MATERIALIZE、CHAR_LENGTH、TO_TIMESTAMP_LTZ内置函数。
 - Calc算子支持INTEGER、TIMESTAMP_WITH_LOCAL_TIMEZONE(3)数据类型。
 - 在SQL场景中，支持WindowAgg、WindowJoin算子。
 
-**修改特性**
+#### 修改特性
 
 无
 
-**删除特性**
+#### 删除特性
 
 无
 
@@ -100,16 +100,16 @@ V1.3.0扩展了SQL场景下的算子、内置函数和数据类型支持，并�
 
 V1.2.0补充UDF翻译工具依赖的头文件，并新增OmniStateStore加速特性，提升有状态场景的执行性能。
 
-**新增特性**
+#### 新增特性
 
 - 增加UDF翻译工具所使用依赖的头文件安装内容。
 - 针对有状态场景，增加OmniStateStore加速特性，通过降低RocksDB访问频次提升应用性能。
 
-**修改特性**
+#### 修改特性
 
 无
 
-**删除特性**
+#### 删除特性
 
 无
 
@@ -127,16 +127,16 @@ V1.2.0补充UDF翻译工具依赖的头文件，并新增OmniStateStore加速特
 
 V1.1.0增强SQL算子回退能力，并完善DataStream KeyedCoProcess算子的checkpoint和restore支持。
 
-**新增特性**
+#### 新增特性
 
 - SQL：新增支持task级别算子回退机制。
 - DataStream：KeyedCoProcess算子支持checkpoint、restore。
 
-**修改特性**
+#### 修改特性
 
 无
 
-**删除特性**
+#### 删除特性
 
 无
 
@@ -154,7 +154,7 @@ V1.1.0增强SQL算子回退能力，并完善DataStream KeyedCoProcess算子的c
 
 V1.0.0首次提供SQL和DataStream常用算子的Native化加速能力，并支持基础UDF翻译及状态后端。
 
-**新增特性**
+#### 新增特性
 
 SQL
 
@@ -164,15 +164,15 @@ SQL
 
 DataStream
 
-- 实现了Kafka Source、Kafka Sink、Map、FlatMap、 Reduce、Filter算子加速。
+- 实现了Kafka Source、Kafka Sink、Map、FlatMap、Reduce、Filter算子加速。
 - 实现了UDF基础框架及翻译基础库，支持UDF自动Native化框架，成功通过DataStream Wordcount等有状态和无状态用例。
 - 实现了对内存状态后端的支持。
 
-**修改特性**
+#### 修改特性
 
 无
 
-**删除特性**
+#### 删除特性
 
 无
 
@@ -198,6 +198,8 @@ DataStream
 ### 获取文档的方法
 
 您可以通过访问[开源仓](https://gitcode.com/openeuler/OmniStream)浏览和获取相关文档。
+
+## 修订记录
 
 | 文档版本 | 发布日期 | 修改说明 |
 | --- | --- | --- |

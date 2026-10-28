@@ -19,7 +19,7 @@
 **关键过程、根本原因分析<a name="zh-cn_topic_0000002533267891_section145813300553"></a>**
 
 - 现象一：Nexmark开源软件存在逻辑缺陷，未正确处理任务释放时序。
-- 现象二：Nexmark开源软件存在逻辑缺陷，OmniStream可以正常完成SQL任务的执行。
+- 现象二：Nexmark开源软件存在逻辑缺陷，会偶发在任务过快结束时未完成吞吐量指标上报（此时OmniStream侧SQL任务执行本身正常）
 - 现象三：属Flink原生问题，非OmniStream导致。
 
 **结论、解决方案及效果<a name="zh-cn_topic_0000002533267891_section93441811202317"></a>**
@@ -32,11 +32,11 @@
 
 **问题现象描述<a name="zh-cn_topic_0000002533267891_section758133012554"></a>**
 
-现象：在启用OmniStream后，flink taskManager原本的G1GC参数丢失，导致JVM发生内存溢出（OOM）。
+现象：在启用OmniStream后，Flink taskManager原本的G1GC参数丢失，导致JVM发生内存溢出（OOM）。
 
 **关键过程、根本原因分析<a name="zh-cn_topic_0000002533267891_section145813300553"></a>**
 
-flink taskManager 在启动时会检测是否配置了JVM_OPTS环境变量。如果没有配置，则创建JVM_OPTS并添加G1GC参数启动taskManager，否则使用配置的JVM_OPTS启动taskManager。在启用OmniStream后会自动生成JVM_OPTS，导致G1GC参数丢失。
+Flink taskManager 在启动时会检测是否配置了JVM_OPTS环境变量。如果没有配置，则创建JVM_OPTS并添加G1GC参数启动taskManager，否则使用配置的JVM_OPTS启动taskManager。在启用OmniStream后会自动生成JVM_OPTS，导致G1GC参数丢失。
 
 **结论、解决方案及效果<a name="zh-cn_topic_0000002533267891_section93441811202317"></a>**
 
@@ -46,7 +46,7 @@ flink taskManager 在启动时会检测是否配置了JVM_OPTS环境变量。如
 env.java.opts.taskmanager: -XX:+UseG1GC
 ```
 
-## SQL作业使用Kafka数据源且包含Window算子时，处于正常运行状态但无结果产生
+## SQL作业使用Kafka数据源且包含Window算子时无结果产生的解决方法
 
 **问题现象描述**
 
@@ -69,6 +69,8 @@ env.java.opts.taskmanager: -XX:+UseG1GC
 - 使用Kafka数据源且作业包含依赖Watermark触发的Window算子时，应避免Source算子出现无Kafka分区可消费的情况。
 建议重新创建Kafka topic，并将topic分区数设置为大于等于Kafka Source算子并行度的值，确保每个Source并行实例均能够分配到至少一个Kafka分区。
 调整后，各Source并行实例均可正常消费数据并推进Watermark，下游Window能够按照事件时间正常触发并输出计算结果。
+
+## 修订记录
 
 | 文档版本 | 发布日期 | 修改说明 |
 | --- | --- | --- |
