@@ -19,6 +19,7 @@
  * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  */
 
+#include "runtime/watermark/WatermarkStatus.h"
 #include "ObjectBufferBuilder.h"
 #include <algorithm>
 #include <sstream>
@@ -165,7 +166,13 @@ ObjectSegmentChannelStateSerde::AppendResult ObjectSegmentChannelStateSerde::App
                     break;
                 }
 
-                case StreamElementTag::TAG_STREAM_STATUS:
+                case StreamElementTag::TAG_STREAM_STATUS: {
+                    int32_t status;
+                    memcpy_s(&status, sizeof(status), cursor, sizeof(status));
+                    cursor += sizeof(status);
+                    element = new WatermarkStatus(status);
+                    break;
+                }
                 case StreamElementTag::TAG_RECORD_ATTRIBUTES:
                 case StreamElementTag::TAG_LATENCY_MARKER:
                 case StreamElementTag::TAG_INTERNAL_WATERMARK: {

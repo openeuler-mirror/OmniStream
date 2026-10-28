@@ -8,6 +8,7 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+#include "runtime/watermark/WatermarkStatus.h"
 #include "OmniCreditBasedSequenceNumberingViewReader.h"
 #include "runtime/buffer/ReadOnlySlicedNetworkBuffer.h"
 
@@ -210,12 +211,22 @@ bool OmniCreditBasedSequenceNumberingViewReader::SerializeVectorBatch(
 }
 
 bool OmniCreditBasedSequenceNumberingViewReader::DoSerializeWaterMark(
-    long timestamp, std::shared_ptr<NettyBufferInfo> bufferInfo)
+    long timestamp, std::shared_ptr<NettyBufferInfo> bufferInfo, bool isStatus)
 {
     LOG("START TO SERIALIZE WATERMARK <<< " << timestamp);
-    int dataSize = sizeof(int8_t) + sizeof(long);
+    int dataSize = sizeof(int8_t) + (isStatus ? sizeof(int32_t) : sizeof(long));
     if (bufferInfo->Useable(dataSize)) {
-        VectorBatchSerializationUtils::SerializWatermark(timestamp, dataSize, bufferInfo->GetPosition());
+        if (isStatus) {
+            auto& cursor = bufferInfo->GetPosition();
+            int8_t tag = static_cast<int8_t>(StreamElementTag::TAG_STREAM_STATUS);
+            int32_t status = static_cast<int32_t>(timestamp);
+            memcpy_s(cursor, dataSize, &tag, sizeof(tag));
+            cursor += sizeof(tag);
+            memcpy_s(cursor, sizeof(status), &status, sizeof(status));
+            cursor += sizeof(status);
+        } else {
+            VectorBatchSerializationUtils::SerializWatermark(timestamp, dataSize, bufferInfo->GetPosition());
+        }
         bufferInfo->SetWrittenBytes(dataSize);
         bufferInfo->IncrementElementNum();
         return true;
@@ -319,6 +330,13 @@ void OmniCreditBasedSequenceNumberingViewReader::SerializeVectorBatchBuffer(Vect
             if (objectBufferRecycler == nullptr) {
                 delete element;
                 delete streamRecord;
+            }
+        } else if (auto* status = dynamic_cast<WatermarkStatus*>(streamElement)) {
+            while (!DoSerializeWaterMark(status->GetStatus(), bufferInfo, true)) {
+                bufferInfo = CreateNettyBufferInfo();
+            }
+            if (objectBufferRecycler == nullptr) {
+                delete status;
             }
         } else if (dynamic_cast<Watermark*>(streamElement)) {
             Watermark* watermark = static_cast<Watermark*>(streamElement);

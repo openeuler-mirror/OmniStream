@@ -393,7 +393,7 @@ StreamOperator* StreamOperatorFactory::CreateWatermarkAssignerOp(
         chainOutput,
         opDescriptionJSON["rowtimeFieldIndex"],
         opDescriptionJSON["intervalSecond"],
-        0,
+        opDescriptionJSON.value("idleTimeout", int64_t{0}),
         processingTimeService);
     bool splitWaterMark = task->env()->taskConfiguration().GetSplitWatermark();
     watermarkAssignerOperator->setSplitWaterMark(splitWaterMark);

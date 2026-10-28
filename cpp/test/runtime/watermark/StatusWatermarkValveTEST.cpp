@@ -5,6 +5,32 @@
 #include "runtime/watermark/StatusWatermarkValve.h"
 #include "streaming/api/watermark/Watermark.h"
 #include "runtime/watermark/WatermarkStatus.h"
+#include "core/api/common/eventtime/IndexedCombinedWatermarkStatus.h"
+
+TEST(IndexedCombinedWatermarkStatusTest, IdleInputIsExcludedAndResumesWithoutWatermarkRegression)
+{
+    omnistream::IndexedCombinedWatermarkStatus status(2);
+    EXPECT_FALSE(status.UpdateWatermark(0, 100));
+    EXPECT_TRUE(status.UpdateStatus(1, true));
+    EXPECT_EQ(status.GetCombinedWatermark(), 100);
+    EXPECT_FALSE(status.IsIdle());
+    EXPECT_FALSE(status.UpdateStatus(0, true));
+    EXPECT_TRUE(status.IsIdle());
+    EXPECT_FALSE(status.UpdateStatus(1, false));
+    EXPECT_FALSE(status.IsIdle());
+    EXPECT_FALSE(status.UpdateWatermark(1, 50));
+    EXPECT_EQ(status.GetCombinedWatermark(), 100);
+    EXPECT_TRUE(status.UpdateWatermark(1, 200));
+    EXPECT_EQ(status.GetCombinedWatermark(), 200);
+    EXPECT_FALSE(status.UpdateStatus(0, false));
+    EXPECT_FALSE(status.UpdateWatermark(1, 300));
+    EXPECT_TRUE(status.UpdateWatermark(0, 250));
+    EXPECT_EQ(status.GetCombinedWatermark(), 250);
+    EXPECT_THROW(status.UpdateStatus(2, true), std::logic_error);
+    EXPECT_THROW(status.UpdateStatus(-1, true), std::logic_error);
+    EXPECT_THROW(status.UpdateWatermark(2, 300), std::logic_error);
+    EXPECT_THROW(status.UpdateWatermark(-1, 300), std::logic_error);
+}
 
 class MockStatusWatermarkValveOutput {
 public:
@@ -96,4 +122,28 @@ TEST(StatusWatermarkValveTest, InputWatermarkToMultipleChannels)
     Watermark wm5(180);
     valve.inputWatermark(&wm5, 0, &output);
     EXPECT_EQ(output.getLastWatermark(), 180);
+}
+
+TEST(StatusWatermarkValveTest, IdleChannelDoesNotBlockAndCanResume)
+{
+    StatusWatermarkValve<MockStatusWatermarkValveOutput> valve(2);
+    MockStatusWatermarkValveOutput output;
+    Watermark first(100);
+    valve.inputWatermark(&first, 0, &output);
+    valve.inputWatermarkStatus(WatermarkStatus::idle(), 1, &output);
+    EXPECT_EQ(output.getLastWatermark(), 100);
+    valve.inputWatermarkStatus(WatermarkStatus::active(), 1, &output);
+    Watermark resumed(150);
+    valve.inputWatermark(&resumed, 1, &output);
+    Watermark next(200);
+    valve.inputWatermark(&next, 0, &output);
+    EXPECT_EQ(output.getLastWatermark(), 150);
+    valve.inputWatermarkStatus(WatermarkStatus::idle(), 0, &output);
+    valve.inputWatermarkStatus(WatermarkStatus::idle(), 1, &output);
+    ASSERT_TRUE(output.getLastWatermarkStatus()->IsIdle());
+    valve.inputWatermarkStatus(WatermarkStatus::active(), 1, &output);
+    ASSERT_TRUE(output.getLastWatermarkStatus()->IsActive());
+    Watermark finalMark(300);
+    valve.inputWatermark(&finalMark, 1, &output);
+    EXPECT_EQ(output.getLastWatermark(), 300);
 }

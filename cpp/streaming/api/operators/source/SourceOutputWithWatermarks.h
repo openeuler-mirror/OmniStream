@@ -12,6 +12,7 @@
 #pragma once
 
 #include <memory>
+#include "streaming/runtime/tasks/ProcessingTimeService.h"
 #include <utility>
 #include <stdexcept>
 #include <algorithm>
@@ -41,6 +42,10 @@ public:
 
     void Collect(void* record, long timestamp) override
     {
+        if (idleTimeoutMillis_ > 0) {
+            lastRecordTime_ = timeService_->getCurrentProcessingTime();
+            MarkActive();
+        }
         if (timestampAssigner_->getRowtimeFieldIndex() < 0) {
             // TODO: Datastream scenario, not correct now
             try {
@@ -72,11 +77,13 @@ public:
 
     void MarkIdle() override
     {
+        isIdle_ = true;
         onEventWatermarkOutput_->MarkIdle();
     }
 
     void MarkActive() override
     {
+        isIdle_ = false;
         onEventWatermarkOutput_->MarkActive();
     }
 
@@ -90,8 +97,23 @@ public:
         NOT_IMPL_EXCEPTION;
     }
 
+    void ConfigureIdleness(ProcessingTimeService* timeService, int64_t timeoutMillis)
+    {
+        timeService_ = timeService;
+        idleTimeoutMillis_ = timeoutMillis;
+        lastRecordTime_ = timeService ? timeService->getCurrentProcessingTime() : 0;
+    }
+
     void EmitPeriodicWatermark()
     {
+        if (idleTimeoutMillis_ > 0 &&
+            timeService_->getCurrentProcessingTime() - lastRecordTime_ >= idleTimeoutMillis_) {
+            if (!isIdle_) {
+                watermarkGenerator_->OnPeriodicEmit(periodicWatermarkOutput_);
+                MarkIdle();
+            }
+            return;
+        }
         watermarkGenerator_->OnPeriodicEmit(periodicWatermarkOutput_);
     }
 
@@ -178,6 +200,10 @@ private:
         }
     }
 
+    ProcessingTimeService* timeService_ = nullptr;
+    int64_t idleTimeoutMillis_ = 0;
+    int64_t lastRecordTime_ = 0;
+    bool isIdle_ = false;
     OmniDataOutputPtr recordsOutput_;
     WatermarkOutput* onEventWatermarkOutput_;
     WatermarkOutput* periodicWatermarkOutput_;

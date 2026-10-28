@@ -3,19 +3,21 @@
  */
 
 #include "CombinedWatermarkStatus.h"
+#include "common.h"
 namespace omnistream {
 long PartialWatermark::GetWatermark() const
 {
     if (idle) {
+        THROW_RUNTIME_ERROR("PartialWatermark::GetWatermark(), status is idle");
     }
-    return watermark;
+    return watermark_;
 }
 
-bool PartialWatermark::SetWatermark(long watermark0)
+bool PartialWatermark::SetWatermark(long watermark)
 {
     this->idle = false;
-    bool updated = watermark0 > this->watermark;
-    this->watermark = std::max(watermark0, this->watermark);
+    bool updated = watermark > this->watermark_;
+    this->watermark_ = std::max(watermark, this->watermark_);
     return updated;
 }
 

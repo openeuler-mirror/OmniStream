@@ -28,7 +28,11 @@ std::shared_ptr<TimestampsAndWatermarks> TimestampsAndWatermarks::CreateProgress
 {
     auto timestampAssigner = watermarkStrategy->CreateTimestampAssigner();
     auto eventTimeLogic = std::make_shared<ProgressiveTimestampsAndWatermarks>(
-        timestampAssigner, watermarkStrategy, timeService, periodicWatermarkIntervalMillis);
+        timestampAssigner,
+        watermarkStrategy,
+        timeService,
+        periodicWatermarkIntervalMillis,
+        watermarkStrategy->idleTimeoutMillis);
     eventTimeLogic->callback =
         std::make_shared<ProgressiveTimestampsAndWatermarks::TriggerProcessingTimeCallback>(eventTimeLogic);
     return eventTimeLogic;

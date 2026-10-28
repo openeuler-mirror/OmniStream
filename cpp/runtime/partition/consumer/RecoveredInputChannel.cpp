@@ -2,6 +2,7 @@
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
 
+#include "runtime/watermark/WatermarkStatus.h"
 #include "RecoveredInputChannel.h"
 
 #include "runtime/buffer/ReadOnlySlicedVectorBatchBuffer.h"
@@ -128,6 +129,13 @@ void RecoveredInputChannel::onRecoveredStateBufferForObjectBuffer(Buffer* buffer
         dataPtr += sizeof(int8_t);
         StreamElementTag tagType = static_cast<StreamElementTag>(dataType);
         switch (tagType) {
+            case StreamElementTag::TAG_STREAM_STATUS: {
+                int32_t status;
+                memcpy_s(&status, sizeof(status), dataPtr, sizeof(status));
+                dataPtr += sizeof(status);
+                objectSegment->putObject(i, new WatermarkStatus(status));
+                break;
+            }
             case StreamElementTag::TAG_WATERMARK: {
                 long timestamp = omnistream::VectorBatchDeserializationUtils::derializeWatermark(dataPtr);
                 Watermark* watermark = new Watermark(timestamp);

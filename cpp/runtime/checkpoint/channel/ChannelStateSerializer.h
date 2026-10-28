@@ -11,6 +11,7 @@
 #ifndef OMNISTREAM_CHANNEL_STATE_SERIALIZER_H
 #define OMNISTREAM_CHANNEL_STATE_SERIALIZER_H
 
+#include "runtime/watermark/WatermarkStatus.h"
 #include <sstream>
 #include <stdexcept>
 #include <vector>
@@ -208,6 +209,13 @@ public:
                 int64_t timestamp = watermark->getTimestamp();
                 memcpy_s(buffer, totalSize - (buffer - data.data()), &timestamp, sizeof(int64_t));
                 buffer += sizeof(int64_t);
+            } else if (tag == StreamElementTag::TAG_STREAM_STATUS) {
+                int8_t tagByte = static_cast<int8_t>(tag);
+                int32_t status = static_cast<WatermarkStatus*>(element)->GetStatus();
+                memcpy_s(buffer, totalSize - (buffer - data.data()), &tagByte, sizeof(tagByte));
+                buffer += sizeof(tagByte);
+                memcpy_s(buffer, totalSize - (buffer - data.data()), &status, sizeof(status));
+                buffer += sizeof(status);
             } else if (
                 tag == StreamElementTag::TAG_REC_WITHOUT_TIMESTAMP || tag == StreamElementTag::TAG_REC_WITH_TIMESTAMP ||
                 tag == StreamElementTag::VECTOR_BATCH) {
@@ -257,8 +265,8 @@ public:
                     }
                 }
             } else if (
-                tag == StreamElementTag::TAG_STREAM_STATUS || tag == StreamElementTag::TAG_RECORD_ATTRIBUTES ||
-                tag == StreamElementTag::TAG_LATENCY_MARKER || tag == StreamElementTag::TAG_INTERNAL_WATERMARK) {
+                tag == StreamElementTag::TAG_RECORD_ATTRIBUTES || tag == StreamElementTag::TAG_LATENCY_MARKER ||
+                tag == StreamElementTag::TAG_INTERNAL_WATERMARK) {
                 ERROR_RELEASE(
                     "ObjectSegment channel-state serialization does not support StreamElement tag "
                     << static_cast<int>(tag));
@@ -293,6 +301,8 @@ public:
             StreamElementTag tag = element->getTag();
             if (tag == StreamElementTag::TAG_WATERMARK) {
                 totalSize += sizeof(int8_t) + sizeof(int64_t);
+            } else if (tag == StreamElementTag::TAG_STREAM_STATUS) {
+                totalSize += sizeof(int8_t) + sizeof(int32_t);
             } else if (
                 tag == StreamElementTag::TAG_REC_WITHOUT_TIMESTAMP || tag == StreamElementTag::TAG_REC_WITH_TIMESTAMP ||
                 tag == StreamElementTag::VECTOR_BATCH) {
@@ -307,8 +317,8 @@ public:
                 auto* vectorBatch = static_cast<VectorBatch*>(element->getValue());
                 totalSize += VectorBatchSerializationUtils::calculateVectorBatchSerializableSize(vectorBatch);
             } else if (
-                tag == StreamElementTag::TAG_STREAM_STATUS || tag == StreamElementTag::TAG_RECORD_ATTRIBUTES ||
-                tag == StreamElementTag::TAG_LATENCY_MARKER || tag == StreamElementTag::TAG_INTERNAL_WATERMARK) {
+                tag == StreamElementTag::TAG_RECORD_ATTRIBUTES || tag == StreamElementTag::TAG_LATENCY_MARKER ||
+                tag == StreamElementTag::TAG_INTERNAL_WATERMARK) {
                 ERROR_RELEASE(
                     "ObjectSegment channel-state serialization does not support StreamElement tag "
                     << static_cast<int>(tag));

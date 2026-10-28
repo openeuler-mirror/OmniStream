@@ -76,6 +76,9 @@ void RecordWriterOutputV2::emitWatermark(Watermark* watermark)
 void RecordWriterOutputV2::emitWatermarkStatus(WatermarkStatus* watermarkStatus)
 {
     LOG("RecordWriterOutputV2:emitWatermarkStatus >>>>>>>");
+    if (recordWriter_) {
+        recordWriter_->broadcastEmit(watermarkStatus);
+    }
 }
 
 void RecordWriterOutputV2::broadcastEvent(std::shared_ptr<AbstractEvent> event, bool isPriorityEvent)

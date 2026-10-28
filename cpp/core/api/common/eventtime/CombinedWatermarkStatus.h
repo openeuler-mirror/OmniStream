@@ -7,9 +7,7 @@
 #include <vector>
 #include <limits>
 #include <cstdint>
-#include <stdexcept>
 #include <algorithm>
-#include "core/include/common.h"
 namespace omnistream {
 class PartialWatermark {
 public:
@@ -28,7 +26,7 @@ public:
     }
 
 private:
-    long watermark = INT64_MIN;
+    long watermark_ = INT64_MIN;
     bool idle = false;
 };
 
@@ -58,14 +56,6 @@ public:
     bool Remove(PartialWatermark* o);
 
     bool UpdateCombinedWatermark();
-
-    void SetWatermark(size_t index, long timestamp)
-    {
-        if (index >= partialWatermarks.size()) {
-            throw std::invalid_argument("Index out of bounds");
-        }
-        partialWatermarks[index]->SetWatermark(timestamp);
-    }
 
 private:
     std::vector<PartialWatermark*> partialWatermarks;

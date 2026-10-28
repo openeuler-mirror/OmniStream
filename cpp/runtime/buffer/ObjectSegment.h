@@ -22,6 +22,7 @@
 #include <streaming/runtime/streamrecord/StreamElement.h>
 #include <streaming/runtime/streamrecord/StreamRecord.h>
 #include <streaming/api/watermark/Watermark.h>
+#include "runtime/watermark/WatermarkStatus.h"
 #include <vector/vector.h>
 
 #include "table/data/vectorbatch/VectorBatch.h"
@@ -172,8 +173,11 @@ private:
             INFO_RELEASE("Warn: CloneObject tag is TAG_UNKNOWN");
             return nullptr;
         }
-        if (tag == StreamElementTag::TAG_STREAM_STATUS || tag == StreamElementTag::TAG_RECORD_ATTRIBUTES ||
-            tag == StreamElementTag::TAG_LATENCY_MARKER || tag == StreamElementTag::TAG_INTERNAL_WATERMARK) {
+        if (tag == StreamElementTag::TAG_STREAM_STATUS) {
+            return new WatermarkStatus(static_cast<WatermarkStatus*>(source)->GetStatus());
+        }
+        if (tag == StreamElementTag::TAG_RECORD_ATTRIBUTES || tag == StreamElementTag::TAG_LATENCY_MARKER ||
+            tag == StreamElementTag::TAG_INTERNAL_WATERMARK) {
             ERROR_RELEASE("CloneObject does not support StreamElement tag " << static_cast<int>(tag));
             throw std::runtime_error(
                 "CloneObject does not support StreamElement tag " + std::to_string(static_cast<int>(tag)));

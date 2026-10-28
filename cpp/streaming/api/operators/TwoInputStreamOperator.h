@@ -15,6 +15,7 @@
 #include "StreamOperator.h"
 #include "streaming/runtime/streamrecord/StreamRecord.h"
 #include "core/include/common.h"
+#include "runtime/watermark/WatermarkStatus.h"
 
 class TwoInputStreamOperator : public StreamOperator {
 public:
@@ -44,6 +45,14 @@ public:
         THROW_LOGIC_EXCEPTION("To be implemented");
     }
     virtual void ProcessWatermark2(Watermark* watermark)
+    {
+        THROW_LOGIC_EXCEPTION("To be implemented");
+    }
+    virtual void processWatermarkStatus1(WatermarkStatus* watermarkStatus)
+    {
+        THROW_LOGIC_EXCEPTION("To be implemented");
+    }
+    virtual void processWatermarkStatus2(WatermarkStatus* watermarkStatus)
     {
         THROW_LOGIC_EXCEPTION("To be implemented");
     }

@@ -20,6 +20,8 @@
 
 class WatermarkStrategy : public TimestampAssignerSupplier, public WatermarkGeneratorSupplier {
 public:
+    int64_t idleTimeoutMillis = 0;
+
     TimestampAssigner* CreateTimestampAssigner() override
     {
         return new RecordTimestampAssigner();

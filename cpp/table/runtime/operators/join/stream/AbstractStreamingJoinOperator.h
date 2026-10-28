@@ -76,6 +76,16 @@ class AbstractStreamingJoinOperator : public AbstractStreamOperator<K>, public T
 public:
     AbstractStreamingJoinOperator(const nlohmann::json& description, Output* output);
 
+    void processWatermarkStatus1(WatermarkStatus* status) override
+    {
+        AbstractStreamOperator<K>::processWatermarkStatus1(status);
+    }
+
+    void processWatermarkStatus2(WatermarkStatus* status) override
+    {
+        AbstractStreamOperator<K>::processWatermarkStatus2(status);
+    }
+
     ~AbstractStreamingJoinOperator() override
     {
         LOG("AbstractStreamingJoinOperator<K>::~AbstractStreamingJoinOperator");

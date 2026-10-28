@@ -8,6 +8,7 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+#include "runtime/watermark/WatermarkStatus.h"
 #include "RemoteInputChannel.h"
 #include "table/utils/VectorBatchDeserializationUtils.h"
 #include "common.h"
@@ -223,6 +224,13 @@ std::shared_ptr<ObjectSegment> RemoteInputChannel::DoDataDeserializationResult(u
         LOG("----DoDataDeserializationResult start 3:: " << buffer);
         StreamElementTag tagType = static_cast<StreamElementTag>(dataType);
         switch (tagType) {
+            case StreamElementTag::TAG_STREAM_STATUS: {
+                int32_t status;
+                memcpy_s(&status, sizeof(status), buffer, sizeof(status));
+                buffer += sizeof(status);
+                objectSegment->putObject(i, new WatermarkStatus(status));
+                break;
+            }
             case StreamElementTag::TAG_WATERMARK: {
                 long timestamp = VectorBatchDeserializationUtils::derializeWatermark(buffer);
                 LOG("RemoteInputChannel::DoDataDeserializationResult:: deserialize watermark :: " << timestamp);
