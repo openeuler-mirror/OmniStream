@@ -153,6 +153,7 @@ void StreamCalcBatch::open()
 void StreamCalcBatch::close()
 {
     timestampedCollector_->close();
+    AbstractStreamOperator<int>::close();
 }
 
 const char* StreamCalcBatch::getName()
