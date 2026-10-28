@@ -1,5 +1,7 @@
 # 用户指南<a name="ZH-CN_TOPIC_0000002549640817"></a>
 
+本文档介绍OmniStream Flink Native化的用户指南，涵盖SQL算子和表达式支持情况、DataStream算子和UDF支持情况、SQL与DataStream场景启用OmniStream、创建和恢复Checkpoint/Savepoint以及升级与卸载等维护特性，适用于需要启用OmniStream Flink Native化特性的用户。
+
 ## 前提条件
 
 请参考[安装指南](./installation_guide.md)完成相应软件的安装。
@@ -8,7 +10,7 @@
 
 ### SQL算子和表达式支持情况<a name="ZH-CN_TOPIC_0000002549640813"></a>
 
-介绍在Flink 1.16.3、Flink 1.17.1和Flink 1.20.0引擎下，OmniStream Flink Native化特性对SQL算子及表达式（含数据类型）的支持范围、限制条件与使用规则。
+介绍在Flink 1.16.3、Flink 1.17.1和Flink 1.20.0引擎下，OmniStream Flink Native化特性对SQL算子及表达式（含数据类型）的支持范围、限制条件与使用规则。并示例以1.16.3为准
 
 OmniStream Flink Native化特性支持的算子、表达式、函数如[**表 2** 支持的算子列表](#支持的算子列表)和[**表 3** 支持的表达式列表](#支持的表达式列表)所示，表格中使用符号表示算子和表达式是否支持，符号的含义请参见[**表 1** 算子和表达式支持表格中符号的含义](#算子和表达式支持表格中符号的含义)。
 
@@ -165,7 +167,7 @@ SQL场景下，OmniStream支持通过Flink标准格式的Savepoint（SP），实
 
         存在**TaskManagerRunner**进程，表示Task Manager启动成功。
 
-        ![](figures/zh-cn_image_0000002517961060.png)
+        ![在flink_tm1_8c32g容器执行jps命令的回显，可见TaskManagerRunner进程，表示Task Manager启动成功](figures/zh-cn_image_0000002517961060.png)
 
 3. 在flink\_jm\_8c32g容器中启动Nexmark。
 
@@ -187,7 +189,7 @@ SQL场景下，OmniStream支持通过Flink标准格式的Savepoint（SP），实
 
     存在**CpuMetricSender**进程，表示Nexmark启动成功。
 
-    ![](figures/zh-cn_image_0000002549640829.png)
+    ![在flink_tm1_8c32g容器执行jps命令的回显，可见CpuMetricSender进程，表示Nexmark启动成功](figures/zh-cn_image_0000002549640829.png)
 
 5. 在flink\_jm\_8c32g容器执行Nexmark用例Query0。
 
@@ -201,7 +203,7 @@ SQL场景下，OmniStream支持通过Flink标准格式的Savepoint（SP），实
 
     观察执行结果输出，预期结果：用例运行完成且无报错。
 
-    ![](figures/zh-cn_image_0000002549640827.png)
+    ![执行sh run_query.sh q0后的终端回显，Nexmark用例Query0运行完成且无报错信息](figures/zh-cn_image_0000002549640827.png)
 
 6. 在Task Manager所在容器上查看Flink最新.out日志文件。
 
@@ -213,7 +215,7 @@ SQL场景下，OmniStream支持通过Flink标准格式的Savepoint（SP），实
     - 日志中提示`Shared Memory Metric Manager Loading Succeed!`，表示Native so库已经正常加载。
     - 日志中提示`welcome to native`，表示已经成功启用OmniStream。
 
-    ![](figures/zh-cn_image_0000002517961058.png)
+    ![Flink .out日志回显，含Shared Memory Metric Manager Loading Succeed与welcome to native提示，表示OmniStream已启用](figures/zh-cn_image_0000002517961058.png)
 
 **创建和恢复Checkpoint/Savepoint**
 
@@ -316,7 +318,7 @@ SQL场景下，OmniStream支持通过Flink标准格式的Savepoint（SP），实
 
         存在**StandaloneSessionClusterEntrypoint**进程，表示Job Manager启动成功。
 
-        ![](figures/zh-cn_image_0000002549520817.png)
+        ![DataStream场景在flink_jm_8c32g容器执行jps的回显，可见StandaloneSessionClusterEntrypoint进程，Job Manager启动成功](figures/zh-cn_image_0000002549520817.png)
 
     2. 分别进入flink\_tm1\_8c32g、flink\_tm2\_8c32g容器查看是否存在**TaskManagerRunner**进程。下述命令以flink\_tm1\_8c32g容器为例。
 
@@ -328,7 +330,7 @@ SQL场景下，OmniStream支持通过Flink标准格式的Savepoint（SP），实
 
         存在**TaskManagerRunner**进程，表示Task Manager启动成功。
 
-        ![](figures/zh-cn_image_0000002518120982.png)
+        ![DataStream场景在flink_tm1_8c32g容器执行jps的回显，可见TaskManagerRunner进程，Task Manager启动成功](figures/zh-cn_image_0000002518120982.png)
 
 4. 创建并配置Kafka消费者和生产者配置文件。
     1. 进入flink_tm1_8c32g容器。
@@ -405,7 +407,7 @@ SQL场景下，OmniStream支持通过Flink标准格式的Savepoint（SP），实
         # 生成随机字符串并发送到Kafka
         for ((i=1; i<=$MESSAGE_COUNT; i++)); do
             # 生成4个随机字母（大小写混合） + 空格 + 1
-            RAND_STR=$(cat /dev/urandom | tr -dc 'a-d' | fold -w 4 | head -n 1)
+            RAND_STR=$(cat /dev/urandom | tr -dc 'A-Za-z' | fold -w 4 | head -n 1)
             MESSAGE="${RAND_STR} 1" # 格式: 4字母 + 空格 + 1
         
         # 调用Kafka Producer发送消息
@@ -439,7 +441,7 @@ SQL场景下，OmniStream支持通过Flink标准格式的Savepoint（SP），实
 
         2. 按`i`进入编辑模式，添加如下内容。
 
-            ```bash
+            ```java
             package com.huawei.boostkit;
             
             import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -522,7 +524,7 @@ SQL场景下，OmniStream支持通过Flink标准格式的Savepoint（SP），实
 
         2. 按`i`进入编辑模式，添加如下内容。
 
-            ```bash
+            ```xml
             <?xml version="1.0" encoding="UTF-8"?>
             <project xmlns="http://maven.apache.org/POM/4.0.0"
                      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -687,7 +689,7 @@ SQL场景下，OmniStream支持通过Flink标准格式的Savepoint（SP），实
     bin/kafka-console-consumer.sh --bootstrap-server 服务端的物理机IP地址:9092 --topic result --from-beginning
     ```
 
-    ![](figures/zh-cn_image_0000002549520819.png)
+    ![kafka-console-consumer消费result Topic的回显，输出producer脚本发送的消息，表示作业正常运行](figures/zh-cn_image_0000002549520819.png)
 
 13. 在flink\_jm\_8c32g容器上查看最新的Flink客户端日志flink-root-client-xxx.log。
 
@@ -697,7 +699,7 @@ SQL场景下，OmniStream支持通过Flink标准格式的Savepoint（SP），实
 
     确认无报错信息，表示已经成功启用OmniStream。
 
-    ![](figures/zh-cn_image_0000002518120980.png)
+    ![flink-root-client-xxx.log客户端日志回显，无报错信息，表示OmniStream已成功启用](figures/zh-cn_image_0000002518120980.png)
 
 **创建和恢复Checkpoint/Savepoint**
 
