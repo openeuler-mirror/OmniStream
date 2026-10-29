@@ -77,6 +77,7 @@ void StreamExpand::open()
 
 void StreamExpand::close()
 {
+    AbstractStreamOperator<int>::close();
 }
 
 omnistream::VectorBatch* StreamExpand::copyTimestampAndKind(

@@ -119,6 +119,7 @@ public:
 
     void close() override
     {
+        AbstractUdfStreamOperator<MapFunction<F>, K>::close();
     }
 
 private:

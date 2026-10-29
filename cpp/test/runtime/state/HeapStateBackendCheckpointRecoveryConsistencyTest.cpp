@@ -679,6 +679,7 @@ public:
 
     void close() override
     {
+        AbstractStreamOperator<long>::close();
     }
 
     void processBatch(StreamRecord* element) override
@@ -759,6 +760,7 @@ public:
 
     void close() override
     {
+        AbstractStreamOperator<long>::close();
     }
 
     bool isSetKeyContextElement() override

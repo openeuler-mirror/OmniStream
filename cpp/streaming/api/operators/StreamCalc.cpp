@@ -146,6 +146,7 @@ void StreamCalc::open()
 
 void StreamCalc::close()
 {
+    AbstractStreamOperator<RowData*>::close();
 }
 
 const char* StreamCalc::getName()
