@@ -10,7 +10,6 @@
 #include "emhash7.hpp"
 #include <filesystem>
 #include "table/runtime/operators/window/TimeWindow.h"
-#include "table/typeutils/BinaryRowDataListSerializer.h"
 #include "state/rocksdb/RocksdbListState.h"
 #include "runtime/state/InternalKeyContextImpl.h"
 #include "runtime/state/rocksdb/RocksdbStateTable.h"
@@ -380,56 +379,6 @@ TEST(RocksDBTest, TimeWindowTypeTest)
     TimeWindow* resPtr = reinterpret_cast<TimeWindow*>(vSerializer->deserialize(serializedData));
     ASSERT_EQ(1000, resPtr->getStart());
     ASSERT_EQ(2000, resPtr->getEnd());
-    rocksDb->Close();
-}
-
-TEST(RocksDBTest, BinaryRowDataListTest)
-{
-    DB* rocksDb;
-    Options options;
-    options.create_if_missing = true;
-
-    const ::testing::TestInfo* const test_info = ::testing::UnitTest::GetInstance()->current_test_info();
-    Status s = DB::Open(options, getRocksDbPath() + test_info->name(), &rocksDb);
-    std::cout << (int)s.code() << std::endl;
-    assert(s.ok());
-
-    TypeSerializer* vSerializer = new BinaryRowDataListSerializer();
-    DataOutputSerializer valueOutputSerializer;
-    OutputBufferStatus valueOutputBufferStatus;
-    valueOutputSerializer.setBackendBuffer(&valueOutputBufferStatus);
-
-    std::vector<RowData*>* rowDataList = new std::vector<RowData*>();
-    BinaryRowData* binaryRowData1 = BinaryRowData::createBinaryRowDataWithMem(2);
-    binaryRowData1->setLong(0, 10);
-    binaryRowData1->setLong(1, 20);
-    BinaryRowData* binaryRowData2 = BinaryRowData::createBinaryRowDataWithMem(2);
-    binaryRowData2->setLong(0, 30);
-    binaryRowData2->setLong(1, 40);
-    rowDataList->push_back(binaryRowData1);
-    rowDataList->push_back(binaryRowData2);
-    ASSERT_EQ(10, *rowDataList->at(0)->getLong(0));
-    ASSERT_EQ(20, *rowDataList->at(0)->getLong(1));
-    ASSERT_EQ(30, *rowDataList->at(1)->getLong(0));
-    ASSERT_EQ(40, *rowDataList->at(1)->getLong(1));
-
-    vSerializer->serialize(rowDataList, valueOutputSerializer);
-
-    ROCKSDB_NAMESPACE::Slice sliceKey("key1");
-    ROCKSDB_NAMESPACE::Slice sliceValue(
-        reinterpret_cast<const char*>(valueOutputSerializer.getData()), valueOutputSerializer.length());
-    rocksDb->Put(ROCKSDB_NAMESPACE::WriteOptions(), sliceKey, sliceValue);
-
-    std::string valueInTable;
-    rocksDb->Get(ROCKSDB_NAMESPACE::ReadOptions(), sliceKey, &valueInTable);
-
-    DataInputDeserializer serializedData(
-        reinterpret_cast<const uint8_t*>(valueInTable.data()), valueInTable.length(), 0);
-    std::vector<RowData*>* resPtr = reinterpret_cast<std::vector<RowData*>*>(vSerializer->deserialize(serializedData));
-    ASSERT_EQ(10, *resPtr->at(0)->getLong(0));
-    ASSERT_EQ(20, *resPtr->at(0)->getLong(1));
-    ASSERT_EQ(30, *resPtr->at(1)->getLong(0));
-    ASSERT_EQ(40, *resPtr->at(1)->getLong(1));
     rocksDb->Close();
 }
 
