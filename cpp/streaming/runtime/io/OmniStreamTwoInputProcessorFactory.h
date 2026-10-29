@@ -18,6 +18,8 @@
 #include "streaming/api/operators/TwoInputStreamOperator.h"
 #include "streaming/runtime/io/OmniStreamTaskNetworkOutput.h"
 #include "core/typeinfo/TypeInfoFactory.h"
+#include "table/utils/VectorBatchSerializationUtils.h"
+#include "table/data/binary/BinaryRowData.h"
 
 namespace omnistream {
 class OmniStreamTwoInputProcessorFactory {
@@ -131,6 +133,8 @@ public:
         }
         auto counter =
             streamOperator->GetMectrics()->GetInternalOperatorIOMetric(streamOperator->getTypeName(), "numRecordsIn");
+        auto bytesCounter =
+            streamOperator->GetMectrics()->GetInternalOperatorIOMetric(streamOperator->getTypeName(), "numBytesIn");
 
         // 2. CreateOutput
         omnistream::OmniStreamTwoInputProcessorFactory::OmniStreamTaskNetworkOutPut* pOutPut1 = nullptr;
@@ -142,14 +146,18 @@ public:
                     streamOperator->processBatch1(record);
                 },
                 0,
-                std::static_pointer_cast<omnistream::SimpleCounter>(counter));
+                std::static_pointer_cast<omnistream::SimpleCounter>(counter),
+                std::static_pointer_cast<omnistream::SimpleCounter>(bytesCounter),
+                taskType);
             pOutPut2 = new OmniStreamTaskNetworkOutPut(
                 streamOperator,
                 [](StreamRecord* record, TwoInputStreamOperator* streamOperator) {
                     streamOperator->processBatch2(record);
                 },
                 1,
-                std::static_pointer_cast<omnistream::SimpleCounter>(counter));
+                std::static_pointer_cast<omnistream::SimpleCounter>(counter),
+                std::static_pointer_cast<omnistream::SimpleCounter>(bytesCounter),
+                taskType);
         } else if (taskType == 2) {
             pOutPut1 = new OmniStreamTaskNetworkOutPut(
                 streamOperator,
@@ -158,7 +166,9 @@ public:
                     streamOperator->processElement1(record);
                 },
                 0,
-                std::static_pointer_cast<omnistream::SimpleCounter>(counter));
+                std::static_pointer_cast<omnistream::SimpleCounter>(counter),
+                std::static_pointer_cast<omnistream::SimpleCounter>(bytesCounter),
+                taskType);
 
             pOutPut2 = new OmniStreamTaskNetworkOutPut(
                 streamOperator,
@@ -167,7 +177,9 @@ public:
                     streamOperator->processElement2(record);
                 },
                 1,
-                std::static_pointer_cast<omnistream::SimpleCounter>(counter));
+                std::static_pointer_cast<omnistream::SimpleCounter>(counter),
+                std::static_pointer_cast<omnistream::SimpleCounter>(bytesCounter),
+                taskType);
         } else {
             THROW_LOGIC_EXCEPTION("Invalid task type in creating OmniStreamTwoInputProcessor.");
         }
@@ -187,11 +199,15 @@ private:
             TwoInputStreamOperator* op,
             RecordConsumer consumer,
             int64_t inputIndex,
-            std::shared_ptr<omnistream::SimpleCounter> numRecordsIn)
+            std::shared_ptr<omnistream::SimpleCounter> numRecordsIn,
+            std::shared_ptr<omnistream::SimpleCounter> numBytesIn,
+            int taskType)
             : streamOperator(op),
               consumer_(consumer),
               inputIndex(inputIndex),
-              numRecordsIn(numRecordsIn)
+              numRecordsIn(numRecordsIn),
+              numBytesIn(numBytesIn),
+              taskType(taskType)
         {
         }
 
@@ -199,6 +215,15 @@ private:
         {
             if (numRecordsIn != nullptr) {
                 numRecordsIn->Inc();
+            }
+            if (numBytesIn != nullptr) {
+                if (taskType == 1) {
+                    numBytesIn->Inc(
+                        VectorBatchSerializationUtils::calculateVectorBatchSerializableSize(
+                            reinterpret_cast<omnistream::VectorBatch*>(streamRecord->getValue())));
+                } else if (taskType == 2) {
+                    numBytesIn->Inc(reinterpret_cast<BinaryRowData*>(streamRecord->getValue())->getSizeInBytes());
+                }
             }
             consumer_(streamRecord, streamOperator);
         }
@@ -230,6 +255,8 @@ private:
         RecordConsumer consumer_;
         int64_t inputIndex;
         std::shared_ptr<omnistream::SimpleCounter> numRecordsIn;
+        std::shared_ptr<omnistream::SimpleCounter> numBytesIn;
+        int taskType;
     };
 };
 

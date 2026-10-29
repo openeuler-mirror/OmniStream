@@ -12,6 +12,7 @@
 #include "table/data/RowData.h"
 #include "metrics/groups/TaskMetricGroup.h"
 #include "streaming/api/operators/AbstractStreamOperator.h"
+#include "table/utils/VectorBatchSerializationUtils.h"
 
 ChainingOutput::ChainingOutput(Input* op) : operator_(op), announcedStatus(WatermarkStatus::activeStatus)
 {
@@ -23,11 +24,15 @@ ChainingOutput::ChainingOutput(
       announcedStatus(WatermarkStatus::activeStatus)
 {
     if (metricGroup != nullptr) {
-        auto ptr = metricGroup->GetInternalOperatorIOMetric(opConfig.getName(), "numRecordsOut");
-        LOG("numRecordsOut add" << reinterpret_cast<long>(ptr.get()));
-        numRecordsOut = reinterpret_cast<std::shared_ptr<omnistream::SimpleCounter>&>(ptr);
+        auto ptr = metricGroup->GetInternalOperatorIOMetric(opConfig.getName(), "numRecordsIn");
+        LOG("numRecordsIn add" << reinterpret_cast<long>(ptr.get()));
+        numRecordsIn = std::static_pointer_cast<omnistream::SimpleCounter>(ptr);
+        auto bytesPtr = metricGroup->GetInternalOperatorIOMetric(opConfig.getName(), "numBytesIn");
+        LOG("numBytesIn add" << reinterpret_cast<long>(bytesPtr.get()));
+        numBytesIn = std::static_pointer_cast<omnistream::SimpleCounter>(bytesPtr);
     } else {
-        numRecordsOut = nullptr;
+        numRecordsIn = nullptr;
+        numBytesIn = nullptr;
     }
 }
 
@@ -37,10 +42,16 @@ void ChainingOutput::collect(void* record)
     LOG("operator address " + std::to_string(reinterpret_cast<long>(operator_)));
     LOG("pass to operator: " + std::string(operator_->getName()));
     LOG("stream record address  " + std::to_string(reinterpret_cast<long>(record)));
-    if (numRecordsOut != nullptr) {
-        numRecordsOut->Inc(
+    if (numRecordsIn != nullptr) {
+        long numRecordsInCount =
             reinterpret_cast<omnistream::VectorBatch*>(reinterpret_cast<StreamRecord*>(record)->getValue())
-                ->GetRowCount());
+                ->GetRowCount();
+        numRecordsIn->Inc(numRecordsInCount);
+    }
+    if (numBytesIn != nullptr) {
+        long numBytesInCount = omnistream::VectorBatchSerializationUtils::calculateVectorBatchSerializableSize(
+            reinterpret_cast<omnistream::VectorBatch*>(reinterpret_cast<StreamRecord*>(record)->getValue()));
+        numBytesIn->Inc(numBytesInCount);
     }
     operator_->processBatch(reinterpret_cast<StreamRecord*>(record));
 }

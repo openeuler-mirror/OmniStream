@@ -32,9 +32,10 @@ constexpr const char* TRUE_VALUE = "true";
 
 // temporary set parameter type is int
 OmniPushingAsyncDataInput::OmniDataOutput* OmniOneInputStreamTask::createDataOutput(
-    std::shared_ptr<omnistream::SimpleCounter>& numRecordsIn)
+    std::shared_ptr<omnistream::SimpleCounter>& numRecordsIn, std::shared_ptr<omnistream::SimpleCounter>& numBytesIn)
 {
-    return new OmniStreamTaskNetworkOutput(dynamic_cast<OneInputStreamOperator*>(mainOperator_), numRecordsIn);
+    return new OmniStreamTaskNetworkOutput(
+        dynamic_cast<OneInputStreamOperator*>(mainOperator_), numRecordsIn, numBytesIn);
 }
 
 OmniStreamTaskInput* OmniOneInputStreamTask::CreateTaskInput(std::shared_ptr<CheckpointedInputGate> inputGate)
@@ -133,9 +134,13 @@ OmniStreamTaskInput* OmniOneInputStreamTask::CreateTaskInput(std::shared_ptr<Che
 void OmniOneInputStreamTask::init()
 {
     OmniStreamTask::init();
-    auto counter = env_->taskMetricGroup()->GetInternalOperatorIOMetric(mainOperator_->getTypeName(), "numRecordsOut");
+    auto operatorPod = this->taskConfiguration_.getStreamConfigPOD().getOperatorDescription();
+    auto counter = env_->taskMetricGroup()->GetInternalOperatorIOMetric(operatorPod.getName(), "numRecordsIn");
+    auto bytesCounter = env_->taskMetricGroup()->GetInternalOperatorIOMetric(operatorPod.getName(), "numBytesIn");
     auto inputGate = CreateCheckpointedInputGate();
-    auto output = createDataOutput(reinterpret_cast<std::shared_ptr<omnistream::SimpleCounter>&>(counter));
+    auto output = createDataOutput(
+        reinterpret_cast<std::shared_ptr<omnistream::SimpleCounter>&>(counter),
+        reinterpret_cast<std::shared_ptr<omnistream::SimpleCounter>&>(bytesCounter));
     auto input = CreateTaskInput(inputGate);
 
     inputProcessor_ = new OmniStreamOneInputProcessor(input, output, operatorChain.get());

@@ -11,16 +11,21 @@
 #ifndef FLINK_TNEL_COUNTINGOUTPUT_H
 #define FLINK_TNEL_COUNTINGOUTPUT_H
 
+#include <memory>
 #include "streaming/runtime/streamrecord/StreamRecord.h"
 #include "runtime/metrics/Counter.h"
+#include "runtime/metrics/SimpleCounter.h"
 #include "streaming/api/watermark/Watermark.h"
 #include "streaming/runtime/tasks/WatermarkGaugeExposingOutput.h"
+#include "runtime/metrics/groups/TaskMetricGroup.h"
+#include "runtime/executiongraph/operatorchain/OperatorPOD.h"
 
-class CountingOutput : WatermarkGaugeExposingOutput {
+class CountingOutput : public WatermarkGaugeExposingOutput {
 public:
-    CountingOutput(WatermarkGaugeExposingOutput* output, omnistream::Counter* numRecordsOut)
-        : output(output),
-          numRecordsOut(numRecordsOut) {};
+    CountingOutput(
+        WatermarkGaugeExposingOutput* output,
+        const std::shared_ptr<omnistream::TaskMetricGroup>& metricGroup,
+        omnistream::OperatorPOD& opConfig);
 
     void emitWatermark(Watermark* mark) override;
     void collect(void* record) override;
@@ -29,7 +34,24 @@ public:
 
 private:
     WatermarkGaugeExposingOutput* output;
-    omnistream::Counter* numRecordsOut;
+    std::shared_ptr<omnistream::SimpleCounter> numRecordsOut;
+};
+
+class BytesCountingOutput : public WatermarkGaugeExposingOutput {
+public:
+    BytesCountingOutput(
+        WatermarkGaugeExposingOutput* output,
+        const std::shared_ptr<omnistream::TaskMetricGroup>& metricGroup,
+        omnistream::OperatorPOD& opConfig);
+
+    void emitWatermark(Watermark* mark) override;
+    void collect(void* record) override;
+    void close() override;
+    void emitWatermarkStatus(WatermarkStatus* watermarkStatus) override;
+
+private:
+    WatermarkGaugeExposingOutput* output;
+    std::shared_ptr<omnistream::SimpleCounter> numBytesOut;
 };
 
 #endif // FLINK_TNEL_COUNTINGOUTPUT_H

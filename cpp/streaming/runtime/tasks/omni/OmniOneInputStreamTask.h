@@ -35,7 +35,8 @@ public:
     ~OmniOneInputStreamTask() override = default;
     const std::string getName() const override;
     OmniPushingAsyncDataInput::OmniDataOutput* createDataOutput(
-        std::shared_ptr<omnistream::SimpleCounter>& numRecordsIn);
+        std::shared_ptr<omnistream::SimpleCounter>& numRecordsIn,
+        std::shared_ptr<omnistream::SimpleCounter>& numBytesIn);
     OmniStreamTaskInput* CreateTaskInput(std::shared_ptr<CheckpointedInputGate> inputGate);
     std::shared_ptr<CheckpointedInputGate> CreateCheckpointedInputGate();
     static bool ShouldUseUnionInputGate(int taskType, size_t inputGateCount, bool hasUnionAllInput);
