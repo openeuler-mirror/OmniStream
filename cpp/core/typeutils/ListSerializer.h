@@ -13,6 +13,8 @@
 #define OMNISTREAM_LISTSERIALIZER_H
 #include "TypeSerializerSingleton.h"
 #include "SerializerJsonInfo.h"
+#include "typeutils/RowDataSerializer.h"
+#include "typeutils/TypeSerializer.h"
 
 class ListSerializer : public TypeSerializerSingleton {
 public:
@@ -32,7 +34,12 @@ public:
     void serialize(Object* buffer, DataOutputSerializer& target) override;
     BackendDataType getBackendId() const override
     {
-        return BackendDataType::OBJECT_BK;
+        // TODO:
+        // 当前无法通过getBackendId区分elementSerializer是否为RowDataSerializer还是BinaryRowDataSerializer
+        // ，因此采用dynamic_cast判断elementSerializer类型，
+        // 待BinaryRowDataSerializer使用单独的BackendId后可以修改为使用getBackendId判断elementSerializer类型
+        return dynamic_cast<RowDataSerializer*>(elementSerializer) == nullptr ? BackendDataType::OBJECT_BK
+                                                                              : BackendDataType::ROW_LIST_BK;
     }
 
     TypeSerializer* getElementSerializer() const
