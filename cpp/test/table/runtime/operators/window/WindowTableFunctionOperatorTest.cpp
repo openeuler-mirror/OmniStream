@@ -64,6 +64,8 @@ nlohmann::json MakeDescription(
 {
     nlohmann::json desc;
     desc["window"] = window;
+    const std::string windowType = window.substr(0, window.find('('));
+    desc["windowType"] = windowType;
     desc["timeType"] = timeType;
     desc["timeAttributeIndex"] = timeAttributeIndex;
     desc["shiftTimeZone"] = shiftTimeZone;

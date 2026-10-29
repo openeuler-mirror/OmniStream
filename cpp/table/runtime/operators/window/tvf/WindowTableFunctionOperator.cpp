@@ -39,22 +39,18 @@ WindowTableFunctionOperator::WindowTableFunctionOperator(const nlohmann::json& c
     rowtimeIndex_ = config.contains("timeAttributeIndex") ? config["timeAttributeIndex"].get<int64_t>() : -1;
     shiftTimeZone_ = config.value("shiftTimeZone", std::string("UTC"));
 
-    const std::string windowMsg = config["window"].get<std::string>();
-    const std::string windowType = windowMsg.substr(0, windowMsg.find('('));
+    // windowType 由 Java 规划侧权威下发（对应 Flink createWindowAssigner 的分派决策），
+    // 此处仅按权威字段实例化对应 assigner，不再解析 window 计划字符串。
+    const std::string windowType = config.at("windowType").get<std::string>();
+    const int64_t offset = config.contains("windowOffset") ? config["windowOffset"].get<int64_t>() : 0;
     if (windowType == "TUMBLE") {
-        const int64_t size = config.at("windowSize").get<int64_t>();
-        const int64_t offset = config.contains("windowOffset") ? config["windowOffset"].get<int64_t>() : 0;
-        windowAssigner_ = new TumblingWindowAssigner(size, offset, isEventTime_);
+        windowAssigner_ = new TumblingWindowAssigner(config.at("windowSize").get<int64_t>(), offset, isEventTime_);
     } else if (windowType == "HOP") {
-        const int64_t size = config.at("windowSize").get<int64_t>();
-        const int64_t slide = config.at("windowSlide").get<int64_t>();
-        const int64_t offset = config.contains("windowOffset") ? config["windowOffset"].get<int64_t>() : 0;
-        windowAssigner_ = new SlidingWindowAssigner(size, slide, offset, isEventTime_);
+        windowAssigner_ = new SlidingWindowAssigner(config.at("windowSize").get<int64_t>(),
+            config.at("windowSlide").get<int64_t>(), offset, isEventTime_);
     } else if (windowType == "CUMULATE") {
-        const int64_t maxSize = config.at("maxSize").get<int64_t>();
-        const int64_t step = config.at("step").get<int64_t>();
-        const int64_t offset = config.contains("windowOffset") ? config["windowOffset"].get<int64_t>() : 0;
-        windowAssigner_ = new CumulativeWindowAssigner(maxSize, step, offset, isEventTime_);
+        windowAssigner_ = new CumulativeWindowAssigner(config.at("maxSize").get<int64_t>(),
+            config.at("step").get<int64_t>(), offset, isEventTime_);
     } else {
         THROW_LOGIC_EXCEPTION("Unsupported window type: " + windowType);
     }
