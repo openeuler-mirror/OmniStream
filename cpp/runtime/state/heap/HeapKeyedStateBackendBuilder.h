@@ -316,7 +316,7 @@ private:
     static std::vector<V>* deserializeVector(TypeSerializer* elemSer, DataInputDeserializer& input)
     {
         auto* vec = new std::vector<V>();
-        while (input.Available() > 0) {
+        auto readElement = [&]() {
             if constexpr (std::is_same_v<V, Object*>) {
                 Object* buf = elemSer->GetBuffer();
                 elemSer->deserialize(buf, input);
@@ -330,6 +330,9 @@ private:
                 vec->push_back(*static_cast<V*>(raw));
                 delete static_cast<V*>(raw);
             }
+        };
+        while (input.Available() > 0) {
+            readElement();
             if (input.Available() > 0) {
                 input.readByte(); // consume ',' delimiter
             }
@@ -374,11 +377,6 @@ HeapKeyedStateBackend<K>* HeapKeyedStateBackendBuilder<K>::build()
                     throw std::runtime_error("Heap compatible restore adaptor factory returned null");
                 }
                 compatiblePreparedAdaptor->prepareForRestore(operatorDescription_);
-            }
-        } else if (taskType_ == 1) {
-            if (adaptorInfo_.type != FlinkSavepointAdaptorType::OmniIsCompatible && !validateRestoreStateHandles()) {
-                INFO_RELEASE("Error:Heap restore does not support current state handles");
-                throw std::runtime_error("Heap restore does not support current state handles");
             }
         }
     }
@@ -746,10 +744,24 @@ void HeapKeyedStateBackendBuilder<K>::restoreEntryToHeap(
             table->put(*static_cast<K*>(rawKey), keyGroupId, *static_cast<VoidNamespace*>(rawNs), vecVal);
             delete static_cast<K*>(rawKey);
             delete static_cast<VoidNamespace*>(rawNs);
+        } else if (nsBackendId == BackendDataType::BIGINT_BK && dataId == BackendDataType::ROW_BK) {
+            auto* vecVal = deserializeVector<RowData*>(elemSer, valInput);
+            auto* table = reinterpret_cast<CopyOnWriteStateTable<K, int64_t, std::vector<RowData*>*>*>(stateTablePtr);
+            table->put(*static_cast<K*>(rawKey), keyGroupId, *static_cast<int64_t*>(rawNs), vecVal);
+            delete static_cast<K*>(rawKey);
+            delete static_cast<int64_t*>(rawNs);
+        } else if (dataId == BackendDataType::ROW_BK) {
+            auto* vecVal = deserializeVector<RowData*>(elemSer, valInput);
+            auto* table =
+                reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<RowData*>*>*>(stateTablePtr);
+            table->put(*static_cast<K*>(rawKey), keyGroupId, *static_cast<VoidNamespace*>(rawNs), vecVal);
+            delete static_cast<K*>(rawKey);
+            delete static_cast<VoidNamespace*>(rawNs);
         } else {
             INFO_RELEASE("Error:HeapKeyedStateBackendBuilder: unsupported LIST restore type " << dataId);
             delete static_cast<K*>(rawKey);
             delete static_cast<VoidNamespace*>(rawNs);
+            THROW_RUNTIME_ERROR("HeapKeyedStateBackendBuilder: unsupported LIST restore type " << dataId);
         }
 
     } else if (desc->getType() == StateDescriptor::Type::MAP) {

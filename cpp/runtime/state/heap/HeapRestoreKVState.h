@@ -687,7 +687,7 @@ void HeapRestoreKVState<K>::writeListEntry(const std::vector<int8_t>& keyBytes, 
             reinterpret_cast<CopyOnWriteStateTable<K, VoidNamespace, std::vector<int64_t>*>*>(stateInfo_.mainTablePtr);
         table->put(*static_cast<K*>(rawKey), keyGroupId_, *static_cast<VoidNamespace*>(rawNs), vec.release());
     } else {
-        INFO_RELEASE(
+        ERROR_RELEASE(
             "HeapRestoreKVState: Error: unsupported LIST element type " << static_cast<int>(elemId) << " for state '"
                                                                         << stateInfo_.stateName << "'");
         throw std::runtime_error(

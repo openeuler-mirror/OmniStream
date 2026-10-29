@@ -418,7 +418,7 @@ StreamOperator* StreamOperatorFactory::CreateKeyedProcessOp(
         LOG("Deduplicate3");
         op->setup(std::move(task));
         op->setDescription(opDescriptionJSON);
-        op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::DeduplicateAdaptor);
+        op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
         LOG("Operator KeyedProcessOperator address  " + std::to_string(reinterpret_cast<long>(op)));
         return static_cast<OneInputStreamOperator*>(op);
     } else if (

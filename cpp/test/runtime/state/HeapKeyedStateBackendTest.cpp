@@ -64,7 +64,6 @@ TEST(HeapKeyedStateBackendTest, VectorBatchTest1)
 {
     KeyGroupRange* range = new KeyGroupRange(0, 10);
     BinaryRowDataSerializer* keySerializer = new BinaryRowDataSerializer(1);
-    BinaryRowDataSerializer* valueSerializer = new BinaryRowDataSerializer(1);
     InternalKeyContextImpl<RowData*>* context = new InternalKeyContextImpl<RowData*>(range, 10);
 
     BinaryRowData* keyRowData1 = BinaryRowData::createBinaryRowDataWithMem(1);
@@ -77,30 +76,22 @@ TEST(HeapKeyedStateBackendTest, VectorBatchTest1)
     HeapKeyedStateBackend<RowData*>* backend = new HeapKeyedStateBackend<RowData*>(keySerializer, context);
 
     std::string stateName = "RowDataVectorBatchValueState";
-    auto* descriptor = new ValueStateDescriptor<RowData*>(stateName, valueSerializer);
+    auto* descriptor = new ValueStateDescriptor<int64_t>(stateName, new LongSerializer());
 
     auto stateHandle = backend->createOrUpdateInternalState(new VoidNamespaceSerializer(), descriptor);
-    auto* valueState = reinterpret_cast<HeapValueState<RowData*, VoidNamespace, RowData*>*>(stateHandle);
+    auto* valueState = reinterpret_cast<HeapValueState<RowData*, VoidNamespace, int64_t>*>(stateHandle);
     ASSERT_NE(valueState, nullptr);
 
-    BinaryRowData* valueForKey1 = BinaryRowData::createBinaryRowDataWithMem(1);
-    valueForKey1->setLong(0, 1000);
-    valueState->update(valueForKey1);
+    valueState->update(1000);
 
     context->setCurrentKey(keyRowData2);
-    BinaryRowData* valueForKey2 = BinaryRowData::createBinaryRowDataWithMem(1);
-    valueForKey2->setLong(0, 2000);
-    valueState->update(valueForKey2);
+    valueState->update(2000);
 
     context->setCurrentKey(keyRowData1);
-    BinaryRowData* readForKey1 = dynamic_cast<BinaryRowData*>(valueState->value());
-    ASSERT_NE(readForKey1, nullptr);
-    EXPECT_EQ(*readForKey1->getLong(0), 1000);
+    EXPECT_EQ(valueState->value(), 1000);
 
     context->setCurrentKey(keyRowData2);
-    BinaryRowData* readForKey2 = dynamic_cast<BinaryRowData*>(valueState->value());
-    ASSERT_NE(readForKey2, nullptr);
-    EXPECT_EQ(*readForKey2->getLong(0), 2000);
+    EXPECT_EQ(valueState->value(), 2000);
 
     auto stateHandleAgain = backend->createOrUpdateInternalState(new VoidNamespaceSerializer(), descriptor);
     EXPECT_EQ(stateHandle, stateHandleAgain);
@@ -127,7 +118,7 @@ TEST(HeapKeyedStateBackendTest, VectorBatchTest1)
 
     context->setCurrentKey(keyRowData1);
     valueState->clear();
-    EXPECT_EQ(valueState->value(), nullptr);
+    EXPECT_EQ(valueState->value(), 0);
     // clear() on one key does not affect the shared VectorBatch side table.
     EXPECT_EQ(valueState->getNextSequenceNumber(keyGroup), 2);
     EXPECT_EQ(valueState->getVectorBatch(keyGroup, batchId0), storedBatch0);
@@ -135,7 +126,7 @@ TEST(HeapKeyedStateBackendTest, VectorBatchTest1)
 
     context->setCurrentKey(keyRowData2);
     valueState->clear();
-    EXPECT_EQ(valueState->value(), nullptr);
+    EXPECT_EQ(valueState->value(), 0);
     EXPECT_EQ(valueState->getNextSequenceNumber(keyGroup), 2);
     EXPECT_EQ(valueState->getVectorBatch(keyGroup, batchId0), storedBatch0);
     EXPECT_EQ(valueState->getVectorBatch(keyGroup, batchId1), storedBatch1);
@@ -327,16 +318,15 @@ TEST(HeapKeyedStateBackendTest, VectorBatchSideTableMultiStateStability)
     context->setCurrentKey(1);
 
     HeapKeyedStateBackend<int>* backend = new HeapKeyedStateBackend<int>(new IntSerializer(), context);
-    BinaryRowDataSerializer* valueSerializer = new BinaryRowDataSerializer(1);
 
     auto createValueState = [&](const std::string& stateName) {
-        auto* descriptor = new ValueStateDescriptor<RowData*>(stateName, valueSerializer);
+        auto* descriptor = new ValueStateDescriptor<int64_t>(stateName, new LongSerializer());
         auto stateHandle = backend->createOrUpdateInternalState(new VoidNamespaceSerializer(), descriptor);
-        return reinterpret_cast<HeapValueState<int, VoidNamespace, RowData*>*>(stateHandle);
+        return reinterpret_cast<HeapValueState<int, VoidNamespace, int64_t>*>(stateHandle);
     };
 
     // Register many side tables; the first state should still allocate batch ids via table size().
-    std::vector<HeapValueState<int, VoidNamespace, RowData*>*> states;
+    std::vector<HeapValueState<int, VoidNamespace, int64_t>*> states;
     for (int i = 0; i < 32; ++i) {
         states.push_back(createValueState("VectorBatchValueState_" + std::to_string(i)));
     }
