@@ -1,6 +1,8 @@
 # 编译指南
 
-## 适用于 OpenEuler 操作系统
+本文档介绍OmniStream在OpenEuler操作系统上的编译流程，涵盖依赖组件、编译环境搭建、OmniStream编译与单元测试，适用于需要在OpenEuler环境编译OmniStream的开发人员。
+
+## 仅适用于 OpenEuler 操作系统
 
 ### 依赖组件
 
@@ -127,8 +129,10 @@
 
     ```bash
     mkdir -p /opt/buildtools && cd /opt/buildtools
+    #下载OmniStream源码
     git clone https://gitcode.com/openeuler/OmniStream.git
     cd /opt/buildtools/OmniStream
+    #指定用户目录，避免CMake缓存写入容器默认HOME
     export HOME=/opt/buildtools
     cmake -S cpp -B cpp/build -G Ninja -DCMAKE_BUILD_TYPE=Release
     cmake --build cpp/build --parallel 32
@@ -149,4 +153,10 @@ cd /opt/buildtools/OmniStream/cpp/build/test
 
 结果如下：
 
-![单元测试结果](figures/compile-guide/unit-test-result.png)
+![在容器内执行tneltest后终端回显的单元测试结果，显示各测试用例的通过情况](figures/compile-guide/unit-test-result.png)
+
+## 修订记录
+
+| 文档版本 | 发布日期 | 修改说明 |
+| --- | --- | --- |
+| 01 | 2026-09-30 | 第一次正式发布。 |

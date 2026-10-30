@@ -2,6 +2,8 @@
 
 [English](README_en.md) | 简体中文
 
+本文档介绍OmniStream 1.4.0（基于Flink 1.16.3的Flink Native化加速特性），涵盖项目简介、架构介绍、约束与限制、环境部署与学习文档入口，适用于需要提升Flink实时分析性能的开发与运维人员。
+
 ## 最新消息<a name="ZH-CN_TOPIC_0000002517961774"></a>
 
 - \[2026.09.30\]：发布OmniStream 1.4.0。支持checkpoint/savepoint；SQL场景下，支持Join/Deduplicate/Rank算子通过canonical格式的savepoint与Flink进行作业切换。
@@ -14,11 +16,9 @@
 
 ### 简介<a name="ZH-CN_TOPIC_0000002549641551"></a>
 
-大数据OmniRuntime通过插件化的形式，端到端提升数据加载、数据计算和数据交换的性能，从而提升大数据分析性能。
-
 随着互联网的发展，数据规模出现了爆炸式的增长，需要处理的数据量越来越大，CPU算力的增长远远滞后于数据的增长。大数据开源生态也越来越丰富，但多样化的计算引擎和开源组件也同时带来了全生命周期数据处理性能提升难的问题。不同的大数据引擎采用各自独特的优化策略和技术来提高性能和效率，但有些优化项会在多个引擎中重复应用，可能存在差异或冲突，导致计算性能下降。此外，重复应用相同的优化项可能导致资源竞争和冲突，降低整体计算性能。
 
-大数据OmniRuntime是鲲鹏BoostKit大数据面向应用加速推出的一系列特性，通过插件化的形式，端到端提升数据加载、数据计算和数据交换的性能，从而提升大数据分析的性能。
+大数据OmniRuntime是鲲鹏BoostKit大数据面向应用加速推出的一系列特性。因此，鲲鹏BoostKit大数据推出OmniRuntime系列特性，通过插件化形式端到端提升数据加载、数据计算和数据交换的性能。通过插件化的形式，端到端提升数据加载、数据计算和数据交换的性能，从而提升大数据分析的性能。
 
 OmniStream Flink Native化为OmniRuntime的特性之一。OmniStream Flink Native化是一种采用Native Code（C/C++）实现Flink SQL算子来提高查询性能的特性，通过对Flink引擎进行Native化改造，以实现性能的显著提升。
 
@@ -31,7 +31,7 @@ OmniStream Flink Native化特性通过Native Code（C/C++）重构Flink SQL与Da
 - 针对SQL，OmniStream采用C++结合向量化指令实现算子，通过向量化加速，提升SQL计算性能。
 - 针对DataStream，OmniStream采用C++结合向量化指令实现算子，充分发挥Native Code性能优势，提升DataStream场景性能。
 
-在有状态场景中，OmniStream支持基于Native化架构使能omniStateStore加速特性，通过降低RocksDB访问频次减少磁盘IO，以提升查询性能。
+在有状态场景中，OmniStream支持基于Native化架构使能OmniStateStore加速特性，通过降低RocksDB访问频次减少磁盘IO，以提升查询性能。
 
 - 针对RocksDBValueState，通过状态缓存在内存中完成状态聚合，减少RocksDB访问频次。
 - 针对RocksDBValueState，将memTable的数据结构修改为LinkHashList，提升状态点读点写效率。
@@ -49,7 +49,7 @@ SQL/Table API输入的SQL查询首先会经过解析，生成对应的执行计�
 
 OmniStream Flink SQL Native化架构如[图 1](#architecture-of-omnistream-flink-sql-native)所示。<br><br>
 **图 1** OmniStream Flink SQL Native化整体架构设计<a name="zh-cn_topic_0000002543922607_zh-cn_topic_0000002228744542_fig685102835814"></a><a id="architecture-of-omnistream-flink-sql-native"></a><br>
-![](docs/zh/figures/architecture-of-omnistream-flink-sql-native.png "OmniStream-Flink-SQL-Native化整体架构设计")
+![Java适配层生成执行计划、C++核心层运行算子链的SQL Native化双层架构，数据自Source经算子链至Sink输出](docs/zh/figures/architecture-of-omnistream-flink-sql-native.png "OmniStream-Flink-SQL-Native化整体架构设计")
 
 **DataStream<a name="zh-cn_topic_0000002543922607_section10781121012457"></a>**
 
@@ -58,7 +58,7 @@ DataStream API接收输入后，会将其解析为执行计划。Java适配层�
 OmniStream Flink DataStream Native化架构如[图 2](#architecture-of-omnistream-flink-datastream-native)所示。<br>
 
 **图 2** OmniStream Flink DataStream Native化整体架构设计<a name="zh-cn_topic_0000002543922607_fig918683363812"></a><a id="architecture-of-omnistream-flink-datastream-native"></a><br>
-![](docs/zh/figures/architecture-of-omnistream-flink-datastream-native.png "OmniStream-Flink-DataStream-Native化整体架构设计")
+![DataStream API执行计划经Java适配层解析、由C++算子链执行的Native化分层架构，数据从Source经算子处理后由Sink输出](docs/zh/figures/architecture-of-omnistream-flink-datastream-native.png "OmniStream-Flink-DataStream-Native化整体架构设计")
 
 **OmniStateStore<a name="zh-cn_topic_0000002543922607_section10781121012457"></a>**
 
@@ -67,7 +67,7 @@ OmniStream Flink DataStream Native化架构如[图 2](#architecture-of-omnistrea
 OmniStream Flink OmniStateStore Native化架构如[图 3](#architecture-of-omnistream-omniStateStore)所示。<br>
 
 **图 3** OmniStream使能OmniStateStore加速特性整体架构设计<a name="zh-cn_topic_0000002543922607_zh-cn_topic_0000002228744542_fig685102835814"></a><a id="architecture-of-omnistream-omniStateStore"></a><br>
-![](docs/zh/figures/architecture-of-omnistream-omniStateStore.png "OmniStream使能OmniStateStore加速特性整体架构设计")
+![OmniStateStore加速特性架构，状态缓存与状态过滤模块位于RocksDB状态后端之上，用于减少RocksDB访问频次](docs/zh/figures/architecture-of-omnistream-omniStateStore.png "OmniStream使能OmniStateStore加速特性整体架构设计")
 
 ## 约束与限制
 
@@ -89,7 +89,7 @@ OmniStream Flink Native化的配置限制包括数据类型、算子支持、状
 - LookupJoin算子的外部表数据源仅支持CSV文件。
 - 状态后端只支持内存和RocksDB。
 - Flink会将状态存储在内存状态后端中，内存使用会随时间和处理数据量增长，OmniStream使用列式向量化架构优化性能，状态存储跟原生行为一致，处理速度比原生Flink更快，使用内存增长速度比原生快，提升性能的同时对于空间的需求也增大，因此当前Nexmark基准测试用例输入数据量最大只支持5千万数据。
-- SQL场景下，OmniStream当前仅支持Join算子/Deduplicate算子/Rank算子通过canonical格式的SP实现与Flink进行任务切换。
+- SQL场景下，OmniStream当前仅支持Join算子/Deduplicate算子/Rank算子通过canonical格式的Savepoint（SP）实现与Flink进行作业切换。
 - SQL场景下，OmniStream当前仅支持事件时间语义，且仅支持指定数据类型为TIMESTAMP(3)的字段作为事件时间。
 - 受列式向量化架构影响，在Kafka数据源下，OmniStream的Watermark推进机制与Flink存在差异，依赖Watermark推进的算子（如Window算子）可能产生与Flink不一致的计算结果。
 - SQL场景下，OmniStream暂不支持配置数据源的空闲超时时间（table.exec.source.idle-timeout）。
@@ -106,7 +106,7 @@ OmniStream Flink Native化的配置限制包括数据类型、算子支持、状
 **OmniStateStore<a name="zh-cn_topic_0000002512242608_section14862183194614"></a>**
 
 - 支持的加速特性：Flink语义状态缓存、动态Filter技术、智能多流感知技术。
-- 上述加速特性在omniStream中默认开启，暂不支持加速特性关闭功能。
+- 上述加速特性在OmniStream中默认开启，暂不支持加速特性关闭功能。
 
 ### 应用场景<a name="ZH-CN_TOPIC_0000002549521541"></a>
 
@@ -175,7 +175,6 @@ Nexmark：一个用于评估连续数据流上查询性能的基准套件，为�
 | [编译指南](./docs/zh/compile_guide.md)                                            | 提供编译OmniStream的详细指导。                   |
 | [用户指南](./docs/zh/user_guide.md)                                               | 提供使用OmniStream的详细指导。                   |
 | [常见问题](./docs/zh/faq.md)                                                      | 提供OmniStream安装、使用过程的常见问题和解决方法。         |
-| 视频课程：[OmniRuntime特性大揭秘](https://www.hikunpeng.com/document/video-detail/2849) | 提供操作视频，帮助开发者在鲲鹏服务器上了解、使能OmniRuntime特性。 |
 
 ## 安全声明<a name="ZH-CN_TOPIC_0000002551517383"></a>
 
@@ -315,3 +314,7 @@ docs目录下的文档适用CC-BY 4.0许可证，具体请参见[LICENSE](./docs
 ## 致谢<a name="ZH-CN_TOPIC_0000002549641563"></a>
 
 感谢来自社区的每一个PR，欢迎贡献OmniStream！
+
+| 文档版本 | 发布日期 | 修改说明 |
+| --- | --- | --- |
+| 01 | 2026-09-30 | 第一次正式发布。 |
