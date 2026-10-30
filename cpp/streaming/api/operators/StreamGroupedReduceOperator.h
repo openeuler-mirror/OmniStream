@@ -162,6 +162,7 @@ public:
 
     void close() override
     {
+        AbstractUdfStreamOperator<ReduceFunction<K>, K*>::close();
     }
 
     void ProcessWatermark(Watermark* watermark) override

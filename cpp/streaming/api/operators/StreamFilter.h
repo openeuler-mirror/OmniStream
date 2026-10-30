@@ -152,6 +152,7 @@ public:
 
     void close() override
     {
+        AbstractUdfStreamOperator<FilterFunction<F>, K>::close();
     }
 
     const char* getName() override

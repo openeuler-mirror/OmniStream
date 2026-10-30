@@ -54,7 +54,7 @@ public:
 
     void processWatermarkStatus(WatermarkStatus* watermarkStatus) override
     {
-        output->emitWatermarkStatus(watermarkStatus);
+        LOG("SinkOperator WatermarkStatus, do nothing!");
     }
 
     std::shared_ptr<omnistream::TaskMetricGroup> GetMectrics() override

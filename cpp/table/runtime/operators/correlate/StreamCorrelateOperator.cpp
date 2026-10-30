@@ -177,6 +177,7 @@ void StreamCorrelateOperator::close()
     if (timestampedCollector_) {
         timestampedCollector_->close();
     }
+    AbstractStreamOperator<int>::close();
 }
 
 void StreamCorrelateOperator::parseDescription(const nlohmann::json& desc)

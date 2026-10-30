@@ -319,6 +319,7 @@ public:
 
     void close() override
     {
+        AbstractUdfStreamOperator<KeyedCoProcessFunction<K*, IN1, IN2, OUT>, OUT>::close();
     }
 
 protected:

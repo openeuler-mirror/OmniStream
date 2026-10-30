@@ -197,6 +197,7 @@ void WatermarkAssignerOperator::finish()
 
 void WatermarkAssignerOperator::close()
 {
+    AbstractStreamOperator<int>::close();
 }
 
 const char* WatermarkAssignerOperator::getName()
