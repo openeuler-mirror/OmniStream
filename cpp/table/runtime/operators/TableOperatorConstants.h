@@ -45,6 +45,9 @@ constexpr std::string_view OPERATOR_NAME_CONSTRAINTENFORCER =
     "org.apache.flink.table.runtime.operators.sink.ConstraintEnforcer";
 constexpr std::string_view OPERATOR_NAME_GROUP_WINDOW_AGG =
     "org.apache.flink.table.runtime.operators.window.AggregateWindowOperator";
+// Flink StreamExecWindowTableFunction instantiates WindowTableFunctionOperator for standalone Window TVF.
+constexpr std::string_view OPERATOR_NAME_WINDOW_TABLE_FUNCTION =
+    "org.apache.flink.table.runtime.operators.window.WindowTableFunctionOperator";
 constexpr std::string_view OPERATOR_NAME_INPUT_CONVERSION =
     "org.apache.flink.table.runtime.operators.source.InputConversionOperator";
 constexpr std::string_view OPERATOR_NAME_FILTER = "org.apache.flink.streaming.api.operators.StreamFilter";
