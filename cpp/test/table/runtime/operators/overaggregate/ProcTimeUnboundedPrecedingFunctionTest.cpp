@@ -19,7 +19,9 @@
 #include <nlohmann/json.hpp>
 #include <gtest/gtest.h>
 #include <cstdint>
+#include <filesystem>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 #include "streaming/runtime/streamrecord/StreamRecord.h"
@@ -28,6 +30,7 @@
 #include "core/typeutils/LongSerializer.h"
 #include "table/data/binary/BinaryRowData.h"
 #include "runtime/taskmanager/OmniRuntimeEnvironment.h"
+#include "runtime/state/EmbeddedRocksDBStateBackend.h"
 #include "core/api/common/TaskInfoImpl.h"
 #include "table/typeutils/RowDataSerializer.h"
 #include "streaming/api/operators/KeyedProcessOperator.h"
@@ -70,7 +73,12 @@ public:
 
     void collect(void* record) override
     {
-        capturedBatches.push_back(reinterpret_cast<omnistream::VectorBatch*>(record));
+        // TimestampedCollector::collect wraps each emitted value in a new
+        // StreamRecord before handing it downstream; unwrap it here (and
+        // take ownership of the wrapper record).
+        auto* streamRecord = static_cast<StreamRecord*>(record);
+        capturedBatches.push_back(reinterpret_cast<omnistream::VectorBatch*>(streamRecord->getValue()));
+        delete streamRecord;
     }
     void close() override
     {
@@ -98,22 +106,31 @@ public:
             parsedJson["operators"][0]["outputTypes"],
             parsedJson["operators"][0]["description"]);
 
-        BinaryRowDataSerializer* binaryRowDataSerializer = new BinaryRowDataSerializer(inputArity);
-        const int32_t BUFFER_CAPACITY = 256;
-        uint8_t* address = new uint8_t[BUFFER_CAPACITY];
-        auto* partitioner = new DummyStreamPartitioner<IOReadableWritable>();
-        auto* recordWriter = new RecordWriter(address, BUFFER_CAPACITY, partitioner);
         recordWriteOutput = new CapturingRecordWriterOutput();
 
         StreamOperatorFactory streamOperatorFactory;
-        KeyedProcessOperator<RowData*, RowData*, RowData*>* keyedOp =
-            dynamic_cast<KeyedProcessOperator<RowData*, RowData*, RowData*>*>(
-                streamOperatorFactory.createOperatorAndCollector(opConfig, recordWriteOutput));
-        ASSERT_NE(keyedOp, nullptr);
+        // Note: assigns the member (no local declaration) so feed()/batch()
+        // see the same operator instance.
+        keyedOp = dynamic_cast<KeyedProcessOperator<RowData*, RowData*, RowData*>*>(
+            streamOperatorFactory.createOperatorAndCollector(opConfig, recordWriteOutput));
+        // ASSERT_* macros expand to `return;` which is invalid in a
+        // constructor; fail loudly instead.
+        if (keyedOp == nullptr) {
+            throw std::runtime_error("OverTestHarness: factory did not create a KeyedProcessOperator");
+        }
 
         auto env2 = new omnistream::RuntimeEnvironmentV2();
         auto taskInfo = new TaskInformationPOD();
         taskInfo->setStateBackend(stateBackend);
+        if (stateBackend == "EmbeddedRocksDBStateBackend") {
+            // RocksDB needs an explicit store path (unique per harness instance,
+            // cleaned on construction) exactly like RowTimeDeduplicateFunctionTest.
+            static int rocksPathCounter = 0;
+            const auto rocksPath = std::filesystem::temp_directory_path() /
+                ("over-unbounded-proctime-rocksdb-" + std::to_string(rocksPathCounter++));
+            std::filesystem::remove_all(rocksPath);
+            taskInfo->setRocksdbStorePaths({rocksPath.string()});
+        }
         {
             auto configPOD = taskInfo->getStreamConfigPOD();
             auto operatorDesc = configPOD.getOperatorDescription();
@@ -121,14 +138,32 @@ public:
             configPOD.setOperatorDescription(operatorDesc);
             taskInfo->setStreamConfigPOD(configPOD);
         }
-        env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
-        env2->setTaskConfiguration(*taskInfo);
-        StreamTaskStateInitializerImpl* initializer = new StreamTaskStateInitializerImpl(env2);
+        TypeSerializer* ser = nullptr;
+        StreamTaskStateInitializerImpl* initializer = nullptr;
+        if (stateBackend == "EmbeddedRocksDBStateBackend") {
+            // The single-argument StreamTaskStateInitializerImpl ctor only supports
+            // the heap backend; RocksDB needs the backend object passed in
+            // explicitly, together with a fully populated TaskStateManager.
+            auto jobId = omnistream::JobIDPOD(1, 2);
+            auto jobVertexId = omnistream::JobVertexID(3, 4);
+            auto attemptId = omnistream::ExecutionAttemptIDPOD::randomId();
+            auto* stateStore = new TaskLocalStateStore(jobId, jobVertexId, 0, nullptr);
+            auto* responder = new omnistream::NoOpCheckpoingResponder();
+            env2->SetTaskStateManager(
+                std::make_shared<omnistream::TaskStateManager>(jobId, attemptId, stateStore, responder));
+            env2->setTaskConfiguration(*taskInfo);
+            auto* rocksBackend = new EmbeddedRocksDBStateBackend(*taskInfo);
+            initializer = new StreamTaskStateInitializerImpl(rocksBackend, env2);
+        } else {
+            env2->SetTaskStateManager(std::make_shared<omnistream::TaskStateManager>());
+            env2->setTaskConfiguration(*taskInfo);
+            initializer = new StreamTaskStateInitializerImpl(env2);
+        }
         auto* typeInfo = new std::vector<omnistream::RowField>();
         for (int i = 0; i < inputArity; ++i) {
             typeInfo->push_back(omnistream::RowField("col" + std::to_string(i), BasicLogicalType::BIGINT));
         }
-        TypeSerializer* ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
+        ser = new RowDataSerializer(new omnistream::RowType(false, *typeInfo));
 
         keyedOp->initializeState(initializer, ser);
         keyedOp->open();
@@ -194,11 +229,14 @@ std::string sumOverDescription(const std::vector<int>& grouping)
         "operators":[{"description":{
                     "processFunction":"ProcTimeUnboundedPrecedingFunction",
                     "aggInfoList":{"accTypes":["BIGINT"],"aggValueTypes":["BIGINT"],
-                        "aggregateCalls":[{"argIndexes":[1],"name":"SUM($1)","filterArg":-1}]},
+                        "aggregateCalls":[{"argIndexes":[1],"name":"SUM($1)","filterArg":-1}],"indexOfCountStar":-1},
                     "grouping":)DELIM" + groupingStr + R"DELIM(,
+                    "distinctInfos":[],
                     "inputTypes":["BIGINT","BIGINT"],
+                    "originDescription":"[3]:OverAggregate(partitionBy=[bidder], select=[bidder, price, SUM(price) OVER (PARTITION BY bidder ORDER BY proctime ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])",
                     "outputTypes":["BIGINT","BIGINT","BIGINT"]},
                     "id":"org.apache.flink.streaming.api.operators.KeyedProcessOperator",
+                    "inputs":[{"kind":"Row","type":[{"isNull":true,"kind":"logical","type":"BIGINT"},{"isNull":true,"kind":"logical","type":"BIGINT"}]}],
                     "name":"OverAggregate[3]",
                     "output":{"kind":"Row","type":[{"kind":"logical","type":"BIGINT"},{"kind":"logical","type":"BIGINT"},{"kind":"logical","type":"BIGINT"}]}}],
         "partition":{"channelNumber":1,"partitionName":"forward"}})DELIM";
@@ -252,11 +290,14 @@ TEST(ProcTimeUnboundedPrecedingFunctionTest, CountStarGlobalPartition)
         "operators":[{"description":{
                     "processFunction":"ProcTimeUnboundedPrecedingFunction",
                     "aggInfoList":{"accTypes":["BIGINT"],"aggValueTypes":["BIGINT"],
-                        "aggregateCalls":[{"argIndexes":[],"name":"COUNT(*)","filterArg":-1}]},
+                        "aggregateCalls":[{"argIndexes":[],"name":"COUNT(*)","filterArg":-1}],"indexOfCountStar":-1},
                     "grouping":[],
+                    "distinctInfos":[],
                     "inputTypes":["BIGINT","BIGINT"],
+                    "originDescription":"[3]:OverAggregate(select=[bidder, price, COUNT(*) OVER ()])",
                     "outputTypes":["BIGINT","BIGINT","BIGINT"]},
                     "id":"org.apache.flink.streaming.api.operators.KeyedProcessOperator",
+                    "inputs":[{"kind":"Row","type":[{"isNull":true,"kind":"logical","type":"BIGINT"},{"isNull":true,"kind":"logical","type":"BIGINT"}]}],
                     "name":"OverAggregate[3]",
                     "output":{"kind":"Row","type":[{"kind":"logical","type":"BIGINT"},{"kind":"logical","type":"BIGINT"},{"kind":"logical","type":"BIGINT"}]}}],
         "partition":{"channelNumber":1,"partitionName":"forward"}})DELIM";
@@ -279,11 +320,14 @@ TEST(ProcTimeUnboundedPrecedingFunctionTest, MaxKeepsCurrentMaximum)
         "operators":[{"description":{
                     "processFunction":"ProcTimeUnboundedPrecedingFunction",
                     "aggInfoList":{"accTypes":["BIGINT"],"aggValueTypes":["BIGINT"],
-                        "aggregateCalls":[{"argIndexes":[1],"name":"MAX($1)","filterArg":-1}]},
+                        "aggregateCalls":[{"argIndexes":[1],"name":"MAX($1)","filterArg":-1}],"indexOfCountStar":-1},
                     "grouping":[0],
+                    "distinctInfos":[],
                     "inputTypes":["BIGINT","BIGINT"],
+                    "originDescription":"[3]:OverAggregate(partitionBy=[bidder], select=[bidder, price, MAX(price) OVER (PARTITION BY bidder ORDER BY proctime ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])",
                     "outputTypes":["BIGINT","BIGINT","BIGINT"]},
                     "id":"org.apache.flink.streaming.api.operators.KeyedProcessOperator",
+                    "inputs":[{"kind":"Row","type":[{"isNull":true,"kind":"logical","type":"BIGINT"},{"isNull":true,"kind":"logical","type":"BIGINT"}]}],
                     "name":"OverAggregate[3]",
                     "output":{"kind":"Row","type":[{"kind":"logical","type":"BIGINT"},{"kind":"logical","type":"BIGINT"},{"kind":"logical","type":"BIGINT"}]}}],
         "partition":{"channelNumber":1,"partitionName":"forward"}})DELIM";
@@ -311,11 +355,14 @@ TEST(ProcTimeUnboundedPrecedingFunctionTest, MultipleAggregates)
                     "aggInfoList":{"accTypes":["BIGINT","BIGINT"],"aggValueTypes":["BIGINT","BIGINT"],
                         "aggregateCalls":[
                             {"argIndexes":[1],"name":"SUM($1)","filterArg":-1},
-                            {"argIndexes":[1],"name":"COUNT($1)","filterArg":-1}]},
+                            {"argIndexes":[1],"name":"COUNT($1)","filterArg":-1}],"indexOfCountStar":-1},
                     "grouping":[0],
+                    "distinctInfos":[],
                     "inputTypes":["BIGINT","BIGINT"],
+                    "originDescription":"[3]:OverAggregate(partitionBy=[bidder], select=[bidder, price, SUM(price), COUNT(price)])",
                     "outputTypes":["BIGINT","BIGINT","BIGINT","BIGINT"]},
                     "id":"org.apache.flink.streaming.api.operators.KeyedProcessOperator",
+                    "inputs":[{"kind":"Row","type":[{"isNull":true,"kind":"logical","type":"BIGINT"},{"isNull":true,"kind":"logical","type":"BIGINT"}]}],
                     "name":"OverAggregate[3]",
                     "output":{"kind":"Row","type":[{"kind":"logical","type":"BIGINT"},{"kind":"logical","type":"BIGINT"},{"kind":"logical","type":"BIGINT"},{"kind":"logical","type":"BIGINT"}]}}],
         "partition":{"channelNumber":1,"partitionName":"forward"}})DELIM";
@@ -372,32 +419,36 @@ TEST(ProcTimeUnboundedPrecedingFunctionTest, DualBackendConsistencyRocksDB)
 // strategy keeps such plans on the Java path.
 TEST(ProcTimeUnboundedPrecedingFunctionTest, UnsupportedAggregateThrows)
 {
-    const nlohmann::json config = {
-        {"processFunction", "ProcTimeUnboundedPrecedingFunction"},
-        {"grouping", {0}},
-        {"inputTypes", {"BIGINT", "BIGINT"}},
-        {"outputTypes", {"BIGINT", "BIGINT", "DOUBLE"}},
-        {"aggInfoList",
-         {{"accTypes", {"BIGINT", "BIGINT"}},
-          {"aggValueTypes", {"DOUBLE"}},
-          {"aggregateCalls", nlohmann::json::array({{{"argIndexes", {1}}, {"name", "AVG($1)"}, {"filterArg", -1}}})}}}}};
+    const std::string description = R"DELIM({
+        "processFunction":"ProcTimeUnboundedPrecedingFunction",
+        "grouping":[0],
+        "inputTypes":["BIGINT","BIGINT"],
+        "outputTypes":["BIGINT","BIGINT","DOUBLE"],
+        "aggInfoList":{
+            "accTypes":["BIGINT","BIGINT"],
+            "aggValueTypes":["DOUBLE"],
+            "aggregateCalls":[{"argIndexes":[1],"name":"AVG($1)","filterArg":-1}]
+        }})DELIM";
+    const nlohmann::json config = nlohmann::json::parse(description);
     EXPECT_THROW(
-        new ProcTimeUnboundedPrecedingFunction(0L, config), std::runtime_error);
+        ProcTimeUnboundedPrecedingFunction func(0L, config), std::runtime_error);
 }
 
 // Defense in depth: a description whose processFunction does not match this
 // class is rejected even if the factory somehow routed it here.
 TEST(ProcTimeUnboundedPrecedingFunctionTest, ProcessFunctionMismatchThrows)
 {
-    const nlohmann::json config = {
-        {"processFunction", "ProcTimeRowsBoundedPrecedingFunction"},
-        {"grouping", {0}},
-        {"inputTypes", {"BIGINT", "BIGINT"}},
-        {"outputTypes", {"BIGINT", "BIGINT", "BIGINT"}},
-        {"aggInfoList",
-         {{"accTypes", {"BIGINT"}},
-          {"aggValueTypes", {"BIGINT"}},
-          {"aggregateCalls", nlohmann::json::array({{{"argIndexes", {1}}, {"name", "SUM($1)"}, {"filterArg", -1}}})}}}}};
+    const std::string description = R"DELIM({
+        "processFunction":"ProcTimeRowsBoundedPrecedingFunction",
+        "grouping":[0],
+        "inputTypes":["BIGINT","BIGINT"],
+        "outputTypes":["BIGINT","BIGINT","BIGINT"],
+        "aggInfoList":{
+            "accTypes":["BIGINT"],
+            "aggValueTypes":["BIGINT"],
+            "aggregateCalls":[{"argIndexes":[1],"name":"SUM($1)","filterArg":-1}]
+        }})DELIM";
+    const nlohmann::json config = nlohmann::json::parse(description);
     EXPECT_THROW(
-        new ProcTimeUnboundedPrecedingFunction(0L, config), std::runtime_error);
+        ProcTimeUnboundedPrecedingFunction func(0L, config), std::runtime_error);
 }

@@ -154,6 +154,24 @@ StreamOperator* StreamOperatorFactory::createOperatorAndCollector(
             LOG("Operator KeyedProcessOperator address  " + std::to_string(reinterpret_cast<long>(op)));
 
             return static_cast<OneInputStreamOperator*>(op);
+        } else if (
+            opConfig.getDescription().contains("processFunction") &&
+            opConfig.getDescription()["processFunction"] == "ProcTimeUnboundedPrecedingFunction") {
+            // OmniStream native OverAggregate v1 (OperatorConfig/test path). The
+            // production path (CreateKeyedProcessOp below) dispatches on the same
+            // processFunction marker; this overload is used by the unit tests,
+            // which build operators from OperatorConfig instead of OperatorPOD.
+            ProcTimeUnboundedPrecedingFunction* func =
+                new ProcTimeUnboundedPrecedingFunction(0l, opConfig.getDescription());
+            auto* op = new KeyedProcessOperator(func, chainOutput, opConfig.getDescription());
+            op->setup();
+            op->setFlinkSavepointUnsupported(
+                "OverAggregate (ProcTimeUnboundedPreceding) native state is not convertible by any "
+                "existing savepoint adaptor");
+            op->setDescription(opConfig.getDescription());
+            LOG("Operator KeyedProcessOperator (over) address  " + std::to_string(reinterpret_cast<long>(op)));
+
+            return static_cast<OneInputStreamOperator*>(op);
         } else {
             GroupAggFunction* func = new GroupAggFunction(0l, opConfig.getDescription());
             auto* op = new KeyedProcessOperator(func, chainOutput, opConfig.getDescription());
