@@ -224,7 +224,11 @@ void ProcTimeUnboundedPrecedingFunction::open(const Configuration& parameters)
 
     omnistream::RowType accRowType(true, this->accTypes);
     auto accRowTypeInfo = InternalTypeInfo::ofRowType(&accRowType);
-    auto* accDesc = new ValueStateDescriptor<RowData*>("overAccState", accRowTypeInfo);
+    // State name and layout mirror the Java operator exactly (ValueState<RowData>
+    // "accState" holding the accumulator row), keeping the native state backend
+    // structurally equivalent to native Flink. No batch/columnar data may ever
+    // be written into the state backend.
+    auto* accDesc = new ValueStateDescriptor<RowData*>("accState", accRowTypeInfo);
     accDesc->SetStateSerializer(accRowTypeInfo->getTypeSerializer());
     accState = static_cast<StreamingRuntimeContext<RowData*>*>(getRuntimeContext())->getState<RowData*>(accDesc);
 
