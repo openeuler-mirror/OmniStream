@@ -18,7 +18,7 @@
 
 #include "table/data/RowData.h"
 #include "table/data/JoinedRowData.h"
-#include "table/data/BinaryRowData.h"
+#include "data/binary/BinaryRowData.h"
 #include "table/runtime/generated/AggsHandleFunction.h"
 #include "table/types/logical/LogicalType.h"
 #include "core/api/common/state/ValueState.h"
