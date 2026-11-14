@@ -46,6 +46,7 @@
 #include "runtime/operators/sink/ConstraintEnforcer.h"
 #include "table/runtime/operators/rank/AppendOnlyTopNFunction.h"
 #include "table/runtime/operators/rank/RetractableTopNFunction.h"
+#include "table/runtime/operators/overaggregate/ProcTimeUnboundedPrecedingFunction.h"
 #include "table/runtime/operators/window/processor/AbstractWindowAggProcessor.h"
 #include "table/runtime/operators/rank/FastTop1Function.h"
 #include "table/runtime/operators/join/window/InnerJoinOperator.h"
@@ -152,6 +153,24 @@ StreamOperator* StreamOperatorFactory::createOperatorAndCollector(
             auto* op = new KeyedProcessOperator(func, chainOutput, opConfig.getDescription());
             op->setup();
             LOG("Operator KeyedProcessOperator address  " + std::to_string(reinterpret_cast<long>(op)));
+
+            return static_cast<OneInputStreamOperator*>(op);
+        } else if (
+            opConfig.getDescription().contains("processFunction") &&
+            opConfig.getDescription()["processFunction"] == "ProcTimeUnboundedPrecedingFunction") {
+            // OmniStream native OverAggregate v1 (OperatorConfig/test path). The
+            // production path (CreateKeyedProcessOp below) dispatches on the same
+            // processFunction marker; this overload is used by the unit tests,
+            // which build operators from OperatorConfig instead of OperatorPOD.
+            ProcTimeUnboundedPrecedingFunction* func =
+                new ProcTimeUnboundedPrecedingFunction(0l, opConfig.getDescription());
+            auto* op = new KeyedProcessOperator(func, chainOutput, opConfig.getDescription());
+            op->setup();
+            op->setFlinkSavepointUnsupported(
+                "OverAggregate (ProcTimeUnboundedPreceding) native state is not convertible by any "
+                "existing savepoint adaptor");
+            op->setDescription(opConfig.getDescription());
+            LOG("Operator KeyedProcessOperator (over) address  " + std::to_string(reinterpret_cast<long>(op)));
 
             return static_cast<OneInputStreamOperator*>(op);
         } else {
@@ -516,6 +535,25 @@ StreamOperator* StreamOperatorFactory::CreateKeyedProcessOp(
         auto* op = new KeyedProcessOperator(func, chainOutput, opDescriptionJSON);
         op->setup(std::move(task));
         op->setFlinkSavepointAdaptor(FlinkSavepointAdaptorType::OmniIsCompatible);
+        op->setDescription(opDescriptionJSON);
+        LOG("Operator KeyedProcessOperator address  " + std::to_string(reinterpret_cast<long>(op)));
+        return static_cast<OneInputStreamOperator*>(op);
+    } else if (
+        opDescriptionJSON.contains("processFunction") &&
+        opDescriptionJSON["processFunction"] == "ProcTimeUnboundedPrecedingFunction") {
+        // OmniStream native OverAggregate v1: processing-time unbounded
+        // preceding window (prefix aggregation). The description is emitted by
+        // the OmniAdaptor StreamExecOverAggregate patch, which only writes
+        // this processFunction for whitelisted plans (SUM/COUNT/MAX/MIN over
+        // a proc-time unbounded frame); everything else stays on the Java path.
+        LOG("ProcTimeUnboundedPrecedingFunction description: " << opConfig.getDescription());
+        ProcTimeUnboundedPrecedingFunction* func = new ProcTimeUnboundedPrecedingFunction(0l, opDescriptionJSON);
+        auto* op = new KeyedProcessOperator(func, chainOutput, opDescriptionJSON);
+        op->setup(std::move(task));
+        // SP-INTEROP: no savepoint adaptor converts the over-aggregate state yet.
+        op->setFlinkSavepointUnsupported(
+            "OverAggregate (ProcTimeUnboundedPreceding) native state is not convertible by any "
+            "existing savepoint adaptor");
         op->setDescription(opDescriptionJSON);
         LOG("Operator KeyedProcessOperator address  " + std::to_string(reinterpret_cast<long>(op)));
         return static_cast<OneInputStreamOperator*>(op);
