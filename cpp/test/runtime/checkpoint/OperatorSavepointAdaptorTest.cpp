@@ -144,7 +144,7 @@ TEST(OperatorSavepointAdaptorTest, ConvertToDataTypesHandlesFloatingPointTypes)
     std::vector<std::string> typeNames = {"FLOAT", "DOUBLE"};
     auto result = OperatorSavepointAdaptor::convertToDataTypes(typeNames);
     ASSERT_EQ(result.size(), 2u);
-    EXPECT_EQ(result[0], omniruntime::type::OMNI_INT);
+    EXPECT_EQ(result[0], omniruntime::type::OMNI_FLOAT);
     EXPECT_EQ(result[1], omniruntime::type::OMNI_DOUBLE);
 }
 

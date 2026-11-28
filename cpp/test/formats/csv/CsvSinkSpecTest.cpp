@@ -102,10 +102,12 @@ TEST(CsvSinkSpecTest, AcceptsAdmittedScalarTypes)
         column("ts", "TIMESTAMP", 3),
         column("ltz", "TIMESTAMP_LTZ", 3),
         column("d", "DECIMAL", 10, 2),
+        column("f64", "DOUBLE"),
+        column("f32", "FLOAT"),
     });
-    spec["nonPartitionIndexes"] = json::array({0, 1, 2, 3, 4, 5, 6});
+    spec["nonPartitionIndexes"] = json::array({0, 1, 2, 3, 4, 5, 6, 7, 8});
     CsvSinkSpec parsed = CsvSinkSpec::fromJson(spec);
-    ASSERT_EQ(parsed.fields.size(), 7u);
+    ASSERT_EQ(parsed.fields.size(), 9u);
     EXPECT_EQ(parsed.fields[4].logicalType, CsvLogicalType::TIMESTAMP);
     EXPECT_EQ(parsed.fields[4].precision, 3);
     EXPECT_EQ(parsed.fields[5].logicalType, CsvLogicalType::TIMESTAMP_LTZ);
@@ -113,6 +115,9 @@ TEST(CsvSinkSpecTest, AcceptsAdmittedScalarTypes)
     EXPECT_EQ(parsed.fields[6].logicalType, CsvLogicalType::DECIMAL);
     EXPECT_EQ(parsed.fields[6].precision, 10);
     EXPECT_EQ(parsed.fields[6].scale, 2);
+    EXPECT_EQ(parsed.fields[7].logicalType, CsvLogicalType::DOUBLE);
+    EXPECT_EQ(parsed.fields[8].logicalType, CsvLogicalType::FLOAT);
+
 }
 
 TEST(CsvSinkSpecTest, RejectsNestedAndUnadmittedTypes)
@@ -123,9 +128,9 @@ TEST(CsvSinkSpecTest, RejectsNestedAndUnadmittedTypes)
         spec["nonPartitionIndexes"] = json::array({0});
         expectThrowsContaining(spec, "unknown logicalType");
     }
-    // DOUBLE / DATE / TIME are recognized by the enum but not admitted by the native
+    // DATE / TIME are recognized by the enum but not admitted by the native
     // encoder: they must be rejected, not encoded.
-    for (const char* type : {"DOUBLE", "DATE", "TIME"}) {
+    for (const char* type : {"DATE", "TIME"}) {
         json spec = baseSpec();
         spec["fields"] = json::array({column("f", type)});
         spec["nonPartitionIndexes"] = json::array({0});

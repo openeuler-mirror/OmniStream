@@ -119,6 +119,26 @@ public:
         }
     }
 
+    static inline float* getFloat(uint8_t* offHeapBuffer, int size, int index)
+    {
+        if (index >= 0 && index <= size - static_cast<int>(sizeof(float))) {
+            return reinterpret_cast<float*>(offHeapBuffer + index);
+        } else {
+            std::cerr << "Index: " << index << " size: " << size << std::endl;
+            throw std::logic_error("IndexOutOfBoundsException");
+        }
+    }
+
+    static inline void putFloat(uint8_t* offHeapBuffer, int size, int index, float value)
+    {
+        if (index >= 0 && index <= size - static_cast<int>(sizeof(float))) {
+            memcpy_s(offHeapBuffer + index, sizeof(float), &value, sizeof(float));
+        } else {
+            std::cerr << "Index: " << index << " size: " << size << std::endl;
+            throw std::logic_error("IndexOutOfBoundsException");
+        }
+    }
+
     static inline bool* getBool(uint8_t* offHeapBuffer, int size, int index)
     {
         if (index >= 0 && index <= size - static_cast<int>(sizeof(bool))) {

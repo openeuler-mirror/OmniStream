@@ -23,6 +23,7 @@
 #include "OmniOperatorJIT/core/src/type/decimal128.h"
 #include "formats/csv/CsvEncoding.h"
 #include "formats/csv/CsvSinkSpec.h"
+#include "formats/csv/JavaFloatingFormat.h"
 
 namespace omnistream {
 namespace csv {
@@ -183,6 +184,32 @@ private:
                     THROW_RUNTIME_ERROR(
                         "CsvRowEncoder DECIMAL expects OMNI_DECIMAL64/128, got " << static_cast<int>(phys));
                 }
+                return;
+            }
+            case CsvLogicalType::DOUBLE: {
+                if (phys != DataTypeId::OMNI_DOUBLE) {
+                    THROW_RUNTIME_ERROR("CsvRowEncoder DOUBLE expects OMNI_DOUBLE, got " << static_cast<int>(phys));
+                }
+                double v = reinterpret_cast<omniruntime::vec::Vector<double>*>(vec)->GetValue(row);
+                appendRawField(out, JavaFloatingFormat::formatDouble(v));
+                return;
+            }
+            case CsvLogicalType::FLOAT: {
+                // A FLOAT column normally reaches the sink widened into a Vector<double>
+                // (exact: 24 significant bits fit in 53), but an OMNI_FLOAT vector is also
+                // accepted when the producer keeps the narrow type. Both cases must print
+                // the value with 24-bit precision, never with the widened 53-bit one.
+                if (phys == DataTypeId::OMNI_FLOAT) {
+                    float v = reinterpret_cast<omniruntime::vec::Vector<float>*>(vec)->GetValue(row);
+                    appendRawField(out, JavaFloatingFormat::formatFloat(v));
+                    return;
+                }
+                if (phys != DataTypeId::OMNI_DOUBLE) {
+                    THROW_RUNTIME_ERROR(
+                        "CsvRowEncoder FLOAT expects OMNI_DOUBLE/OMNI_FLOAT, got " << static_cast<int>(phys));
+                }
+                double widened = reinterpret_cast<omniruntime::vec::Vector<double>*>(vec)->GetValue(row);
+                appendRawField(out, JavaFloatingFormat::formatFloat(static_cast<float>(widened)));
                 return;
             }
             default: THROW_RUNTIME_ERROR("CsvRowEncoder: logical type not supported at encode time");

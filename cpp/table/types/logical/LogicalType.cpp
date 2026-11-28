@@ -256,7 +256,7 @@ void LogicalType::buildNameToIdMap()
         nameToIdMap["BOOLEAN"] = DataTypeId::OMNI_BOOLEAN;
         nameToIdMap["DATE"] = DataTypeId::OMNI_DATE32;
         nameToIdMap["DOUBLE"] = DataTypeId::OMNI_DOUBLE;
-        nameToIdMap["FLOAT"] = DataTypeId::OMNI_INT;
+        nameToIdMap["FLOAT"] = DataTypeId::OMNI_FLOAT;
         nameToIdMap["INT"] = DataTypeId::OMNI_INT;
         nameToIdMap["INTEGER"] = DataTypeId::OMNI_INT;
         nameToIdMap["SMALLINT"] = DataTypeId::OMNI_SHORT;

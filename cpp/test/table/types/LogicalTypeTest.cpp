@@ -19,7 +19,7 @@ TEST(LogicalTypeTest, flinkTypeToOmniTypeIdTest)
     EXPECT_EQ(LogicalType::flinkTypeToOmniTypeId("BOOLEAN"), omniruntime::type::DataTypeId::OMNI_BOOLEAN);
     EXPECT_EQ(LogicalType::flinkTypeToOmniTypeId("DATE"), omniruntime::type::DataTypeId::OMNI_DATE32);
     EXPECT_EQ(LogicalType::flinkTypeToOmniTypeId("DOUBLE"), omniruntime::type::DataTypeId::OMNI_DOUBLE);
-    EXPECT_EQ(LogicalType::flinkTypeToOmniTypeId("FLOAT"), omniruntime::type::DataTypeId::OMNI_INT);
+    EXPECT_EQ(LogicalType::flinkTypeToOmniTypeId("FLOAT"), omniruntime::type::DataTypeId::OMNI_FLOAT);
     EXPECT_EQ(LogicalType::flinkTypeToOmniTypeId("INT"), omniruntime::type::DataTypeId::OMNI_INT);
     EXPECT_EQ(LogicalType::flinkTypeToOmniTypeId("SMALLINT"), omniruntime::type::DataTypeId::OMNI_SHORT);
     EXPECT_EQ(LogicalType::flinkTypeToOmniTypeId("TINYINT"), omniruntime::type::DataTypeId::OMNI_SHORT);
@@ -101,7 +101,7 @@ TEST(LogicalTypeTest, flinkTypeToOmniTypeIdTest)
     EXPECT_EQ(LogicalType::flinkTypeToOmniTypeId("BOOLEAN NOT NULL"), omniruntime::type::DataTypeId::OMNI_BOOLEAN);
     EXPECT_EQ(LogicalType::flinkTypeToOmniTypeId("DATE NOT NULL"), omniruntime::type::DataTypeId::OMNI_DATE32);
     EXPECT_EQ(LogicalType::flinkTypeToOmniTypeId("DOUBLE NOT NULL"), omniruntime::type::DataTypeId::OMNI_DOUBLE);
-    EXPECT_EQ(LogicalType::flinkTypeToOmniTypeId("FLOAT NOT NULL"), omniruntime::type::DataTypeId::OMNI_INT);
+    EXPECT_EQ(LogicalType::flinkTypeToOmniTypeId("FLOAT NOT NULL"), omniruntime::type::DataTypeId::OMNI_FLOAT);
     EXPECT_EQ(LogicalType::flinkTypeToOmniTypeId("INT NOT NULL"), omniruntime::type::DataTypeId::OMNI_INT);
     EXPECT_EQ(LogicalType::flinkTypeToOmniTypeId("SMALLINT NOT NULL"), omniruntime::type::DataTypeId::OMNI_SHORT);
     EXPECT_EQ(LogicalType::flinkTypeToOmniTypeId("TINYINT NOT NULL"), omniruntime::type::DataTypeId::OMNI_SHORT);

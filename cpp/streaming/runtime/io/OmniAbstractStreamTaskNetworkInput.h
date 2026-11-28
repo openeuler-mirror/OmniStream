@@ -452,6 +452,10 @@ public:
                     setDouble(outputBatch, numRows, colIndex, collectedRows);
                     break;
                 }
+                case DataTypeId::OMNI_FLOAT: {
+                    setFloat(outputBatch, numRows, colIndex, collectedRows);
+                    break;
+                }
                 case DataTypeId::OMNI_BOOLEAN: {
                     setBool(outputBatch, numRows, colIndex, rowList);
                     break;
@@ -587,7 +591,28 @@ public:
             if (collectedRows[rowIndex]->isNullAt(colIndex)) {
                 vector->SetNull(rowIndex);
             } else {
-                vector->SetValue(rowIndex, *collectedRows[rowIndex]->getLong(colIndex));
+                vector->SetValue(rowIndex, *collectedRows[rowIndex]->getDouble(colIndex));
+            }
+        }
+        outputBatch->Append(vector);
+    }
+
+    // A FLOAT column is widened into a Vector<double> so the native pipeline keeps a
+    // single floating-point layout. The widening is exact (the 24-bit significand
+    // fits in 53 bits), and the CSV encoder narrows it back to float before
+    // formatting, so no precision is introduced or lost.
+    void setFloat(
+        omniruntime::vec::VectorBatch* outputBatch,
+        int numRows,
+        int colIndex,
+        std::vector<BinaryRowData*> collectedRows)
+    {
+        auto* vector = new omniruntime::vec::Vector<double>(numRows);
+        for (int rowIndex = 0; rowIndex < numRows; ++rowIndex) {
+            if (collectedRows[rowIndex]->isNullAt(colIndex)) {
+                vector->SetNull(rowIndex);
+            } else {
+                vector->SetValue(rowIndex, static_cast<double>(*collectedRows[rowIndex]->getFloat(colIndex)));
             }
         }
         outputBatch->Append(vector);

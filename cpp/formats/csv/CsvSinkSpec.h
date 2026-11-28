@@ -39,7 +39,8 @@ enum class CsvLogicalType : std::uint8_t {
     VARCHAR,   // CHAR / VARCHAR / STRING
     TIMESTAMP, // TIMESTAMP WITHOUT TIME ZONE, p <= 3
     DECIMAL,
-    DOUBLE,        // not admitted; parsed for diagnostics
+    DOUBLE,        // Java Double.toString() text form
+    FLOAT,         // Java Float.toString() text form (24-bit precision)
     TIMESTAMP_LTZ, // p <= 3
     DATE,          // not admitted; parsed for diagnostics
     TIME           // not admitted; parsed for diagnostics
@@ -54,6 +55,7 @@ inline CsvLogicalType parseLogicalType(const std::string& name)
     if (name == "TIMESTAMP") return CsvLogicalType::TIMESTAMP;
     if (name == "DECIMAL") return CsvLogicalType::DECIMAL;
     if (name == "DOUBLE") return CsvLogicalType::DOUBLE;
+    if (name == "FLOAT") return CsvLogicalType::FLOAT;
     if (name == "TIMESTAMP_LTZ") return CsvLogicalType::TIMESTAMP_LTZ;
     if (name == "DATE") return CsvLogicalType::DATE;
     if (name == "TIME") return CsvLogicalType::TIME;
@@ -79,6 +81,8 @@ inline bool isSupportedLogicalType(CsvLogicalType t)
         case CsvLogicalType::VARCHAR:
         case CsvLogicalType::TIMESTAMP:
         case CsvLogicalType::TIMESTAMP_LTZ:
+        case CsvLogicalType::DOUBLE:
+        case CsvLogicalType::FLOAT:
         case CsvLogicalType::DECIMAL: return true;
         default: return false;
     }

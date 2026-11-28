@@ -143,6 +143,12 @@ public:
                 deserializeDouble(vectorDouble, buffer);
                 break;
             }
+            case OMNI_FLOAT: {
+                Vector<float>* vectorFloat = new Vector<float>(vectorSize);
+                baseVector = vectorFloat;
+                deserializeFloat(vectorFloat, buffer);
+                break;
+            }
             case OMNI_BOOLEAN: {
                 Vector<bool>* vectorBool = new Vector<bool>(vectorSize);
                 baseVector = vectorBool;
@@ -228,6 +234,15 @@ public:
         double* data = UnsafeVector::GetRawValues(vectorDouble);
         memcpy_s(data, sizeof(double) * size, buffer, sizeof(double) * size);
         buffer += sizeof(double) * size;
+    }
+
+    static void deserializeFloat(Vector<float>* vectorFloat, uint8_t*& buffer)
+    {
+        int32_t size = vectorFloat->GetSize();
+        deserializeNulls(vectorFloat, buffer, size);
+        float* data = UnsafeVector::GetRawValues(vectorFloat);
+        memcpy_s(data, sizeof(float) * size, buffer, sizeof(float) * size);
+        buffer += sizeof(float) * size;
     }
 
     static void deserializeBool(Vector<bool>* vectorBool, uint8_t*& buffer)
@@ -427,6 +442,7 @@ private:
                     case OMNI_DATE32: elementSize = sizeof(int32_t); break;
                     case OMNI_SHORT: elementSize = sizeof(int16_t); break;
                     case OMNI_DOUBLE: elementSize = sizeof(double); break;
+                    case OMNI_FLOAT: elementSize = sizeof(float); break;
                     case OMNI_BOOLEAN: elementSize = sizeof(bool); break;
                     case OMNI_DECIMAL128: elementSize = sizeof(Decimal128); break;
                     default: fail("unsupported flat dataType=" + std::to_string(static_cast<int>(dataType)));
