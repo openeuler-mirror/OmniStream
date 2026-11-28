@@ -85,6 +85,9 @@ public:
     double* getDouble(int pos) override;
     void setDouble(int pos, double value) override;
 
+    float* getFloat(int pos) override;
+    void setFloat(int pos, float value) override;
+
     TimestampData getTimestamp(int pos) override;
     TimestampData getTimestampPrecise(int pos) override;
     void* getRawValue(int pos) override;

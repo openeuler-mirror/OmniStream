@@ -63,6 +63,8 @@ public:
     static void serializeInt16(BaseVector* baseVector, uint8_t*& buffer, int32_t bufferSize);
 
     static void serializeDouble(BaseVector* baseVector, uint8_t*& buffer, int32_t bufferSize);
+    
+    static void serializeFloat(BaseVector* baseVector, uint8_t*& buffer, int32_t bufferSize);
 
     static void serializeBool(BaseVector* baseVector, uint8_t*& buffer, int32_t bufferSize);
 

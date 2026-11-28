@@ -163,6 +163,7 @@ int32_t omnistream::VectorBatchSerializationUtils::calculatePrimitiveDataSize(Ba
         case OMNI_SHORT: return sizeof(int16_t) * size;
 
         case OMNI_DOUBLE: return sizeof(double) * size;
+        case OMNI_FLOAT: return sizeof(float) * size;
         case OMNI_BOOLEAN: return sizeof(bool) * size;
         case OMNI_DECIMAL128: return sizeof(Decimal128) * size;
 
@@ -219,6 +220,7 @@ void omnistream::VectorBatchSerializationUtils::serializePrimitiveVector(
         case OMNI_SHORT: serializeInt16(baseVector, buffer, bufferSize); break;
 
         case OMNI_DOUBLE: serializeDouble(baseVector, buffer, bufferSize); break;
+        case OMNI_FLOAT: serializeFloat(baseVector, buffer, bufferSize); break;
         case OMNI_BOOLEAN: serializeBool(baseVector, buffer, bufferSize); break;
         case OMNI_DECIMAL128: serializeDecimal128(baseVector, buffer, bufferSize); break;
         default:
@@ -323,6 +325,20 @@ void omnistream::VectorBatchSerializationUtils::serializeDouble(
     Vector<double>* vectorDouble = static_cast<Vector<double>*>(baseVector);
     double* data = UnsafeVector::GetRawValues(vectorDouble);
     int32_t size = sizeof(double) * baseVector->GetSize();
+    auto ret = memcpy_s(buffer, bufferSize, data, size);
+    if (ret != EOK) {
+        throw std::runtime_error("memcpy_s failed");
+    }
+    buffer += size;
+}
+
+void omnistream::VectorBatchSerializationUtils::serializeFloat(
+    BaseVector* baseVector, uint8_t*& buffer, int32_t bufferSize)
+{
+    // FLOAT(19) 现在可以由 CSV source 直接产出（Vector<float>），跨 task 传输时需要与 DOUBLE 对称的序列化。
+    Vector<float>* vectorFloat = static_cast<Vector<float>*>(baseVector);
+    float* data = UnsafeVector::GetRawValues(vectorFloat);
+    int32_t size = sizeof(float) * baseVector->GetSize();
     auto ret = memcpy_s(buffer, bufferSize, data, size);
     if (ret != EOK) {
         throw std::runtime_error("memcpy_s failed");

@@ -763,6 +763,11 @@ omnistream::VectorBatch* VectorBatch::CreateVectorBatch(int rowCount, const std:
                 vectorBatch->Append(vec);
                 break;
             }
+            case (omniruntime::type::DataTypeId::OMNI_FLOAT): {
+                auto vec = new omniruntime::vec::Vector<float>(rowCount);
+                vectorBatch->Append(vec);
+                break;
+            }
             case (omniruntime::type::DataTypeId::OMNI_CHAR):
             case (omniruntime::type::DataTypeId::OMNI_VARCHAR): {
                 auto vec =

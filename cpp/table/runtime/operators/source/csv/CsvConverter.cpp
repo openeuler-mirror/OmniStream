@@ -9,7 +9,11 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "CsvConverter.h"
+#include "CsvFloatingParser.h"
+#include <cctype>
+#include <cerrno>
 #include <cstdint>
+#include <cstdlib>
 #include <string>
 #include <stdexcept>
 #include <string_view>
@@ -243,14 +247,21 @@ BinaryRowData* CsvConverter::convert(const CsvRow& csvRow)
             }
         } else if (type == omniruntime::type::DataTypeId::OMNI_DOUBLE) {
             LOG("CsvConverter: Converting value '" << value << "' to double for column " << i);
-            try {
-                rowData->setDouble(i, std::stod(value));
-            } catch (const std::invalid_argument& e) {
-                LOG("CsvConverter: Invalid double value '" << value << "' for column " << i << ", setting it as null.");
+            double parsed = 0.0;
+            if (parseCsvDouble(value, parsed)) {
+                rowData->setDouble(i, parsed);
+            } else {
+                LOG("CsvConverter: Invalid double value '" << value << "' for column " << i
+                                                           << ", setting it as null.");
                 rowData->setNullAt(i);
-            } catch (const std::out_of_range& e) {
-                LOG("CsvConverter: Double value '" << value << "' out of range for column " << i
-                                                   << ", setting it as null.");
+            }
+        } else if (type == omniruntime::type::DataTypeId::OMNI_FLOAT) {
+            LOG("CsvConverter: Converting value '" << value << "' to float for column " << i);
+            float parsed = 0.0F;
+            if (parseCsvFloat(value, parsed)) {
+                rowData->setFloat(i, parsed);
+            } else {
+                LOG("CsvConverter: Invalid float value '" << value << "' for column " << i << ", setting it as null.");
                 rowData->setNullAt(i);
             }
         } else if (type == omniruntime::type::DataTypeId::OMNI_DATE32) {
@@ -498,12 +509,25 @@ omnistream::VectorBatch* CsvConverter::convert(std::vector<CsvRow>& csvRows, std
                     break;
                 }
                 case omniruntime::type::DataTypeId::OMNI_DOUBLE: {
-                    try {
-                        vectorBatch->SetValueAt(colIndex, rowIndex, std::stod(nodeValue));
-                    } catch (const std::invalid_argument& e) {
-                        vectorBatch->Get(colIndex)->SetNull(rowIndex);
-                    } catch (const std::out_of_range& e) {
-                        vectorBatch->Get(colIndex)->SetNull(rowIndex);
+                    double parsed = 0.0;
+                    if (parseCsvDouble(nodeValue, parsed)) {
+                        vectorBatch->SetValueAt(colIndex, rowIndex, parsed);
+                    } else {
+                        LOG("CsvConverter: Invalid double value '" << nodeValue << "' for column " << colIndex
+                                                                   << " in row " << rowIndex
+                                                                   << ", setting it as null.");
+                        SetNullAt(vectorBatch, colIndex, rowIndex, newVecBatchTypes[colIndex]);
+                    }
+                    break;
+                }
+                case omniruntime::type::DataTypeId::OMNI_FLOAT: {
+                    float parsed = 0.0F;
+                    if (parseCsvFloat(nodeValue, parsed)) {
+                        vectorBatch->SetValueAt(colIndex, rowIndex, parsed);
+                    } else {
+                        LOG("CsvConverter: Invalid float value '" << nodeValue << "' for column " << colIndex
+                                                                  << " in row " << rowIndex << ", setting it as null.");
+                        SetNullAt(vectorBatch, colIndex, rowIndex, newVecBatchTypes[colIndex]);
                     }
                     break;
                 }

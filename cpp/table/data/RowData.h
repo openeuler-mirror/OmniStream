@@ -65,6 +65,11 @@ public:
         NOT_IMPL_EXCEPTION;
     };
 
+    virtual float* getFloat(int pos)
+    {
+        NOT_IMPL_EXCEPTION;
+    };
+
     virtual BinaryStringData* getString(int pos);
 
     virtual RowKind getRowKind() = 0;
@@ -89,6 +94,11 @@ public:
     };
 
     virtual void setDouble(int pos, double value)
+    {
+        NOT_IMPL_EXCEPTION;
+    };
+
+    virtual void setFloat(int pos, float value)
     {
         NOT_IMPL_EXCEPTION;
     };

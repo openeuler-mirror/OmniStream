@@ -217,6 +217,12 @@ public:
                 return reinterpret_cast<omniruntime::vec::Vector<double>*>(vector)->CopyPositions(
                     positions, offset, length);
             }
+            case omniruntime::type::OMNI_FLOAT: {
+                // FLOAT 由 CSV source 直接产出（Vector<float>），下游复制位置时必须保留
+                // OMNI_FLOAT(19)，否则会落到 default 分支抛 "no such data type 19"。
+                return reinterpret_cast<omniruntime::vec::Vector<float>*>(vector)->CopyPositions(
+                    positions, offset, length);
+            }
             case omniruntime::type::OMNI_BOOLEAN: {
                 return reinterpret_cast<omniruntime::vec::Vector<bool>*>(vector)->CopyPositions(
                     positions, offset, length);
@@ -335,6 +341,10 @@ public:
                 case omniruntime::type::DataTypeId::OMNI_DOUBLE:
                     value = std::to_string(
                         reinterpret_cast<omniruntime::vec::Vector<double>*>(vecBatch->Get(col))->GetValue(row));
+                    break;
+                case omniruntime::type::DataTypeId::OMNI_FLOAT:
+                    value = std::to_string(
+                        reinterpret_cast<omniruntime::vec::Vector<float>*>(vecBatch->Get(col))->GetValue(row));
                     break;
                 case omniruntime::type::DataTypeId::OMNI_INT:
                     value = std::to_string(
